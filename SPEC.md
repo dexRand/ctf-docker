@@ -1,0 +1,92 @@
+# Spec: CTF Toolbox (repo `ctf-docker`)
+
+## Objective
+Raccogliere in un'unica repo Docker Compose i tool **realmente usati** per risolvere
+CTF, il più possibile **con GUI web**, esposti su porte `9000+` per non entrare in
+conflitto con gli altri progetti della macchina. Un'unica dashboard mostra tutti i
+servizi, **ordinati per fase di lavoro**, con una descrizione di a cosa servono e lo
+stato up/down.
+
+Utente: studente ITS Cybersecurity che prepara/risolve CTF in locale.
+
+## Tech Stack
+- Docker + Docker Compose v2 (immagini pre-costruite, nessun build custom in v1).
+- Dashboard: [Homepage](https://gethomepage.dev) (`ghcr.io/gethomepage/homepage`).
+- Config dashboard in `config/homepage/` (YAML versionato).
+
+## Commands
+```bash
+./ctf up                 # avvia il profilo core (dashboard + tool leggeri)
+./ctf up <profilo>       # es. ./ctf up web
+./ctf up-all             # avvia tutto
+./ctf down               # ferma tutto
+./ctf status             # stato container
+docker compose config    # valida il compose
+```
+
+## Project Structure
+```
+compose.yaml            → definizione servizi (project name: ctf)
+.env.example / .env     → porte e configurazione (segreti, non committare .env)
+config/homepage/        → services.yaml, settings.yaml, widgets.yaml
+config/scripts/         → script di supporto (es. helper)
+ctf                     → wrapper CLI (up/down/up-all/status/logs)
+SPEC.md                 → questa specifica
+tasks/                  → plan.md + todo.md (piano di lavoro)
+.opencode/              → Agent Skills (importate, licenza MIT in ATTRIBUTION.md)
+README.md               → guida utente rapida
+```
+
+## Code Style
+- Un servizio = un blocco YAML con `image` pinned + `restart: unless-stopped`.
+- Porte sempre `${NOME_PORTA:-default}:<interna>` così sono modificabili da `.env`.
+- Nomi tool **in inglese** nelle config, spiegazioni **in italiano**.
+- Nessun `container_name` fisso: si usa il prefisso del progetto (`ctf-*`) per non
+  collidere con gli altri stack (es. `veronabusapp-*`).
+- Profili Compose per i tool pesanti: `web`, `recon`, `forensics`, `crypto`, `crack`.
+
+## Testing Strategy
+Repo infrastrutturale: la "suite" è la verifica a runtime.
+- `docker compose config -q` → sintassi valida.
+- `curl`/`siteMonitor` di Homepage → ogni servizio risponde 2xx/3xx.
+- Checkpoint manuale: dashboard raggiungibile e ogni tool apre la sua GUI.
+
+## Porte (fascia 19000+, scelta anti-collisione)
+| Porta | Servizio | Uso |
+|------:|----------|-----|
+| 19000 | AperiSolve | stego/analisi immagini |
+| 19001 | Homepage | dashboard |
+| 19002 | CyberChef | encoding/crypto |
+| 19003 | mitmweb UI | GUI proxy HTTP(S) |
+| 19004 | mitmproxy | proxy (browser) |
+| 19005 | ZAP Webswing UI | web scanner (`/zap`) |
+| 19006 | ZAP proxy | proxy (browser) |
+| 19007 | SpiderFoot | OSINT |
+| 19008 | Wireshark http | pcap |
+| 19009 | Wireshark https | pcap (TLS) |
+| 19010 | SageMath Jupyter | crypto/math |
+| 19011 | IT-Tools | utility varie |
+| 19181 | RQ Dashboard | coda AperiSolve (solo localhost) |
+
+## Boundaries
+- **Always:** verificare che la porta sia libera prima di aggiungere un servizio;
+  validare con `docker compose config`; aggiornare dashboard e README insieme al compose.
+- **Ask first:** aggiungere un tool nuovo o un'immagine > 1 GB; cambiare le porte;
+  abilitare profili pesanti di default; push su remoto.
+- **Never:** committare `.env` o segreti; usare porte < 9000 (occupate da altri
+  progetti); attaccare target fuori dallo scope delle CTF.
+
+## Success Criteria
+- [ ] `docker compose config -q` passa senza errori.
+- [ ] `./ctf up` avvia dashboard + tool core, tutte le porte sono `9000+`.
+- [ ] La dashboard elenca **tutti** i tool ordinati per fase, con descrizione e stato.
+- [ ] Ogni tool incluso è un'immagine upstream reale e verificata (nessun build custom).
+- [ ] README spiega avvio, profili e a cosa serve ogni tool.
+
+## Decisions
+1. Set completo di tool confermato (tutti quelli elencati).
+2. Porte spostate sulla fascia **19000+** per ridurre al minimo le collisioni.
+3. Tool pesanti come profili opzionali: `web`, `recon`, `crypto`, `forensics`.
+4. Hashtopolis (cracking distribuito) rimandato: profilo `crack` in backlog.
+5. Push di fine lavoro su `https://github.com/dexRand/ctf-docker.git`.
+6. README principale in **inglese** (`README.md`), versione italiana in `README.it.md`.

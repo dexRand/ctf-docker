@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Wrapper per il CTF Toolbox.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+if [[ ! -f .env ]]; then
+  echo "[*] .env assente: lo creo da .env.example"
+  cp .env.example .env
+fi
+
+usage() {
+  cat <<'EOF'
+Uso: ./ctf <comando>
+
+  up [profilo...]   Avvia i tool core (+ i profili indicati)
+  up-all            Avvia tutti i tool (core + tutti i profili)
+  down              Ferma e rimuove i container
+  status            Stato dei container
+  logs [servizio]   Log in tempo reale
+  list              Elenca i profili disponibili
+
+Profili: web  recon  crypto  forensics
+Dashboard: http://localhost:19001
+EOF
+}
+
+all_profiles=(web recon crypto forensics)
+
+case "${1:-up}" in
+  up)
+    shift || true
+    args=()
+    for p in "$@"; do args+=(--profile "$p"); done
+    echo "[*] Avvio tool core${*:+ + profili: $*}"
+    docker compose "${args[@]}" up -d
+    echo "[*] Dashboard: http://localhost:19001"
+    ;;
+  up-all)
+    args=()
+    for p in "${all_profiles[@]}"; do args+=(--profile "$p"); done
+    echo "[*] Avvio di tutti i tool (puo' richiedere tempo: immagini pesanti)"
+    docker compose "${args[@]}" up -d
+    echo "[*] Dashboard: http://localhost:19001"
+    ;;
+  down)
+    echo "[*] Fermo i container"
+    docker compose down
+    ;;
+  status|ps)
+    docker compose ps
+    ;;
+  logs)
+    shift || true
+    docker compose logs -f "$@"
+    ;;
+  list)
+    printf 'Profili: %s\n' "${all_profiles[*]}"
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac

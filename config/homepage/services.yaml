@@ -1,0 +1,60 @@
+# Tool ordinati per fase di lavoro CTF.
+# `siteMonitor` mostra lo stato (HTTP HEAD). I tool con profilo risultano
+# "down" finché non avvii quel profilo: è normale.
+
+- Dashboard:
+    - Homepage:
+        icon: homepage.png
+        href: http://localhost:19001
+        description: Questa dashboard — panoramica e stato di tutti i tool
+        siteMonitor: http://localhost:3000
+
+- Recon (OSINT):
+    - SpiderFoot:
+        icon: mdi-spider
+        href: http://localhost:19007/spiderfoot/
+        description: OSINT automation — domini, IP, email, leak (profilo recon)
+        siteMonitor: http://spiderfoot:8080/spiderfoot/
+
+- Web:
+    - mitmproxy:
+        icon: mdi-swap-horizontal
+        href: http://localhost:19003
+        description: Intercetta e modifica traffico HTTP(S) — proxy su localhost:19004 · password in .env (MITMWEB_PASSWORD)
+        siteMonitor: http://mitmproxy:8081/favicon.ico
+    - OWASP ZAP:
+        icon: mdi-shield-search
+        href: http://localhost:19005/zap
+        description: Scanner di sicurezza web con GUI nel browser — proxy su localhost:19006 (profilo web)
+        siteMonitor: http://zap:8080
+
+- Crypto & Encoding:
+    - CyberChef:
+        icon: cyberchef.png
+        href: http://localhost:19002
+        description: "Coltellino svizzero" per encoding e crypto — base64, XOR, RSA, hash, JWT...
+        siteMonitor: http://cyberchef:8080
+    - SageMath (Jupyter):
+        icon: mdi-math-integral-box
+        href: http://localhost:19010
+        description: Notebook Python/Sage per crypto e matematica — token nei log (profilo crypto)
+        siteMonitor: http://sagemath:8888
+
+- Stego & Forensics:
+    - AperiSolve:
+        icon: mdi-image-search-outline
+        href: http://localhost:19000
+        description: Stego e analisi immagini — binwalk, zsteg, steghide, exiftool, foremost...
+        siteMonitor: http://web:5000
+    - Wireshark:
+        icon: wireshark.png
+        href: http://localhost:19008
+        description: Analisi pacchetti e file pcap con GUI web (profilo forensics)
+        siteMonitor: http://wireshark:3000
+
+- Utility:
+    - IT-Tools:
+        icon: it-tools.png
+        href: http://localhost:19011
+        description: Raccolta di utility per CTF e sviluppo — encoder, converter, hash, regex
+        siteMonitor: http://it-tools:80

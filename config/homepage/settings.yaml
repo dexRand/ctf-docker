@@ -1,0 +1,25 @@
+title: CTF Toolbox
+description: Tool per risolvere CTF — ordinati per fase di lavoro
+language: it
+theme: dark
+color: slate
+headerStyle: clean
+layout:
+  Dashboard:
+    style: row
+    columns: 1
+  Recon (OSINT):
+    style: row
+    columns: 2
+  Web:
+    style: row
+    columns: 2
+  Crypto & Encoding:
+    style: row
+    columns: 2
+  Stego & Forensics:
+    style: row
+    columns: 2
+  Utility:
+    style: row
+    columns: 2

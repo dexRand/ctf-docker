@@ -1,0 +1,16 @@
+# Segreti / configurazione locale
+.env
+
+# Stato locale dei tool
+config/zap/*
+!config/zap/.gitkeep
+
+# File generati a runtime da Homepage
+config/homepage/logs/
+config/homepage/kubernetes.yaml
+config/homepage/docker.yaml
+config/homepage/bookmarks.yaml
+
+# OS / editor
+.DS_Store
+*.swp

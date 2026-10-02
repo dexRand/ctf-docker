@@ -1,0 +1,276 @@
+# CTF Toolbox — tool dockerizzati per risolvere CTF (GUI web)
+# Uso rapido:  ./ctf up            (tool core)
+#              ./ctf up web        (core + profilo web)
+#              ./ctf up-all        (tutto)
+#              ./ctf down
+#
+# Porte host: fascia 19000+ (scelta apposta per non collidere con altri stack).
+
+name: ctf
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ---------------------------------------------------------------- DASHBOARD
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    restart: unless-stopped
+    mem_limit: 512m
+    logging: *default-logging
+    ports:
+      - "${HOMEPAGE_PORT:-19001}:3000"
+    volumes:
+      - ./config/homepage:/app/config
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: ${HOMEPAGE_ALLOWED_HOSTS:-localhost:19001,127.0.0.1:19001}
+    networks: [ctfnet]
+
+  # ------------------------------------------------------------ STEGO/FORENSICS
+  # AperiSolve: stack ufficiale (web + worker + cron + initdb + postgres + redis)
+  web:
+    image: ghcr.io/zeecka/aperisolve:latest
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: 1.5
+    logging: *default-logging
+    ports:
+      - "${APERISOLVE_PORT:-19000}:5000"
+    volumes:
+      - apresults:/app/aperisolve/results
+      - apremoved:/app/aperisolve/removed_images
+    depends_on:
+      postgres:
+        condition: service_healthy
+      initdb:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      worker:
+        condition: service_started
+    env_file: .env
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/', timeout=10)"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
+    networks: [ctfnet]
+
+  worker:
+    image: ghcr.io/zeecka/aperisolve:latest
+    restart: unless-stopped
+    command: rq worker default --url redis://redis:6379/0
+    mem_limit: 2g
+    cpus: 2
+    init: true
+    logging: *default-logging
+    volumes:
+      - apresults:/app/aperisolve/results
+    depends_on:
+      postgres:
+        condition: service_healthy
+      initdb:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    env_file: .env
+    networks: [ctfnet]
+
+  cron:
+    image: ghcr.io/zeecka/aperisolve:latest
+    restart: unless-stopped
+    cpus: 0.25
+    logging: *default-logging
+    command: rq cron aperisolve.cron --url redis://redis:6379/0
+    volumes:
+      - apresults:/app/aperisolve/results
+    depends_on:
+      postgres:
+        condition: service_healthy
+      initdb:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    env_file: .env
+    networks: [ctfnet]
+
+  initdb:
+    image: ghcr.io/zeecka/aperisolve:latest
+    cpus: 1
+    logging: *default-logging
+    command: python -m aperisolve.utils.init_db
+    volumes:
+      - apresults:/app/aperisolve/results
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    restart: "no"
+    networks: [ctfnet]
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 0.5
+    logging: *default-logging
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aperiuser -d aperisolve"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    env_file: .env
+    networks: [ctfnet]
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 0.5
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    env_file: .env
+    networks: [ctfnet]
+
+  rqdashboard:
+    image: eoranged/rq-dashboard:v0.6.3
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.25
+    logging: *default-logging
+    ports:
+      - "127.0.0.1:${RQ_DASHBOARD_PORT:-19181}:9181"
+    depends_on:
+      - redis
+    environment:
+      RQ_DASHBOARD_REDIS_URL: ${RQ_DASHBOARD_REDIS_URL:-redis://redis:6379/0}
+    networks: [ctfnet]
+
+  # -------------------------------------------------------------- CRYPTO/ENCODING
+  cyberchef:
+    image: ghcr.io/gchq/cyberchef:latest
+    restart: unless-stopped
+    mem_limit: 256m
+    logging: *default-logging
+    ports:
+      - "${CYBERCHEF_PORT:-19002}:8080"
+    networks: [ctfnet]
+
+  sagemath:
+    image: sagemath/sagemath:latest
+    restart: unless-stopped
+    command: sage-jupyter
+    mem_limit: 2g
+    cpus: 1.5
+    logging: *default-logging
+    ports:
+      - "${SAGEMATH_PORT:-19010}:8888"
+    volumes:
+      - sagemath-home:/home/sage
+    profiles: [crypto]
+    networks: [ctfnet]
+
+  # ------------------------------------------------------------------------------- WEB
+  mitmproxy:
+    image: mitmproxy/mitmproxy:latest
+    restart: unless-stopped
+    mem_limit: 512m
+    logging: *default-logging
+    command: mitmweb --web-host 0.0.0.0 --listen-host 0.0.0.0 --set web_password=${MITMWEB_PASSWORD:-mitm}
+    ports:
+      - "${MITMPROXY_PORT:-19004}:8080"   # proxy HTTP(S)
+      - "${MITMWEB_UI_PORT:-19003}:8081"  # GUI web (mitmweb)
+    volumes:
+      - mitmproxy:/home/mitmproxy/.mitmproxy
+    networks: [ctfnet]
+
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    restart: unless-stopped
+    user: zap
+    mem_limit: 2g
+    cpus: 1.5
+    logging: *default-logging
+    command: zap-webswing.sh
+    ports:
+      - "${ZAP_UI_PORT:-19005}:8080"      # GUI web -> http://localhost:19005/zap
+      - "${ZAP_PROXY_PORT:-19006}:8090"   # proxy HTTP(S)
+    volumes:
+      - ./config/zap:/zap/wrk:rw
+    profiles: [web]
+    networks: [ctfnet]
+
+  # ----------------------------------------------------------------------------- RECON
+  spiderfoot:
+    image: dtagdevsec/spiderfoot:24.04.1
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1
+    logging: *default-logging
+    ports:
+      - "${SPIDERFOOT_PORT:-19007}:8080"
+    volumes:
+      - spiderfoot-data:/var/lib/spiderfoot
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/spiderfoot/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles: [recon]
+    networks: [ctfnet]
+
+  # ------------------------------------------------------------------------- FORENSICS
+  wireshark:
+    image: ghcr.io/linuxserver/wireshark:latest
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: 1.5
+    logging: *default-logging
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Europe/Rome}
+    ports:
+      - "${WIRESHARK_HTTP_PORT:-19008}:3000"   # GUI web http
+      - "${WIRESHARK_HTTPS_PORT:-19009}:3001"  # GUI web https
+    volumes:
+      - wireshark-config:/config
+    shm_size: "1gb"
+    security_opt:
+      - seccomp:unconfined
+    profiles: [forensics]
+    networks: [ctfnet]
+
+  # --------------------------------------------------------------------------- UTILITY
+  it-tools:
+    image: corentinth/it-tools:latest
+    restart: unless-stopped
+    mem_limit: 128m
+    logging: *default-logging
+    ports:
+      - "${ITTOOLS_PORT:-19011}:80"
+    networks: [ctfnet]
+
+networks:
+  ctfnet:
+    driver: bridge
+
+volumes:
+  apresults:
+  apremoved:
+  pgdata:
+  sagemath-home:
+  mitmproxy:
+  spiderfoot-data:
+  wireshark-config:
