@@ -138,13 +138,19 @@ def _crack_zip_hashcat(path: Path, wls: list[Path], log) -> Optional[str]:
 
 
 def _crack_zip(path: Path, wls: list[Path], log) -> Optional[str]:
+    # hashcat first: the vendored zip2hashcat handles BOTH ZipCrypto and AES, and
+    # hashcat stops at the first match. fcrackzip is only a fallback (it would
+    # uselessly churn through huge wordlists on AES archives).
+    pw = _crack_zip_hashcat(path, wls, log)
+    if pw:
+        return pw
     if shutil.which("fcrackzip"):
         for wl in wls:
             r = _run(["fcrackzip", "-u", "-D", "-p", str(wl), str(path)], timeout=3600, log=log)
             m = re.search(r"pw\s*==\s*(\S+)", r.stdout)
             if m:
                 return m.group(1)
-    return _crack_zip_hashcat(path, wls, log)
+    return None
 
 
 def _crack_pdf(path: Path, wls: list[Path], log) -> Optional[str]:

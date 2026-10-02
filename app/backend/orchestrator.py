@@ -148,20 +148,15 @@ def _run(pid: str, job: Job) -> None:
 
         nodes = session.exec(select(FileNode).where(FileNode.project_id == pid)
                              .order_by(FileNode.order_index, FileNode.id)).all()
-        queue: list[FileNode] = list(nodes)
+        pending: list[FileNode] = list(nodes)
         order = max((n.order_index for n in nodes), default=-1) + 1
         processed: set[str] = set()
         depth_limit = 3
 
-        while queue:
-            if job.cancelled:
-                break
-            job.wait()
-            if job.cancelled:
-                break
-            node = queue.pop(0)
+        def analyze(node: FileNode) -> None:
+            nonlocal order
             if node.depth >= depth_limit or (node.sha256 and node.sha256 in processed):
-                continue
+                return
             if node.sha256:
                 processed.add(node.sha256)
 
@@ -169,7 +164,7 @@ def _run(pid: str, job: Job) -> None:
                         "depth": node.depth, "size": node.size})
             abs_path = work / node.rel_path
             if not abs_path.is_file():
-                continue
+                return
             out_dir = work / "work" / str(node.id)
             out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -222,13 +217,30 @@ def _run(pid: str, job: Job) -> None:
                 for src in result.extracted:
                     child = _store_extracted(session, pid, node, Path(src), order)
                     order += 1
-                    queue.append(child)
+                    pending.append(child)
 
             job.processed += 1
             proj.updated_at = _now()
             session.add(proj)
             session.commit()
             _emit(pid, {"type": "progress", "processed": job.processed})
+
+        rounds = 0
+        while True:
+            while pending:
+                if job.cancelled:
+                    break
+                job.wait()
+                if job.cancelled:
+                    break
+                analyze(pending.pop(0))
+            if job.cancelled or proj.mode != "auto" or rounds >= 3:
+                break
+            new_nodes = _auto_crack(session, pid, work, job)
+            if not new_nodes:
+                break
+            pending.extend(new_nodes)
+            rounds += 1
 
         proj = session.get(Project, pid) or proj
         proj.status = "cancelled" if job.cancelled else "done"
@@ -239,6 +251,49 @@ def _run(pid: str, job: Job) -> None:
         _emit(pid, {"type": "status", "status": proj.status})
     with _JOBS_LOCK:
         JOBS.pop(pid, None)
+
+
+def _auto_crack(session: Session, pid: str, work: Path, job: Job) -> list[FileNode]:
+    """Auto mode: try every wordlist on the locked files; return unlocked nodes."""
+    from . import cracking
+    already = {f.file_id for f in session.exec(
+        select(Finding).where(Finding.project_id == pid).where(Finding.kind == "password")).all()}
+    runs = session.exec(select(ToolRun).where(ToolRun.project_id == pid)
+                        .where(ToolRun.needs_password == True)).all()  # noqa: E712
+    fids: list[int] = []
+    for r in runs:
+        if r.file_id not in already and r.file_id not in fids:
+            fids.append(r.file_id)
+
+    new_nodes: list[FileNode] = []
+    for fid in fids:
+        if job.cancelled:
+            break
+        node = session.get(FileNode, fid)
+        if not node:
+            continue
+        _emit(pid, {"type": "crack", "file_id": fid, "name": node.name, "status": "running"})
+        res = cracking.crack_file(work / node.rel_path, None)
+        if res["password"]:
+            session.add(Finding(project_id=pid, file_id=fid, kind="password",
+                                value=res["password"], source=f"crack:{res['kind']}"))
+            session.add(Event(project_id=pid, level="info",
+                              message=f"password found for {node.name}: {res['password']}"))
+            _emit(pid, {"type": "crack", "file_id": fid, "status": "found",
+                        "password": res["password"]})
+            if res["extracted"]:
+                ids = import_children(session, pid, fid, res["extracted"])
+                session.flush()
+                for i in ids:
+                    nn = session.get(FileNode, i)
+                    if nn:
+                        new_nodes.append(nn)
+            session.commit()
+        else:
+            _emit(pid, {"type": "crack", "file_id": fid, "status": "not_found"})
+            session.add(Event(project_id=pid, level="warn", message=f"password not found for {node.name}"))
+            session.commit()
+    return new_nodes
 
 
 def import_children(session: Session, pid: str, parent_id: int, paths: list[str]) -> list[int]:
