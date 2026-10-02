@@ -8,16 +8,23 @@ due cose:
 1. sapere cosa la suite deve trovare (verifica end-to-end);
 2. poter risolvere la challenge **a mano** e confrontare il risultato.
 
-> Le challenge picoCTF sono statiche per queste versioni; le flag elencate sono
-> quelle dei file nei mirror GitHub indicati sotto. Le fixture `ITS{...}` sono
-> **generate** dallo script di regressione, quindi la flag è nota per costruzione.
+> **Attenzione alle flag "per-istanza".** Alcune challenge picoCTF incorporano
+> una parte casuale nella flag: lo **stesso** challenge in due writeup diversi
+> ha flag diverse (es. So Meta `picoCTF{s0_m3ta_43f253bb}` vs
+> `picoCTF{s0_m3ta_dc38ce45}`; Glory of the Garden `..._3y35a97d3bB` vs
+> `..._3y3f20F5be9`). Quindi la "risposta giusta" dipende dall'**artifact**.
+> La verifica va fatta artifact-per-artifact: vedi `app/tests/verify_flags.py`,
+> che controlla anche una **seconda istanza** (repo `kevinjycui`). Altre hanno
+> flag **statiche** (What Lies Within, Weird File, extensions, information).
+> Le fixture `ITS{...}` sono **generate** dallo script di regressione, quindi la
+> flag è nota per costruzione.
 
 ## Challenge picoCTF reali
 
 Test: `app/tests/real_challenges.py` (scarica i file dai mirror GitHub, perché
 `picoctf.net` non risolve da questo host).
 
-| Challenge | Anno | File | Flag |
+| Challenge | Anno | File | Flag (istanza HHousen) |
 |---|---|---|---|
 | So Meta | 2019 | `pico_img.png` | `picoCTF{s0_m3ta_43f253bb}` |
 | information | 2021 | `cat.jpg` | `picoCTF{the_m3tadata_1s_modified}` |
@@ -141,10 +148,20 @@ docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
 # challenge reali (host: scaricano i file da sole)
 python3 app/tests/real_challenges.py                        # → 7/7
 
-# verifica INDIPENDENTE: confronta ciò che StegSuite trova con la flag
-# dichiarata dal writeup ufficiale della challenge (non con nostre costanti)
+# verifica INDIPENDENTE: per ogni (artifact, writeup) confronta la flag trovata
+# con quella dichiarata dal writeup per QUELL'artifact; include una seconda
+# istanza (repo kevinjycui) con flag diverse -> 11/11
 python3 app/tests/verify_flags.py                           # → ALL CORRECT
 ```
+
+`verify_flags.py` legge le risposte **a runtime** (niente costanti nostre) e
+stampa anche il confronto tra istanze, es.:
+```
+(per-instance) So Meta A != So Meta B:
+  picoCTF{s0_m3ta_43f253bb} vs picoCTF{s0_m3ta_dc38ce45}
+```
+cioè dimostra che StegSuite estrae correttamente la flag dall'artifact che gli
+viene dato, qualunque sia l'istanza.
 
 `real_challenges.py` fallisce anche se una flag trovata è un **frammento** di
 un'altra (es. `CTF{x}` dentro `picoCTF{x}`): è una guardia contro i falsi

@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Verify StegSuite's flags against the challenge answers (independent source).
+"""Verify StegSuite's flags against the challenge answers, instance by instance.
 
-For every case we download the challenge artifact, run it through StegSuite,
-then fetch the reference writeup and compare the flag *it states* with the one
-StegSuite found. The expected values are read from the writeup at run time, so
-this checks the answers themselves -- not our own constants.
+Some picoCTF challenges embed a *random* part in the flag, so two writeups of
+the same challenge can show different flags (e.g. So Meta `..._43f253bb` vs
+`..._dc38ce45`). The only sound check is: for a given artifact, does StegSuite
+find the answer that writeup declares *for that artifact*?
+
+This script therefore runs several (artifact, writeup) pairs, including the
+same challenge from a *different* repository/instance, and compares the flags
+at run time (no hardcoded expectations).
 
 Run against a running StegSuite:
     STEGSUITE=http://localhost:19014 python3 app/tests/verify_flags.py
@@ -21,16 +25,23 @@ from real_challenges import API, DEST, download, get, post, _multipart
 
 B19 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2019/master/Forensics"
 B21 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2021/master/Forensics"
+K19 = "https://raw.githubusercontent.com/kevinjycui/picoCTF-2019-writeup/master/Forensics"
 
-# (label, artifact url, writeup url that states the official flag)
+# (label, artifact url, writeup url that states the answer for THAT artifact)
 CASES = [
-    ("So Meta", f"{B19}/So Meta/pico_img.png", f"{B19}/So Meta/README.md"),
-    ("information", f"{B21}/information/cat.jpg", f"{B21}/information/README.md"),
-    ("Matryoshka doll", f"{B21}/Matryoshka doll/dolls.jpg", f"{B21}/Matryoshka doll/README.md"),
-    ("What Lies Within", f"{B19}/What Lies Within/buildings.png", f"{B19}/What Lies Within/README.md"),
-    ("Glory of the Garden", f"{B19}/Glory of the Garden/garden.jpg", f"{B19}/Glory of the Garden/README.md"),
-    ("extensions", f"{B19}/extensions/flag.txt", f"{B19}/extensions/README.md"),
-    ("Weird File", f"{B21}/Weird File/weird.docm", f"{B21}/Weird File/README.md"),
+    # instance A (HHousen)
+    ("So Meta A", f"{B19}/So Meta/pico_img.png", f"{B19}/So Meta/README.md"),
+    ("Glory A", f"{B19}/Glory of the Garden/garden.jpg", f"{B19}/Glory of the Garden/README.md"),
+    ("WLIW A", f"{B19}/What Lies Within/buildings.png", f"{B19}/What Lies Within/README.md"),
+    ("extensions A", f"{B19}/extensions/flag.txt", f"{B19}/extensions/README.md"),
+    ("information A", f"{B21}/information/cat.jpg", f"{B21}/information/README.md"),
+    ("Matryoshka A", f"{B21}/Matryoshka doll/dolls.jpg", f"{B21}/Matryoshka doll/README.md"),
+    ("Weird File A", f"{B21}/Weird File/weird.docm", f"{B21}/Weird File/README.md"),
+    # instance B (kevinjycui): same challenges, different (randomised) flags
+    ("So Meta B", f"{K19}/So Meta/pico_img.png", f"{K19}/So Meta/README.md"),
+    ("Glory B", f"{K19}/Glory of the Garden/garden.jpg", f"{K19}/Glory of the Garden/README.md"),
+    ("WLIW B", f"{K19}/What Lies Within/buildings.png", f"{K19}/What Lies Within/README.md"),
+    ("extensions B", f"{K19}/extensions/flag.txt", f"{K19}/extensions/README.md"),
 ]
 
 _FLAG = re.compile(r"picoCTF\{[^}\n]{1,200}\}")
@@ -43,13 +54,15 @@ def fetch_text(url: str) -> str:
         return r.read().decode("utf-8", "replace")
 
 
-def reference_flags(readme_url: str) -> set[str]:
-    """The flag(s) the writeup says are the answer."""
-    return set(_FLAG.findall(fetch_text(readme_url)))
+def reference_flags(writeup_url: str) -> set[str]:
+    """The flag(s) the writeup declares as the answer (placeholders ignored)."""
+    flags = set(_FLAG.findall(fetch_text(writeup_url)))
+    return {f for f in flags if not re.fullmatch(r"picoCTF\{[Xx]+\}", f)}
 
 
 def found_flags(label: str, artifact_url: str) -> set[str]:
-    dest = DEST / f"verify_{label.replace(' ', '_')}_{Path(urllib.parse.urlparse(artifact_url).path).name}"
+    base = Path(urllib.parse.urlparse(artifact_url).path).name
+    dest = DEST / f"verify_{label.replace(' ', '_')}_{base}"
     download(artifact_url, dest)
     body, boundary = _multipart(dest, "auto")
     proj = post("/projects", body, f"multipart/form-data; boundary={boundary}")
@@ -63,21 +76,27 @@ def found_flags(label: str, artifact_url: str) -> set[str]:
 
 
 def main() -> int:
-    print(f"* flag verification against writeups @ {API}")
+    print(f"* flag verification (artifact + its writeup) @ {API}")
     ok_all = True
-    for label, artifact, readme in CASES:
+    flags_seen: dict[str, set[str]] = {}
+    for label, artifact, writeup in CASES:
         try:
-            ref = reference_flags(readme)
+            ref = reference_flags(writeup)
             found = found_flags(label, artifact)
-        except Exception as exc:  # network / parsing
-            print(f"  [ERROR] {label:<18} {exc}")
+        except Exception as exc:
+            print(f"  [ERROR] {label:<14} {exc}")
             ok_all = False
             continue
-        # StegSuite must have found the official answer (and not only fragments)
         ok = bool(ref) and ref.issubset(found)
         ok_all &= ok
-        print(f"  [{'PASS' if ok else 'FAIL'}] {label:<18} "
-              f"writeup={sorted(ref)} found={sorted(found)}")
+        flags_seen[label] = ref
+        print(f"  [{'PASS' if ok else 'FAIL'}] {label:<14} "
+              f"answer={sorted(ref)} found={sorted(found)}")
+    # Show that the two instances really have different flags (per-instance):
+    for a, b in [("So Meta A", "So Meta B"), ("Glory A", "Glory B")]:
+        if a in flags_seen and b in flags_seen and flags_seen[a] != flags_seen[b]:
+            print(f"  (per-instance) {a} != {b}: "
+                  f"{sorted(flags_seen[a])} vs {sorted(flags_seen[b])}")
     print(f"* {'ALL CORRECT' if ok_all else 'MISMATCH'}")
     return 0 if ok_all else 1
 
