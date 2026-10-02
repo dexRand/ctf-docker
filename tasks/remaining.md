@@ -27,9 +27,20 @@ python3 app/tests/real_challenges.py
   piani LSB (bit 0/1) → niente più "running" infinito su foto grandi.
 - **Refactor modulare**: route divise in `app/backend/api/` (system, projects,
   analysis, tools, cracking_api, ws); `main.py` è solo la app factory.
-- **Terminale**: **bash colorato** (PS1 con colori, `TERM=xterm-256color`).
+- **Terminale**: **bash colorato** (PS1 con colori, `TERM=xterm-256color`) e `ls`
+  con `dircolors` (cartelle blu, eseguibili verdi, symlink ciano).
 - **GUI**: click sul tool → output (con rendering **ANSI**/colori), immagini
-  **ingrandibili** (lightbox), tasto **📄 Report** per file, artifact visibili.
+  **ingrandibili** (lightbox), tasto **Report** (progetto e file); **icona SVG**
+  al posto delle emoji; **albero file comprimibile** raggruppato per tool di
+  estrazione (con freccette) e **colorato**: verde = percorso flag, bianco =
+  adiacente, grigio = via morta.
+- **Report pulito**: solo il **percorso della flag** (albero ASCII con lo step
+  che ha prodotto ogni file), passaggi rilevanti, comandi usati; niente più
+  rumore di file/tool che non portano alla flag (restano esplorabili in GUI).
+- **Orfani dopo restart**: i progetti rimasti `running` vengono marcati `error`
+  all'avvio (niente più spinner infinito).
+- **Estrazioni**: ogni file figlio registra **quale tool** l'ha prodotto
+  (`origin=extracted:<tool>:<parent>`); niente più artefatti "missing on disk".
 - **Docs**: `docs/ADDING-A-TOOL.md`, `docs/API.md` (uso dei tool via API da altri
   progetti).
 - **Test**: regressione **13/13**, challenge reali picoCTF **5/5**
@@ -53,8 +64,10 @@ python3 app/tests/real_challenges.py
 ### 3. GUI (rifiniture)
 - [x] Click sul tool → output/ANSI; report per file; immagini ingrandibili;
       terminale colorato.
-- [x] Tema scuro / “bellezza” — *in corso*
-- [ ] Filtri/ricerca nell'albero file; collapse/expand; raggruppamento per categoria.
+- [x] Tema scuro / “bellezza”
+- [x] Albero file collapse/expand + raggruppamento per tool di estrazione +
+      colori semantici (percorso/adiacente/morto).
+- [ ] Filtri/ricerca nell'albero file.
 - [ ] Barra di progresso per file; toast/errori; copia-flag 1-click; export report `.md`.
 - [ ] Upload con progress; layout responsive/mobile.
 

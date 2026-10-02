@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from .api import routers
 from .config import API_KEY, VERSION
 from .db import init_db
+from . import orchestrator
 
 app = FastAPI(
     title="StegSuite",
@@ -30,6 +31,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 @app.on_event("startup")
 def _startup() -> None:
     init_db()
+    orchestrator.reconcile_orphans()
 
 
 @app.middleware("http")

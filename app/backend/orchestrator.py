@@ -191,7 +191,8 @@ def _plan_for(name: str, mime: str | None, is_text: bool) -> list[str]:
     return plan
 
 
-def _store_extracted(session: Session, pid: str, parent: FileNode, src: Path, order: int) -> FileNode:
+def _store_extracted(session: Session, pid: str, parent: FileNode, src: Path, order: int,
+                     tool: str | None = None) -> FileNode:
     name = storage.sanitize_name(src.name)
     rel = f"files/{order:04d}__{name}"
     dest = storage.project_dir(pid) / rel
@@ -201,9 +202,10 @@ def _store_extracted(session: Session, pid: str, parent: FileNode, src: Path, or
     except (OSError, shutil.Error):
         shutil.copy2(src, dest)
     sha, md5, size = storage.hashes_of(dest)
+    origin = f"extracted:{tool}:{parent.id}" if tool else f"extracted:{parent.id}"
     node = FileNode(project_id=pid, parent_id=parent.id, name=name, rel_path=rel,
                     size=size, mime=None, sha256=sha, md5=md5, depth=parent.depth + 1,
-                    order_index=order, origin=f"extracted:{parent.id}")
+                    order_index=order, origin=origin)
     session.add(node)
     session.flush()
     return node
@@ -308,7 +310,7 @@ def _run(pid: str, job: Job) -> None:
                 result = analyzer.run(ToolContext(input=abs_path, workdir=out_dir, log=logs.append))
                 record(tool_name, result, logs)
                 for src in result.extracted:
-                    child = _store_extracted(session, pid, node, Path(src), order)
+                    child = _store_extracted(session, pid, node, Path(src), order, tool=tool_name)
                     order += 1
                     pending.append(child)
 
@@ -389,7 +391,8 @@ def _auto_crack(session: Session, pid: str, work: Path, job: Job) -> list[FileNo
     return new_nodes
 
 
-def import_children(session: Session, pid: str, parent_id: int, paths: list[str]) -> list[int]:
+def import_children(session: Session, pid: str, parent_id: int, paths: list[str],
+                    tool: str = "crack") -> list[int]:
     """Store files recovered by cracking as children of an existing node."""
     parent = session.get(FileNode, parent_id)
     if not parent:
@@ -399,7 +402,7 @@ def import_children(session: Session, pid: str, parent_id: int, paths: list[str]
     order = (last.order_index if last else -1) + 1
     ids: list[int] = []
     for src in paths:
-        child = _store_extracted(session, pid, parent, Path(src), order)
+        child = _store_extracted(session, pid, parent, Path(src), order, tool=tool)
         order += 1
         ids.append(child.id)
     session.flush()
@@ -437,3 +440,28 @@ def control(pid: str, action: str) -> bool:
 def is_running(pid: str) -> bool:
     with _JOBS_LOCK:
         return pid in JOBS
+
+
+def reconcile_orphans() -> list[str]:
+    """After a restart there are no in-memory jobs, so any project still marked
+    running/queued is orphaned. Mark it as interrupted so the GUI stops spinning.
+    """
+    with Session(engine) as session:
+        projects = session.exec(
+            select(Project).where(Project.status.in_(("running", "queued")))  # type: ignore[attr-defined]
+        ).all()
+        ids: list[str] = []
+        for p in projects:
+            p.status = "error"
+            session.add(p)
+            session.add(Event(project_id=p.id, level="warn",
+                              message="analysis interrupted by a restart"))
+            ids.append(p.id)
+        runs = session.exec(
+            select(ToolRun).where(ToolRun.status.in_(("running", "queued")))  # type: ignore[attr-defined]
+        ).all()
+        for r in runs:
+            r.status = "error"
+            session.add(r)
+        session.commit()
+        return ids

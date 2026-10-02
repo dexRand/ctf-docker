@@ -34,6 +34,56 @@ const TXT = /\.(txt|md|json|xml|csv|log|strings|out|py)$/i
 
 const tree = computed(() => (project.value?.tree || []).slice().sort((a, b) => a.order_index - b.order_index))
 const treeById = computed(() => Object.fromEntries(tree.value.map((n) => [n.id, n])))
+const childrenByParent = computed(() => {
+  const m = {}
+  for (const n of tree.value) { (m[n.parent_id ?? 0] ||= []).push(n) }
+  for (const k in m) m[k].sort((a, b) => a.order_index - b.order_index)
+  return m
+})
+const collapsed = ref(new Set())
+function originTool(n) {
+  const o = String(n?.origin || '')
+  if (!o || o === 'upload') return 'upload'
+  const m = o.match(/^extracted:([^:]+):\d+$/)
+  return m ? m[1] : 'extracted'
+}
+function toggleKey(key) {
+  const s = new Set(collapsed.value)
+  s.has(key) ? s.delete(key) : s.add(key)
+  collapsed.value = s
+}
+function toggleNode(n) { toggleKey(n._gid || n.id) }
+const visibleTree = computed(() => {
+  const m = childrenByParent.value
+  const out = []
+  const walk = (pid, depth) => {
+    const groups = new Map()
+    for (const n of (m[pid] || [])) {
+      const t = originTool(n)
+      if (!groups.has(t)) groups.set(t, [])
+      groups.get(t).push(n)
+    }
+    const multi = groups.size > 1
+    for (const [tool, list] of groups) {
+      if (multi) {
+        const gid = `g:${pid}:${tool}`
+        out.push({ _group: true, _gid: gid, _pid: pid, _tool: tool, _depth: depth, _kids: list.length, name: tool })
+        if (collapsed.value.has(gid)) continue
+        for (const n of list) {
+          out.push({ ...n, _depth: depth + 1, _kids: (m[n.id] || []).length })
+          if (!collapsed.value.has(n.id)) walk(n.id, depth + 1)
+        }
+      } else {
+        for (const n of list) {
+          out.push({ ...n, _depth: depth, _kids: (m[n.id] || []).length })
+          if (!collapsed.value.has(n.id)) walk(n.id, depth)
+        }
+      }
+    }
+  }
+  walk(0, 0)
+  return out
+})
 const runsByFile = computed(() => {
   const m = {}
   for (const r of runs.value) (m[r.file_id] ||= []).push(r)
@@ -46,7 +96,56 @@ const selectedRuns = computed(() => runsByFile.value[selected.value] || [])
 const flags = computed(() => findings.value.filter((f) => f.kind === 'flag'))
 const passwords = computed(() => findings.value.filter((f) => f.kind === 'password'))
 const notes = computed(() => findings.value.filter((f) => f.kind === 'note'))
-const routeTreeText = computed(() => (routeNodes().length ? asciiTree(routeNodes()) : ''))
+const routeTreeText = computed(() => (routeNodes().length ? asciiRouteTree() : ''))
+const routeIdSet = computed(() => new Set(routeNodes().map((n) => n.id)))
+const producingToolByNode = computed(() => {
+  const m = {}
+  for (const n of tree.value) {
+    const t = originTool(n)
+    if (t === 'upload' || t === 'extracted') continue
+    ;(m[n.parent_id] ||= new Set()).add(t)
+  }
+  return m
+})
+const findingToolKeys = computed(() => {
+  const s = new Set()
+  for (const f of findings.value) {
+    for (const part of String(f.source || '').split(':')) if (part) s.add(`${f.file_id}:${part}`)
+  }
+  return s
+})
+const relevantRuns = computed(() => runs.value.filter((r) => {
+  if (!routeIdSet.value.has(r.file_id)) return false
+  if ((producingToolByNode.value[r.file_id] || new Set()).has(r.tool)) return true
+  if (findingToolKeys.value.has(`${r.file_id}:${r.tool}`)) return true
+  return ['crack', 'hashcat', 'fcrackzip'].includes(r.tool)
+}))
+// files "near" the flag path: siblings and children of route nodes
+const nearIdSet = computed(() => {
+  const s = new Set()
+  if (!flags.value.length) return s
+  for (const r of routeNodes()) {
+    const pid = r.parent_id ?? 0
+    for (const n of tree.value) if ((n.parent_id ?? 0) === pid) s.add(n.id)
+    for (const n of tree.value) if ((n.parent_id ?? 0) === r.id) s.add(n.id)
+  }
+  for (const id of routeIdSet.value) s.delete(id)
+  return s
+})
+function nodeColor(n) {
+  if (!flags.value.length) return ''
+  if (routeIdSet.value.has(n.id)) return 'text-emerald-400'
+  if (nearIdSet.value.has(n.id)) return 'text-slate-100'
+  return 'text-slate-500'
+}
+function groupColor(n) {
+  if (!flags.value.length) return 'text-slate-400'
+  const kids = childrenByParent.value[n._pid] || []
+  const mine = kids.filter((c) => originTool(c) === n._tool)
+  if (mine.some((c) => routeIdSet.value.has(c.id))) return 'text-emerald-400'
+  if (mine.some((c) => nearIdSet.value.has(c.id))) return 'text-slate-100'
+  return 'text-slate-500'
+}
 
 async function load() {
   try {
@@ -123,22 +222,24 @@ function childrenMap(nodes) {
   for (const k in m) m[k].sort((a, b) => a.order_index - b.order_index)
   return m
 }
-function nodeLabel(n, markFlags = true) {
-  const tools = (runsByFile.value[n.id] || []).map((r) => r.tool).filter((t) => t !== 'file')
-  const fl = markFlags ? flags.value.filter((f) => f.file_id === n.id).map((f) => f.value) : []
+function routeLabel(n) {
+  const fl = flags.value.filter((f) => f.file_id === n.id).map((f) => f.value)
+  const pw = passwords.value.filter((p) => p.file_id === n.id).map((p) => p.value)
+  const ot = originTool(n)
   let s = n.name
+  if (ot && ot !== 'upload' && ot !== 'extracted') s += `   (${ot})`
   if (fl.length) s += `   <-- FLAG: ${fl.join(', ')}`
-  if (tools.length) s += `   [${tools.join(', ')}]`
+  else if (pw.length) s += `   <-- password: ${pw.join(', ')}`
   return s
 }
-function asciiTree(nodes, markFlags = true) {
-  const m = childrenMap(nodes)
+function asciiRouteTree() {
+  const m = childrenMap(routeNodes())
   const lines = []
   const walk = (pid, prefix) => {
     const kids = m[pid] || []
     kids.forEach((k, i) => {
       const last = i === kids.length - 1
-      lines.push(prefix + (last ? '└── ' : '├── ') + nodeLabel(k, markFlags))
+      lines.push(prefix + (last ? '└── ' : '├── ') + routeLabel(k))
       walk(k.id, prefix + (last ? '    ' : '│   '))
     })
   }
@@ -178,30 +279,28 @@ async function openReport() {
   }
   L.push(''); L.push('## Percorso della flag')
   L.push('```')
-  L.push(routeNodes().length ? asciiTree(routeNodes()) : '(nessuna flag trovata)')
+  L.push(routeNodes().length ? asciiRouteTree() : '(nessuna flag trovata)')
   L.push('```')
-  L.push(''); L.push('## Albero completo')
-  L.push('```')
-  L.push(asciiTree(tree.value))
-  L.push('```')
-  const extracted = tree.value.filter((n) => n.parent_id != null)
-  L.push(''); L.push(`## File estratti (${extracted.length})`)
-  if (extracted.length) {
-    L.push('| File | Dim | Origine | Tool | Scarica |')
-    L.push('|---|---|---|---|---|')
-    for (const n of extracted) {
-      const tools = (runsByFile.value[n.id] || []).map((r) => r.tool).filter((t) => t !== 'file').join(', ')
-      L.push(`| ${n.name} | ${fmtSize(n.size)} | ${n.origin} | ${tools} | [apri](${fileUrl(n)}) |`)
+  const rel = relevantRuns.value
+  L.push(''); L.push(`## Passaggi rilevanti (${rel.length})`)
+  if (rel.length) {
+    L.push('| File | Tool | Stato | Sintesi |')
+    L.push('|---|---|---|---|')
+    for (const r of rel) {
+      const f = treeById.value[r.file_id]
+      L.push(`| ${f ? f.name : '?'} | ${r.tool} | ${r.status} | ${(r.summary || '').replace(/\|/g, '\\|')} |`)
     }
-  } else L.push('_Nessun file estratto._')
-  L.push(''); L.push('## Tool eseguiti'); L.push('| File | Tool | Stato | Sintesi |'); L.push('|---|---|---|---|')
-  for (const r of runs.value) {
-    const f = treeById.value[r.file_id]
-    L.push(`| ${f ? f.name : '?'} | ${r.tool} | ${r.status} | ${(r.summary || '').replace(/\|/g, '\\|')} |`)
-  }
+  } else L.push('_Nessun passaggio rilevante._')
+  const routeFiles = routeNodes().filter((n) => n.parent_id != null)
+  L.push(''); L.push(`## File sul percorso (${routeFiles.length})`)
+  if (routeFiles.length) {
+    L.push('| File | Dim | Prodotto da | Scarica |')
+    L.push('|---|---|---|---|')
+    for (const n of routeFiles) L.push(`| ${n.name} | ${fmtSize(n.size)} | ${originTool(n)} | [apri](${fileUrl(n)}) |`)
+  } else L.push('_Nessun file intermedio._')
   L.push(''); L.push('## Comandi')
   let any = false
-  for (const r of runs.value.slice(0, 400)) {
+  for (const r of rel) {
     const o = outputs.value[r.id] != null ? outputs.value[r.id] : await out(r.id)
     const cmds = commandsOf(o)
     if (cmds.length) {
@@ -213,6 +312,9 @@ async function openReport() {
     }
   }
   if (!any) L.push('_Nessun comando registrato._')
+  const noise = tree.value.length - routeNodes().length
+  L.push('')
+  L.push(`> Analizzati ${tree.value.length} file e ${runs.value.length} tool; qui sono mostrati solo i passaggi che portano alla flag. Gli altri ${noise} file sono esplorabili nella GUI.`)
   report.value = { open: true, text: L.join('\n'), busy: false }
 }
 function copyReport() { navigator.clipboard?.writeText(report.value.text) }
@@ -285,13 +387,24 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
       <!-- file tree -->
       <div class="min-h-0 overflow-auto border-r border-edge p-2">
         <div class="mb-1 px-1 text-xs font-semibold uppercase text-slate-500">File ({{ tree.length }})</div>
-        <div v-for="n in tree" :key="n.id" @click="selected = n.id"
-             class="flex cursor-pointer items-center gap-1 rounded px-1 py-1 text-xs hover:bg-panel"
-             :class="selected === n.id ? 'bg-acc/20' : ''">
-          <span :style="{ paddingLeft: (n.depth * 12) + 'px' }" class="flex min-w-0 items-center gap-1">
-            <Icon :name="lockedIds.has(n.id) ? 'lock' : 'file'" :size="13" class="shrink-0 text-slate-500" />
-            <span class="truncate">{{ n.name }}</span>
-            <span class="shrink-0 text-slate-600">{{ fmtSize(n.size) }}</span>
+        <div v-if="flags.length" class="mb-1 flex flex-wrap items-center gap-x-2 px-1 text-[10px]">
+          <span class="text-emerald-400">● percorso flag</span>
+          <span class="text-slate-100">● adiacente</span>
+          <span class="text-slate-500">● via morta</span>
+        </div>
+        <div v-for="n in visibleTree" :key="n._gid || n.id"
+             @click="n._group ? toggleNode(n) : (selected = n.id)"
+             class="flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-xs hover:bg-panel"
+             :class="!n._group && selected === n.id ? 'bg-acc/20' : ''">
+          <span :style="{ paddingLeft: (n._depth * 12) + 'px' }" class="flex min-w-0 items-center gap-1">
+            <button v-if="n._kids" class="shrink-0 text-slate-500 hover:text-slate-200" @click.stop="toggleNode(n)">
+              <Icon :name="collapsed.has(n._gid || n.id) ? 'chevronR' : 'chevronD'" :size="13" />
+            </button>
+            <span v-else class="w-[13px] shrink-0"></span>
+            <Icon :name="n._group ? 'folder' : (lockedIds.has(n.id) ? 'lock' : 'file')" :size="13" class="shrink-0 text-slate-500" />
+            <span class="truncate" :class="n._group ? groupColor(n) : nodeColor(n)" :title="n._group ? n.name : n.origin">{{ n._group ? n.name + ' (' + n._kids + ')' : n.name }}</span>
+            <span v-if="!n._group" class="shrink-0 text-slate-600">{{ fmtSize(n.size) }}</span>
+            <Icon v-if="!n._group && flags.some((f) => f.file_id === n.id)" name="flag" :size="12" class="shrink-0 text-emerald-400" />
           </span>
         </div>
       </div>
@@ -330,7 +443,7 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
             <div v-for="c in childrenOf(selected)" :key="c.id" @click="selected = c.id"
                  class="flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-xs hover:bg-panel">
               <Icon name="file" :size="13" class="text-slate-500" /> {{ c.name }}
-              <span class="text-slate-500">{{ fmtSize(c.size) }} · {{ c.origin }}</span>
+              <span class="text-slate-500">{{ fmtSize(c.size) }} · {{ originTool(c) }}</span>
             </div>
           </template>
 
