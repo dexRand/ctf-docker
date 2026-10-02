@@ -66,7 +66,18 @@ Repo infrastrutturale: la "suite" è la verifica a runtime.
 | 19009 | Wireshark https | pcap (TLS) |
 | 19010 | SageMath Jupyter | crypto/math |
 | 19011 | IT-Tools | utility varie |
+| 19012 | FileBrowser | report del deep triage (solo localhost) |
 | 19181 | RQ Dashboard | coda AperiSolve (solo localhost) |
+
+## Deep triage (feature)
+Pipeline `./ctf triage <file>` su immagine custom basata su AperiSolve:
+estrazione ricorsiva (7z/binwalk/foremost) + analisi per file
+(strings/exiftool/zsteg/steghide) + flag hunt (pattern configurabili) +
+attacchi password con wordlist. Quando incontra un elemento bloccato
+(archivio/PDF cifrato, immagine potenzialmente steghide) si ferma e chiede
+all'utente quale wordlist usare; le wordlist sono ordinate piccola → grande e
+la password trovata viene riusata. I report finiscono in `./data/` e si
+consultano via FileBrowser.
 
 ## Boundaries
 - **Always:** verificare che la porta sia libera prima di aggiungere un servizio;
@@ -82,6 +93,8 @@ Repo infrastrutturale: la "suite" è la verifica a runtime.
 - [ ] La dashboard elenca **tutti** i tool ordinati per fase, con descrizione e stato.
 - [ ] Ogni tool incluso è un'immagine upstream reale e verificata (nessun build custom).
 - [ ] README spiega avvio, profili e a cosa serve ogni tool.
+- [ ] `./ctf triage <file>` estrae ricorsivamente, caccia le flag e, sui file
+      bloccati, chiede quale wordlist usare; report consultabile in FileBrowser.
 
 ## Decisions
 1. Set completo di tool confermato (tutti quelli elencati).

@@ -8,6 +8,9 @@ layout:
   Dashboard:
     style: row
     columns: 1
+  Deep triage:
+    style: row
+    columns: 1
   Recon (OSINT):
     style: row
     columns: 2

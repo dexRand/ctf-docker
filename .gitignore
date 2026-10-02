@@ -11,6 +11,12 @@ config/homepage/kubernetes.yaml
 config/homepage/docker.yaml
 config/homepage/bookmarks.yaml
 
+# Deep triage: dati di lavoro e wordlist pesanti
+data/
+wordlists/*
+!wordlists/passwords.txt
+!wordlists/.gitkeep
+
 # OS / editor
 .DS_Store
 *.swp

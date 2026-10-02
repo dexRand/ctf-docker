@@ -9,6 +9,13 @@
         description: Questa dashboard — panoramica e stato di tutti i tool
         siteMonitor: http://localhost:3000
 
+- Deep triage:
+    - Triage report / file estratti:
+        icon: mdi-magnify-expand
+        href: http://localhost:19012
+        description: Report e albero dei file estratti (FileBrowser) — lancia `./ctf triage <file>` dal terminale
+        siteMonitor: http://filebrowser:8080
+
 - Recon (OSINT):
     - SpiderFoot:
         icon: mdi-spider

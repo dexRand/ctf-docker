@@ -53,6 +53,7 @@ tool pesanti stanno dietro **profili** Compose opzionali.
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashing, JWT e molto altro | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercetta e modifica HTTP(S) · proxy su `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoder, converter, hash, regex e simili | core |
+| Deep triage | **CTF Triage** | http://localhost:19012 | Estrazione ricorsiva + cracking wordlist + flag hunt · report in FileBrowser (`./ctf triage <file>`) | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Scanner di sicurezza web con GUI nel browser · proxy su `:19006` | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domini, IP, email, leak | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Notebook Python/Sage per crypto e matematica | `crypto` |
@@ -93,8 +94,42 @@ Il piccolo wrapper `ctf` è un livello leggibile sopra Compose:
 ./ctf up-all              # tutto (pesante: diversi GB di immagini)
 ./ctf status              # stato container
 ./ctf logs wireshark      # segui i log di un servizio
+./ctf triage <file>       # triage profondo ricorsivo (vedi sotto)
+./ctf reports             # URL e credenziali del browser dei report
 ./ctf down                # ferma e rimuove i container
 ```
+
+## 🔬 Triage profondo
+
+`./ctf triage <file|cartella>` esegue una pipeline steg/forense completa in un
+container basato sull'immagine AperiSolve e scrive un report consultabile in
+**FileBrowser** (http://localhost:19012, `admin` / `ctfadmin`).
+
+Automaticamente:
+
+1. **ricorre**: `7z`, `binwalk -e`, `foremost` su ogni file estratto, finché
+   l'albero non è esaurito (profondità limitata);
+2. **analizza** ogni file: `strings`, `exiftool`, `zsteg`, `steghide`, `pdfinfo`…;
+3. **caccia le flag** con pattern sensati (`ITS{}`, `flag{}`, `CTF{}`, `HTB{}`,
+   `picoCTF{}` + uno generico sul testo stampabile);
+4. quando incontra qualcosa **protetto da password** (zip/7z/PDF cifrati, o
+   un'immagine che può nascondere un payload steghide) **si ferma e ti chiede
+   quale wordlist usare**.
+
+Gli attacchi usano il tool giusto per formato — `stegseek` (steghide),
+`fcrackzip`/`7z` (archivi), `pdfcrack` (PDF) — e le wordlist sono provate
+**dalla più piccola alla più grande**, così le liste veloci partono per prime.
+Una password trovata viene riusata automaticamente sugli altri file.
+
+```bash
+./ctf triage ./challenge.png            # interattivo: chiede la wordlist
+./ctf triage ./challenge.png -w wordlists/rockyou.txt
+./ctf triage ./challenge.png --yes      # nessun prompt: prova tutte, piccola→grande
+./ctf triage ./dir --no-crack --depth 4 # nessun attacco password
+```
+
+Metti i tuoi dizionari in `./wordlists/` (montata read-only su `/wordlists`):
+compaiono nel menu ordinati per dimensione. `rockyou.txt` **non** è incluso.
 
 | Profilo | Aggiunge |
 | --- | --- |
@@ -119,6 +154,7 @@ Tutte le porte host stanno nella **fascia 19000+** e sono configurabili in `.env
 | 19008 / 19009 | Wireshark HTTP / HTTPS |
 | 19010 | SageMath (Jupyter) |
 | 19011 | IT-Tools |
+| 19012 | FileBrowser (report triage, solo localhost) |
 | 19181 | RQ Dashboard (AperiSolve, solo localhost) |
 
 ## 📂 Struttura
@@ -143,6 +179,8 @@ Tutto è guidato da `.env` (creato da `.env.example`):
 | `*_PORT` | Porta host di ogni servizio (tutte in 19000+) |
 | `HOMEPAGE_ALLOWED_HOSTS` | Host ammessi verso la dashboard (aggiungi l'IP LAN per accesso remoto) |
 | `MITMWEB_PASSWORD` | Password per la GUI di mitmweb (l'utente è ignorato) |
+| `FB_ADMIN_PASSWORD` | Password admin di FileBrowser (utente `admin`; solo localhost) |
+| `WORDLIST` | Wordlist di default usata dal triage |
 | `PUID` / `PGID` / `TZ` | Mappatura utente e timezone per Wireshark |
 | `POSTGRES_*`, `DB_URI`, `REDIS_URL` | Database/broker interni ad AperiSolve (non esposti) |
 
@@ -156,6 +194,12 @@ Tutto è guidato da `.env` (creato da `.env.example`):
   (default `mitm`). Lo stato in dashboard controlla un endpoint senza auth.
 - **I tool con profilo** risultano *down* in dashboard finché non avvii il
   profilo — è normale.
+- L'immagine **triage** è l'unica costruita in locale (dall'immagine AperiSolve,
+  con l'aggiunta di `stegseek`, `john`, `fcrackzip`, `pdfcrack`); il primo
+  `./ctf up` la compila una volta.
+- **FileBrowser** è esposto solo su `127.0.0.1` e il progetto upstream è
+  archiviato (nessun fix di sicurezza futuro); cambia `FB_ADMIN_PASSWORD` e
+  tienilo in locale.
 - AperiSolve usa `postgres` e `redis` interni; **non** sono pubblicati sull'host e
   non toccano altri database.
 

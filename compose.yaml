@@ -262,6 +262,36 @@ services:
       - "${ITTOOLS_PORT:-19011}:80"
     networks: [ctfnet]
 
+  # ---------------------------------------------------------------- DEEP TRIAGE
+  # Runs the recursive steg/forensic pipeline. Driven by `./ctf triage <file>`.
+  triage:
+    build: ./triage
+    image: ctf-triage
+    restart: unless-stopped
+    mem_limit: 4g
+    cpus: 3
+    logging: *default-logging
+    command: sleep infinity
+    volumes:
+      - ./data:/data
+      - ./wordlists:/wordlists:ro
+    environment:
+      WORDLIST: ${WORDLIST:-/wordlists/passwords.txt}
+    networks: [ctfnet]
+
+  # FileBrowser: browse triage reports and extracted files. Localhost only.
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    restart: unless-stopped
+    mem_limit: 256m
+    logging: *default-logging
+    ports:
+      - "127.0.0.1:${FILEBROWSER_PORT:-19012}:80"
+    volumes:
+      - ./data:/srv
+      - filebrowser-db:/database
+    networks: [ctfnet]
+
 networks:
   ctfnet:
     driver: bridge
@@ -274,3 +304,4 @@ volumes:
   mitmproxy:
   spiderfoot-data:
   wireshark-config:
+  filebrowser-db:

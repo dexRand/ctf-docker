@@ -18,6 +18,8 @@ Uso: ./ctf <comando>
   status            Stato dei container
   logs [servizio]   Log in tempo reale
   list              Elenca i profili disponibili
+  triage <file>     Deep triage: estrazione ricorsiva + cracking wordlist + flag hunt
+  reports           URL dei report (FileBrowser)
 
 Profili: web  recon  crypto  forensics
 Dashboard: http://localhost:19001
@@ -55,6 +57,45 @@ case "${1:-up}" in
     ;;
   list)
     printf 'Profili: %s\n' "${all_profiles[*]}"
+    ;;
+  triage)
+    shift || true
+    if [ $# -lt 1 ]; then
+      echo "uso: ./ctf triage <file|cartella> [--no-crack] [-w <wordlist>] [--pattern <regex>] [--depth N]" >&2
+      exit 1
+    fi
+    target="$1"; shift
+    if [ ! -e "$target" ]; then
+      echo "[x] non trovato: $target" >&2
+      exit 1
+    fi
+    abs="$(realpath "$target")"
+    profile_filebrowser="$(grep -q '^FILEBROWSER_PORT=' .env 2>/dev/null && grep '^FILEBROWSER_PORT=' .env | cut -d= -f2 || echo 19012)"
+    echo "[*] Build/avvio del container triage..."
+    docker compose up -d triage >/dev/null
+    mkdir -p data
+    echo "[*] Analisi di: $abs"
+    ttyflag=()
+    [ -t 0 ] || ttyflag=(-T)   # niente pseudo-TTY se stdin è una pipe
+    docker compose run --rm --no-deps -i "${ttyflag[@]}" \
+      -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+      -v "$abs:/target:ro" triage triage /target "$@"
+    echo
+    echo "[*] Report: ./data/latest/report.md  (oppure http://localhost:${profile_filebrowser})"
+    ;;
+  reports)
+    port="$(grep -q '^FILEBROWSER_PORT=' .env 2>/dev/null && grep '^FILEBROWSER_PORT=' .env | cut -d= -f2 || echo 19012)"
+    pass="$(grep -q '^FB_ADMIN_PASSWORD=' .env 2>/dev/null && grep '^FB_ADMIN_PASSWORD=' .env | cut -d= -f2 || echo ctfadmin)"
+    docker compose up -d filebrowser >/dev/null
+    # imposta (una volta) la password admin, così è deterministica
+    for _ in 1 2 3 4 5; do
+      if docker compose exec -T filebrowser filebrowser -d /database/filebrowser.db \
+           users update admin --password "$pass" >/dev/null 2>&1; then
+        break
+      fi
+      sleep 2
+    done
+    echo "Report e file estratti: http://localhost:${port}   (utente: admin · password: ${pass})"
     ;;
   -h|--help|help)
     usage
