@@ -24,6 +24,8 @@ Test: `app/tests/real_challenges.py` (scarica i file dai mirror GitHub, perché
 | Matryoshka doll | 2021 | `dolls.jpg` | `picoCTF{336cf6d51c9d9774fd37196c1d7320ff}` |
 | What Lies Within | 2019 | `buildings.png` | `picoCTF{h1d1ng_1n_th3_b1t5}` |
 | Glory of the Garden | 2019 | `garden.jpg` | `picoCTF{more_than_m33ts_the_3y35a97d3bB}` |
+| extensions | 2019 | `flag.txt` (è un PNG) | `picoCTF{now_you_know_about_extensions}` |
+| Weird File | 2021 | `weird.docm` | `picoCTF{m4cr0s_r_d4ng3r0us}` |
 
 Mirror usati:
 
@@ -80,6 +82,29 @@ strings garden.jpg | grep -i pico
 # Here is a flag "picoCTF{more_than_m33ts_the_3y35a97d3bB}"
 ```
 
+### extensions — l'estensione mente
+
+Il file `flag.txt` è in realtà un PNG: va riconosciuto dal contenuto, non dal nome.
+
+```bash
+file flag.txt                 # PNG image data, 1697 x 608, ...
+tesseract flag.txt stdout 2>/dev/null | grep -o 'picoCTF{[^}]*}'
+# picoCTF{now_you_know_about_extensions}
+# (oppure: mv flag.txt flag.png e aprilo)
+```
+
+### Weird File — macro con base64
+
+Un `.docm` è uno ZIP: si estrae e nel flusso macro c'è un blob base64.
+
+```bash
+unzip -o weird.docm -d weird
+strings weird/word/vbaProject.bin | grep -oE '[A-Za-z0-9+/=]{24,}' \
+  | while read b; do echo "$b" | base64 -d 2>/dev/null; done \
+  | grep -ao 'picoCTF{[^}]*}' | head -1
+# picoCTF{m4cr0s_r_d4ng3r0us}
+```
+
 ## Fixture di regressione
 
 Generazione e attese: `app/tests/ctf_regression.py` (le flag sono create dallo
@@ -114,12 +139,25 @@ docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
   /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 13/13
 
 # challenge reali (host: scaricano i file da sole)
-python3 app/tests/real_challenges.py                        # → 5/5
+python3 app/tests/real_challenges.py                        # → 7/7
 ```
 
 `real_challenges.py` fallisce anche se una flag trovata è un **frammento** di
 un'altra (es. `CTF{x}` dentro `picoCTF{x}`): è una guardia contro i falsi
 positivi troncati.
+
+## Altri casi provati (gap noti)
+
+Queste sono state provate sui file reali: StegSuite **non** le risolve ancora
+del tutto. Restano qui come riferimento e come TODO per nuovi analyzer.
+
+| Challenge | Anno | Flag | Cosa manca |
+|---|---|---|---|
+| c0rrupt | 2019 | `picoCTF{c0rrupt10n_1847995}` | riparazione PNG (header/CRC/chunk) |
+| like1000 | 2019 | `picoCTF{l0t5_0f_TAR5}` | 1000 tar annidati (serve un loop/limite) |
+| MacroHard WeakEdge | 2021 | `picoCTF{D1d_u_kn0w_ppts_r_z1p5}` | base64 multi-step nel `pptm` |
+| Surfing the Waves | 2021 | `picoCTF{mU21C_1s_1337_115155af}` | decodifica custom dei campioni WAV |
+| Very very very Hidden | 2021 | `picoCTF{n1c3_job_f1nd1ng_th3_s3cr3t_in_the_im@g3}` | pcap + tool dedicato |
 
 ## Aggiungere una challenge
 

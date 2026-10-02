@@ -37,6 +37,12 @@ _GENERIC_RE = [re.compile(p.encode(), re.IGNORECASE) for p in GENERIC_PATTERNS]
 # sources where the generic "<word>{...}" pattern is skipped (noisy OCR / raw bytes)
 VISION_SOURCES = ("ocr", "bit-planes", "channel-remap", "image-enhance",
                   "gif-frames", "spectrogram", "waveform", "raw")
+# the fuzzy (OCR-confusion) matcher only makes sense on visual/audio output,
+# not on raw file bytes where it matches markup/entities
+FUZZY_SOURCES = tuple(s for s in VISION_SOURCES if s != "raw")
+
+
+_FLAG_BODY_RE = re.compile(r"[A-Za-z0-9_\-!?@.,: ]{1,200}")
 
 
 def _ok_flag(value: str) -> bool:
@@ -46,6 +52,9 @@ def _ok_flag(value: str) -> bool:
         return False
     body = value[value.find("{") + 1:value.rfind("}")]
     if not body or len(body) > 200:
+        return False
+    # reject markup / entity / code snippets (`&#xD;`, `="..."`, `a=b`, …)
+    if not _FLAG_BODY_RE.fullmatch(body):
         return False
     return sum(ch.isalnum() for ch in body) >= 3
 # OCR often reads '{' as f/F/l/L/[/( and ']'/'}' as ] or ). This fuzzy pattern
@@ -158,11 +167,18 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     data = text.encode("latin-1", "replace")
     views = _views(data)
     existing = {f.value for f in session.exec(select(Finding).where(Finding.project_id == project_id)).all()}
-    is_vision = source.split(":", 1)[0] in VISION_SOURCES
+    existing_norm = {v.replace(" ", "") for v in existing}
+    head = source.split(":", 1)[0]
+    is_vision = head in VISION_SOURCES
+    fuzzy_ok = head in FUZZY_SOURCES
     pats = list(_STRICT_RE) + ([] if is_vision else list(_GENERIC_RE))
 
     def add(value: str, src: str, ctx: str = "") -> None:
         if not _ok_flag(value) or value in existing:
+            return
+        # treat values that differ only by whitespace as the same flag
+        norm = value.replace(" ", "")
+        if norm in existing_norm:
             return
         # skip fragments of a longer flag (e.g. `CTF{x}` inside `picoCTF{x}`)
         if any(value != ex and value in ex for ex in existing):
@@ -175,7 +191,9 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
                 if old:
                     session.delete(old)
                 existing.discard(ex)
+                existing_norm.discard(ex.replace(" ", ""))
         existing.add(value)
+        existing_norm.add(norm)
         session.add(Finding(project_id=project_id, file_id=file_id, kind="flag",
                             value=value, source=src, context=ctx))
 
@@ -184,9 +202,10 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
             for m in pat.finditer(view):
                 add(m.group(0).decode("latin-1", "replace"), source,
                     _snippet(view, m.start(), m.end()))
-        for m in _FUZZY_RE.finditer(view):
-            add((m.group(1) + b"{" + m.group(2) + b"}").decode("latin-1", "replace"),
-                f"fuzzy:{source}", _snippet(view, m.start(), m.end()))
+        if fuzzy_ok:
+            for m in _FUZZY_RE.finditer(view):
+                add((m.group(1) + b"{" + m.group(2) + b"}").decode("latin-1", "replace"),
+                    f"fuzzy:{source}", _snippet(view, m.start(), m.end()))
     if depth >= 2:
         return
     # inline encodings in tool outputs (e.g. base64 in EXIF metadata)
@@ -205,6 +224,24 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
                 if b"{" in dec and _printable(dec):
                     _hunt(session, project_id, file_id, dec.decode("latin-1", "replace"),
                           f"{name}:{source}", depth + 1)
+
+
+def _detect_ext(ftype: str) -> str:
+    """Best-effort extension from the `file` description, so analyzers run even
+    when the name lies (e.g. a PNG uploaded as flag.txt)."""
+    low = (ftype or "").lower()
+    for key, ext in (
+        ("png image", ".png"), ("jpeg image", ".jpg"), ("gif image", ".gif"),
+        ("bmp image", ".bmp"), ("tiff image", ".tiff"), ("web/p image", ".webp"),
+        ("webp", ".webp"), ("pdf document", ".pdf"), ("zip archive", ".zip"),
+        ("7-zip archive", ".7z"), ("rar archive", ".rar"), ("tar archive", ".tar"),
+        ("gzip compressed", ".gz"), ("bzip2 compressed", ".bz2"),
+        ("wave audio", ".wav"), ("mpeg audio", ".mp3"), ("mp3", ".mp3"),
+        ("flac", ".flac"), ("ogg", ".ogg"), ("iso media", ".mp4"),
+    ):
+        if key in low:
+            return ext
+    return ""
 
 
 def _plan_for(name: str, mime: str | None, is_text: bool) -> list[str]:
@@ -318,6 +355,9 @@ def _run(pid: str, job: Job) -> None:
                 _emit(pid, {"type": "tool", "file_id": node.id, "name": node.name, "tool": tool_name,
                             "status": result.status, "needs_password": result.needs_password,
                             "summary": result.summary, "extracted": len(result.extracted)})
+                # persist now: keep the SQLite write transaction short so a long
+                # tool run never blocks other requests ("database is locked")
+                session.commit()
 
             # detect type first, then build the plan (text files skip heavy carving)
             ftype = ""
@@ -328,8 +368,14 @@ def _run(pid: str, job: Job) -> None:
                 ftype = r0.output
                 record("file", r0, file_logs)
             is_text = any(k in ftype.lower() for k in ("text", "ascii", "unicode"))
+            # if the name lies (PNG called .txt…), use the detected type for the plan
+            detected = _detect_ext(ftype)
+            plan_name = node.name
+            if detected and not node.name.lower().endswith(detected):
+                plan_name = node.name + detected
+            plan = _plan_for(plan_name, node.mime, is_text)
 
-            for tool_name in [t for t in _plan_for(node.name, node.mime, is_text) if t != "file"]:
+            for tool_name in [t for t in plan if t != "file"]:
                 if job.cancelled:
                     break
                 job.wait()
@@ -496,8 +542,8 @@ def reconcile_orphans() -> list[str]:
 
 
 def dedupe_flag_fragments() -> int:
-    """Remove stored flags that are fragments of a longer flag in the same
-    project (e.g. `CTF{x}` when `picoCTF{x}` exists). Cleans older projects."""
+    """Remove stored flags that are fragments of a longer flag, or whitespace
+    variants of another flag, in the same project. Cleans older projects."""
     with Session(engine) as session:
         rows = session.exec(select(Finding).where(Finding.kind == "flag")).all()
         by_proj: dict[str, list[Finding]] = {}
@@ -505,8 +551,17 @@ def dedupe_flag_fragments() -> int:
             by_proj.setdefault(r.project_id, []).append(r)
         removed = 0
         for items in by_proj.values():
-            values = {f.value for f in items}
-            for f in items:
+            keep: dict[str, Finding] = {}
+            # prefer the value with fewer spaces (OCR/raw) over spaced variants
+            for f in sorted(items, key=lambda x: (x.value.count(" "), len(x.value))):
+                norm = f.value.replace(" ", "")
+                if norm in keep:
+                    session.delete(f)
+                    removed += 1
+                else:
+                    keep[norm] = f
+            values = {f.value for f in keep.values()}
+            for f in list(keep.values()):
                 if any(f.value != o and f.value in o for o in values):
                     session.delete(f)
                     removed += 1

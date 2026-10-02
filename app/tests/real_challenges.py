@@ -28,6 +28,10 @@ CASES = [
     ("dolls.jpg", f"{B21}/Matryoshka doll/dolls.jpg", "picoCTF{336cf6d51c9d9774fd37196c1d7320ff}"),
     ("buildings.png", f"{B19}/What Lies Within/buildings.png", "picoCTF{h1d1ng_1n_th3_b1t5}"),
     ("garden.jpg", f"{B19}/Glory of the Garden/garden.jpg", "picoCTF{more_than_m33ts_the_3y35a97d3bB}"),
+    # extension lies: it's a PNG named .txt -> needs type detection for the plan
+    ("flag.txt", f"{B19}/extensions/flag.txt", "picoCTF{now_you_know_about_extensions}"),
+    # macro-based: base64 inside the vbaProject of a .docm
+    ("weird.docm", f"{B21}/Weird File/weird.docm", "picoCTF{m4cr0s_r_d4ng3r0us}"),
 ]
 
 

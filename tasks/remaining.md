@@ -41,10 +41,14 @@ python3 app/tests/real_challenges.py
   all'avvio (niente più spinner infinito).
 - **Estrazioni**: ogni file figlio registra **quale tool** l'ha prodotto
   (`origin=extracted:<tool>:<parent>`); niente più artefatti "missing on disk".
-- **Docs**: `docs/ADDING-A-TOOL.md`, `docs/API.md` (uso dei tool via API da altri
-  progetti).
-- **Test**: regressione **13/13**, challenge reali picoCTF **5/5**
-  (So Meta, information, Matryoshka doll, What Lies Within, Glory of the Garden).
+- **Docs**: `docs/ADDING-A-TOOL.md`, `docs/API.md`, `docs/CHALLENGES.md`
+  (flag + comandi manuali verificati).
+- **Test**: regressione **13/13**, challenge reali picoCTF **7/7**
+  (So Meta, information, Matryoshka doll, What Lies Within, Glory of the Garden,
+  extensions, Weird File).
+- **Fix robustezza**: tipo rilevato da `file` usato per il piano (estensione che
+  mente), WAL + busy_timeout SQLite e commit per-tool (niente più
+  `database is locked`), dedup flag per spazi/frammenti, fuzzy solo su OCR/vision.
 
 ## TODO
 
@@ -114,7 +118,7 @@ app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
 app/backend/analyzers/*.py     # ~30 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3
 app/tests/ctf_regression.py    # 13/13
-app/tests/real_challenges.py   # 5/5 picoCTF
+app/tests/real_challenges.py   # 7/7 picoCTF
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 compose.yaml                   # servizio stegsuite (19014)
 ```
