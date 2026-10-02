@@ -24,12 +24,28 @@ from .config import PROJECTS_DIR
 from .db import engine
 from .models import Artifact, Event, FileNode, Finding, Project, ToolRun
 
-FLAG_PATTERNS = [
+STRICT_PATTERNS = [
     r"ITS\{[^}\n]{1,200}\}", r"flag\{[^}\n]{1,200}\}", r"FLAG\{[^}\n]{1,200}\}",
     r"CTF\{[^}\n]{1,200}\}", r"ctf\{[^}\n]{1,200}\}", r"HTB\{[^}\n]{1,200}\}",
-    r"picoCTF\{[^}\n]{1,200}\}", r"[0-9A-Za-z_]{2,32}\{[ -~]{1,200}\}",
+    r"picoCTF\{[^}\n]{1,200}\}",
 ]
-_FLAG_RE = [re.compile(p.encode(), re.IGNORECASE) for p in FLAG_PATTERNS]
+GENERIC_PATTERNS = [r"[0-9A-Za-z_]{2,32}\{[A-Za-z0-9_\-!?.,:;@#$%^&*+=/ ]{1,120}\}"]
+_STRICT_RE = [re.compile(p.encode(), re.IGNORECASE) for p in STRICT_PATTERNS]
+_GENERIC_RE = [re.compile(p.encode(), re.IGNORECASE) for p in GENERIC_PATTERNS]
+# sources where the generic "<word>{...}" pattern is skipped (noisy OCR / raw bytes)
+VISION_SOURCES = ("ocr", "bit-planes", "channel-remap", "image-enhance",
+                  "gif-frames", "spectrogram", "waveform", "raw")
+
+
+def _ok_flag(value: str) -> bool:
+    if value.count("{") != 1 or value.count("}") != 1:
+        return False
+    if any(c in value for c in "|\n\r\t"):
+        return False
+    body = value[value.find("{") + 1:value.rfind("}")]
+    if not body or len(body) > 200:
+        return False
+    return sum(ch.isalnum() for ch in body) >= 3
 # OCR often reads '{' as f/F/l/L/[/( and ']'/'}' as ] or ). This fuzzy pattern
 # rescues flags found by OCR/vision tools and normalises them back.
 _FUZZY_RE = re.compile(
@@ -106,28 +122,43 @@ def _printable(b: bytes) -> bool:
     return good / len(t) >= 0.85
 
 
+def _views(data: bytes) -> list[bytes]:
+    """Byte views to hunt in: raw, plus UTF-16 LE/BE when the data is null-heavy."""
+    views = [data]
+    if data and data.count(0) > len(data) // 4:
+        # UTF-16 without the usual decode (keeps a trailing odd byte, e.g. "}")
+        views.append(data[0::2])
+        views.append(data[1::2])
+        for enc in ("utf-16-le", "utf-16-be"):
+            try:
+                views.append(data.decode(enc, "ignore").encode("latin-1", "replace"))
+            except Exception:
+                pass
+    return views
+
+
 def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
           source: str, depth: int = 0) -> None:
     if not text:
         return
     data = text.encode("latin-1", "replace")
+    views = _views(data)
     existing = {f.value for f in session.exec(select(Finding).where(Finding.project_id == project_id)).all()}
-    for pat in _FLAG_RE:
-        for m in pat.findall(data):
-            value = m.decode("latin-1", "replace")
-            if not all(32 <= ord(c) <= 126 for c in value):
-                continue
-            if value in existing:
-                continue
-            existing.add(value)
-            session.add(Finding(project_id=project_id, file_id=file_id, kind="flag", value=value, source=source))
-    for m in _FUZZY_RE.finditer(data):
-        value = (m.group(1) + b"{" + m.group(2) + b"}").decode("latin-1", "replace")
-        if value in existing or not all(32 <= ord(c) <= 126 for c in value):
-            continue
+    is_vision = source.split(":", 1)[0] in VISION_SOURCES
+    pats = list(_STRICT_RE) + ([] if is_vision else list(_GENERIC_RE))
+
+    def add(value: str, src: str) -> None:
+        if value in existing or not _ok_flag(value):
+            return
         existing.add(value)
-        session.add(Finding(project_id=project_id, file_id=file_id, kind="flag",
-                            value=value, source=f"fuzzy:{source}"))
+        session.add(Finding(project_id=project_id, file_id=file_id, kind="flag", value=value, source=src))
+
+    for view in views:
+        for pat in pats:
+            for m in pat.findall(view):
+                add(m.decode("latin-1", "replace"), source)
+        for m in _FUZZY_RE.finditer(view):
+            add((m.group(1) + b"{" + m.group(2) + b"}").decode("latin-1", "replace"), f"fuzzy:{source}")
     if depth >= 2:
         return
     # inline encodings in tool outputs (e.g. base64 in EXIF metadata)
@@ -137,15 +168,15 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     ]
     for name, fn in decoders:
         pat = rb"[A-Za-z0-9+/]{16,}={0,2}" if name == "b64" else rb"(?:[0-9a-fA-F]{2}){8,}"
-        for m in re.finditer(pat, data):
-            tok = m.group(0)
-            try:
-                dec = fn(tok)
-            except Exception:
-                continue
-            if b"{" in dec and _printable(dec):
-                _hunt(session, project_id, file_id, dec.decode("latin-1", "replace"),
-                      f"{name}:{source}", depth + 1)
+        for view in views:
+            for m in re.finditer(pat, view):
+                try:
+                    dec = fn(m.group(0))
+                except Exception:
+                    continue
+                if b"{" in dec and _printable(dec):
+                    _hunt(session, project_id, file_id, dec.decode("latin-1", "replace"),
+                          f"{name}:{source}", depth + 1)
 
 
 def _plan_for(name: str, mime: str | None, is_text: bool) -> list[str]:
@@ -196,7 +227,7 @@ def _run(pid: str, job: Job) -> None:
         pending: list[FileNode] = list(nodes)
         order = max((n.order_index for n in nodes), default=-1) + 1
         processed: set[str] = set()
-        depth_limit = 3
+        depth_limit = 6  # nested archives (Matryoshka doll) can be several levels deep
 
         def analyze(node: FileNode) -> None:
             nonlocal order
@@ -212,6 +243,13 @@ def _run(pid: str, job: Job) -> None:
                 return
             out_dir = work / "work" / str(node.id)
             out_dir.mkdir(parents=True, exist_ok=True)
+
+            # hunt the raw file content too (catches UTF-16 flags, inline encodings…)
+            try:
+                raw = abs_path.read_bytes()[:5_000_000]
+                _hunt(session, pid, node.id, raw.decode("latin-1", "replace"), f"raw:{node.name}")
+            except OSError:
+                pass
 
             def record(tool_name: str, result) -> None:
                 rel_out = None

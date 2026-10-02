@@ -1,13 +1,14 @@
 """Image steg analyzers that need Python (bit planes, channel remap)."""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
 
 IMG_EXT = (".png", ".bmp", ".jpg", ".jpeg", ".gif", ".tiff", ".webp")
-MAX_PIXELS = 12_000_000
+MAX_PIXELS = 4_000_000  # larger images: skip the heavy plane generation
 
 
 class BitPlanesAnalyzer(Analyzer):
@@ -39,11 +40,15 @@ class BitPlanesAnalyzer(Analyzer):
                 fn = outdir / f"{ctx.input.stem}_{ch}{bit}.png"
                 Image.fromarray(plane, mode="L").save(fn)
                 files.append(fn)
-        # OCR each plane so a flag drawn in the LSB is captured automatically
+        # OCR only the LSB planes (bit 0/1): a flag drawn in the LSB is captured
+        # without OCR-ing all 32 planes (slow on big images).
         lines: list[str] = []
         try:
             from .vision import ocr_image
             for f in files:
+                m = re.search(r"_([RGBA])(\d)\.png$", f.name)
+                if not m or int(m.group(2)) > 1:
+                    continue
                 t = ocr_image(f)
                 if t:
                     lines.append(f"{f.name}: {t}")

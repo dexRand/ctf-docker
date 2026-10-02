@@ -1,141 +1,107 @@
 # Remaining work — StegSuite
 
-> Documento di ripresa. Aggiornato al commit `1757f83`.
-> Metti ✅ quando fatto, sposta in "Done" in fondo.
+> Documento di ripresa. Aggiornato dopo il refactor modulare + fix flag/GUI.
+> Metti ✅ quando fatto.
 
-## Stato attuale (fatto)
+## Come riprendere
+```bash
+cd "/home/r/__Github/CTF"
+docker compose up -d stegsuite                 # GUI/API su http://localhost:19014
+# regression (nel container):
+docker cp app/tests/ctf_regression.py ctf-stegsuite-1:/tmp/ctf_regression.py
+docker cp app/tests/fixtures ctf-stegsuite-1:/tmp/fixtures
+docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py
+# challenge reali (host, si scarica i file da sola):
+python3 app/tests/real_challenges.py
+```
 
-StegSuite è **funzionante e integrata**:
-
-- Backend **FastAPI** + **SQLite**: progetti (CRUD/upload/delete), file, tool-run,
-  artefatti, findings, eventi; **API per il singolo tool** (`POST /api/v1/tools/{tool}`),
-  OpenAPI su `/api/docs`. Codice in `app/backend/`.
-- **~30 analyzer** (`app/backend/analyzers/`): file, exiftool, identify, ffprobe,
-  pdfinfo, strings, pdftotext, pdfid, binwalk-scan, **decode** (mini-Ciphey),
-  **morse-text**, **ocr**, zsteg, **png-chunks**, steghide, outguess, jsteg,
-  openstego, bit-planes (+OCR), channel-remap, **image-enhance**, **gif-frames**
-  (split+diff+delay+OCR), morse (audio), dtmf, spectrogram, waveform, 7z,
-  binwalk-extract, foremost, pngcheck, hexyl/xxd/hexdump.
-- **Orchestrazione ricorsiva ordinata** (`orchestrator.py`): Auto = analizza +
-  **auto-crack** + ri-analizza; Check = si ferma e chiede.
-- **Cracking** (`cracking.py`): hashcat (ZipCrypto+AES via `zip2hashcat`),
-  stegseek, pdfcrack, fcrackzip fallback; wordlist piccola→grande (repo + rockyou).
-- **Live**: WebSocket eventi + **terminale PTY** (`/ws/projects/{id}/terminal`).
-- **GUI Vue 3** + Vite + Tailwind + xterm.js (`app/frontend/`): Home (upload,
-  Auto/Check, history), Project (albero file, output tool, artefatti, preview,
-  findings, blocco "bloccati" con scelta wordlist, log live, terminale,
-  start/pause/resume/cancel/delete).
-- **Compose**: servizio `stegsuite` (porta **19014**, localhost) + card dashboard.
-- **Regressione** `app/tests/ctf_regression.py`: **13/13** (incl. `challenge.png`
-  reale risolto in autonomia: pwd `robot` → `ITS{stego_z1p_appended}`).
-
-## Ultima modifica NON ancora verificata (fai questa per prima)
-
-- `app/backend/orchestrator.py` è **modificato ma non committato né buildato**:
-  aggiunge la ricerca **base64/hex inline negli output** (serve per la challenge
-  picoCTF *information*: la flag è base64 nel campo EXIF `License`).
-- Al resume:
-  ```bash
-  cd "/home/r/__Github/CTF"
-  python -m py_compile app/backend/orchestrator.py
-  docker compose build stegsuite && docker compose up -d --force-recreate stegsuite
-  python3 /tmp/opencode/real_test.py     # se esiste; altrimenti ricrealo (vedi sotto)
-  ```
-- `real_test.py` (host) testa 5 challenge reali picoCTF scaricate in
-  `/tmp/opencode/real/` (potrebbero non esserci più dopo un reboot → riscaricale):
-  | file | flag attesa | tecnica |
-  |---|---|---|
-  | pico_img.png | `picoCTF{s0_m3ta_43f253bb}` | exiftool |
-  | cat.jpg | `picoCTF{the_m3tadata_1s_modified}` | base64 in EXIF |
-  | dolls.jpg | `picoCTF{336cf6d51c9d9774fd37196c1d7320ff}` | zip annidati |
-  | buildings.png | `picoCTF{h1d1ng_1n_th3_b1t5}` | LSB (zsteg) |
-  | garden.jpg | `picoCTF{more_than_m33ts_the_3y35a97d3bB}` | strings/xxd |
-  Fonti: `raw.githubusercontent.com/HHousen/PicoCTF-2019|2021/...` (picoctf.net è
-  bloccato da qui, usare i mirror GitHub).
-- Poi: se qualcuno fallisce, fixare e **aggiungere i file come fixture** in
-  `app/tests/fixtures/` + caso in `ctf_regression.py`.
+## Fatto di recente ✅
+- **Caccia flag** ripulita: pattern strict vs generico; il generico NON gira sui
+  tool di vision né sui byte grezzi; validazione della flag (una sola `{}`, no
+  `|`, body alfanumerico) → spariscono i falsi positivi OCR (`zz{z{...`).
+- **UTF-16 / byte alterni**: recupera flag in file UTF-16 con lunghezza dispari
+  (es. `flag.txt` di *Matryoshka doll*).
+- **Scansione dei byte grezzi** del file (oltre agli output dei tool).
+- **Depth ricorsione = 6** (archivi annidati).
+- **Immagini grandi**: `bit-planes`/`image-enhance` gated (4 MP) e OCR solo dei
+  piani LSB (bit 0/1) → niente più "running" infinito su foto grandi.
+- **Refactor modulare**: route divise in `app/backend/api/` (system, projects,
+  analysis, tools, cracking_api, ws); `main.py` è solo la app factory.
+- **Terminale**: **bash colorato** (PS1 con colori, `TERM=xterm-256color`).
+- **GUI**: click sul tool → output (con rendering **ANSI**/colori), immagini
+  **ingrandibili** (lightbox), tasto **📄 Report** per file, artifact visibili.
+- **Docs**: `docs/ADDING-A-TOOL.md`, `docs/API.md` (uso dei tool via API da altri
+  progetti).
+- **Test**: regressione **13/13**, challenge reali picoCTF **5/5**
+  (So Meta, information, Matryoshka doll, What Lies Within, Glory of the Garden).
 
 ## TODO
 
-### 1. Test reali & regressione
-- [ ] Verificare le 5 challenge picoCTF sopra e fixare i gap.
-- [ ] Committare le fixture reali (in `app/tests/fixtures/`) + casi regressione.
-- [ ] Portare la suite a girare comodamente (script `./ctf test` o Makefile) e,
-      opzionale, in **CI** (GitHub Actions) con l'immagine.
-- [ ] Test unit backend (`pytest`): analyzer, orchestrator, API (TestClient).
+### 1. Test & CI
+- [x] 5 challenge reali picoCTF verdi (script auto-contenuto).
+- [ ] Committare le fixture reali (opzionale, pesano ~4 MB) + casi regressione.
+- [ ] Script `./ctf test` (o Makefile) che lancia regressione + reali.
+- [ ] **CI** GitHub Actions (build immagine + regressione).
+- [ ] Test unit `pytest` (analyzer, orchestrator, API con TestClient).
 
-### 2. Riduzione rumore flag
-- [ ] La catena `decode` genera duplicati rot13 (`VGF{...}`). Filtrare le flag che
-      sono trasformazioni (rot13/b64) di un'altra flag già trovata.
-- [ ] Deduplicare le `note "password required"` (oggi si ripetono a ogni passata).
+### 2. Rumore/precisione
+- [x] Falsi positivi OCR/generic eliminati.
+- [ ] Deduplicare i finding **rot13** (`VGF{...}`) rispetto alla flag originale.
+- [ ] Deduplicare le note "password required" ripetute tra le passate.
+- [ ] OCR lingua **italiana** (`tesseract-ocr-ita`).
 
-### 3. GUI (rifiniture Phase 7)
-- [ ] Rendering **ANSI** dell'output (`hexyl` a colori) invece del testo grezzo.
-- [ ] Viewer immagini con **zoom** + confronto side-by-side (bit-plane, frame,
-      highlights, `compare`-style).
-- [ ] Filtri/ricerca nell'albero file; raggruppamento dei tool per categoria;
-      collapse/expand.
-- [ ] Barra di progresso per file; feedback pause/cancel; toast/errori visibili.
-- [ ] Copia-flag con un click; marcare/annotare i finding; export del report.
-- [ ] Upload con progress + dropzone più curata; layout responsive.
-- [ ] "Keep"/"Delete" più espliciti + selezione multipla in history.
+### 3. GUI (rifiniture)
+- [x] Click sul tool → output/ANSI; report per file; immagini ingrandibili;
+      terminale colorato.
+- [x] Tema scuro / “bellezza” — *in corso*
+- [ ] Filtri/ricerca nell'albero file; collapse/expand; raggruppamento per categoria.
+- [ ] Barra di progresso per file; toast/errori; copia-flag 1-click; export report `.md`.
+- [ ] Upload con progress; layout responsive/mobile.
 
-### 4. Analyzer da aggiungere (per coprire "tutto")
-- [ ] **pcap/DNS tunneling** (ExtractionD'ADNs): estrae i sottodomini, concatena,
-      base32/base64 → flag. Richiede `tshark` (verificare in immagine).
-- [ ] **TLS/pcap con chiave** (WebNet): `tshark -o tls.keylog_file` / RSA key.
-- [ ] **SSTV** audio (picoCTF m00nwalk): decoder SSTV (slowrx/qsstv o Python).
-- [ ] **QR/barcode** decode (`zbar-tools`).
-- [ ] **PNG repair** (`pcrt`) per "c0rrupt".
-- [ ] **JPEG height/width repair** per "tunn3l v1s10n".
-- [ ] **WAV LSB / campioni** (audio stego) oltre a spectrogram/morse.
-- [ ] **exiftool thumbnail** extraction + `identify -verbose` histogram.
-- [ ] **rot13/url inline** nella flag hunt (come fatto per b64/hex).
-- [ ] OCR lingua **italiana** (`tesseract-ocr-ita`) per challenge IT.
-- [ ] Depth di ricorsione configurabile da UI/API (oggi fisso 3).
+### 4. Analyzer da aggiungere
+- [ ] **pcap/DNS tunneling** (ExtractionD'ADNs): `tshark` → sottodomini → base32.
+- [ ] **TLS/pcap con chiave** (WebNet).
+- [ ] **SSTV** audio (m00nwalk) — decoder SSTV.
+- [ ] **QR/barcode** (`zbar-tools`).
+- [ ] **PNG repair** (`pcrt`) — c0rrupt.
+- [ ] **JPEG height repair** — tunn3l v1s10n.
+- [ ] **WAV LSB / campioni**.
+- [ ] **rot13/url inline** nella flag hunt (già b64/hex).
+- [ ] Depth di ricorsione configurabile da UI/API.
 
-### 5. Cracking avanzato
-- [ ] UI per gestire le wordlist (upload/selezione) e salvare la scelta per item.
-- [ ] `bkcrack` per ZipCrypto known-plaintext.
-- [ ] Attacchi con **rules/mask** e budget di tempo configurabile.
-- [ ] Valutare **john jumbo** (zip2john/office2john reali) o Hashcat GPU.
+### 5. Cracking
+- [ ] UI gestione wordlist (upload/scelta), salvataggio scelta per item.
+- [ ] `bkcrack` (ZipCrypto known-plaintext); rules/mask + budget.
+- [ ] Valutare john jumbo / Hashcat GPU.
 
-### 6. Robustezza / Ops / Sicurezza
-- [ ] Migrazioni DB (oggi solo `create_all`): introdurre Alembic se lo schema cambia.
-- [ ] Capi di dimensione upload, streaming, limiti risorse e timeout per tool.
-- [ ] Concorrenza: semaforo globale per i tool pesanti; più progetti in parallelo.
-- [ ] Auth/`X-API-Key` documentato + rate limiting; terminale protetto; bind solo
-      localhost (già).
+### 6. Robustezza / Ops
+- [ ] Migrazioni DB (Alembic) se cambia lo schema.
+- [ ] Cap upload/limiti risorse per tool; semaforo tool pesanti.
+- [ ] Auth `X-API-Key` documentato + rate limiting; terminale protetto.
 - [ ] Retention opzionale (`RETENTION_DAYS`) — oggi disattivata per scelta utente.
 
-### 7. Packaging / Docs
-- [ ] `package-lock.json` del frontend (oggi `npm install` senza lock) per build
-      riproducibili.
-- [ ] Screenshot + sezione API con esempi (`curl`) nel README.
-- [ ] Valutare **base image propria** (ora è pinnata per digest all'immagine
-      AperiSolve, MIT): costruirla da Debian per indipendenza totale.
-- [ ] `./ctf` : comando comodo per aprire StegSuite / docs.
+### 7. Packaging
+- [ ] `package-lock.json` frontend per build riproducibili.
+- [ ] Screenshot + esempi nel README.
+- [ ] Valutare base image propria (ora pinnata per digest a AperiSolve, MIT).
+- [ ] Comando `./ctf` per aprire StegSuite/docs.
 
-### 8. Limiti noti (documentare)
-- Flag **visive** risolte via OCR (buono ma imperfetto; c'è il fuzzy matcher).
-- AES su **CPU** ~17k H/s: rockyou intera ≈ 14 min (nessuna GPU).
-- `picoctf.net` non risolve da questa macchina: usare mirror GitHub.
-- Challenge che richiedono **ricerca dell'originale online** (Stegartifice2) non
-  sono automatizzabili.
+## Limiti noti
+- Flag **visive** via OCR (buono, con fuzzy matcher; non perfetto).
+- AES su **CPU** ~17k H/s → rockyou intera ≈ 14 min (no GPU).
+- `picoctf.net` non risolve da qui → usare mirror GitHub (HHousen/PicoCTF-*).
+- Challenge che richiedono ricerca dell'originale online non automatizzabili.
 
 ## File chiave
 ```
-app/backend/main.py            # API + WS + static SPA
-app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt  (MODIFICATO)
+app/backend/main.py            # app factory (include i router)
+app/backend/api/*.py           # router: system, projects, analysis, tools, cracking, ws
+app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
-app/backend/analyzers/*.py     # ~30 tool
+app/backend/analyzers/*.py     # ~30 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3
-app/tests/ctf_regression.py    # suite 13/13
-app/tests/fixtures/            # challenge.png reale
+app/tests/ctf_regression.py    # 13/13
+app/tests/real_challenges.py   # 5/5 picoCTF
+docs/ADDING-A-TOOL.md, docs/API.md
 compose.yaml                   # servizio stegsuite (19014)
-config/homepage/services.yaml  # card dashboard
-SPEC-steg.md, tasks/plan-steg.md, tasks/todo-steg.md
 ```
-
-## Done
-- (nessuno ancora) — sposta qui le voci completate.
