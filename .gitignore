@@ -11,6 +11,9 @@ config/homepage/kubernetes.yaml
 config/homepage/docker.yaml
 config/homepage/bookmarks.yaml
 
+# StegSuite app data (SQLite + progetti)
+appdata/
+
 # Deep triage: dati di lavoro e wordlist pesanti
 data/
 wordlists/*
