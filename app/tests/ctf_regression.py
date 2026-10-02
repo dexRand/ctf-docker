@@ -163,7 +163,51 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     except subprocess.CalledProcessError:
         pass
 
-    # 14) the real challenge.png (1x1 PNG + AES zip appended, password "robot")
+    # 14) flag in the LSB of WAV samples -> wav-lsb
+    import struct as _struct
+    import wave as _wave
+
+    def _wav_with_lsb(path: Path, text: str) -> None:
+        bits = [(ord(c) >> i) & 1 for c in text for i in range(8)]
+        with _wave.open(str(path), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(8000)
+            w.writeframes(_struct.pack("<" + "h" * 1000, *([0] * 1000)))
+            w.writeframes(_struct.pack("<" + "h" * len(bits), *[(0x100 | b) for b in bits]))
+
+    p = TMP / "lsb.wav"
+    _wav_with_lsb(p, "ITS{wav_lsb_14}")
+    cases.append(("wav-lsb", p, "ITS{wav_lsb_14}"))
+
+    # 15) HTTP request with the flag in the URI -> pcap (tshark)
+    def _pcap_http(path: Path, uri: str) -> None:
+        payload = f"GET {uri} HTTP/1.1\r\nHost: ctf.local\r\n\r\n".encode()
+        eth = b"\x02\x00\x00\x00\x00\x02" + b"\x02\x00\x00\x00\x00\x01" + b"\x08\x00"
+        src, dst = b"\x0a\x00\x00\x01", b"\x0a\x00\x00\x02"
+        total = 20 + 20 + len(payload)
+        ip = _struct.pack("!BBHHHBBH4s4s", 0x45, 0, total, 1, 0, 64, 6, 0, src, dst)
+
+        def cksum(h: bytes) -> int:
+            s = 0
+            for i in range(0, len(h), 2):
+                s += (h[i] << 8) + (h[i + 1] if i + 1 < len(h) else 0)
+            while s >> 16:
+                s = (s & 0xFFFF) + (s >> 16)
+            return (~s) & 0xFFFF
+
+        ip = ip[:10] + _struct.pack("!H", cksum(ip)) + ip[12:]
+        tcp = _struct.pack("!HHLLBBHHH", 12345, 80, 1, 0, 0x50, 0x18, 0xFFFF, 0, 0)
+        frame = eth + ip + tcp + payload
+        gh = _struct.pack("<IHHiIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, 1)
+        rec = _struct.pack("<IIII", 0, 0, len(frame), len(frame)) + frame
+        path.write_bytes(gh + rec)
+
+    p = TMP / "http.pcap"
+    _pcap_http(p, "/ITS{pcap_15}")
+    cases.append(("pcap", p, "ITS{pcap_15}"))
+
+    # 16) the real challenge.png (1x1 PNG + AES zip appended, password "robot")
     fixtures = Path(os.environ.get("FIXTURES_DIR", "/tmp/fixtures"))
     real = fixtures / "challenge.png"
     if real.is_file():

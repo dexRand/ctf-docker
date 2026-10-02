@@ -22,10 +22,10 @@ USER root
 
 # hex viewers, OCR, audio + password-cracking toolset
 RUN apt-get update \
- && apt-get install -y --no-install-recommends \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         curl ca-certificates \
         xxd hexyl bsdmainutils \
-        tesseract-ocr multimon-ng sox zbar-tools qrencode \
+        tesseract-ocr multimon-ng sox zbar-tools qrencode tshark \
         unzip zip fcrackzip pdfcrack hashcat pocl-opencl-icd libmhash2 \
  && curl -fsSL -o /tmp/stegseek.deb \
         https://github.com/RickdeJager/stegseek/releases/download/v0.6/stegseek_0.6-1.deb \

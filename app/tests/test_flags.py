@@ -73,3 +73,11 @@ def test_is_known_prefix() -> None:
     assert _is_known_prefix("picoCTF{x}")
     assert _is_known_prefix("flag{x}")
     assert not _is_known_prefix("VGF{x}")
+
+
+def test_wav_lsb_bits_roundtrip() -> None:
+    from backend.analyzers.audio import _bits_to_text
+
+    text = "ITS{wav_lsb}"
+    bits = [(ord(c) >> i) & 1 for c in text for i in range(8)]
+    assert _bits_to_text(bits) == text

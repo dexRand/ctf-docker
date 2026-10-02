@@ -91,7 +91,8 @@ DEFAULT_PLAN = [
     "ocr", "qr",
     "zsteg", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
-    "morse", "dtmf", "spectrogram", "waveform",
+    "morse", "dtmf", "spectrogram", "waveform", "wav-lsb",
+    "pcap",
     "7z", "binwalk-extract", "foremost", "pngcheck", "png-repair",
 ]
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}

@@ -132,6 +132,8 @@ script, quindi il test verifica che l'analizzatore le ritrovi).
 | image-enhance | testo a basso contrasto | `ITS{enhance_11}` |
 | decode-chain | Morse "dashed" + rot13 | `ITS{dashed_12}` |
 | qr | QR code con la flag (`zbarimg`) | `ITS{qr_13}` |
+| wav-lsb | flag nei bit LSB dei campioni WAV | `ITS{wav_lsb_14}` |
+| pcap | flag nella URI HTTP (`tshark`) | `ITS{pcap_15}` |
 | real-challenge | PNG con ZIP appeso + password `robot` | `ITS{stego_z1p_appended}` |
 
 ## Come verificare
@@ -144,7 +146,7 @@ docker compose up -d stegsuite
 docker cp app/tests/ctf_regression.py ctf-stegsuite-1:/tmp/ctf_regression.py
 docker cp app/tests/fixtures ctf-stegsuite-1:/tmp/fixtures
 docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
-  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 14/14
+  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 16/16
 
 # challenge reali (host: scaricano i file da sole)
 python3 app/tests/real_challenges.py                        # → 7/7

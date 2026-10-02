@@ -195,13 +195,14 @@ http://localhost:19014 (localhost only).
 
 - **Auto / Check** modes: Auto runs everything and tries every wordlist; Check
   first scans, then lets you choose what to attack.
-- **Recursive, ordered** analysis over **31 tools**: `file`, `exiftool`,
+- **Recursive, ordered** analysis over **33 tools**: `file`, `exiftool`,
   `identify`, `ffprobe`, `strings`, `xxd`/`hexdump`/`hexyl`, `binwalk`
   (scan + `binwalk -e`), `foremost`, `7z`, `zsteg`, `steghide`, `outguess`,
   `jsteg`, `openstego`, `bit-planes`, `channel-remap`, `gif-frames`
   (split + frame-diff + delay decode + per-frame OCR), `ocr` (tesseract),
   `qr` (zbarimg), `png-chunks`, `png-repair`, `morse`, `dtmf`,
-  `spectrogram`, `waveform`, `pngcheck`, `pdfid`, `pdftotext`.
+  `spectrogram`, `waveform`, `wav-lsb`, `pcap` (tshark), `pngcheck`, `pdfid`,
+  `pdftotext`.
 - **GUI**: file tree, per-tool output, extracted children, image/audio
   previews, live log over WebSocket, and an embedded **terminal** (xterm.js).
 - **Flag hunt + cracking**: ZIP (incl. AES via hashcat), steghide, PDF.
