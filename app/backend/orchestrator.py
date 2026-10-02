@@ -6,6 +6,7 @@ until the tree is exhausted (or the depth limit is reached).
 """
 from __future__ import annotations
 
+import base64
 import datetime as dt
 import re
 import shutil
@@ -92,7 +93,21 @@ def _emit(pid: str, event: dict) -> None:
     bus.publish(f"project:{pid}", event)
 
 
-def _hunt(session: Session, project_id: str, file_id: int | None, text: str, source: str) -> None:
+def _printable(b: bytes) -> bool:
+    if not b:
+        return False
+    try:
+        t = b.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    if not t:
+        return False
+    good = sum(1 for c in t if 32 <= ord(c) < 127 or c in "\n\r\t")
+    return good / len(t) >= 0.85
+
+
+def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
+          source: str, depth: int = 0) -> None:
     if not text:
         return
     data = text.encode("latin-1", "replace")
@@ -113,6 +128,24 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str, sou
         existing.add(value)
         session.add(Finding(project_id=project_id, file_id=file_id, kind="flag",
                             value=value, source=f"fuzzy:{source}"))
+    if depth >= 2:
+        return
+    # inline encodings in tool outputs (e.g. base64 in EXIF metadata)
+    decoders: list[tuple[str, object]] = [
+        ("b64", lambda t: base64.b64decode(t + b"=" * ((4 - len(t) % 4) % 4), validate=False)),
+        ("hex", lambda t: bytes.fromhex(t.decode())),
+    ]
+    for name, fn in decoders:
+        pat = rb"[A-Za-z0-9+/]{16,}={0,2}" if name == "b64" else rb"(?:[0-9a-fA-F]{2}){8,}"
+        for m in re.finditer(pat, data):
+            tok = m.group(0)
+            try:
+                dec = fn(tok)
+            except Exception:
+                continue
+            if b"{" in dec and _printable(dec):
+                _hunt(session, project_id, file_id, dec.decode("latin-1", "replace"),
+                      f"{name}:{source}", depth + 1)
 
 
 def _plan_for(name: str, mime: str | None, is_text: bool) -> list[str]:
