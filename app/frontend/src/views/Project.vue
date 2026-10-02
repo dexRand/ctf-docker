@@ -53,12 +53,25 @@ function toggleKey(key) {
   collapsed.value = s
 }
 function toggleNode(n) { toggleKey(n._gid || n.id) }
+const search = ref('')
 const visibleTree = computed(() => {
+  const q = search.value.trim().toLowerCase()
   const m = childrenByParent.value
   const out = []
+  // while searching, keep matches and their ancestors and expand everything
+  let keep = null
+  if (q) {
+    keep = new Set()
+    for (const n of tree.value) {
+      if (!String(n.name).toLowerCase().includes(q)) continue
+      let cur = n
+      while (cur) { keep.add(cur.id); cur = treeById.value[cur.parent_id] }
+    }
+  }
   const walk = (pid, depth) => {
     const groups = new Map()
     for (const n of (m[pid] || [])) {
+      if (keep && !keep.has(n.id)) continue
       const t = originTool(n)
       if (!groups.has(t)) groups.set(t, [])
       groups.get(t).push(n)
@@ -68,15 +81,15 @@ const visibleTree = computed(() => {
       if (multi) {
         const gid = `g:${pid}:${tool}`
         out.push({ _group: true, _gid: gid, _pid: pid, _tool: tool, _depth: depth, _kids: list.length, name: tool })
-        if (collapsed.value.has(gid)) continue
+        if (!q && collapsed.value.has(gid)) continue
         for (const n of list) {
           out.push({ ...n, _depth: depth + 1, _kids: (m[n.id] || []).length })
-          if (!collapsed.value.has(n.id)) walk(n.id, depth + 1)
+          if (q || !collapsed.value.has(n.id)) walk(n.id, depth + 1)
         }
       } else {
         for (const n of list) {
           out.push({ ...n, _depth: depth, _kids: (m[n.id] || []).length })
-          if (!collapsed.value.has(n.id)) walk(n.id, depth)
+          if (q || !collapsed.value.has(n.id)) walk(n.id, depth)
         }
       }
     }
@@ -401,6 +414,14 @@ async function openReport() {
   report.value = { open: true, text: L.join('\n'), busy: false }
 }
 function copyReport() { navigator.clipboard?.writeText(report.value.text) }
+const copied = ref('')
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text)
+    copied.value = text
+    setTimeout(() => { if (copied.value === text) copied.value = '' }, 1500)
+  } catch { /* clipboard unavailable */ }
+}
 function downloadReport() {
   const blob = new Blob([report.value.text], { type: 'text/markdown' })
   const a = document.createElement('a')
@@ -471,6 +492,8 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
       <!-- file tree -->
       <div class="min-h-0 overflow-auto border-r border-edge p-2">
         <div class="mb-1 px-1 text-xs font-semibold uppercase text-slate-500">File ({{ tree.length }})</div>
+        <input v-model="search" type="search" placeholder="filtra file…" aria-label="Filtra i file"
+               class="mb-2 w-full rounded border border-edge bg-ink px-2 py-1 text-xs outline-none placeholder:text-slate-600 focus:border-acc" />
         <div v-if="flags.length" class="mb-1 flex flex-wrap items-center gap-x-2 px-1 text-[10px]">
           <span class="text-emerald-400">● percorso flag</span>
           <span class="text-slate-100">● adiacente</span>
@@ -556,7 +579,13 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
           <template v-if="flags.length">
             <div class="mb-2 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="flag" :size="13" />Overview — dove è la flag</div>
             <div v-for="c in flagCards" :key="c.f.id" class="mb-2 rounded border border-emerald-500/30 bg-emerald-500/5 p-2">
-              <div class="break-all text-xs font-semibold text-emerald-300">{{ c.f.value }}</div>
+              <div class="flex items-start gap-1">
+                <div class="min-w-0 flex-1 break-all text-xs font-semibold text-emerald-300">{{ c.f.value }}</div>
+                <button type="button" @click="copyText(c.f.value)" :aria-label="'Copia flag ' + c.f.value"
+                        class="shrink-0 rounded border border-edge p-0.5 text-slate-400 hover:bg-ink hover:text-slate-100">
+                  <Icon :name="copied === c.f.value ? 'check' : 'copy'" :size="12" />
+                </button>
+              </div>
               <div class="mt-1 text-[11px] text-slate-400">
                 in
                 <button class="text-slate-100 hover:underline" @click="c.f.file_id && (selected = c.f.file_id)">{{ (treeById[c.f.file_id] || {}).name || '?' }}</button>

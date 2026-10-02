@@ -1,10 +1,14 @@
 """Unit tests for the flag-hunting logic (no external tools required)."""
 from __future__ import annotations
 
+import codecs
+
 from backend.orchestrator import (
     _GENERIC_RE,
     _STRICT_RE,
+    _canon_flag,
     _detect_ext,
+    _is_known_prefix,
     _ok_flag,
     _snippet,
 )
@@ -55,3 +59,17 @@ def test_snippet_marks_flag() -> None:
     start = v.find(b"picoCTF{abc_1}")
     snip = _snippet(v, start, start + len("picoCTF{abc_1}"))
     assert "«picoCTF{abc_1}»" in snip
+
+
+def test_canon_collapses_rot13_twin() -> None:
+    real = "ITS{stego_z1p_appended}"
+    twin = codecs.encode(real, "rot13")  # VGF{fgrtb_m1c_nccraqrq}
+    assert twin != real
+    assert _canon_flag(real) == real
+    assert _canon_flag(twin) == real
+
+
+def test_is_known_prefix() -> None:
+    assert _is_known_prefix("picoCTF{x}")
+    assert _is_known_prefix("flag{x}")
+    assert not _is_known_prefix("VGF{x}")

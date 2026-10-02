@@ -20,6 +20,7 @@ const P = {
   close: 'M6 6l12 12M18 6L6 18',
   chevronR: 'M9 6l6 6-6 6',
   chevronD: 'M6 9l6 6 6-6',
+  check: 'M5 13l4 4L19 7',
   search: 'M10 17a7 7 0 100-14 7 7 0 000 14zM20 20l-4.5-4.5',
   audio: 'M9 18V6l10-2v12M9 18a3 3 0 11-6 0 3 3 0 016 0zM19 16a3 3 0 11-6 0 3 3 0 016 0z',
   video: 'M4 5h12v14H4zM16 10l4-2v8l-4-2z',

@@ -7,6 +7,7 @@ until the tree is exhausted (or the depth limit is reached).
 from __future__ import annotations
 
 import base64
+import codecs
 import datetime as dt
 import re
 import shutil
@@ -57,6 +58,25 @@ def _ok_flag(value: str) -> bool:
     if not _FLAG_BODY_RE.fullmatch(body):
         return False
     return sum(ch.isalnum() for ch in body) >= 3
+
+
+# A flag found in a different encoding (typically rot13 of the whole value,
+# e.g. `VGF{...}` for `ITS{...}`) should collapse to a single finding.
+KNOWN_PREFIXES = {"ITS", "flag", "FLAG", "ctf", "CTF", "HTB", "picoCTF"}
+
+
+def _is_known_prefix(value: str) -> bool:
+    return value.split("{", 1)[0] in KNOWN_PREFIXES
+
+
+def _canon_flag(value: str) -> str:
+    """Canonical key: a flag and its rot13 twin map to the same string."""
+    alt = codecs.encode(value, "rot13")
+    if _is_known_prefix(alt) and not _is_known_prefix(value):
+        return alt
+    if _is_known_prefix(value):
+        return value
+    return min(value, alt)
 # OCR often reads '{' as f/F/l/L/[/( and ']'/'}' as ] or ). This fuzzy pattern
 # rescues flags found by OCR/vision tools and normalises them back.
 _FUZZY_RE = re.compile(
@@ -168,6 +188,7 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     views = _views(data)
     existing = {f.value for f in session.exec(select(Finding).where(Finding.project_id == project_id)).all()}
     existing_norm = {v.replace(" ", "") for v in existing}
+    canon_index = {_canon_flag(v): v for v in existing}
     head = source.split(":", 1)[0]
     is_vision = head in VISION_SOURCES
     fuzzy_ok = head in FUZZY_SOURCES
@@ -180,6 +201,20 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         norm = value.replace(" ", "")
         if norm in existing_norm:
             return
+        # collapse rot13 twins (`VGF{..}` vs `ITS{..}`); prefer the known prefix
+        canon = _canon_flag(value)
+        prev = canon_index.get(canon)
+        if prev is not None and prev != value:
+            if _is_known_prefix(value) and not _is_known_prefix(prev):
+                old = session.exec(select(Finding).where(Finding.project_id == project_id)
+                                   .where(Finding.value == prev)).first()
+                if old:
+                    session.delete(old)
+                existing.discard(prev)
+                existing_norm.discard(prev.replace(" ", ""))
+                canon_index.pop(canon, None)
+            else:
+                return
         # skip fragments of a longer flag (e.g. `CTF{x}` inside `picoCTF{x}`)
         if any(value != ex and value in ex for ex in existing):
             return
@@ -192,8 +227,10 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
                     session.delete(old)
                 existing.discard(ex)
                 existing_norm.discard(ex.replace(" ", ""))
+                canon_index.pop(_canon_flag(ex), None)
         existing.add(value)
         existing_norm.add(norm)
+        canon_index[canon] = value
         session.add(Finding(project_id=project_id, file_id=file_id, kind="flag",
                             value=value, source=src, context=ctx))
 
@@ -350,8 +387,13 @@ def _run(pid: str, job: Job) -> None:
                 if result.output:
                     _hunt(session, pid, node.id, result.output, f"{tool_name}:{node.name}")
                 if result.needs_password:
-                    session.add(Finding(project_id=pid, file_id=node.id, kind="note",
-                                        value=f"password required: {node.name}", source=tool_name))
+                    note_val = f"password required: {node.name}"
+                    exists = session.exec(select(Finding).where(Finding.project_id == pid)
+                                          .where(Finding.kind == "note")
+                                          .where(Finding.value == note_val)).first()
+                    if not exists:
+                        session.add(Finding(project_id=pid, file_id=node.id, kind="note",
+                                            value=note_val, source=tool_name))
                 _emit(pid, {"type": "tool", "file_id": node.id, "name": node.name, "tool": tool_name,
                             "status": result.status, "needs_password": result.needs_password,
                             "summary": result.summary, "extracted": len(result.extracted)})
@@ -541,29 +583,44 @@ def reconcile_orphans() -> list[str]:
         return ids
 
 
-def dedupe_flag_fragments() -> int:
-    """Remove stored flags that are fragments of a longer flag, or whitespace
-    variants of another flag, in the same project. Cleans older projects."""
+def dedupe_findings() -> int:
+    """Clean stored findings: collapse rot13 twins and whitespace variants of a
+    flag, drop fragments of a longer flag, and drop duplicate notes. Older
+    projects are cleaned at startup."""
     with Session(engine) as session:
-        rows = session.exec(select(Finding).where(Finding.kind == "flag")).all()
+        rows = session.exec(select(Finding)).all()
         by_proj: dict[str, list[Finding]] = {}
         for r in rows:
             by_proj.setdefault(r.project_id, []).append(r)
         removed = 0
         for items in by_proj.values():
+            flags = [f for f in items if f.kind == "flag"]
             keep: dict[str, Finding] = {}
-            # prefer the value with fewer spaces (OCR/raw) over spaced variants
-            for f in sorted(items, key=lambda x: (x.value.count(" "), len(x.value))):
-                norm = f.value.replace(" ", "")
-                if norm in keep:
+            # prefer a known prefix, then fewer spaces, then the shorter value
+            flags.sort(key=lambda x: (0 if _is_known_prefix(x.value) else 1,
+                                      x.value.count(" "), len(x.value)))
+            for f in flags:
+                key = _canon_flag(f.value).replace(" ", "")
+                if key in keep:
                     session.delete(f)
                     removed += 1
                 else:
-                    keep[norm] = f
+                    keep[key] = f
             values = {f.value for f in keep.values()}
             for f in list(keep.values()):
                 if any(f.value != o and f.value in o for o in values):
                     session.delete(f)
                     removed += 1
+            # duplicate notes (same value+source) across auto-crack passes
+            seen_notes: set[tuple[str, str]] = set()
+            for f in items:
+                if f.kind != "note":
+                    continue
+                key = (f.value, f.source)
+                if key in seen_notes:
+                    session.delete(f)
+                    removed += 1
+                else:
+                    seen_notes.add(key)
         session.commit()
         return removed
