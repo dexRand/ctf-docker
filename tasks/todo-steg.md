@@ -65,7 +65,10 @@
 - [x] `bit-planes` con **OCR** dei piani (LSB leggibile in autonomia, Stegartifice1)
 - [x] `image-enhance`: autocontrast/equalize/invert/highlights/shadows + OCR (BrightSun)
 - [x] Flag hunt "fuzzy" per gli errori OCR (`ITSfenhance_11}` → `ITS{enhance_11}`)
-- [x] Regressione estesa: **12/12** categorie risolte in Auto
+- [x] Regressione estesa: **13/13** categorie risolte in Auto
+- [x] `challenge.png` reale (PNG 1x1 + zip AES) risolto in autonomia:
+      password `robot` (da 10k-most-common/rockyou-75) → `ITS{stego_z1p_appended}`
+      (fixture committata in `app/tests/fixtures/`)
 
 ## Phase 7 — Frontend SPA ✅ (v1)
 - [x] T7.1 Setup Vue 3 + Vite + Tailwind + vue-router

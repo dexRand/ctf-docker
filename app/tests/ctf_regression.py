@@ -153,6 +153,12 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     p = TMP / "dashed_chain.txt"
     p.write_text(tokens)
     cases.append(("decode-chain", p, "ITS{dashed_12}"))
+
+    # 13) the real challenge.png (1x1 PNG + AES zip appended, password "robot")
+    fixtures = Path(os.environ.get("FIXTURES_DIR", "/tmp/fixtures"))
+    real = fixtures / "challenge.png"
+    if real.is_file():
+        cases.append(("real-challenge", real, "ITS{stego_z1p_appended}"))
     return cases
 
 
