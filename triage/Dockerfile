@@ -12,6 +12,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
         curl ca-certificates \
         john fcrackzip pdfcrack unzip zip xz-utils sox pngtools libmhash2 \
+        hashcat pocl-opencl-icd \
  && curl -fsSL -o /tmp/stegseek.deb \
         https://github.com/RickdeJager/stegseek/releases/download/v0.6/stegseek_0.6-1.deb \
  && dpkg -i /tmp/stegseek.deb \
@@ -32,6 +33,8 @@ RUN mkdir -p /opt/wordlists \
 COPY triage.py /usr/local/lib/triage/triage.py
 COPY webapp.py /usr/local/lib/triage/webapp.py
 COPY patterns.txt /usr/local/share/triage/patterns.txt
+# vendored, MIT, zero-dependency zip2john replacement (hashcat hashes)
+COPY third_party/ /opt/third_party/
 RUN printf '#!/bin/sh\nexec python3 /usr/local/lib/triage/triage.py "$@"\n' > /usr/local/bin/triage \
  && chmod +x /usr/local/bin/triage
 

@@ -79,7 +79,8 @@ ordinate piccola → grande.
 CLI `./ctf triage <file>` sullo stesso motore (immagine custom basata su AperiSolve):
 estrazione ricorsiva (7z/binwalk/foremost) + analisi per file
 (strings/exiftool/zsteg/steghide) + flag hunt (pattern configurabili) +
-attacchi password con wordlist. Quando incontra un elemento bloccato
+attacchi password con wordlist (stegseek, fcrackzip, hashcat+zip2hashcat per
+gli ZIP AES, pdfcrack). Quando incontra un elemento bloccato
 (archivio/PDF cifrato, immagine potenzialmente steghide) si ferma e chiede
 all'utente quale wordlist usare; le wordlist sono ordinate piccola → grande e
 la password trovata viene riusata. I report finiscono in `./data/` e si

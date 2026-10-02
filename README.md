@@ -123,7 +123,8 @@ It automatically:
    use**.
 
 Password attacks use the right tool per format — `stegseek` (steghide),
-`fcrackzip`/`7z` (archives), `pdfcrack` (PDF) — and wordlists are tried
+`fcrackzip` + **`hashcat`** (ZIP, including **AES-256** via the vendored
+`zip2hashcat`), `pdfcrack` (PDF) — and wordlists are tried
 **smallest → largest** so the fast dictionaries run first. Any password found is
 reused automatically for the remaining files.
 

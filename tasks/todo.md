@@ -42,6 +42,8 @@
 - [x] Wordlist più usate nel repo (500-worst, probable-1575, 10k, darkweb10k, rockyou-75)
 - [x] rockyou completa (14M) inclusa nell'immagine in `/opt/wordlists`
 - [x] Test end-to-end: Auto 3 flag/2 pwd, Check con scelta wordlist OK, CLI OK
+- [x] Fix: binwalk estraeva nella cwd (`/data`) e non accanto al file → estrazione ricorsiva non trovata
+- [x] ZIP AES: `fcrackzip` (ZipCrypto) + `hashcat` via `zip2hashcat` vendored (MIT) → testato su zip AES-256
 
 ## Backlog
 - [ ] Profilo `crack`: Hashtopolis (frontend + backend + agent + DB)

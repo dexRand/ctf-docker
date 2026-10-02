@@ -124,7 +124,8 @@ Automaticamente:
    quale wordlist usare**.
 
 Gli attacchi usano il tool giusto per formato — `stegseek` (steghide),
-`fcrackzip`/`7z` (archivi), `pdfcrack` (PDF) — e le wordlist sono provate
+`fcrackzip` + **`hashcat`** (ZIP, anche **AES-256** via il vendored
+`zip2hashcat`), `pdfcrack` (PDF) — e le wordlist sono provate
 **dalla più piccola alla più grande**, così le liste veloci partono per prime.
 Una password trovata viene riusata automaticamente sugli altri file.
 

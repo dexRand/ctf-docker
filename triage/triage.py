@@ -70,12 +70,12 @@ def log(msg: str) -> None:
         print(f"[*] {msg}", flush=True)
 
 
-def run(cmd: list[str], timeout: int = 300) -> subprocess.CompletedProcess:
+def run(cmd: list[str], timeout: int = 300, cwd: str | None = None) -> subprocess.CompletedProcess:
     with LOCK:
         COMMANDS.append(" ".join(cmd))
     try:
         return subprocess.run(cmd, capture_output=True, text=True, errors="replace",
-                              timeout=timeout, stdin=subprocess.DEVNULL)
+                              timeout=timeout, stdin=subprocess.DEVNULL, cwd=cwd)
     except subprocess.TimeoutExpired:
         with LOCK:
             WARNINGS.append(f"timeout: {' '.join(cmd)}")
@@ -204,14 +204,21 @@ def extract_7z(path: Path, outdir: Path, password: str | None) -> tuple[bool, bo
 
 
 def binwalk_extract(path: Path, outdir: Path) -> Path | None:
+    # binwalk extracts into its *current working directory*; run it next to the
+    # file so the result is deterministic, and check that location too.
     run(["binwalk", "--matryoshka", "--depth=2", "--count=100",
-         "--size=10485760", "-e", str(path), "--run-as=root"], timeout=600)
-    produced = path.parent / f"_{path.name}.extracted"
-    if produced.exists():
-        target = outdir / f"{path.name}.binwalk"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(produced), str(target))
-        return target
+         "--size=10485760", "-e", str(path), "--run-as=root"],
+        timeout=600, cwd=str(path.parent))
+    candidates = [
+        path.parent / f"_{path.name}.extracted",
+        Path.cwd() / f"_{path.name}.extracted",
+    ]
+    for produced in candidates:
+        if produced.exists():
+            target = outdir / f"{path.name}.binwalk"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(produced), str(target))
+            return target
     return None
 
 
@@ -312,15 +319,69 @@ def analyze_file(path: Path, work: Path, patterns) -> list[Path]:
 
 
 # -------------------------------------------------------------- cracking phase
+Z2H = "/opt/third_party/zip2hashcat.py"
+
+
+def crack_zip_hashcat(path: Path, wls: list[Path]) -> str | None:
+    """Crack a ZIP (ZipCrypto or AES) with hashcat via the vendored zip2hashcat."""
+    if not (have("hashcat") and os.path.exists(Z2H)):
+        return None
+    r = run(["python3", Z2H, "--json", str(path)], timeout=120)
+    try:
+        info = json.loads(r.stdout)[0]
+        mode = int(info["hashcat_mode"])
+        hash_str = info["hash"]
+    except (ValueError, KeyError, IndexError, TypeError):
+        return None
+    if not hash_str:
+        return None
+
+    hf, wf, pf = "/tmp/hc.hash", "/tmp/hc.wordlist", "/tmp/hc.pot"
+    Path(hf).write_text(hash_str + "\n")
+    with open(wf, "wb") as out:  # concatenate the chosen lists, small -> large
+        for wl in wls:
+            try:
+                with open(wl, "rb") as src:
+                    shutil.copyfileobj(src, out)
+            except OSError:
+                continue
+            out.write(b"\n")
+    for f in (pf, "/tmp/hc_session.restore"):
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+    run(["hashcat", "-m", str(mode), "-a", "0", hf, wf,
+         "--potfile-path", pf, "--session", "/tmp/hc_session",
+         "--restore-disable", "--force", "--quiet", "--status=0"], timeout=7200)
+    show = run(["hashcat", "-m", str(mode), hf, "--potfile-path", pf, "--show", "--quiet"], timeout=120).stdout
+    for line in show.splitlines():
+        if ":" in line:
+            return line.rsplit(":", 1)[1].strip()
+    return None
+
+
 def crack_archive(path: Path, wls: list[Path]) -> str | None:
-    for wl in wls:
-        if have("fcrackzip"):
+    # 1) fcrackzip: fast, handles ZipCrypto
+    if have("fcrackzip"):
+        for wl in wls:
             r = run(["fcrackzip", "-u", "-D", "-p", str(wl), str(path)], timeout=3600)
             m = re.search(r"pw\s*==\s*(\S+)", r.stdout)
             if m:
                 return m.group(1)
-        if not have("fcrackzip") or wl.stat().st_size < 200_000:
+    # 2) hashcat: handles AES too (ZipCrypto/AES via $zip2$/$pkzip2$)
+    pw = crack_zip_hashcat(path, wls)
+    if pw:
+        return pw
+    # 3) bounded 7z fallback if hashcat is unavailable
+    deadline = time.time() + 120
+    for wl in wls:
+        if wl.stat().st_size < 200_000:
             for pw in wl.read_text(errors="replace").splitlines():
+                if time.time() > deadline:
+                    with LOCK:
+                        WARNINGS.append(f"cracking interrotto per budget su {path.name}")
+                    return None
                 pw = pw.strip()
                 if pw and extract_7z(path, Path("/tmp/probe"), pw)[0]:
                     return pw
