@@ -140,6 +140,10 @@ docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
 
 # challenge reali (host: scaricano i file da sole)
 python3 app/tests/real_challenges.py                        # → 7/7
+
+# verifica INDIPENDENTE: confronta ciò che StegSuite trova con la flag
+# dichiarata dal writeup ufficiale della challenge (non con nostre costanti)
+python3 app/tests/verify_flags.py                           # → ALL CORRECT
 ```
 
 `real_challenges.py` fallisce anche se una flag trovata è un **frammento** di
@@ -163,6 +167,8 @@ del tutto. Restano qui come riferimento e come TODO per nuovi analyzer.
 
 1. Aggiungi la tupla `(nome, url, flag_attesa)` in `CASES` di
    `app/tests/real_challenges.py`.
-2. Verifica che il file sia scaricabile dai mirror GitHub (o da un URL che
+2. Aggiungi la tupla `(label, url_artifact, url_writeup)` in `CASES` di
+   `app/tests/verify_flags.py` (il writeup deve dichiarare la flag).
+3. Verifica che i file siano scaricabili dai mirror GitHub (o da un URL che
    risolva da questo host).
-3. Aggiungi la riga alle tabelle qui sopra con la tecnica e i comandi manuali.
+4. Aggiungi la riga alle tabelle qui sopra con la tecnica e i comandi manuali.
