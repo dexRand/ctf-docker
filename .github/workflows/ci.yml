@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  compose:
+    name: compose config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose file
+        run: |
+          cp .env.example .env
+          docker compose config -q
+
+  backend:
+    name: backend (compile + unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -r app/backend/requirements.txt pytest
+      - name: Compile
+        run: python -m compileall -q app/backend
+      - name: Unit tests
+        run: pytest -q app/tests
+
+  frontend:
+    name: frontend (build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install
+        working-directory: app/frontend
+        run: npm install --no-audit --no-fund
+      - name: Build
+        working-directory: app/frontend
+        run: npm run build
+
+  e2e:
+    name: e2e (build image + regression)
+    # heavy (pulls the AperiSolve toolset): opt-in via workflow_dispatch
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -f app/Dockerfile -t stegsuite:ci .
+      - name: Run regression against the container
+        run: |
+          mkdir -p /tmp/ssdata
+          docker run -d --name ss -p 19014:19014 -v /tmp/ssdata:/data stegsuite:ci
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:19014/api/v1/health && break
+            sleep 2
+          done
+          docker cp app/tests/ctf_regression.py ss:/tmp/ctf_regression.py
+          docker cp app/tests/fixtures ss:/tmp/fixtures
+          docker exec -e FIXTURES_DIR=/tmp/fixtures ss \
+            /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py
