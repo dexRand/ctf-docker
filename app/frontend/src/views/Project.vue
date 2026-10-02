@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, wsUrl, fmtSize, fmtDate, STATUS_COLOR } from '../api'
 import { mdToHtml } from '../md'
@@ -441,6 +441,7 @@ function ansiToHtml(s) {
 }
 
 watch(selected, (id) => { previewErr.value = false; if (id != null) loadPreview(id) })
+watch(showTerm, async () => { await nextTick(); window.dispatchEvent(new Event('resize')) })
 watch(() => props.id, () => { selected.value = null; outputs.value = {}; expanded.value = {}; log.value = []; load() })
 onMounted(() => { load(); connect() })
 onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
@@ -550,7 +551,7 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
 
       <!-- right -->
       <div class="flex min-h-0 flex-col border-l border-edge">
-        <div class="max-h-[45%] overflow-auto p-3">
+        <div class="min-h-0 flex-1 overflow-auto p-3">
           <!-- Overview: dove è la flag + solo i tool usati per trovarla -->
           <template v-if="flags.length">
             <div class="mb-2 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="flag" :size="13" />Overview — dove è la flag</div>
@@ -591,8 +592,24 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
           <div class="mb-1 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="link" :size="13" />Percorso flag</div>
           <pre class="max-h-44 overflow-auto whitespace-pre text-[11px] leading-5 text-slate-300">{{ routeTreeText || '(nessuna flag)' }}</pre>
         </div>
-        <div class="min-h-0 flex-1 overflow-auto border-t border-edge bg-ink p-2">
-          <div class="mb-1 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="terminal" :size="13" />Live log</div>
+      </div>
+    </div>
+
+    <!-- bottom: terminal (left) + live log (right) -->
+    <div class="flex h-56 border-t border-edge">
+      <section class="flex min-w-0 flex-1 flex-col" aria-label="Terminale">
+        <button type="button" class="flex items-center gap-1 bg-panel px-3 py-1 text-left text-xs hover:bg-panel/70"
+                :aria-expanded="showTerm" aria-controls="term-panel" @click="showTerm = !showTerm">
+          <Icon :name="showTerm ? 'chevronD' : 'chevronR'" :size="13" />Terminale (bash, cwd = progetto)
+        </button>
+        <div v-show="showTerm" id="term-panel" class="min-h-0 flex-1"><Terminal :pid="props.id" /></div>
+      </section>
+      <section class="flex w-[360px] shrink-0 flex-col border-l border-edge" aria-label="Live log">
+        <div class="flex items-center gap-1 bg-panel px-3 py-1 text-xs font-semibold uppercase text-slate-500">
+          <Icon name="terminal" :size="13" />Live log ({{ log.length }})
+        </div>
+        <div class="min-h-0 flex-1 overflow-auto bg-ink p-2" role="log" aria-live="polite" aria-relevant="additions">
+          <p v-if="!log.length" class="text-[11px] text-slate-600">Nessun evento (ancora).</p>
           <div v-for="(m, i) in log" :key="i" class="text-[11px]" :class="m.level === 'warn' ? 'text-amber-400' : 'text-slate-400'">
             <span class="text-slate-600">{{ m.type }}</span>
             <span v-if="m.message"> {{ m.message }}</span>
@@ -601,15 +618,7 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
             <span v-else-if="m.type === 'crack'"> · {{ m.status }} <span v-if="m.password">→ {{ m.password }}</span></span>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- terminal -->
-    <div class="border-t border-edge">
-      <div class="flex items-center gap-2 bg-panel px-3 py-1 text-xs">
-        <button class="flex items-center gap-1" @click="showTerm = !showTerm"><Icon :name="showTerm ? 'chevronD' : 'chevronR'" :size="13" />Terminale (bash, cwd = progetto)</button>
-      </div>
-      <div v-show="showTerm" class="h-56"><Terminal :pid="props.id" /></div>
+      </section>
     </div>
 
     <!-- lightbox -->
