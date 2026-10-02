@@ -52,7 +52,7 @@ It is designed to live next to other self-hosted apps: every service runs on the
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashing, JWT and much more | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercept and rewrite HTTP(S) · proxy on `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoders, converters, hashes, regex and friends | core |
-| Deep triage | **CTF Triage** | http://localhost:19012 | Recursive extract + wordlist cracking + flag hunt · reports in FileBrowser (`./ctf triage <file>`) | core |
+| Deep triage | **CTF Triage** | http://localhost:19013 | Recursive extract + wordlist cracking + flag hunt · Auto/Check GUI, reports in FileBrowser (`./ctf triage <file>`) | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Web security scanner with an in-browser GUI · proxy on `:19006` | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domains, IPs, e-mails, leaks | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Python/Sage notebook for crypto and math | `crypto` |
@@ -104,6 +104,13 @@ The small `ctf` wrapper is a thin, readable layer over Compose:
 container built on top of the AperiSolve image, and writes a report you can
 browse in **FileBrowser** (http://localhost:19012, `admin` / `ctfadmin`).
 
+There is also a **web GUI** at **http://localhost:19013** (linked from the
+dashboard) with two modes:
+
+- **Auto** — runs everything and tries every wordlist on its own;
+- **Check** — scans first, then shows the file tree and the locked items and
+  lets you choose, per item, which wordlist to use (or skip).
+
 It automatically:
 
 1. **recurses**: `7z`, `binwalk -e`, `foremost` on every extracted file, until
@@ -127,8 +134,12 @@ reused automatically for the remaining files.
 ./ctf triage ./dir --no-crack --depth 4 # no password attacks
 ```
 
-Put your dictionaries in `./wordlists/` (mounted read-only at `/wordlists`); they
-appear in the menu ordered by size. `rockyou.txt` is **not** bundled.
+The most-used wordlists are already included, ordered smallest → largest:
+`passwords.txt`, `500-worst-passwords`, `probable-v2_top-1575`,
+`10k-most-common`, `darkweb2017_top-10000`, `rockyou-75` (in the repo) and the
+full **rockyou.txt** (14M entries, baked into the image). Put extra dictionaries
+in `./wordlists/` (mounted read-only at `/wordlists`); they show up in the menu
+automatically, sorted by size.
 
 | Profile | Adds |
 | --- | --- |
@@ -154,6 +165,7 @@ All host ports live in the **19000+ range** and are configurable in `.env`:
 | 19010 | SageMath (Jupyter) |
 | 19011 | IT-Tools |
 | 19012 | FileBrowser (triage reports, localhost only) |
+| 19013 | Triage web GUI (Auto/Check, localhost only) |
 | 19181 | RQ Dashboard (AperiSolve, localhost only) |
 
 ## 📂 Project structure

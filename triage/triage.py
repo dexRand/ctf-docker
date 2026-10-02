@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """CTF Triage - deep, parallel recursive analysis with flag hunt + wordlist attacks.
 
+Usable both as a CLI and as a library (see webapp.py).
+
 Behaviour:
   * does every analysis automatically and recurses as deep as files allow
     (7z, binwalk -e, foremost, strings, exiftool, zsteg, steghide, flag hunt)
-  * when it hits something that BLOCKS it (password-protected archive / PDF,
-    or a JPEG/BMP/WAV that may hide a steghide payload) it stops and asks YOU
-    which wordlist to use, smallest -> largest by default
+  * when it hits something that BLOCKS it (password-protected archive / PDF, or
+    a JPEG/BMP/WAV that may hide a steghide payload) it asks which wordlist to
+    use, smallest -> largest by default
   * `-w <file>`  : use only that wordlist (no prompt)
   * `--yes`      : no prompt, try every wordlist smallest -> largest
   * `--no-crack` : never attack passwords
-
-Designed to run on top of the AperiSolve image (see Dockerfile).
 """
 from __future__ import annotations
 
@@ -40,8 +40,7 @@ STRICT_PATTERNS = [
     r"HTB\{[^}]{1,200}\}",
     r"picoCTF\{[^}]{1,200}\}",
 ]
-# Generic pattern: only on printable text (strings/exiftool/zsteg/text files)
-# to avoid matching random binary noise.
+# Generic pattern: only on printable text (strings/exiftool/zsteg/text files).
 GENERIC_PATTERNS = [r"[0-9A-Za-z_]{2,32}\{[ -~]{1,200}\}"]
 PATTERNS_FILE = "/usr/local/share/triage/patterns.txt"
 
@@ -50,18 +49,25 @@ FLAGS: list[dict] = []
 PASSWORDS: list[dict] = []
 PER_FILE: list[dict] = []
 COMMANDS: list[str] = []
-EXTRACTED: list[tuple[str, int, str]] = []
+EXTRACTED: list[tuple[str, int]] = []
 WARNINGS: list[str] = []
 KNOWN_PWS: list[str] = []
 LOCKED: list[dict] = []
 _seen: set[str] = set()
 WORDLISTS: list[Path] = []
-AUTO = False
-EXPLICIT_WL: Path | None = None
+_LOG_FN = print
+
+
+def set_logger(fn) -> None:
+    global _LOG_FN
+    _LOG_FN = fn or print
 
 
 def log(msg: str) -> None:
-    print(f"[*] {msg}", flush=True)
+    try:
+        _LOG_FN(f"[*] {msg}")
+    except Exception:
+        print(f"[*] {msg}", flush=True)
 
 
 def run(cmd: list[str], timeout: int = 300) -> subprocess.CompletedProcess:
@@ -108,23 +114,6 @@ def line_count(p: Path) -> int:
 
 
 # ------------------------------------------------------------------ wordlists
-def resolve_wordlists(arg: str | None) -> list[Path]:
-    """Ordered smallest -> largest (fast dictionaries first)."""
-    if arg:
-        return [Path(arg)]
-    if os.environ.get("WORDLIST"):
-        p = Path(os.environ["WORDLIST"])
-        if p.is_file():
-            return [p]
-    if not os.path.isdir("/wordlists"):
-        return []
-    out = []
-    for p in sorted(Path("/wordlists").iterdir(), key=lambda x: x.stat().st_size):
-        if p.is_file() and p.suffix in (".txt", ".lst", ".gz"):
-            out.append(_expand(p))
-    return out
-
-
 def _expand(path: Path) -> Path:
     if path.suffix == ".gz":
         plain = Path("/tmp") / path.stem
@@ -135,12 +124,23 @@ def _expand(path: Path) -> Path:
     return path
 
 
-def known_file() -> Path | None:
-    if not KNOWN_PWS:
-        return None
-    kf = Path("/tmp") / "known-passwords.txt"
-    kf.write_text("\n".join(KNOWN_PWS) + "\n")
-    return kf
+def resolve_wordlists(arg: str | None = None) -> list[Path]:
+    """All available lists, ordered smallest -> largest (small repo lists first).
+
+    Wordlists come from the mounted /wordlists (the repo directory) and the
+    wordlists baked into the image at /opt/wordlists (rockyou). Same name ->
+    the mounted one wins.
+    """
+    if arg:
+        return [Path(arg)]
+    found: dict[str, Path] = {}
+    for d in (Path("/wordlists"), Path("/opt/wordlists")):
+        if not d.is_dir():
+            continue
+        for p in d.iterdir():
+            if p.is_file() and p.suffix in (".txt", ".lst", ".gz"):
+                found[p.name] = p
+    return [_expand(p) for p in sorted(found.values(), key=lambda x: x.stat().st_size)]
 
 
 # ------------------------------------------------------------------- patterns
@@ -169,13 +169,12 @@ def load_patterns(extra: list[str] | None) -> tuple[list[re.Pattern], list[re.Pa
 def hunt(label: str, data: bytes, patterns: tuple[list[re.Pattern], list[re.Pattern]],
          generic: bool = False) -> None:
     strict, gen = patterns
-    pats = strict + (gen if generic else [])
-    with LOCK:
-        for pat in pats:
-            for m in pat.findall(data):
-                value = m.decode("latin-1", "replace")
-                if not all(32 <= ord(c) <= 126 for c in value):
-                    continue  # skip binary noise
+    for pat in strict + (gen if generic else []):
+        for m in pat.findall(data):
+            value = m.decode("latin-1", "replace")
+            if not all(32 <= ord(c) <= 126 for c in value):
+                continue
+            with LOCK:
                 hit = next((f for f in FLAGS if f["value"] == value), None)
                 if hit:
                     if label not in hit["where"]:
@@ -200,7 +199,7 @@ def extract_7z(path: Path, outdir: Path, password: str | None) -> tuple[bool, bo
     blob = (r.stdout + r.stderr).lower()
     needs = ("password" in blob or "encrypted" in blob or "wrong" in blob) and r.returncode != 0
     if r.returncode != 0:
-        shutil.rmtree(outdir, ignore_errors=True)  # drop empty/partial output
+        shutil.rmtree(outdir, ignore_errors=True)
     return r.returncode == 0, needs
 
 
@@ -224,10 +223,17 @@ def foremost_extract(path: Path, outdir: Path) -> Path | None:
     return outdir if any(outdir.iterdir()) else None
 
 
+def try_steghide(path: Path, outdir: Path, password: str | None) -> Path | None:
+    if not have("steghide"):
+        return None
+    outdir.mkdir(parents=True, exist_ok=True)
+    outfile = outdir / (path.name + ".steghide")
+    r = run(["steghide", "extract", "-sf", str(path), "-p", password or "", "-xf", str(outfile), "-f"], timeout=120)
+    return outfile if r.returncode == 0 and outfile.exists() else None
+
+
 # --------------------------------------------------------------- analysis pass
-def analyze_file(path: Path, work: Path, patterns: list[re.Pattern]) -> list[Path]:
-    """Analyse one file. Returns files extracted WITHOUT a password.
-    Password-locked items are appended to LOCKED instead of being cracked."""
+def analyze_file(path: Path, work: Path, patterns) -> list[Path]:
     found: list[Path] = []
     try:
         size = path.stat().st_size
@@ -265,7 +271,6 @@ def analyze_file(path: Path, work: Path, patterns: list[re.Pattern]) -> list[Pat
         entry["notes"].append("zsteg")
 
     is_img_audio = any(x in low for x in ("jpeg", "jpg", "bitmap", "bmp", "wave", "wav", "au"))
-    is_pdf = "pdf" in low
     arch = is_archive(path, low)
 
     if is_img_audio:
@@ -285,7 +290,7 @@ def analyze_file(path: Path, work: Path, patterns: list[re.Pattern]) -> list[Pat
                 LOCKED.append({"path": path, "rel": rel, "kind": "archive"})
         elif ok:
             found += [p for p in outdir.rglob("*") if p.is_file()]
-    elif is_pdf:
+    elif "pdf" in low:
         info = run(["pdfinfo", str(path)], timeout=60).stdout
         if re.search(r"^Encrypted:\s*yes", info, re.M | re.I):
             with LOCK:
@@ -304,15 +309,6 @@ def analyze_file(path: Path, work: Path, patterns: list[re.Pattern]) -> list[Pat
     with LOCK:
         PER_FILE.append(entry)
     return found
-
-
-def try_steghide(path: Path, outdir: Path, password: str | None) -> Path | None:
-    if not have("steghide"):
-        return None
-    outdir.mkdir(parents=True, exist_ok=True)
-    outfile = outdir / (path.name + ".steghide")
-    r = run(["steghide", "extract", "-sf", str(path), "-p", password or "", "-xf", str(outfile), "-f"], timeout=120)
-    return outfile if r.returncode == 0 and outfile.exists() else None
 
 
 # -------------------------------------------------------------- cracking phase
@@ -354,89 +350,50 @@ def crack_image(path: Path, wls: list[Path]) -> tuple[str | None, Path | None]:
     return None, None
 
 
-def choose_wordlist(label: str) -> list[Path]:
-    """Interactive menu. Returns the list of wordlists to try ([] = skip)."""
-    cand = (["__EXPLICIT__"] if EXPLICIT_WL else []) or WORDLISTS
-    if EXPLICIT_WL:
-        return [EXPLICIT_WL]
-    if AUTO:
-        return WORDLISTS
-    if not WORDLISTS:
-        print(f"  {label}: nessuna wordlist in /wordlists — salto")
-        return []
-    print(f"\n  🔒 {label}")
-    print("     Wordlist disponibili (piccola → grande):")
-    for i, w in enumerate(WORDLISTS, 1):
-        print(f"       {i}) {w.name:<26} {line_count(w):>10} voci  {human(w.stat().st_size)}")
-    print("       a) prova tutte in ordine")
-    print("       s) salta")
-    print("       c) percorso custom (dentro il container)")
-    try:
-        ans = input("     scelta [s]: ").strip().lower()
-    except EOFError:
-        return []
-    if ans in ("", "s"):
-        return []
-    if ans == "a":
-        return WORDLISTS
-    if ans == "c":
-        try:
-            p = Path(input("     percorso wordlist: ").strip())
-        except EOFError:
-            return []
-        return [p] if p.is_file() else []
-    if ans.isdigit() and 1 <= int(ans) <= len(WORDLISTS):
-        return [WORDLISTS[int(ans) - 1]]
-    print("     scelta non valida → salto")
-    return []
-
-
-def handle_locked(work: Path) -> list[Path]:
-    """Prompt for each locked item, crack it, return newly extracted files."""
-    global LOCKED
+def crack_selected(work: Path, entries: list[dict], decisions: dict, paths_by_index: dict) -> list[Path]:
+    """Crack the entries the user selected (decisions: index -> list[Path])."""
     unlocked: list[Path] = []
-    items, LOCKED = LOCKED, []
-    images = [i for i in items if i["kind"] == "image"]
-    others = [i for i in items if i["kind"] != "image"]
-
-    for it in others:
-        wls = choose_wordlist(f"{it['rel']}  ({it['kind']})")
+    for e in entries:
+        wls = decisions.get(e["index"])
         if not wls:
             continue
-        pw = crack_archive(it["path"], wls) if it["kind"] == "archive" else crack_pdf(it["path"], wls)
+        path = paths_by_index[e["index"]]
+        kind = e["kind"]
+        if kind == "archive":
+            pw = crack_archive(path, wls)
+        elif kind == "pdf":
+            pw = crack_pdf(path, wls)
+        else:
+            pw, out = crack_image(path, wls)
+            if pw:
+                with LOCK:
+                    if pw not in KNOWN_PWS:
+                        KNOWN_PWS.append(pw)
+                    PASSWORDS.append({"file": e["rel"], "tool": "stegseek", "password": pw})
+                if out and out.exists():
+                    unlocked.append(out)
+            continue
         if not pw:
             continue
         with LOCK:
-            KNOWN_PWS.append(pw) if pw not in KNOWN_PWS else None
-            PASSWORDS.append({"file": it["rel"], "tool": it["kind"], "password": pw})
-        if it["kind"] == "archive":
-            outdir = work / "extracted" / (it["path"].name + ".cracked")
-            ok, _ = extract_7z(it["path"], outdir, pw)
+            if pw not in KNOWN_PWS:
+                KNOWN_PWS.append(pw)
+            PASSWORDS.append({"file": e["rel"], "tool": kind, "password": pw})
+        if kind == "archive":
+            outdir = work / "extracted" / (path.name + ".cracked")
+            ok, _ = extract_7z(path, outdir, pw)
             if ok:
                 unlocked += [p for p in outdir.rglob("*") if p.is_file()]
-        elif it["kind"] == "pdf" and have("pdftotext"):
-            pout = work / "pdf" / (it["path"].name + ".txt")
+        elif kind == "pdf" and have("pdftotext"):
+            pout = work / "pdf" / (path.name + ".txt")
             pout.parent.mkdir(parents=True, exist_ok=True)
-            run(["pdftotext", "-upw", pw, str(it["path"]), str(pout)], timeout=120)
+            run(["pdftotext", "-upw", pw, str(path), str(pout)], timeout=120)
             if pout.exists():
                 unlocked.append(pout)
-
-    if images:
-        wls = choose_wordlist(f"{len(images)} immagini potenzialmente stego (steghide)")
-        if wls:
-            for it in images:
-                pw, out = crack_image(it["path"], wls)
-                if pw:
-                    with LOCK:
-                        KNOWN_PWS.append(pw) if pw not in KNOWN_PWS else None
-                        PASSWORDS.append({"file": it["rel"], "tool": "stegseek", "password": pw})
-                    if out and out.exists():
-                        unlocked.append(out)
     return unlocked
 
 
-def process(seeds: list[Path], work: Path, patterns: list[re.Pattern], jobs: int, depth: int) -> int:
-    """Parallel breadth-first analysis. Password-locked files land in LOCKED."""
+def process(seeds: list[Path], work: Path, patterns, jobs: int, depth: int) -> int:
     current = seeds
     count = 0
     for level in range(depth):
@@ -469,7 +426,7 @@ def process(seeds: list[Path], work: Path, patterns: list[re.Pattern], jobs: int
                 for nf in new:
                     try:
                         with LOCK:
-                            EXTRACTED.append((str(nf.relative_to(work)), nf.stat().st_size, "extracted"))
+                            EXTRACTED.append((str(nf.relative_to(work)), nf.stat().st_size))
                     except (OSError, ValueError):
                         pass
                     nxt.append(nf)
@@ -478,21 +435,17 @@ def process(seeds: list[Path], work: Path, patterns: list[re.Pattern], jobs: int
 
 
 # --------------------------------------------------------------------- report
-def write_report(work: Path, patterns: list[re.Pattern], inputs: list[str], elapsed: float, count: int) -> None:
+def write_report(work: Path, inputs: list[str], elapsed: float, count: int) -> None:
     ts = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
-        "# CTF Triage report",
-        "",
+        "# CTF Triage report", "",
         f"- **Data:** {ts}",
         f"- **Input:** {', '.join(inputs)}",
-        f"- **Pattern cercati:** {len(patterns)}",
         f"- **File analizzati:** {count}",
         f"- **File estratti:** {len(EXTRACTED)}",
         f"- **Tempo:** {elapsed:.1f}s",
         f"- **Wordlist (piccola → grande):** {', '.join(w.name for w in WORDLISTS) or 'nessuna'}",
-        "",
-        "## 🚩 Flag trovate",
-        "",
+        "", "## 🚩 Flag trovate", "",
     ]
     lines += [f"- `{f['value']}`  \n  _trovata in: {', '.join(f['where'])}_" for f in FLAGS] or \
              ["_Nessuna flag trovata con i pattern attuali._"]
@@ -500,7 +453,7 @@ def write_report(work: Path, patterns: list[re.Pattern], inputs: list[str], elap
     lines += [f"- `{p['password']}` ({p['tool']}) su `{p['file']}`" for p in PASSWORDS] or \
              ["_Nessuna password trovata._"]
     lines += ["", "## 📦 File estratti", ""]
-    lines += [f"- `{rel}` ({size} bytes)" for rel, size, _ in EXTRACTED] or ["_Nessun file estratto._"]
+    lines += [f"- `{rel}` ({size} bytes)" for rel, size in EXTRACTED] or ["_Nessun file estratto._"]
     lines += ["", "## 🔎 Dettaglio per file", ""]
     for e in PER_FILE:
         notes = f" — {', '.join(e['notes'])}" if e["notes"] else ""
@@ -508,12 +461,11 @@ def write_report(work: Path, patterns: list[re.Pattern], inputs: list[str], elap
     if WARNINGS:
         lines += ["", "## ⚠️ Avvisi", ""] + [f"- {w}" for w in WARNINGS]
     lines += ["", "## 🧰 Comandi eseguiti", "", "```", *COMMANDS, "```", ""]
-
     (work / "report.md").write_text("\n".join(lines), errors="replace")
     (work / "report.json").write_text(json.dumps({
         "generated": ts, "input": inputs, "elapsed_seconds": round(elapsed, 2),
         "wordlists": [w.name for w in WORDLISTS], "flags": FLAGS, "passwords": PASSWORDS,
-        "files": PER_FILE, "extracted": [{"path": p, "size": s} for p, s, _ in EXTRACTED],
+        "files": PER_FILE, "extracted": [{"path": p, "size": s} for p, s in EXTRACTED],
         "warnings": WARNINGS, "commands": COMMANDS,
     }, indent=2, ensure_ascii=False), errors="replace")
 
@@ -528,42 +480,43 @@ def chown_outputs(work: Path) -> None:
                 os.chown(name, int(uid), int(gid))
             except OSError:
                 pass
-    try:
-        os.chown("/data/latest", int(uid), int(gid), follow_symlinks=False)
-    except OSError:
-        pass
 
 
-# ----------------------------------------------------------------------- main
-def main() -> int:
-    global WORDLISTS, AUTO, EXPLICIT_WL
-    ap = argparse.ArgumentParser(description="Deep recursive CTF/steg triage with flag hunt.")
-    ap.add_argument("paths", nargs="+")
-    ap.add_argument("-o", "--output")
-    ap.add_argument("-w", "--wordlist", help="usa SOLO questa wordlist (nessun prompt)")
-    ap.add_argument("--yes", action="store_true", help="nessun prompt, prova tutte da piccola a grande")
-    ap.add_argument("--no-crack", action="store_true")
-    ap.add_argument("--depth", type=int, default=3)
-    ap.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 2))
-    ap.add_argument("--pattern", action="append", default=[])
-    args = ap.parse_args()
+# --------------------------------------------------------------------- engine
+def reset_state(wordlists, explicit):
+    global FLAGS, PASSWORDS, PER_FILE, COMMANDS, EXTRACTED, WARNINGS, KNOWN_PWS, LOCKED, _seen, WORDLISTS, EXPLICIT_WL
+    with LOCK:
+        FLAGS, PASSWORDS, PER_FILE, COMMANDS, EXTRACTED, WARNINGS, KNOWN_PWS, LOCKED = [], [], [], [], [], [], [], []
+        _seen = set()
+        WORDLISTS = wordlists
+        EXPLICIT_WL = explicit
 
-    patterns = load_patterns(args.pattern)
-    EXPLICIT_WL = Path(args.wordlist) if args.wordlist else None
-    AUTO = args.yes
-    WORDLISTS = [] if args.no_crack else resolve_wordlists(args.wordlist)
-    if not args.no_crack and WORDLISTS:
-        log("wordlist (piccola → grande): " + ", ".join(w.name for w in WORDLISTS))
-    elif not args.no_crack and not EXPLICIT_WL:
+
+EXPLICIT_WL: Path | None = None
+
+
+def execute(paths, work, *, crack=True, wordlists_list=None, explicit_wl=None,
+            patterns_extra=None, jobs=4, depth=3, asker=None, make_latest=True) -> dict:
+    """Run the whole pipeline. `asker(entries, candidates) -> {index: [wordlists]}`."""
+    work = Path(work)
+    work.mkdir(parents=True, exist_ok=True)
+    patterns = load_patterns(patterns_extra)
+    if not crack:
+        wls: list[Path] = []
+    elif wordlists_list is not None:
+        wls = [Path(w) for w in wordlists_list]
+    else:
+        wls = resolve_wordlists()
+    reset_state(wls, Path(explicit_wl) if explicit_wl else None)
+    if crack and not wls:
         WARNINGS.append("nessuna wordlist in /wordlists")
+    if wls:
+        log("wordlist (piccola → grande): " + ", ".join(w.name for w in wls))
 
     start = time.time()
-    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-    work = Path(args.output) if args.output else Path("/data/triage") / f"{stamp}_{Path(args.paths[0]).name or 'target'}"
     (work / "input").mkdir(parents=True, exist_ok=True)
-
     staged: list[Path] = []
-    for p in args.paths:
+    for p in paths:
         src = Path(p).resolve()
         if not src.exists():
             WARNINGS.append(f"input inesistente: {p}")
@@ -577,29 +530,127 @@ def main() -> int:
             staged.append(dst)
     log(f"work dir: {work}")
 
-    count = process(staged, work, patterns, args.jobs, args.depth)
+    count = process(staged, work, patterns, jobs, depth)
 
-    # interactive cracking loop: unlocking may reveal new files to analyse
-    while LOCKED and not args.no_crack:
-        new = handle_locked(work)
+    while LOCKED and crack:
+        with LOCK:
+            items, LOCKED[:] = list(LOCKED), []
+        entries = [{"index": i, "rel": it["rel"], "kind": it["kind"]} for i, it in enumerate(items)]
+        paths_by_index = {i: it["path"] for i, it in enumerate(items)}
+        decisions = asker(entries, wls) if asker else {e["index"]: wls for e in entries}
+        new = crack_selected(work, entries, decisions, paths_by_index)
         if not new:
-            break
-        count += process(new, work, patterns, args.jobs, args.depth)
+            # nothing unlocked: stop to avoid looping forever
+            if not LOCKED:
+                break
+            continue
+        count += process(new, work, patterns, jobs, depth)
 
     elapsed = time.time() - start
-    write_report(work, patterns, args.paths, elapsed, count)
-    latest = Path("/data/latest")
-    try:
-        if latest.is_symlink() or latest.exists():
-            latest.unlink()
-        latest.symlink_to(work.relative_to("/data"))  # relative: works on the host too
-    except (OSError, ValueError):
-        pass
+    write_report(work, [str(p) for p in paths], elapsed, count)
+    if make_latest:
+        latest = Path("/data/latest")
+        try:
+            if latest.is_symlink() or latest.exists():
+                latest.unlink()
+            latest.symlink_to(work.relative_to("/data"))
+        except (OSError, ValueError):
+            pass
     chown_outputs(work)
-
-    print()
     log(f"report: {work}/report.md")
     log(f"flag trovate: {len(FLAGS)} | password: {len(PASSWORDS)} | file: {count} | tempo: {elapsed:.1f}s")
+    return {
+        "work": str(work),
+        "report": str(work / "report.md"),
+        "flags": FLAGS,
+        "passwords": PASSWORDS,
+        "extracted": [{"path": p, "size": s} for p, s in EXTRACTED],
+        "files": PER_FILE,
+        "warnings": WARNINGS,
+        "count": count,
+        "elapsed": round(elapsed, 2),
+    }
+
+
+# ------------------------------------------------------------------- CLI asker
+def choose_wordlist(label: str, candidates: list[Path]) -> list[Path]:
+    if EXPLICIT_WL:
+        return [EXPLICIT_WL]
+    if not candidates:
+        print(f"  {label}: nessuna wordlist in /wordlists — salto")
+        return []
+    print(f"\n  🔒 {label}")
+    print("     Wordlist disponibili (piccola → grande):")
+    for i, w in enumerate(candidates, 1):
+        print(f"       {i}) {w.name:<26} {line_count(w):>10} voci  {human(w.stat().st_size)}")
+    print("       a) prova tutte in ordine\n       s) salta\n       c) percorso custom")
+    try:
+        ans = input("     scelta [s]: ").strip().lower()
+    except EOFError:
+        return []
+    if ans in ("", "s"):
+        return []
+    if ans == "a":
+        return candidates
+    if ans == "c":
+        try:
+            p = Path(input("     percorso wordlist: ").strip())
+        except EOFError:
+            return []
+        return [p] if p.is_file() else []
+    if ans.isdigit() and 1 <= int(ans) <= len(candidates):
+        return [candidates[int(ans) - 1]]
+    print("     scelta non valida → salto")
+    return []
+
+
+def cli_asker(entries, candidates):
+    decisions: dict[int, list[Path]] = {}
+    others = [e for e in entries if e["kind"] != "image"]
+    images = [e for e in entries if e["kind"] == "image"]
+    for e in others:
+        wls = choose_wordlist(f"{e['rel']}  ({e['kind']})", candidates)
+        if wls:
+            decisions[e["index"]] = wls
+    if images:
+        wls = choose_wordlist(f"{len(images)} immagini potenzialmente stego (steghide)", candidates)
+        if wls:
+            for e in images:
+                decisions[e["index"]] = wls
+    return decisions
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Deep recursive CTF/steg triage with flag hunt.")
+    ap.add_argument("paths", nargs="+")
+    ap.add_argument("-o", "--output")
+    ap.add_argument("-w", "--wordlist", help="usa SOLO questa wordlist (nessun prompt)")
+    ap.add_argument("--yes", action="store_true", help="nessun prompt, prova tutte da piccola a grande")
+    ap.add_argument("--no-crack", action="store_true")
+    ap.add_argument("--depth", type=int, default=3)
+    ap.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 2))
+    ap.add_argument("--pattern", action="append", default=[])
+    args = ap.parse_args()
+
+    explicit = Path(args.wordlist) if args.wordlist else None
+    if args.no_crack:
+        asker = None
+        wls = []
+    elif args.yes:
+        asker = lambda entries, cands: {e["index"]: cands for e in entries}
+        wls = None
+    elif explicit:
+        asker = lambda entries, cands: {e["index"]: [explicit] for e in entries}
+        wls = [explicit]
+    else:
+        asker = cli_asker
+        wls = None
+
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    work = Path(args.output) if args.output else Path("/data/triage") / f"{stamp}_{Path(args.paths[0]).name or 'target'}"
+    execute(args.paths, work, crack=not args.no_crack, wordlists_list=wls,
+            explicit_wl=explicit, patterns_extra=args.pattern, jobs=args.jobs,
+            depth=args.depth, asker=asker)
     return 0
 
 

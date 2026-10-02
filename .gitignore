@@ -14,8 +14,14 @@ config/homepage/bookmarks.yaml
 # Deep triage: dati di lavoro e wordlist pesanti
 data/
 wordlists/*
-!wordlists/passwords.txt
 !wordlists/.gitkeep
+# wordlist "più usate" versionate (piccole)
+!wordlists/passwords.txt
+!wordlists/500-worst-passwords.txt
+!wordlists/probable-v2_top-1575.txt
+!wordlists/10k-most-common.txt
+!wordlists/darkweb2017_top-10000.txt
+!wordlists/rockyou-75.txt
 
 # Python
 __pycache__/

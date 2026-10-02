@@ -1,13 +1,9 @@
-# CTF Triage — deep recursive analysis on top of the AperiSolve image.
+# CTF Triage — deep recursive analysis + web GUI on top of the AperiSolve image.
 #
 # The base image is already a Debian 13 toolbox with the whole steg suite
 # (binwalk, foremost, exiftool, steghide, outguess, jsteg, jphide, jpseek,
-# zsteg, openstego, pngcheck, 7z, ffmpeg, GraphicsMagick, ...). Here we only
-# add what is missing for password attacks and recursion:
-#   - stegseek   : fast steghide passphrase cracker (wordlist)
-#   - john       : archive/PDF/office hash cracking
-#   - fcrackzip  : zip password cracking
-#   - unzip/zip/xz-utils/sox/pngtools for extra formats
+# zsteg, openstego, pngcheck, 7z, ffmpeg, GraphicsMagick, Flask, gunicorn...).
+# Here we add what is missing for password attacks and the web GUI.
 FROM ghcr.io/zeecka/aperisolve:latest
 
 USER root
@@ -23,11 +19,24 @@ RUN apt-get update \
  && apt-get -f install -y \
  && rm -rf /var/lib/apt/lists/*
 
-COPY triage.py /usr/local/bin/triage
+# Bake the most-used big wordlist (rockyou). Small lists are mounted from the
+# repo at /wordlists so they can be edited without rebuilding.
+RUN mkdir -p /opt/wordlists \
+ && ( curl -fsSL -o /tmp/rockyou.tar.gz \
+        https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Leaked-Databases/rockyou.txt.tar.gz \
+      && mkdir -p /tmp/rk && tar -xzf /tmp/rockyou.tar.gz -C /tmp/rk \
+      && find /tmp/rk -name 'rockyou.txt' -exec mv {} /opt/wordlists/rockyou.txt \; \
+      && rm -rf /tmp/rockyou.tar.gz /tmp/rk ) \
+ || echo "WARN: rockyou download skipped"
+
+COPY triage.py /usr/local/lib/triage/triage.py
+COPY webapp.py /usr/local/lib/triage/webapp.py
 COPY patterns.txt /usr/local/share/triage/patterns.txt
-RUN chmod +x /usr/local/bin/triage
+RUN printf '#!/bin/sh\nexec python3 /usr/local/lib/triage/triage.py "$@"\n' > /usr/local/bin/triage \
+ && chmod +x /usr/local/bin/triage
 
 WORKDIR /data
-
-# Long-running idle container: the pipeline is driven by `./ctf triage <file>`.
-CMD ["sleep", "infinity"]
+EXPOSE 19013
+# One worker: the run state lives in-process (background thread + polling API).
+CMD ["gunicorn", "-w", "1", "--threads", "8", "-b", "0.0.0.0:19013", \
+     "--chdir", "/usr/local/lib/triage", "webapp:app"]

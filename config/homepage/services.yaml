@@ -10,11 +10,16 @@
         siteMonitor: http://localhost:3000
 
 - Deep triage:
-    - Triage report / file estratti:
+    - Triage (GUI):
+        icon: mdi-magnify-scan
+        href: http://localhost:19013
+        description: Analisi ricorsiva + cracking wordlist + flag hunt — modalità Auto o Check (scelta sui file bloccati)
+        siteMonitor: http://triage:19013
+    - Triage reports (FileBrowser):
         icon: mdi-magnify-expand
         href: http://localhost:19012
-        description: Report e albero dei file estratti (FileBrowser) — lancia `./ctf triage <file>` dal terminale
-        siteMonitor: http://filebrowser:8080
+        description: Report e albero dei file estratti di tutte le analisi
+        siteMonitor: http://filebrowser:80
 
 - Recon (OSINT):
     - SpiderFoot:

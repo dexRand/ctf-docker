@@ -34,6 +34,15 @@
 - [x] Test: zip cifrato + steghide + PNG con payload (2 flag, 2 password)
 - [x] Test su `challenge.png` (PNG 1×1 con zip AES): carving e lock corretti
 
+## Phase 6 — GUI web + wordlist ✅
+- [x] `webapp.py` (Flask/gunicorn) con modalità **Auto** e **Check**
+- [x] Upload multiplo, log live, risultati (flag/password/estratti), report
+- [x] In Check: albero file + elementi bloccati con scelta wordlist per item
+- [x] Porta 19013 (solo localhost) + card nella dashboard
+- [x] Wordlist più usate nel repo (500-worst, probable-1575, 10k, darkweb10k, rockyou-75)
+- [x] rockyou completa (14M) inclusa nell'immagine in `/opt/wordlists`
+- [x] Test end-to-end: Auto 3 flag/2 pwd, Check con scelta wordlist OK, CLI OK
+
 ## Backlog
 - [ ] Profilo `crack`: Hashtopolis (frontend + backend + agent + DB)
 - [ ] (Opz.) Docker integration di Homepage via socket read-only per stats container

@@ -70,7 +70,13 @@ Repo infrastrutturale: la "suite" è la verifica a runtime.
 | 19181 | RQ Dashboard | coda AperiSolve (solo localhost) |
 
 ## Deep triage (feature)
-Pipeline `./ctf triage <file>` su immagine custom basata su AperiSolve:
+GUI web dedicata (porta 19013, solo localhost) con due modalità:
+**Auto** (fa tutto e prova tutte le wordlist) e **Check** (scansiona, poi mostra
+albero dei file + elementi bloccati e fa scegliere per ognuno la wordlist).
+Wordlist più usate incluse nel repo (piccole) e rockyou completa nell'immagine,
+ordinate piccola → grande.
+
+CLI `./ctf triage <file>` sullo stesso motore (immagine custom basata su AperiSolve):
 estrazione ricorsiva (7z/binwalk/foremost) + analisi per file
 (strings/exiftool/zsteg/steghide) + flag hunt (pattern configurabili) +
 attacchi password con wordlist. Quando incontra un elemento bloccato
