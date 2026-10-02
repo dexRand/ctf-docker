@@ -53,6 +53,7 @@ It is designed to live next to other self-hosted apps: every service runs on the
 | Web | **mitmproxy** | http://localhost:19003 | Intercept and rewrite HTTP(S) · proxy on `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoders, converters, hashes, regex and friends | core |
 | Deep triage | **CTF Triage** | http://localhost:19013 | Recursive extract + wordlist cracking + flag hunt · Auto/Check GUI, reports in FileBrowser Quantum (`./ctf triage <file>`) | core |
+| Stego workbench | **StegSuite** | http://localhost:19014 | Recursive auto/triage over 29 tools (stego, forensics, vision/OCR, audio/Morse), file tree, live log, embedded terminal, REST API | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Web security scanner with an in-browser GUI · proxy on `:19006` | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domains, IPs, e-mails, leaks | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Python/Sage notebook for crypto and math | `crypto` |
@@ -167,6 +168,7 @@ All host ports live in the **19000+ range** and are configurable in `.env`:
 | 19011 | IT-Tools |
 | 19012 | FileBrowser Quantum (triage reports, no login, localhost only) |
 | 19013 | Triage web GUI (Auto/Check, localhost only) |
+| 19014 | StegSuite workbench + API (localhost only) |
 | 19181 | RQ Dashboard (AperiSolve, localhost only) |
 
 ## 📂 Project structure
@@ -181,6 +183,25 @@ SPEC.md                 specification
 tasks/                  plan.md + todo.md
 .opencode/              Agent Skills (MIT — see ATTRIBUTION.md)
 ```
+
+## 🧪 StegSuite (stego workbench)
+
+**StegSuite** is the all-in-one stego/forensics app (the AperiSolve replacement):
+http://localhost:19014 (localhost only).
+
+- **Auto / Check** modes: Auto runs everything and tries every wordlist; Check
+  first scans, then lets you choose what to attack.
+- **Recursive, ordered** analysis over **29 tools**: `file`, `exiftool`,
+  `identify`, `ffprobe`, `strings`, `xxd`/`hexdump`/`hexyl`, `binwalk`
+  (scan + `binwalk -e`), `foremost`, `7z`, `zsteg`, `steghide`, `outguess`,
+  `jsteg`, `openstego`, `bit-planes`, `channel-remap`, `gif-frames`
+  (split + frame-diff + delay decode + per-frame OCR), `ocr` (tesseract),
+  `morse`, `dtmf`, `spectrogram`, `waveform`, `pngcheck`, `pdfid`, `pdftotext`.
+- **GUI**: file tree, per-tool output, extracted children, image/audio
+  previews, live log over WebSocket, and an embedded **terminal** (xterm.js).
+- **Flag hunt + cracking**: ZIP (incl. AES via hashcat), steghide, PDF.
+- **REST API** (OpenAPI at `/api/docs`), including stateless single-tool runs:
+  `POST /api/v1/tools/{tool}`.
 
 ## ⚙️ Configuration
 

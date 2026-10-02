@@ -296,6 +296,23 @@ services:
       FILEBROWSER_CONFIG: /config/config.yaml
     networks: [ctfnet]
 
+  # StegSuite — stego/forensics workbench (Auto + Check), API-first, own GUI.
+  stegsuite:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    image: ctf-stegsuite
+    restart: unless-stopped
+    mem_limit: 4g
+    cpus: 3
+    logging: *default-logging
+    ports:
+      - "127.0.0.1:${STEGSUITE_PORT:-19014}:19014"
+    volumes:
+      - ./data:/data
+      - ./wordlists:/wordlists:ro
+    networks: [ctfnet]
+
 networks:
   ctfnet:
     driver: bridge

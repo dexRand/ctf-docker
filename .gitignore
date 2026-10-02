@@ -14,6 +14,10 @@ config/homepage/bookmarks.yaml
 # StegSuite app data (SQLite + progetti)
 appdata/
 
+# StegSuite frontend build artifacts
+app/frontend/node_modules/
+app/frontend/dist/
+
 # Deep triage: dati di lavoro e wordlist pesanti
 data/
 wordlists/*

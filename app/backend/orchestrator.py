@@ -21,7 +21,7 @@ from .bus import bus
 from .analyzers.base import ToolContext
 from .config import PROJECTS_DIR
 from .db import engine
-from .models import Event, FileNode, Finding, Project, ToolRun
+from .models import Artifact, Event, FileNode, Finding, Project, ToolRun
 
 FLAG_PATTERNS = [
     r"ITS\{[^}\n]{1,200}\}", r"flag\{[^}\n]{1,200}\}", r"FLAG\{[^}\n]{1,200}\}",
@@ -179,10 +179,21 @@ def _run(pid: str, job: Job) -> None:
                     op = out_dir / f"{tool_name}.out"
                     op.write_text(result.output, errors="replace")
                     rel_out = str(op.relative_to(work))
-                session.add(ToolRun(project_id=pid, file_id=node.id, tool=tool_name,
-                                    status=result.status, needs_password=result.needs_password,
-                                    exit_code=result.exit_code, summary=result.summary[:500],
-                                    output_path=rel_out, started_at=_now(), finished_at=_now()))
+                run = ToolRun(project_id=pid, file_id=node.id, tool=tool_name,
+                              status=result.status, needs_password=result.needs_password,
+                              exit_code=result.exit_code, summary=result.summary[:500],
+                              output_path=rel_out, started_at=_now(), finished_at=_now())
+                session.add(run)
+                session.flush()
+                for art in result.artifacts:
+                    p = Path(str(art.get("path", "")))
+                    try:
+                        rel_art = str(p.relative_to(work))
+                    except ValueError:
+                        rel_art = str(art.get("name", ""))
+                    session.add(Artifact(project_id=pid, run_id=run.id, file_id=node.id,
+                                         name=str(art.get("name", p.name)),
+                                         path=rel_art, size=int(art.get("size", 0))))
                 if result.output:
                     _hunt(session, pid, node.id, result.output, f"{tool_name}:{node.name}")
                 if result.needs_password:

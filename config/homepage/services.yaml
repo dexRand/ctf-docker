@@ -10,6 +10,11 @@
         siteMonitor: http://localhost:3000
 
 - Deep triage:
+    - StegSuite (stego workbench):
+        icon: mdi-image-search
+        href: http://localhost:19014
+        description: Analisi ricorsiva Auto/Check con GUI (albero file, tool, vision/OCR, terminale) e API REST
+        siteMonitor: http://stegsuite:19014/api/v1/health
     - Triage (GUI):
         icon: mdi-magnify-scan
         href: http://localhost:19013

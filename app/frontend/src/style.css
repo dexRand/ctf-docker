@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html, body, #app { height: 100%; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, sans-serif; }
+
+* { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+pre.out { white-space: pre-wrap; word-break: break-word; font: 12px/1.45 ui-monospace, monospace; }
+.ansi { font-family: ui-monospace, monospace; font-size: 12px; }

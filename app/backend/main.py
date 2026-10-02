@@ -30,7 +30,7 @@ from .analyzers import get as get_tool
 from .analyzers import run_tool
 from .config import API_KEY, TOOLJOBS_DIR, VERSION
 from .db import engine, get_session, init_db
-from .models import Event, FileNode, Finding, Project, ToolRun
+from .models import Artifact, Event, FileNode, Finding, Project, ToolRun
 
 app = FastAPI(
     title="StegSuite",
@@ -144,7 +144,7 @@ def delete_project(pid: str, session: Session = Depends(get_session)) -> dict:
     p = session.get(Project, pid)
     if not p:
         raise HTTPException(404, "project not found")
-    for model in (FileNode, ToolRun, Finding, Event):
+    for model in (FileNode, ToolRun, Artifact, Finding, Event):
         for row in session.exec(select(model).where(model.project_id == pid)).all():
             session.delete(row)
     session.delete(p)
@@ -207,10 +207,16 @@ def project_findings(pid: str, session: Session = Depends(get_session)) -> list[
              "source": f.source, "created_at": f.created_at} for f in rows]
 
 
-def _run_dict(r: ToolRun) -> dict:
+def _run_dict(r: ToolRun, artifacts: list[dict] | None = None) -> dict:
     return {"id": r.id, "file_id": r.file_id, "tool": r.tool, "status": r.status,
             "needs_password": r.needs_password, "exit_code": r.exit_code,
-            "summary": r.summary, "output_path": r.output_path}
+            "summary": r.summary, "output_path": r.output_path,
+            "artifacts": artifacts or []}
+
+
+def _artifact_dict(a: Artifact) -> dict:
+    return {"id": a.id, "run_id": a.run_id, "file_id": a.file_id, "name": a.name,
+            "size": a.size}
 
 
 @app.get("/api/v1/projects/{pid}/runs")
@@ -218,7 +224,30 @@ def project_runs(pid: str, file_id: int | None = None, session: Session = Depend
     stmt = select(ToolRun).where(ToolRun.project_id == pid)
     if file_id is not None:
         stmt = stmt.where(ToolRun.file_id == file_id)
-    return [_run_dict(r) for r in session.exec(stmt.order_by(ToolRun.id)).all()]
+    runs = session.exec(stmt.order_by(ToolRun.id)).all()
+    arts = session.exec(select(Artifact).where(Artifact.project_id == pid)).all()
+    by_run: dict[int, list[dict]] = {}
+    for a in arts:
+        by_run.setdefault(a.run_id or 0, []).append(_artifact_dict(a))
+    return [_run_dict(r, by_run.get(r.id)) for r in runs]
+
+
+@app.get("/api/v1/projects/{pid}/runs/{rid}/artifacts")
+def run_artifacts(pid: str, rid: int, session: Session = Depends(get_session)) -> list[dict]:
+    rows = session.exec(select(Artifact).where(Artifact.project_id == pid)
+                        .where(Artifact.run_id == rid)).all()
+    return [_artifact_dict(a) for a in rows]
+
+
+@app.get("/api/v1/projects/{pid}/artifacts/{aid}/content")
+def artifact_content(pid: str, aid: int, session: Session = Depends(get_session)):
+    a = session.get(Artifact, aid)
+    if not a or a.project_id != pid:
+        raise HTTPException(404, "artifact not found")
+    path = storage.project_dir(pid) / a.path
+    if not path.is_file():
+        raise HTTPException(404, "artifact missing on disk")
+    return FileResponse(path, filename=path.name)
 
 
 @app.get("/api/v1/projects/{pid}/files/{fid}/runs/{rid}")

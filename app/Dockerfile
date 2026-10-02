@@ -1,15 +1,26 @@
 # StegSuite — self-hosted steganography/forensics workbench.
 #
-# Base toolset is pinned by digest so upstream updates can never break a rebuild.
-# The toolset image is AperiSolve (MIT); StegSuite's own code is independent.
+# Multi-stage: the Vue 3 SPA is built with Node, then served by FastAPI.
+# The toolset base is pinned by digest (AperiSolve, MIT) so upstream updates
+# can never break a rebuild. StegSuite's own code is independent.
 #
 # Build from the repository root:
 #   docker build -t stegsuite:dev -f app/Dockerfile .
+
+# ---------- frontend ----------
+FROM node:20-alpine AS frontend
+WORKDIR /fe
+COPY app/frontend/package.json /fe/package.json
+RUN npm install --no-audit --no-fund
+COPY app/frontend/ /fe/
+RUN npm run build
+
+# ---------- backend + toolset ----------
 FROM ghcr.io/zeecka/aperisolve@sha256:d45e1e129f210dd96aef7b2f046cb79d4ea1727591514c391dcd4d4d580d6ec5
 
 USER root
 
-# hex viewers + password-cracking toolset
+# hex viewers, OCR, audio + password-cracking toolset
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
         curl ca-certificates \
@@ -39,6 +50,9 @@ RUN python3 -m venv /opt/stegsuite/venv \
 
 COPY app/backend/ /opt/stegsuite/backend/
 COPY triage/third_party/ /opt/third_party/
+# replace the placeholder SPA with the built Vue app
+RUN rm -rf /opt/stegsuite/backend/static
+COPY --from=frontend /fe/dist /opt/stegsuite/backend/static
 
 WORKDIR /data
 EXPOSE 19014

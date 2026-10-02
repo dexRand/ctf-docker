@@ -51,6 +51,17 @@ class ToolRun(SQLModel, table=True):
     finished_at: Optional[dt.datetime] = None
 
 
+class Artifact(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: str = Field(index=True)
+    run_id: Optional[int] = Field(default=None, index=True)
+    file_id: Optional[int] = None
+    name: str = ""
+    path: str = ""          # relative to the project directory
+    size: int = 0
+    created_at: dt.datetime = Field(default_factory=_now)
+
+
 class Finding(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: str = Field(index=True)

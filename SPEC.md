@@ -67,6 +67,8 @@ Repo infrastrutturale: la "suite" è la verifica a runtime.
 | 19010 | SageMath Jupyter | crypto/math |
 | 19011 | IT-Tools | utility varie |
 | 19012 | FileBrowser Quantum | report del deep triage (senza login, solo localhost) |
+| 19013 | Triage web GUI | Auto/Check (solo localhost) |
+| 19014 | StegSuite | workbench stego + GUI + API (solo localhost) |
 | 19181 | RQ Dashboard | coda AperiSolve (solo localhost) |
 
 ## Deep triage (feature)

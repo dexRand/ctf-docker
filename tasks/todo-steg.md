@@ -57,18 +57,19 @@
       `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}`)
 - [x] Test vision: GIF con flag in un frame → trovata via OCR (`gif-frames`)
 
-## Phase 7 — Frontend SPA
-- [ ] T7.1 Setup Vue/Vite/Tailwind
-- [ ] T7.2 Home/nuova analisi
-- [ ] T7.3 Vista progetto (albero + tool + anteprime + findings)
-- [ ] T7.4 Log live + cracking panel
-- [ ] T7.5 Terminale + Elimina/Keep
-- [ ] T7.6 History
-### Checkpoint E
-- [ ] Flusso completo da browser
+## Phase 7 — Frontend SPA ✅ (v1)
+- [x] T7.1 Setup Vue 3 + Vite + Tailwind + vue-router
+- [x] T7.2 Home/nuova analisi (drag&drop, modalità Auto/Check)
+- [x] T7.3 Vista progetto (albero file + tool + anteprime + findings)
+- [x] T7.4 Log live + pannello cracking (scelta wordlist)
+- [x] T7.5 Terminale xterm.js + Elimina
+- [x] T7.6 History (lista progetti + apertura/eliminazione)
+- [x] Build multi-stage nell'immagine (Node → dist servita da FastAPI)
+### Checkpoint E ✅
+- [x] Flusso completo da browser (SPA servita, 29 tool, St3g0 risolta)
 
 ## Phase 8 — Integrazione & doc
-- [ ] T8.1 Servizio stego + dashboard
-- [ ] T8.2 Parità/CLI opzionale
-- [ ] T8.3 README + attribuzioni
-- [ ] T8.4 Test E2E + commit/push
+- [x] T8.1 Servizio `stegsuite` in compose (19014) + card dashboard
+- [x] T8.2 CLI opzionale (triage resta; StegSuite è GUI+API)
+- [x] T8.3 README (EN/IT) + attribuzioni
+- [ ] T8.4 Test E2E continui + commit/push
