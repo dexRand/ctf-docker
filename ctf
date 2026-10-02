@@ -85,17 +85,8 @@ case "${1:-up}" in
     ;;
   reports)
     port="$(grep -q '^FILEBROWSER_PORT=' .env 2>/dev/null && grep '^FILEBROWSER_PORT=' .env | cut -d= -f2 || echo 19012)"
-    pass="$(grep -q '^FB_ADMIN_PASSWORD=' .env 2>/dev/null && grep '^FB_ADMIN_PASSWORD=' .env | cut -d= -f2 || echo ctfadmin)"
     docker compose up -d filebrowser >/dev/null
-    # imposta (una volta) la password admin, così è deterministica
-    for _ in 1 2 3 4 5; do
-      if docker compose exec -T filebrowser filebrowser -d /database/filebrowser.db \
-           users update admin --password "$pass" >/dev/null 2>&1; then
-        break
-      fi
-      sleep 2
-    done
-    echo "Report e file estratti: http://localhost:${port}   (utente: admin · password: ${pass})"
+    echo "Report e file estratti: http://localhost:${port}   (accesso libero, nessun login)"
     ;;
   -h|--help|help)
     usage

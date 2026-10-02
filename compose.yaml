@@ -279,16 +279,21 @@ services:
     networks: [ctfnet]
 
   # FileBrowser: browse triage reports and extracted files. Localhost only.
+  # FileBrowser Quantum (fork attivo di filebrowser, che è archiviato).
+  # Configurato in noauth: accesso libero, nessun login.
   filebrowser:
-    image: filebrowser/filebrowser:latest
+    image: gtstef/filebrowser:stable
     restart: unless-stopped
-    mem_limit: 256m
+    mem_limit: 512m
     logging: *default-logging
     ports:
       - "127.0.0.1:${FILEBROWSER_PORT:-19012}:80"
     volumes:
       - ./data:/srv
-      - filebrowser-db:/database
+      - ./config/filebrowser/config.yaml:/config/config.yaml:ro
+      - filebrowser-data:/home/filebrowser/data
+    environment:
+      FILEBROWSER_CONFIG: /config/config.yaml
     networks: [ctfnet]
 
 networks:
@@ -303,4 +308,4 @@ volumes:
   mitmproxy:
   spiderfoot-data:
   wireshark-config:
-  filebrowser-db:
+  filebrowser-data:

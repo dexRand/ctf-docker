@@ -52,7 +52,7 @@ It is designed to live next to other self-hosted apps: every service runs on the
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashing, JWT and much more | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercept and rewrite HTTP(S) · proxy on `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoders, converters, hashes, regex and friends | core |
-| Deep triage | **CTF Triage** | http://localhost:19013 | Recursive extract + wordlist cracking + flag hunt · Auto/Check GUI, reports in FileBrowser (`./ctf triage <file>`) | core |
+| Deep triage | **CTF Triage** | http://localhost:19013 | Recursive extract + wordlist cracking + flag hunt · Auto/Check GUI, reports in FileBrowser Quantum (`./ctf triage <file>`) | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Web security scanner with an in-browser GUI · proxy on `:19006` | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domains, IPs, e-mails, leaks | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Python/Sage notebook for crypto and math | `crypto` |
@@ -102,7 +102,7 @@ The small `ctf` wrapper is a thin, readable layer over Compose:
 
 `./ctf triage <file|directory>` runs a full steg/forensic pipeline in a
 container built on top of the AperiSolve image, and writes a report you can
-browse in **FileBrowser** (http://localhost:19012, `admin` / `ctfadmin`).
+browse in **FileBrowser Quantum** (http://localhost:19012, no login).
 
 There is also a **web GUI** at **http://localhost:19013** (linked from the
 dashboard) with two modes:
@@ -165,7 +165,7 @@ All host ports live in the **19000+ range** and are configurable in `.env`:
 | 19008 / 19009 | Wireshark HTTP / HTTPS |
 | 19010 | SageMath (Jupyter) |
 | 19011 | IT-Tools |
-| 19012 | FileBrowser (triage reports, localhost only) |
+| 19012 | FileBrowser Quantum (triage reports, no login, localhost only) |
 | 19013 | Triage web GUI (Auto/Check, localhost only) |
 | 19181 | RQ Dashboard (AperiSolve, localhost only) |
 
@@ -191,7 +191,6 @@ Everything is driven by `.env` (created from `.env.example`):
 | `*_PORT` | Host port of each service (all in 19000+) |
 | `HOMEPAGE_ALLOWED_HOSTS` | Hosts allowed to reach the dashboard (add your LAN IP for remote access) |
 | `MITMWEB_PASSWORD` | Password for the mitmweb GUI (user is ignored) |
-| `FB_ADMIN_PASSWORD` | FileBrowser admin password (user `admin`; localhost only) |
 | `WORDLIST` | Default wordlist used by the triage pipeline |
 | `PUID` / `PGID` / `TZ` | User mapping and timezone for Wireshark |
 | `POSTGRES_*`, `DB_URI`, `REDIS_URL` | AperiSolve internal database/broker (not exposed) |
@@ -209,9 +208,8 @@ Everything is driven by `.env` (created from `.env.example`):
 - The **triage** image is the only one built locally (from the AperiSolve image,
   adding `stegseek`, `john`, `fcrackzip`, `pdfcrack`); the first `./ctf up`
   builds it once.
-- **FileBrowser** is bound to `127.0.0.1` only and the upstream project is
-  archived (no further security fixes); change `FB_ADMIN_PASSWORD` and keep it
-  local.
+- **FileBrowser Quantum** (the maintained fork of the archived FileBrowser) is
+  bound to `127.0.0.1` only and runs with **no login** (`auth.methods.noauth`).
 - AperiSolve runs its own internal `postgres` and `redis`; they are **not**
   published on the host and do not touch other databases.
 

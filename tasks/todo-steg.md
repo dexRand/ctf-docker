@@ -9,14 +9,14 @@
 ### Checkpoint A ✅
 - [x] CRUD progetti verificato via curl (create/get/list/content/delete)
 
-## Phase 2 — Analyzer + API tool singoli
-- [ ] T2.1 Registry + runner subprocess
-- [ ] T2.2 Tool metadati/testo
-- [ ] T2.3 Tool estrazione
-- [ ] T2.4 Tool steg + bit-layers/spectrogram
-- [ ] T2.5 GET /tools + POST /tools/{tool}
-### Checkpoint B
-- [ ] Ogni tool eseguibile via API
+## Phase 2 — Analyzer + API tool singoli ✅
+- [x] T2.1 Registry + runner subprocess
+- [x] T2.2 Tool metadati/testo (file, exiftool, identify, ffprobe, pdfinfo, strings, pdftotext, pdfid, binwalk-scan)
+- [x] T2.3 Tool estrazione (binwalk-extract, foremost, 7z, pngcheck)
+- [x] T2.4 Tool steg (zsteg, steghide, outguess, jsteg, openstego, bit-planes, channel-remap) + audio (spectrogram, waveform)
+- [x] T2.5 GET /tools (22 tool) + POST /tools/{tool} stateless + download artefatti
+### Checkpoint B ✅
+- [x] Tool eseguibili via API; binwalk-extract/7z/steghide/bit-planes verificati
 
 ## Phase 3 — Orchestrazione + findings
 - [ ] T3.1 Orchestratore sequenziale ordinato

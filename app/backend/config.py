@@ -8,6 +8,7 @@ VERSION = "0.1.0"
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 PROJECTS_DIR = DATA_DIR / "projects"
+TOOLJOBS_DIR = DATA_DIR / "tooljobs"
 DB_PATH = DATA_DIR / "stegsuite.db"
 
 # optional API key for non-localhost access (empty = no auth)

@@ -5,6 +5,7 @@ Phase 1: project lifecycle + uploads + static SPA host.
 from __future__ import annotations
 
 import mimetypes
+import shutil
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -13,7 +14,10 @@ from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 from . import storage
-from .config import API_KEY, VERSION
+from .analyzers import catalog as tool_catalog
+from .analyzers import get as get_tool
+from .analyzers import run_tool
+from .config import API_KEY, TOOLJOBS_DIR, VERSION
 from .db import get_session, init_db
 from .models import Event, FileNode, Finding, Project, ToolRun
 
@@ -149,10 +153,41 @@ def file_content(pid: str, fid: int, session: Session = Depends(get_session)):
     return FileResponse(path, filename=node.name, media_type=node.mime or "application/octet-stream")
 
 
-# ---------------------------------------------------------------- tools (stub, Phase 2)
+# ---------------------------------------------------------------- tools
 @app.get("/api/v1/tools")
 def list_tools() -> list[dict]:
-    return []
+    """Catalog of available analyzers (also used by the GUI)."""
+    return tool_catalog()
+
+
+@app.post("/api/v1/tools/{tool}")
+def run_single_tool(tool: str, file: UploadFile = File(...), password: str = Form("")) -> dict:
+    """Stateless single-tool run on an uploaded file (for external automation)."""
+    if not get_tool(tool):
+        raise HTTPException(404, f"unknown tool: {tool}")
+    job = storage.new_project_id()
+    base = TOOLJOBS_DIR / job
+    (base / "input").mkdir(parents=True, exist_ok=True)
+    name = storage.sanitize_name(file.filename or "file")
+    dest = base / "input" / name
+    with open(dest, "wb") as out:
+        shutil.copyfileobj(file.file, out)
+    logs: list[str] = []
+    result = run_tool(tool, dest, base, password=password or None, log=logs.append)
+    data = result.as_dict()
+    data.update({"job_id": job, "tool": tool, "log": logs[-300:]})
+    return data
+
+
+@app.get("/api/v1/tooljobs/{job}/files/{name:path}")
+def tool_job_file(job: str, name: str):
+    base = (TOOLJOBS_DIR / job).resolve()
+    target = (base / name).resolve()
+    if target != base and base not in target.parents:
+        raise HTTPException(404, "not found")
+    if not target.is_file():
+        raise HTTPException(404, "not found")
+    return FileResponse(target, filename=target.name)
 
 
 # ---------------------------------------------------------------- static SPA

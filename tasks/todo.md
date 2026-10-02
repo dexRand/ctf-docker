@@ -30,7 +30,7 @@
 - [x] Analisi per file: strings, exiftool, zsteg, steghide
 - [x] Flag hunt con pattern (strict su binari, generico solo su testo)
 - [x] Wordlist piccola → grande, password riusata, menù interattivo sui file bloccati
-- [x] Report `report.md` + `report.json` in `./data/`, consultabili in FileBrowser (19012)
+- [x] Report `report.md` + `report.json` in `./data/`, consultabili in FileBrowser Quantum (19012, noauth)
 - [x] Test: zip cifrato + steghide + PNG con payload (2 flag, 2 password)
 - [x] Test su `challenge.png` (PNG 1×1 con zip AES): carving e lock corretti
 
