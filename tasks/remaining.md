@@ -53,11 +53,14 @@ python3 app/tests/real_challenges.py
 ## TODO
 
 ### 1. Test & CI
-- [x] 5 challenge reali picoCTF verdi (script auto-contenuto).
+- [x] 7 challenge reali picoCTF verdi (script auto-contenuto) + verifica per-istanza.
 - [ ] Committare le fixture reali (opzionale, pesano ~4 MB) + casi regressione.
-- [ ] Script `./ctf test` (o Makefile) che lancia regressione + reali.
-- [ ] **CI** GitHub Actions (build immagine + regressione).
-- [ ] Test unit `pytest` (analyzer, orchestrator, API con TestClient).
+- [x] Script `./ctf test` (regressione + reali + verifica risposte).
+- [x] **CI** GitHub Actions (`.github/workflows/ci.yml`): compose config,
+      backend compile+unit, frontend build; job `e2e` (build immagine +
+      regressione) on-demand.
+- [x] Test unit `pytest` di base (`app/tests/test_flags.py`); da ampliare a
+      analyzer/orchestrator/API con TestClient.
 
 ### 2. Rumore/precisione
 - [x] Falsi positivi OCR/generic eliminati.

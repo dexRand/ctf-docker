@@ -20,6 +20,7 @@ Uso: ./ctf <comando>
   list              Elenca i profili disponibili
   triage <file>     Deep triage: estrazione ricorsiva + cracking wordlist + flag hunt
   reports           URL dei report (FileBrowser)
+  test              Regressione (13/13) + challenge reali (7/7) + verifica risposte
 
 Profili: web  recon  crypto  forensics
 Dashboard: http://localhost:19001
@@ -87,6 +88,24 @@ case "${1:-up}" in
     port="$(grep -q '^FILEBROWSER_PORT=' .env 2>/dev/null && grep '^FILEBROWSER_PORT=' .env | cut -d= -f2 || echo 19012)"
     docker compose up -d filebrowser >/dev/null
     echo "Report e file estratti: http://localhost:${port}   (accesso libero, nessun login)"
+    ;;
+  test)
+    echo "[*] Avvio StegSuite..."
+    docker compose up -d stegsuite >/dev/null
+    cid="$(docker compose ps -q stegsuite)"
+    [ -n "$cid" ] || { echo "[x] stegsuite non avviato" >&2; exit 1; }
+    docker cp app/tests/ctf_regression.py "$cid":/tmp/ctf_regression.py >/dev/null
+    docker cp app/tests/fixtures "$cid":/tmp/fixtures >/dev/null 2>&1 || true
+    echo
+    echo "== Regressione (13/13) =="
+    docker exec -e FIXTURES_DIR=/tmp/fixtures "$cid" \
+      /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py
+    echo
+    echo "== Challenge reali (7/7) =="
+    ( cd app/tests && python3 real_challenges.py )
+    echo
+    echo "== Verifica risposte (writeup) =="
+    ( cd app/tests && python3 verify_flags.py )
     ;;
   -h|--help|help)
     usage

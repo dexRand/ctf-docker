@@ -12,6 +12,10 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/dexRand/ctf-docker/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/dexRand/ctf-docker/actions/workflows/ci.yml/badge.svg"></a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker Compose">
   <img src="https://img.shields.io/badge/ports-19000%2B-6E56CF" alt="Ports 19000+">
   <img src="https://img.shields.io/badge/images-upstream--only-informational" alt="Upstream images only">
