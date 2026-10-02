@@ -21,7 +21,7 @@ from . import storage
 from .analyzers import get as get_tool
 from .bus import bus
 from .analyzers.base import ToolContext
-from .config import PROJECTS_DIR
+from .config import MAX_DEPTH, PROJECTS_DIR
 from .db import engine
 from .models import Artifact, Event, FileNode, Finding, Project, ToolRun
 
@@ -87,11 +87,11 @@ DEFAULT_PLAN = [
     "file", "exiftool", "identify", "ffprobe", "pdfinfo",
     "strings", "hexyl", "xxd", "pdftotext", "pdfid", "binwalk-scan",
     "decode", "morse-text",
-    "ocr",
+    "ocr", "qr",
     "zsteg", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform",
-    "7z", "binwalk-extract", "foremost", "pngcheck",
+    "7z", "binwalk-extract", "foremost", "pngcheck", "png-repair",
 ]
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}
 ARCHIVE_EXT = (".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz", ".tgz")
@@ -331,7 +331,7 @@ def _run(pid: str, job: Job) -> None:
         pending: list[FileNode] = list(nodes)
         order = max((n.order_index for n in nodes), default=-1) + 1
         processed: set[str] = set()
-        depth_limit = 6  # nested archives (Matryoshka doll) can be several levels deep
+        depth_limit = MAX_DEPTH  # nested archives (Matryoshka doll) can be several levels deep
 
         def analyze(node: FileNode) -> None:
             nonlocal order

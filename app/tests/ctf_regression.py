@@ -154,7 +154,16 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     p.write_text(tokens)
     cases.append(("decode-chain", p, "ITS{dashed_12}"))
 
-    # 13) the real challenge.png (1x1 PNG + AES zip appended, password "robot")
+    # 13) QR code containing the flag -> qr (zbarimg)
+    qr = TMP / "qr.png"
+    try:
+        sh(f'qrencode -o {qr} "ITS{{qr_13}}"')
+        if qr.is_file():
+            cases.append(("qr", qr, "ITS{qr_13}"))
+    except subprocess.CalledProcessError:
+        pass
+
+    # 14) the real challenge.png (1x1 PNG + AES zip appended, password "robot")
     fixtures = Path(os.environ.get("FIXTURES_DIR", "/tmp/fixtures"))
     real = fixtures / "challenge.png"
     if real.is_file():

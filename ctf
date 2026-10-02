@@ -20,7 +20,7 @@ Uso: ./ctf <comando>
   list              Elenca i profili disponibili
   triage <file>     Deep triage: estrazione ricorsiva + cracking wordlist + flag hunt
   reports           URL dei report (FileBrowser)
-  test              Regressione (13/13) + challenge reali (7/7) + verifica risposte
+  test              Regressione + challenge reali + verifica risposte
 
 Profili: web  recon  crypto  forensics
 Dashboard: http://localhost:19001
@@ -97,11 +97,11 @@ case "${1:-up}" in
     docker cp app/tests/ctf_regression.py "$cid":/tmp/ctf_regression.py >/dev/null
     docker cp app/tests/fixtures "$cid":/tmp/fixtures >/dev/null 2>&1 || true
     echo
-    echo "== Regressione (13/13) =="
+    echo "== Regressione (fixture) =="
     docker exec -e FIXTURES_DIR=/tmp/fixtures "$cid" \
       /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py
     echo
-    echo "== Challenge reali (7/7) =="
+    echo "== Challenge reali =="
     ( cd app/tests && python3 real_challenges.py )
     echo
     echo "== Verifica risposte (writeup) =="

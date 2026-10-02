@@ -131,6 +131,7 @@ script, quindi il test verifica che l'analizzatore le ritrovi).
 | bit-planes | testo nei bit LSB dei piani | `ITS{lsb_10}` |
 | image-enhance | testo a basso contrasto | `ITS{enhance_11}` |
 | decode-chain | Morse "dashed" + rot13 | `ITS{dashed_12}` |
+| qr | QR code con la flag (`zbarimg`) | `ITS{qr_13}` |
 | real-challenge | PNG con ZIP appeso + password `robot` | `ITS{stego_z1p_appended}` |
 
 ## Come verificare
@@ -143,7 +144,7 @@ docker compose up -d stegsuite
 docker cp app/tests/ctf_regression.py ctf-stegsuite-1:/tmp/ctf_regression.py
 docker cp app/tests/fixtures ctf-stegsuite-1:/tmp/fixtures
 docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
-  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 13/13
+  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 14/14
 
 # challenge reali (host: scaricano i file da sole)
 python3 app/tests/real_challenges.py                        # → 7/7
@@ -174,8 +175,8 @@ del tutto. Restano qui come riferimento e come TODO per nuovi analyzer.
 
 | Challenge | Anno | Flag | Cosa manca |
 |---|---|---|---|
-| c0rrupt | 2019 | `picoCTF{c0rrupt10n_1847995}` | riparazione PNG (header/CRC/chunk) |
-| like1000 | 2019 | `picoCTF{l0t5_0f_TAR5}` | 1000 tar annidati (serve un loop/limite) |
+| c0rrupt | 2019 | `picoCTF{c0rrupt10n_1847995}` | **PNG repair** ora presente: produce l'immagine valida (la flag è visiva, OCR non affidabile) |
+| like1000 | 2019 | `picoCTF{l0t5_0f_TAR5}` | 1000 tar annidati: alza `MAX_DEPTH` (molto lento) |
 | MacroHard WeakEdge | 2021 | `picoCTF{D1d_u_kn0w_ppts_r_z1p5}` | base64 multi-step nel `pptm` |
 | Surfing the Waves | 2021 | `picoCTF{mU21C_1s_1337_115155af}` | decodifica custom dei campioni WAV |
 | Very very very Hidden | 2021 | `picoCTF{n1c3_job_f1nd1ng_th3_s3cr3t_in_the_im@g3}` | pcap + tool dedicato |

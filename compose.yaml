@@ -308,6 +308,8 @@ services:
     logging: *default-logging
     ports:
       - "127.0.0.1:${STEGSUITE_PORT:-19014}:19014"
+    environment:
+      - MAX_DEPTH=${MAX_DEPTH:-6}
     volumes:
       - ./data:/data
       - ./wordlists:/wordlists:ro

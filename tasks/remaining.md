@@ -43,7 +43,7 @@ python3 app/tests/real_challenges.py
   (`origin=extracted:<tool>:<parent>`); niente più artefatti "missing on disk".
 - **Docs**: `docs/ADDING-A-TOOL.md`, `docs/API.md`, `docs/CHALLENGES.md`
   (flag + comandi manuali verificati).
-- **Test**: regressione **13/13**, challenge reali picoCTF **7/7**
+- **Test**: regressione **14/14**, challenge reali picoCTF **7/7**
   (So Meta, information, Matryoshka doll, What Lies Within, Glory of the Garden,
   extensions, Weird File).
 - **Fix robustezza**: tipo rilevato da `file` usato per il piano (estensione che
@@ -82,12 +82,12 @@ python3 app/tests/real_challenges.py
 - [ ] **pcap/DNS tunneling** (ExtractionD'ADNs): `tshark` → sottodomini → base32.
 - [ ] **TLS/pcap con chiave** (WebNet).
 - [ ] **SSTV** audio (m00nwalk) — decoder SSTV.
-- [ ] **QR/barcode** (`zbar-tools`).
-- [ ] **PNG repair** (`pcrt`) — c0rrupt.
+- [x] **QR/barcode** (`zbarimg`) — analyzer `qr` + caso regressione.
+- [x] **PNG repair** (`png-repair`) — c0rrupt (produce l'immagine valida).
 - [ ] **JPEG height repair** — tunn3l v1s10n.
 - [ ] **WAV LSB / campioni**.
 - [ ] **rot13/url inline** nella flag hunt (già b64/hex).
-- [ ] Depth di ricorsione configurabile da UI/API.
+- [x] Depth di ricorsione configurabile (`MAX_DEPTH` via `.env`).
 
 ### 5. Cracking
 - [ ] UI gestione wordlist (upload/scelta), salvataggio scelta per item.
@@ -120,7 +120,7 @@ app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
 app/backend/analyzers/*.py     # ~30 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3
-app/tests/ctf_regression.py    # 13/13
+app/tests/ctf_regression.py    # 14/14
 app/tests/real_challenges.py   # 7/7 picoCTF
 app/tests/verify_flags.py      # verifica vs writeup ufficiale (ALL CORRECT)
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md

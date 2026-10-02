@@ -16,3 +16,6 @@ API_KEY = os.environ.get("API_KEY", "").strip()
 
 # upload cap (bytes)
 MAX_UPLOAD = int(float(os.environ.get("MAX_UPLOAD_MB", "1024")) * 1024 * 1024)
+
+# recursion depth for extracted children (nested archives)
+MAX_DEPTH = int(os.environ.get("MAX_DEPTH", "6"))
