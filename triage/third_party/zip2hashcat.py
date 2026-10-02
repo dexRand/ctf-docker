@@ -326,12 +326,15 @@ def _extract_aes_hash(data: bytes, entries: List[ZipEntry]) -> str:
     auth_off = off + entry.compressed_size - AES_AUTH_CODE_SIZE
     auth_code = data[auth_off:auth_off + AES_AUTH_CODE_SIZE]
     payload_len = auth_off - (off + salt_size + AES_PWD_VERIFY_SIZE)
+    # LOCAL FIX: include the ciphertext in the data field (zip2john does this).
+    # Without it hashcat parses the hash but can never verify a candidate.
+    payload = data[off + salt_size + AES_PWD_VERIFY_SIZE:auth_off]
 
     return (
         f"$zip2$*0*{entry.aes_strength}*0"
         f"*{salt.hex()}*{pwd_verify.hex()}"
-        f"*{payload_len:x}**{auth_code.hex()}"
-        f"*$/zip2$"
+        f"*{payload_len:x}*{payload.hex()}"
+        f"*{auth_code.hex()}*$/zip2$"
     )
 
 

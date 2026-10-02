@@ -214,6 +214,23 @@ def _run(pid: str, job: Job) -> None:
         JOBS.pop(pid, None)
 
 
+def import_children(session: Session, pid: str, parent_id: int, paths: list[str]) -> list[int]:
+    """Store files recovered by cracking as children of an existing node."""
+    parent = session.get(FileNode, parent_id)
+    if not parent:
+        return []
+    last = session.exec(select(FileNode).where(FileNode.project_id == pid)
+                        .order_by(FileNode.order_index.desc())).first()
+    order = (last.order_index if last else -1) + 1
+    ids: list[int] = []
+    for src in paths:
+        child = _store_extracted(session, pid, parent, Path(src), order)
+        order += 1
+        ids.append(child.id)
+    session.flush()
+    return ids
+
+
 def start(pid: str) -> Job:
     with _JOBS_LOCK:
         if pid in JOBS:

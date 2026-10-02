@@ -19,20 +19,23 @@
 ### Checkpoint B ✅
 - [x] Tool eseguibili via API; binwalk-extract/7z/steghide/bit-planes verificati
 
-## Phase 3 — Orchestrazione + findings
-- [ ] T3.1 Orchestratore sequenziale ordinato
-- [ ] T3.2 Ricorsione su artefatti
-- [ ] T3.3 Flag-hunt + locked detection
-- [ ] T3.4 start/pause/resume/cancel + tree/findings
-### Checkpoint C
-- [ ] Albero completo e ordinato su fixture
+## Phase 3 — Orchestrazione + findings ✅
+- [x] T3.1 Orchestratore sequenziale ordinato (BFS per ordine di scoperta)
+- [x] T3.2 Ricorsione su artefatti (figli come FileNode, depth max 3)
+- [x] T3.3 Flag-hunt + locked detection (Finding kind=note "password required")
+- [x] T3.4 start/pause/resume/cancel + findings/runs/events
+### Checkpoint C ✅
+- [x] Su challenge.png+stego.jpg: albero 16 nodi su 3 livelli, findings corretti
 
-## Phase 4 — Cracking + wordlist
-- [ ] T4.1 Port stegseek/fcrackzip/hashcat/pdfcrack
-- [ ] T4.2 Wordlist piccola→grande + ripple
-- [ ] T4.3 GET /wordlists + POST /crack
-### Checkpoint D
-- [ ] Zip AES crackato via API
+## Phase 4 — Cracking + wordlist ✅
+- [x] T4.1 Port stegseek/fcrackzip/hashcat/pdfcrack (+ zip2hashcat)
+- [x] T4.2 Wordlist piccola→grande + ripple sui figli sbloccati
+- [x] T4.3 GET /wordlists + GET /locked + POST /crack
+### Checkpoint D ✅
+- [x] Zip AES crackato via API (secret123) + flag estratta
+- [x] steghide crackato via API (ctf) + flag estratta
+- [x] Fix vendored zip2hashcat: mancava il ciphertext nel campo dati → hashcat
+      ora verifica i candidati (prima 0 recuperi anche con password nota)
 
 ## Phase 5 — Live & log
 - [ ] T5.1 Bus eventi + WS progetto

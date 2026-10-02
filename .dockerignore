@@ -1,0 +1,5 @@
+.git
+data
+appdata
+**/__pycache__
+**/*.pyc
