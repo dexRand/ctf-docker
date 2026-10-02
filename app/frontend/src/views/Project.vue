@@ -109,9 +109,7 @@ const producingToolByNode = computed(() => {
 })
 const findingToolKeys = computed(() => {
   const s = new Set()
-  for (const f of findings.value) {
-    for (const part of String(f.source || '').split(':')) if (part) s.add(`${f.file_id}:${part}`)
-  }
+  for (const f of findings.value) s.add(`${f.file_id}:${sourceTool(f.source)}`)
   return s
 })
 const relevantRuns = computed(() => runs.value.filter((r) => {
@@ -222,6 +220,44 @@ function childrenMap(nodes) {
   for (const k in m) m[k].sort((a, b) => a.order_index - b.order_index)
   return m
 }
+const SRC_PREFIX = ['b64', 'hex', 'fuzzy']
+function sourceTool(src) {
+  const parts = String(src || '').split(':').filter(Boolean)
+  while (parts.length > 1 && SRC_PREFIX.includes(parts[0])) parts.shift()
+  if (!parts.length) return '?'
+  return parts[0] === 'raw' ? 'raw scan' : parts[0]
+}
+function chainOf(fileId) {
+  const chain = []
+  let cur = fileId
+  while (cur && treeById.value[cur]) { chain.unshift(treeById.value[cur]); cur = treeById.value[cur].parent_id }
+  return chain
+}
+function chainText(f) {
+  const parts = []
+  chainOf(f.file_id).forEach((n, i) => {
+    const t = originTool(n)
+    if (i === 0) parts.push(n.name)
+    else {
+      const pw = passwords.value.find((p) => p.file_id === n.id)
+      parts.push(`${n.name} (via ${t}${pw ? ', pwd ' + pw.value : ''})`)
+    }
+  })
+  parts.push(`[${sourceTool(f.source)}]`)
+  return parts.join('  ->  ')
+}
+function flagTools() {
+  const s = new Set()
+  for (const f of flags.value) {
+    s.add(sourceTool(f.source))
+    for (const n of chainOf(f.file_id)) {
+      const t = originTool(n)
+      if (t && t !== 'upload' && t !== 'extracted') s.add(t)
+    }
+  }
+  for (const r of relevantRuns.value) s.add(r.tool)
+  return [...s].sort()
+}
 function routeLabel(n) {
   const fl = flags.value.filter((f) => f.file_id === n.id).map((f) => f.value)
   const pw = passwords.value.filter((p) => p.file_id === n.id).map((p) => p.value)
@@ -277,6 +313,17 @@ async function openReport() {
     L.push(''); L.push('### Note / bloccati'); L.push('| Nota | Tool |'); L.push('|---|---|')
     for (const n of notes.value) L.push(`| ${n.value} | ${n.source} |`)
   }
+  L.push(''); L.push('## Dove è la flag')
+  if (flags.value.length) {
+    for (const f of flags.value) {
+      const fn = treeById.value[f.file_id]
+      L.push(`- \`${f.value}\` — trovata da **${sourceTool(f.source)}**` + (fn ? ` in **${fn.name}**` : ''))
+      L.push(`  - catena: \`${chainText(f)}\``)
+      if (fn) L.push(`  - [apri il file](${fileUrl(fn)})`)
+    }
+  } else L.push('_Nessuna flag._')
+  L.push(''); L.push(`## Tool usati per la flag (${flagTools().length})`)
+  L.push(flagTools().map((t) => `\`${t}\``).join(', ') || '_nessuno_')
   L.push(''); L.push('## Percorso della flag')
   L.push('```')
   L.push(routeNodes().length ? asciiRouteTree() : '(nessuna flag trovata)')
@@ -468,9 +515,24 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
       <!-- right -->
       <div class="flex min-h-0 flex-col border-l border-edge">
         <div class="max-h-[45%] overflow-auto p-3">
-          <div class="mb-1 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="flag" :size="13" />Flag ({{ flags.length }})</div>
-          <div v-for="f in flags" :key="f.id" class="mb-1 break-all text-xs text-emerald-300">{{ f.value }}
-            <span class="text-slate-500">— {{ f.source }}</span></div>
+          <!-- Overview: dove è la flag + solo i tool usati per trovarla -->
+          <template v-if="flags.length">
+            <div class="mb-2 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="flag" :size="13" />Overview — dove è la flag</div>
+            <div v-for="f in flags" :key="f.id" class="mb-2 rounded border border-emerald-500/30 bg-emerald-500/5 p-2">
+              <div class="break-all text-xs font-semibold text-emerald-300">{{ f.value }}</div>
+              <div class="mt-1 text-[11px] text-slate-400">
+                in
+                <button class="text-slate-100 hover:underline" @click="f.file_id && (selected = f.file_id)">{{ (treeById[f.file_id] || {}).name || '?' }}</button>
+                · tool <b class="text-slate-200">{{ sourceTool(f.source) }}</b>
+              </div>
+              <div class="mt-1 break-all text-[10px] text-slate-500">{{ chainText(f) }}</div>
+            </div>
+            <div class="mb-1 mt-3 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="terminal" :size="13" />Tool usati per la flag ({{ flagTools().length }})</div>
+            <div class="flex flex-wrap gap-1">
+              <span v-for="t in flagTools()" :key="t" class="rounded bg-panel px-1.5 py-0.5 text-[10px] text-slate-300">{{ t }}</span>
+            </div>
+          </template>
+          <div v-else class="mb-1 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="flag" :size="13" />Flag (0)</div>
           <div class="mb-1 mt-3 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="key" :size="13" />Password ({{ passwords.length }})</div>
           <div v-for="p in passwords" :key="p.id" class="text-xs text-red-300">{{ p.value }}
             <span class="text-slate-500">— {{ p.source }}</span></div>
