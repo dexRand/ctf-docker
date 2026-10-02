@@ -76,8 +76,11 @@ def run_case(name: str, url: str, expect: str) -> bool:
             break
         time.sleep(3)
     flags = [f["value"] for f in get(f"/projects/{proj['id']}/findings") if f["kind"] == "flag"]
-    ok = any(expect in fl for fl in flags)
-    print(f"  [{'PASS' if ok else 'FAIL'}] {name:<15} status={status} expect={expect} got={flags[:3]}")
+    # a flag must never be a fragment of a longer one (e.g. CTF{x} in picoCTF{x})
+    fragments = [fl for fl in flags if any(fl != o and fl in o for o in flags)]
+    ok = any(expect in fl for fl in flags) and not fragments
+    extra = f" fragments={fragments}" if fragments else ""
+    print(f"  [{'PASS' if ok else 'FAIL'}] {name:<15} status={status} expect={expect} got={flags[:3]}{extra}")
     return ok
 
 

@@ -32,6 +32,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 def _startup() -> None:
     init_db()
     orchestrator.reconcile_orphans()
+    orchestrator.dedupe_flag_fragments()
 
 
 @app.middleware("http")

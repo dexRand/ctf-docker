@@ -24,12 +24,14 @@ from .config import PROJECTS_DIR
 from .db import engine
 from .models import Artifact, Event, FileNode, Finding, Project, ToolRun
 
+# The prefix must not be preceded by an alphanumeric/underscore, otherwise
+# `CTF{...}` would match inside `picoCTF{...}` and produce a truncated flag.
+_LB = r"(?<![0-9A-Za-z_])"
 STRICT_PATTERNS = [
-    r"ITS\{[^}\n]{1,200}\}", r"flag\{[^}\n]{1,200}\}", r"FLAG\{[^}\n]{1,200}\}",
-    r"CTF\{[^}\n]{1,200}\}", r"ctf\{[^}\n]{1,200}\}", r"HTB\{[^}\n]{1,200}\}",
-    r"picoCTF\{[^}\n]{1,200}\}",
+    _LB + p + r"\{[^}\n]{1,200}\}"
+    for p in ("ITS", "flag", "FLAG", "CTF", "ctf", "HTB", "picoCTF")
 ]
-GENERIC_PATTERNS = [r"[0-9A-Za-z_]{2,32}\{[A-Za-z0-9_\-!?.,:;@#$%^&*+=/ ]{1,120}\}"]
+GENERIC_PATTERNS = [_LB + r"[0-9A-Za-z_]{2,32}\{[A-Za-z0-9_\-!?.,:;@#$%^&*+=/ ]{1,120}\}"]
 _STRICT_RE = [re.compile(p.encode(), re.IGNORECASE) for p in STRICT_PATTERNS]
 _GENERIC_RE = [re.compile(p.encode(), re.IGNORECASE) for p in GENERIC_PATTERNS]
 # sources where the generic "<word>{...}" pattern is skipped (noisy OCR / raw bytes)
@@ -491,3 +493,22 @@ def reconcile_orphans() -> list[str]:
             session.add(r)
         session.commit()
         return ids
+
+
+def dedupe_flag_fragments() -> int:
+    """Remove stored flags that are fragments of a longer flag in the same
+    project (e.g. `CTF{x}` when `picoCTF{x}` exists). Cleans older projects."""
+    with Session(engine) as session:
+        rows = session.exec(select(Finding).where(Finding.kind == "flag")).all()
+        by_proj: dict[str, list[Finding]] = {}
+        for r in rows:
+            by_proj.setdefault(r.project_id, []).append(r)
+        removed = 0
+        for items in by_proj.values():
+            values = {f.value for f in items}
+            for f in items:
+                if any(f.value != o and f.value in o for o in values):
+                    session.delete(f)
+                    removed += 1
+        session.commit()
+        return removed

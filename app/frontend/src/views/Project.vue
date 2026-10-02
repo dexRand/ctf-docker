@@ -116,6 +116,8 @@ const relevantRuns = computed(() => {
   }
   return runs.value.filter((r) => wanted.has(`${r.file_id}:${r.tool}`))
 })
+// each flag paired with the real tool output that shows it
+const flagCards = computed(() => flags.value.map((f) => ({ f, ev: evidenceFor(f) })))
 // files "near" the flag path: siblings and children of route nodes
 const nearIdSet = computed(() => {
   const s = new Set()
@@ -152,6 +154,11 @@ async function load() {
       api('/wordlists'),
     ])
     runs.value = await api(`/projects/${props.id}/runs`)
+    // preload outputs of tools that ran on files containing a flag, so the
+    // evidence excerpt (tool output with the flag) is available immediately
+    for (const f of findings.value.filter((x) => x.kind === 'flag')) {
+      for (const r of runs.value.filter((x) => x.file_id === f.file_id)) out(r.id)
+    }
     if (selected.value == null && tree.value.length) selected.value = tree.value[0].id
   } catch (e) { err.value = String(e) }
 }
@@ -208,7 +215,29 @@ async function loadPreview(id) {
 }
 
 function commandsOf(text) {
-  return String(text || '').split('\n').filter((l) => l.startsWith('# ')).map((l) => l.slice(2))
+  return String(text || '').split('\n').filter((l) => l.startsWith('# '))
+    .map((l) => l.slice(2)).filter((c) => c && c !== 'commands:')
+}
+// excerpt of a tool output around the flag (the evidence of where it was)
+function evidenceLines(text, flag, width = 3) {
+  const lines = String(text).split('\n')
+  const idx = lines.findIndex((l) => l.includes(flag))
+  if (idx < 0) return ''
+  const from = Math.max(0, idx - width)
+  const to = Math.min(lines.length, idx + width + 1)
+  return lines.slice(from, to).join('\n').slice(0, 900)
+}
+function evidenceFor(f) {
+  const src = sourceTool(f.source)
+  const cands = (runsByFile.value[f.file_id] || []).slice()
+    .sort((a, b) => ((a.tool === src) ? -1 : 0) - ((b.tool === src) ? -1 : 0))
+  for (const r of cands) {
+    const o = outputs.value[r.id]
+    if (o && String(o).includes(f.value)) {
+      return { tool: r.tool, command: commandsOf(o)[0] || '', lines: evidenceLines(String(o), f.value) }
+    }
+  }
+  return null
 }
 
 // --- ASCII tree (box-drawing) ---
@@ -314,15 +343,23 @@ async function openReport() {
     for (const n of notes.value) L.push(`| ${n.value} | ${n.source} |`)
   }
   L.push(''); L.push('## Come è stata trovata la flag')
-  if (flags.value.length) {
-    for (const f of flags.value) {
+  if (flagCards.value.length) {
+    for (const { f, ev } of flagCards.value) {
       const fn = treeById.value[f.file_id]
       L.push(`### \`${f.value}\``)
       L.push(`- **Dove:** ${fn ? fn.name : '?'}${fn ? `  ·  [apri](${fileUrl(fn)})` : ''}`)
       L.push(`- **Come:** ${sourceHow(f.source)}`)
       L.push(`- **Catena:** \`${chainText(f)}\``)
-      const ctx = String(f.context || '').replace(/```/g, "'''")
-      if (ctx) { L.push('```'); L.push(ctx); L.push('```') }
+      if (ev && ev.lines) {
+        L.push('```')
+        L.push(`# ${ev.tool}${ev.command ? '  —  ' + ev.command : ''}`)
+        L.push(ev.lines.replace(/```/g, "'''"))
+        L.push('```')
+      } else if (f.context) {
+        L.push('```')
+        L.push(String(f.context).replace(/```/g, "'''"))
+        L.push('```')
+      }
       L.push('')
     }
   } else L.push('_Nessuna flag._')
@@ -517,15 +554,17 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
           <!-- Overview: dove è la flag + solo i tool usati per trovarla -->
           <template v-if="flags.length">
             <div class="mb-2 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="flag" :size="13" />Overview — dove è la flag</div>
-            <div v-for="f in flags" :key="f.id" class="mb-2 rounded border border-emerald-500/30 bg-emerald-500/5 p-2">
-              <div class="break-all text-xs font-semibold text-emerald-300">{{ f.value }}</div>
+            <div v-for="c in flagCards" :key="c.f.id" class="mb-2 rounded border border-emerald-500/30 bg-emerald-500/5 p-2">
+              <div class="break-all text-xs font-semibold text-emerald-300">{{ c.f.value }}</div>
               <div class="mt-1 text-[11px] text-slate-400">
                 in
-                <button class="text-slate-100 hover:underline" @click="f.file_id && (selected = f.file_id)">{{ (treeById[f.file_id] || {}).name || '?' }}</button>
-                · <b class="text-slate-200">{{ sourceHow(f.source) }}</b>
+                <button class="text-slate-100 hover:underline" @click="c.f.file_id && (selected = c.f.file_id)">{{ (treeById[c.f.file_id] || {}).name || '?' }}</button>
+                · <b class="text-slate-200">{{ sourceHow(c.f.source) }}</b>
               </div>
-              <div class="mt-1 break-all text-[10px] text-slate-500">{{ chainText(f) }}</div>
-              <pre v-if="f.context" class="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded bg-ink p-1.5 text-[10px] text-slate-400">{{ f.context }}</pre>
+              <div class="mt-1 break-all text-[10px] text-slate-500">{{ chainText(c.f) }}</div>
+              <pre v-if="c.ev" class="mt-1 max-h-32 overflow-auto whitespace-pre rounded bg-ink p-1.5 text-[10px] text-slate-300"># {{ c.ev.tool }}{{ c.ev.command ? '  —  ' + c.ev.command : '' }}
+{{ c.ev.lines }}</pre>
+              <pre v-else-if="c.f.context" class="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded bg-ink p-1.5 text-[10px] text-slate-400">{{ c.f.context }}</pre>
             </div>
             <div class="mb-1 mt-3 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="terminal" :size="13" />Tool usati per la flag ({{ flagTools().length }})</div>
             <div class="flex flex-wrap gap-1">
