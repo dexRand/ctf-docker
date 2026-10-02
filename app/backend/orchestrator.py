@@ -251,11 +251,14 @@ def _run(pid: str, job: Job) -> None:
             except OSError:
                 pass
 
-            def record(tool_name: str, result) -> None:
+            def record(tool_name: str, result, logs=None) -> None:
+                content = result.output or ""
+                if logs:
+                    content = "# commands:\n# " + "\n# ".join(logs) + "\n\n" + content
                 rel_out = None
-                if result.output:
+                if content:
                     op = out_dir / f"{tool_name}.out"
-                    op.write_text(result.output, errors="replace")
+                    op.write_text(content, errors="replace")
                     rel_out = str(op.relative_to(work))
                 run = ToolRun(project_id=pid, file_id=node.id, tool=tool_name,
                               status=result.status, needs_password=result.needs_password,
@@ -263,7 +266,12 @@ def _run(pid: str, job: Job) -> None:
                               output_path=rel_out, started_at=_now(), finished_at=_now())
                 session.add(run)
                 session.flush()
+                # files moved into the tree as children must not stay as artifacts
+                # too (their old path would no longer exist)
+                moved = {str(x) for x in result.extracted}
                 for art in result.artifacts:
+                    if str(art.get("path", "")) in moved:
+                        continue
                     p = Path(str(art.get("path", "")))
                     try:
                         rel_art = str(p.relative_to(work))
@@ -285,9 +293,10 @@ def _run(pid: str, job: Job) -> None:
             ftype = ""
             file_analyzer = get_tool("file")
             if file_analyzer:
-                r0 = file_analyzer.run(ToolContext(input=abs_path, workdir=out_dir, log=lambda _m: None))
+                file_logs: list[str] = []
+                r0 = file_analyzer.run(ToolContext(input=abs_path, workdir=out_dir, log=file_logs.append))
                 ftype = r0.output
-                record("file", r0)
+                record("file", r0, file_logs)
             is_text = any(k in ftype.lower() for k in ("text", "ascii", "unicode"))
 
             for tool_name in [t for t in _plan_for(node.name, node.mime, is_text) if t != "file"]:
@@ -295,8 +304,9 @@ def _run(pid: str, job: Job) -> None:
                     break
                 job.wait()
                 analyzer = get_tool(tool_name)
-                result = analyzer.run(ToolContext(input=abs_path, workdir=out_dir, log=lambda _m: None))
-                record(tool_name, result)
+                logs: list[str] = []
+                result = analyzer.run(ToolContext(input=abs_path, workdir=out_dir, log=logs.append))
+                record(tool_name, result, logs)
                 for src in result.extracted:
                     child = _store_extracted(session, pid, node, Path(src), order)
                     order += 1

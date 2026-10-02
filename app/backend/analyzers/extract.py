@@ -64,12 +64,16 @@ class ForemostAnalyzer(Analyzer):
         )
 
 
+ARCHIVE_EXT = (".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".cab", ".iso")
+
+
 class SevenZipAnalyzer(Analyzer):
     name = "7z"
     category = "extract"
     description = "Extract archives (7z/zip/tar/rar/gz…), detects passwords."
     has_archive = True
     needs_password = True
+    accepts = ARCHIVE_EXT
     display_order = 220
 
     def run(self, ctx: ToolContext) -> ToolResult:
@@ -77,13 +81,16 @@ class SevenZipAnalyzer(Analyzer):
             return ToolResult(self.name, status="skipped", summary="7z not installed")
         d = ctx.sub(self.name)
         proc = ctx.run(["7z", "x", "-y", f"-p{ctx.password or ''}", f"-o{d}", str(ctx.input)], timeout=600)
-        blob = out_of(proc).lower()
-        needs = ("password" in blob or "encrypted" in blob or "wrong" in blob) and proc.returncode != 0
+        blob = out_of(proc)
+        low = blob.lower()
         if proc.returncode != 0:
             shutil.rmtree(d, ignore_errors=True)
             files: list[Path] = []
+            if "can't open as archive" in low or "is not archive" in low:
+                return ToolResult(self.name, status="skipped", summary="non è un archivio", output=blob[-4000:])
         else:
             files = list_files(d)
+        needs = ("password" in low or "encrypted" in low or "wrong" in low) and proc.returncode != 0
         return ToolResult(
             self.name,
             status="needs_password" if needs else ("done" if proc.returncode == 0 else "error"),
@@ -95,7 +102,7 @@ class SevenZipAnalyzer(Analyzer):
 
 subprocess_analyzer(
     "pngcheck", ["pngcheck", "-v", "{input}"], "extract",
-    "Validate PNG chunks and integrity.", order=230, accepts=(".png",),
+    "Validate PNG chunks and integrity.", order=230, accepts=(".png",), soft=True,
 )
 
 register(BinwalkExtractAnalyzer())

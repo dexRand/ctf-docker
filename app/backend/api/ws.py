@@ -19,7 +19,7 @@ from ..bus import bus
 router = APIRouter()
 
 BASH = shutil.which("bash") or "/bin/sh"
-PS1 = r"\[\e[1;35m\]stegsuite\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ "
+RC = "/etc/stegsuite/term.bashrc"
 
 
 @router.websocket("/ws/projects/{pid}")
@@ -51,17 +51,13 @@ async def ws_terminal(ws: WebSocket, pid: str) -> None:
         await ws.close()
         return
     master, slave = pty.openpty()
-    env = {
-        **os.environ,
-        "TERM": "xterm-256color",
-        "LANG": os.environ.get("LANG", "C.UTF-8"),
-        "PS1": PS1,
-        "LS_COLORS": os.environ.get("LS_COLORS", ""),
-        "CLICOLOR": "1",
-    }
+    env = {**os.environ, "TERM": "xterm-256color", "LANG": os.environ.get("LANG", "C.UTF-8")}
+    args = [BASH, "-i"]
+    if os.path.exists(RC):
+        args = [BASH, "--rcfile", RC, "-i"]
     try:
         proc = await asyncio.create_subprocess_exec(
-            BASH, "-i", stdin=slave, stdout=slave, stderr=slave, cwd=str(cwd),
+            *args, stdin=slave, stdout=slave, stderr=slave, cwd=str(cwd),
             env=env, start_new_session=True,
         )
     finally:

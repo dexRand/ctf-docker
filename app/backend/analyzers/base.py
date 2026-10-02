@@ -92,6 +92,7 @@ class Analyzer:
 
 class SubprocessAnalyzer(Analyzer):
     cmd: list = []
+    soft_errors: bool = False  # tools whose non-zero exit is informational, not a failure
 
     def run(self, ctx: ToolContext) -> ToolResult:
         if not self.cmd:
@@ -100,9 +101,10 @@ class SubprocessAnalyzer(Analyzer):
             return ToolResult(self.name, status="skipped", summary=f"{self.cmd[0]} not installed")
         cmd = [str(ctx.input) if str(c) == "{input}" else str(c) for c in self.cmd]
         proc = ctx.run(cmd)
+        ok = proc.returncode == 0 or self.soft_errors
         return ToolResult(
             self.name,
-            status="done" if proc.returncode == 0 else "error",
+            status="done" if ok else "error",
             output=out_of(proc),
             exit_code=proc.returncode,
         )

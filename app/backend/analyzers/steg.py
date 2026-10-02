@@ -92,6 +92,7 @@ class OpenStegoAnalyzer(Analyzer):
     category = "steg"
     description = "Extract data embedded with OpenStego (needs password)."
     needs_password = True
+    accepts = (".png", ".bmp", ".gif", ".jpg", ".jpeg", ".tiff", ".tif", ".webp")
     display_order = 340
 
     def run(self, ctx: ToolContext) -> ToolResult:
@@ -100,12 +101,14 @@ class OpenStegoAnalyzer(Analyzer):
         out = ctx.sub(self.name) / (ctx.input.name + ".openstego")
         proc = ctx.run(["openstego", "extract", "-sf", str(ctx.input),
                         "-xf", str(out), "-p", ctx.password or ""], timeout=120)
-        if proc.returncode == 0:
-            return ToolResult(self.name, status="done", output=out_of(proc)[-8000:],
-                              summary="dato estratto", extracted=[str(out)] if out.exists() else [])
-        return ToolResult(self.name, status="needs_password", needs_password=True,
-                          output=out_of(proc)[-8000:], exit_code=proc.returncode,
-                          summary="password richiesta")
+        blob = out_of(proc)
+        if proc.returncode == 0 and out.exists():
+            return ToolResult(self.name, status="done", output=blob[-8000:],
+                              summary="dato estratto", extracted=[str(out)],
+                              artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
+        # no OpenStego payload (or unsupported): not an error
+        return ToolResult(self.name, status="skipped", output=blob[-4000:],
+                          exit_code=proc.returncode, summary="nessun dato OpenStego")
 
 
 register(SteghideAnalyzer())

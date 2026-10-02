@@ -13,3 +13,18 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, sans-
 
 pre.out { white-space: pre-wrap; word-break: break-word; font: 12px/1.45 ui-monospace, monospace; }
 .ansi { font-family: ui-monospace, monospace; font-size: 12px; }
+
+/* markdown rendering (report) */
+.md { font-size: 13px; line-height: 1.5; }
+.md h1 { font-size: 1.35rem; font-weight: 700; margin: .4rem 0 .6rem; }
+.md h2 { font-size: 1.1rem; font-weight: 600; margin: 1.1rem 0 .5rem; border-bottom: 1px solid #26324b; padding-bottom: .25rem; }
+.md h3 { font-size: .95rem; font-weight: 600; margin: .9rem 0 .35rem; }
+.md p { margin: .3rem 0; }
+.md ul { list-style: disc; margin: .35rem 0 .35rem 1.2rem; }
+.md code { background: #0b1220; border: 1px solid #26324b; border-radius: 4px; padding: 0 4px; font-family: ui-monospace, monospace; font-size: .85em; }
+.md pre { background: #0b1220; border: 1px solid #26324b; border-radius: 8px; padding: 10px; overflow: auto; font: 12px/1.45 ui-monospace, monospace; }
+.md table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 12px; }
+.md th, .md td { border: 1px solid #26324b; padding: 5px 8px; text-align: left; vertical-align: top; }
+.md th { background: #111a2e; }
+.md a { color: #a5b4fc; }
+.md strong { color: #e2e8f0; }

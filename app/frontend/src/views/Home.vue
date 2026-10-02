@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, fmtDate, STATUS_COLOR } from '../api'
+import Icon from '../components/Icon.vue'
 
 const router = useRouter()
 const files = ref([])
@@ -52,7 +53,7 @@ function open(id) { router.push(`/p/${id}`) }
         class="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-edge p-8 text-center transition"
         :class="drag ? 'border-acc bg-acc/10' : 'hover:border-slate-500'"
         @dragover.prevent="drag = true" @dragleave.prevent="drag = false" @drop.prevent="onDrop">
-        <div class="text-3xl">📂</div>
+        <Icon name="upload" :size="34" class="text-slate-400" />
         <div class="mt-2 text-sm text-slate-400">Trascina qui i file (più file insieme) oppure</div>
         <label class="mt-2 cursor-pointer rounded bg-acc px-3 py-1.5 text-sm font-medium text-white">
           Scegli file<input type="file" multiple class="hidden" @change="onPick" />
@@ -98,7 +99,7 @@ function open(id) { router.push(`/p/${id}`) }
             <td class="px-4 py-2 text-slate-400">{{ p.files }}</td>
             <td class="px-4 py-2 text-slate-400">{{ fmtDate(p.created_at) }}</td>
             <td class="px-4 py-2 text-right">
-              <button @click="del(p.id, $event)" class="rounded border border-edge px-2 py-1 text-xs hover:bg-red-500/20">Elimina</button>
+              <button @click="del(p.id, $event)" class="inline-flex items-center gap-1 rounded border border-edge px-2 py-1 text-xs hover:bg-red-500/20"><Icon name="trash" :size="12" />Elimina</button>
             </td>
           </tr>
           <tr v-if="!projects.length"><td colspan="6" class="px-4 py-6 text-center text-slate-500">Nessun progetto.</td></tr>

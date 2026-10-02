@@ -50,6 +50,7 @@ RUN python3 -m venv /opt/stegsuite/venv \
 
 COPY app/backend/ /opt/stegsuite/backend/
 COPY triage/third_party/ /opt/third_party/
+COPY app/term.bashrc /etc/stegsuite/term.bashrc
 # replace the placeholder SPA with the built Vue app
 RUN rm -rf /opt/stegsuite/backend/static
 COPY --from=frontend /fe/dist /opt/stegsuite/backend/static

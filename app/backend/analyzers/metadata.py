@@ -9,12 +9,12 @@ subprocess_analyzer(
 )
 subprocess_analyzer(
     "exiftool", ["exiftool", "{input}"], "metadata",
-    "All metadata: EXIF, GPS, comments, embedded data.", order=20,
+    "All metadata: EXIF, GPS, comments, embedded data.", order=20, soft=True,
 )
 subprocess_analyzer(
     "identify", ["identify", "-verbose", "{input}"], "metadata",
     "Image info and properties (GraphicsMagick/ImageMagick).", order=30,
-    accepts=(".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp"),
+    accepts=(".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp"), soft=True,
 )
 subprocess_analyzer(
     "ffprobe", ["ffprobe", "-hide_banner", "{input}"], "metadata",
