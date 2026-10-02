@@ -91,6 +91,68 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     p = TMP / "anim.gif"
     frames[0].save(p, save_all=True, append_images=frames[1:], duration=250, loop=0)
     cases.append(("gif-frames", p, "ITS{gif_frame_6}"))
+
+    # 7) flag in a PNG tEXt chunk -> png-chunks
+    from PIL import Image, ImageDraw
+    from PIL.PngImagePlugin import PngInfo
+    p = TMP / "chunked.png"
+    meta = PngInfo()
+    meta.add_text("Comment", "nothing here")
+    meta.add_text("flag", "ITS{png_chunk_7}")
+    Image.new("RGB", (80, 80), "white").save(p, pnginfo=meta)
+    cases.append(("png-chunks", p, "ITS{png_chunk_7}"))
+
+    # 8) base64(rot13(flag)) -> decode
+    import base64, codecs
+    inner = codecs.encode("ITS{decode_8}", "rot13")
+    p = TMP / "encoded.txt"
+    p.write_text(base64.b64encode(inner.encode()).decode())
+    cases.append(("decode", p, "ITS{decode_8}"))
+
+    # 9) Morse of base64(flag) -> morse-text + layer chain (Dashed style)
+    table = {v: k for k, v in {
+        ".-": "A", "-...": "B", "-.-.": "C", "-..": "D", ".": "E", "..-.": "F", "--.": "G",
+        "....": "H", "..": "I", ".---": "J", "-.-": "K", ".-..": "L", "--": "M", "-.": "N",
+        "---": "O", ".--.": "P", "--.-": "Q", ".-.": "R", "...": "S", "-": "T", "..-": "U",
+        "...-": "V", ".--": "W", "-..-": "X", "-.--": "Y", "--..": "Z", "-----": "0",
+        ".----": "1", "..---": "2", "...--": "3", "....-": "4", ".....": "5", "-....": "6",
+        "--...": "7", "---..": "8", "----.": "9", "-...-": "=", ".-.-.": "+",
+    }.items()}
+    # Morse is case-insensitive, so encode the flag as HEX (like the real Dashed
+    # challenge: Morse -> hex -> binary -> base64 -> rot13).
+    hexs = b"ITS{morse_layer_9}".hex().upper()
+    morse = " ".join(table.get(c, "/") for c in hexs)
+    p = TMP / "dashed.txt"
+    p.write_text(morse)
+    cases.append(("morse-text", p, "ITS{morse_layer_9}"))
+
+    # 10) flag drawn in the red LSB only -> bit-planes + OCR
+    import numpy as np
+    mask_img = Image.new("1", (200, 60), 0)
+    ImageDraw.Draw(mask_img).text((2, 20), "ITS{lsb_10}", fill=1)
+    mask = np.array(mask_img.resize((800, 240), Image.NEAREST)).astype("uint8")
+    h, w = mask.shape
+    host = np.random.default_rng(1).integers(120, 160, size=(h, w, 3), dtype="uint8")
+    host[:, :, 0] = (host[:, :, 0] & 0xFE) | mask
+    p = TMP / "lsb.png"
+    Image.fromarray(host).save(p)
+    cases.append(("bit-planes", p, "ITS{lsb_10}"))
+
+    # 11) flag in the brightest pixels -> image-enhance + OCR
+    im = Image.new("RGB", (600, 150), (250, 250, 250))
+    ImageDraw.Draw(im).text((10, 60), "ITS{enhance_11}", fill=(242, 242, 242))
+    p = TMP / "highlights.png"
+    im.save(p)
+    cases.append(("image-enhance", p, "ITS{enhance_11}"))
+
+    # 12) Dashed-style: 0x30/0x31 -> binary -> base64 -> rot13 -> flag
+    r13 = codecs.encode("ITS{dashed_12}", "rot13")
+    b64 = base64.b64encode(r13.encode()).decode()
+    binstr = "".join(f"{ord(c):08b}" for c in b64)
+    tokens = ",".join("0x30" if bit == "0" else "0x31" for bit in binstr)
+    p = TMP / "dashed_chain.txt"
+    p.write_text(tokens)
+    cases.append(("decode-chain", p, "ITS{dashed_12}"))
     return cases
 
 

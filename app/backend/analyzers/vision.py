@@ -34,18 +34,22 @@ def ocr_image(path: Path, timeout: int = 90) -> str:
             src = tmp
     except Exception:
         pass
+    texts: list[str] = []
     try:
-        r = subprocess.run(["tesseract", str(src), "stdout"],
-                           capture_output=True, text=True, errors="replace", timeout=timeout)
-        return (r.stdout or "").strip()
+        for extra in ([], ["--psm", "7"]):
+            r = subprocess.run(["tesseract", str(src), "stdout", *extra],
+                               capture_output=True, text=True, errors="replace", timeout=timeout)
+            t = (r.stdout or "").strip()
+            if t and t not in texts:
+                texts.append(t)
     except Exception:
-        return ""
-    finally:
-        if tmp:
-            try:
-                tmp.unlink()
-            except OSError:
-                pass
+        pass
+    if tmp:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+    return "\n".join(texts)
 
 
 class OcrAnalyzer(Analyzer):

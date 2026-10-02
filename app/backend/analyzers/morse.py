@@ -1,6 +1,7 @@
-"""Morse code decoder for audio files (on/off keying envelope)."""
+"""Morse decoders: audio (on/off envelope) and text (. and -), plus layer chain."""
 from __future__ import annotations
 
+import re
 import wave
 from pathlib import Path
 
@@ -113,3 +114,46 @@ class MorseAnalyzer(Analyzer):
 
 
 register(MorseAnalyzer())
+
+
+def decode_text_morse(text: str) -> str:
+    words: list[str] = []
+    word: list[str] = []
+    for tok in re.split(r"\s+", text.strip()):
+        if tok in ("/", "|", "//"):
+            words.append("".join(word))
+            word = []
+            continue
+        ch = MORSE.get(tok)
+        if ch:
+            word.append(ch)
+    if word:
+        words.append("".join(word))
+    return " ".join(w for w in words if w)
+
+
+class MorseTextAnalyzer(Analyzer):
+    name = "morse-text"
+    category = "radio"
+    description = ("Decode text Morse (. and -) from a text file, then try nested "
+                   "encodings (hex/binary/base64/rot13).")
+    accepts = (".txt", ".md", ".dat")
+    display_order = 422
+
+    def run(self, ctx: ToolContext) -> ToolResult:
+        text = ctx.input.read_text(errors="replace")
+        probe = text.strip()[:2000]
+        if not probe or not re.fullmatch(r"[\s.\-/|,A-Za-z0-9]+", probe) or probe.count(".") + probe.count("-") < 3:
+            return ToolResult(self.name, status="skipped", summary="non sembra Morse")
+        decoded = decode_text_morse(text.replace(",", " "))
+        lines = [f"morse: {decoded}"]
+        try:
+            from .decode import chain
+            lines += chain(decoded.encode())
+        except Exception:
+            pass
+        return ToolResult(self.name, status="done", output="\n".join(lines[:200]),
+                          summary=f"Morse: {decoded[:60]}")
+
+
+register(MorseTextAnalyzer())

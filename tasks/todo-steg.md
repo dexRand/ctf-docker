@@ -57,6 +57,16 @@
       `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}`)
 - [x] Test vision: GIF con flag in un frame → trovata via OCR (`gif-frames`)
 
+## Copertura challenge italiane (ITSCyberGame / Olicyber / StarHackademin) ✅
+- [x] `png-chunks`: dump tEXt/iTXt/zTXt/eXIf + dati dopo IEND (IsThatA)
+- [x] `morse-text`: Morse testuale dal file, con catena di layer (Dashed)
+- [x] `decode`: mini-Ciphey (base64/base32/base85/hex/binario/rot13/url +
+      `0x30`/`0x31`→binario) e concatenazione multi-livello
+- [x] `bit-planes` con **OCR** dei piani (LSB leggibile in autonomia, Stegartifice1)
+- [x] `image-enhance`: autocontrast/equalize/invert/highlights/shadows + OCR (BrightSun)
+- [x] Flag hunt "fuzzy" per gli errori OCR (`ITSfenhance_11}` → `ITS{enhance_11}`)
+- [x] Regressione estesa: **12/12** categorie risolte in Auto
+
 ## Phase 7 — Frontend SPA ✅ (v1)
 - [x] T7.1 Setup Vue 3 + Vite + Tailwind + vue-router
 - [x] T7.2 Home/nuova analisi (drag&drop, modalità Auto/Check)

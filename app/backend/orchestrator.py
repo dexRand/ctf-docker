@@ -29,14 +29,19 @@ FLAG_PATTERNS = [
     r"picoCTF\{[^}\n]{1,200}\}", r"[0-9A-Za-z_]{2,32}\{[ -~]{1,200}\}",
 ]
 _FLAG_RE = [re.compile(p.encode(), re.IGNORECASE) for p in FLAG_PATTERNS]
+# OCR often reads '{' as f/F/l/L/[/( and ']'/'}' as ] or ). This fuzzy pattern
+# rescues flags found by OCR/vision tools and normalises them back.
+_FUZZY_RE = re.compile(
+    rb"(picoCTF|ITS|FLAG|flag|HTB|ctf|CTF)[\{\[\(fFlL]([ -~]{1,180}?)[\}\]\)]", re.IGNORECASE)
 
 # ordered analysis plan (order matters: metadata -> text -> steg -> extract)
 DEFAULT_PLAN = [
     "file", "exiftool", "identify", "ffprobe", "pdfinfo",
     "strings", "hexyl", "xxd", "pdftotext", "pdfid", "binwalk-scan",
+    "decode", "morse-text",
     "ocr",
-    "zsteg", "steghide", "outguess", "jsteg", "openstego",
-    "bit-planes", "channel-remap", "gif-frames",
+    "zsteg", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
+    "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform",
     "7z", "binwalk-extract", "foremost", "pngcheck",
 ]
@@ -101,6 +106,13 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str, sou
                 continue
             existing.add(value)
             session.add(Finding(project_id=project_id, file_id=file_id, kind="flag", value=value, source=source))
+    for m in _FUZZY_RE.finditer(data):
+        value = (m.group(1) + b"{" + m.group(2) + b"}").decode("latin-1", "replace")
+        if value in existing or not all(32 <= ord(c) <= 126 for c in value):
+            continue
+        existing.add(value)
+        session.add(Finding(project_id=project_id, file_id=file_id, kind="flag",
+                            value=value, source=f"fuzzy:{source}"))
 
 
 def _plan_for(name: str, mime: str | None, is_text: bool) -> list[str]:
