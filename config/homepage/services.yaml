@@ -32,7 +32,7 @@
     - CyberChef:
         icon: cyberchef.png
         href: http://localhost:19002
-        description: "Coltellino svizzero" per encoding e crypto — base64, XOR, RSA, hash, JWT...
+        description: "Coltellino svizzero per encoding e crypto — base64, XOR, RSA, hash, JWT..."
         siteMonitor: http://cyberchef:8080
     - SageMath (Jupyter):
         icon: mdi-math-integral-box
