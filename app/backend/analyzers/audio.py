@@ -47,5 +47,24 @@ class WaveformAnalyzer(Analyzer):
         return ToolResult(self.name, status="error", output=out_of(proc)[-8000:], exit_code=proc.returncode)
 
 
+class DtmfAnalyzer(Analyzer):
+    name = "dtmf"
+    category = "radio"
+    description = "Decode DTMF phone tones from audio (multimon-ng)."
+    accepts = AV_EXT
+    display_order = 425
+
+    def run(self, ctx: ToolContext) -> ToolResult:
+        if not which("multimon-ng"):
+            return ToolResult(self.name, status="skipped", summary="multimon-ng not installed")
+        wav = ctx.sub(self.name) / "audio.wav"
+        ctx.run(["ffmpeg", "-y", "-i", str(ctx.input), "-ac", "1", "-ar", "22050", str(wav)],
+                timeout=300)
+        proc = ctx.run(["multimon-ng", "-t", "wav", "-a", "DTMF", "-q", str(wav)], timeout=300)
+        return ToolResult(self.name, status="done", output=out_of(proc),
+                          summary="DTMF")
+
+
 register(SpectrogramAnalyzer())
 register(WaveformAnalyzer())
+register(DtmfAnalyzer())

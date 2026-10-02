@@ -47,6 +47,16 @@
 - [x] T6.1 PTY over WS (cwd = progetto) — verificato (echo eseguito)
 - [x] T6.2 Resize (TIOCSWINSZ) + chiusura pulita
 
+## Vision & audio (extra, per challenge "da vedere/ascoltare") ✅
+- [x] `gif-frames`: split frame + diff (evidenzia i frame più diversi) + decodifica
+      dei delay (bit→ASCII) + OCR per frame
+- [x] `ocr`: tesseract con upscaling (legge flag visibili)
+- [x] `morse`: decoder Morse dall'inviluppo audio (verificato: "SOS")
+- [x] `dtmf`: multimon-ng
+- [x] Test reale: **picoCTF 2022 St3g0 risolta in autonomia** (zsteg →
+      `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}`)
+- [x] Test vision: GIF con flag in un frame → trovata via OCR (`gif-frames`)
+
 ## Phase 7 — Frontend SPA
 - [ ] T7.1 Setup Vue/Vite/Tailwind
 - [ ] T7.2 Home/nuova analisi

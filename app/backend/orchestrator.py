@@ -34,8 +34,10 @@ _FLAG_RE = [re.compile(p.encode(), re.IGNORECASE) for p in FLAG_PATTERNS]
 DEFAULT_PLAN = [
     "file", "exiftool", "identify", "ffprobe", "pdfinfo",
     "strings", "hexyl", "xxd", "pdftotext", "pdfid", "binwalk-scan",
+    "ocr",
     "zsteg", "steghide", "outguess", "jsteg", "openstego",
-    "bit-planes", "channel-remap", "spectrogram", "waveform",
+    "bit-planes", "channel-remap", "gif-frames",
+    "morse", "dtmf", "spectrogram", "waveform",
     "7z", "binwalk-extract", "foremost", "pngcheck",
 ]
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}
