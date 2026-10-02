@@ -17,6 +17,10 @@ wordlists/*
 !wordlists/passwords.txt
 !wordlists/.gitkeep
 
+# Python
+__pycache__/
+*.pyc
+
 # OS / editor
 .DS_Store
 *.swp
