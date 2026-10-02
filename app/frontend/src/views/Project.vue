@@ -98,26 +98,24 @@ const passwords = computed(() => findings.value.filter((f) => f.kind === 'passwo
 const notes = computed(() => findings.value.filter((f) => f.kind === 'note'))
 const routeTreeText = computed(() => (routeNodes().length ? asciiRouteTree() : ''))
 const routeIdSet = computed(() => new Set(routeNodes().map((n) => n.id)))
-const producingToolByNode = computed(() => {
-  const m = {}
-  for (const n of tree.value) {
-    const t = originTool(n)
-    if (t === 'upload' || t === 'extracted') continue
-    ;(m[n.parent_id] ||= new Set()).add(t)
+// only the runs that actually took part: the finder tool + the tools that
+// produced each file on the path to the flag (not every tool that ran)
+const relevantRuns = computed(() => {
+  const wanted = new Set()
+  for (const f of flags.value) {
+    wanted.add(`${f.file_id}:${sourceTool(f.source)}`)
+    let cur = f.file_id
+    while (cur && treeById.value[cur]) {
+      const n = treeById.value[cur]
+      if (n.parent_id != null) {
+        const t = originTool(n)
+        if (t && t !== 'upload' && t !== 'extracted') wanted.add(`${n.parent_id}:${t}`)
+      }
+      cur = n.parent_id
+    }
   }
-  return m
+  return runs.value.filter((r) => wanted.has(`${r.file_id}:${r.tool}`))
 })
-const findingToolKeys = computed(() => {
-  const s = new Set()
-  for (const f of findings.value) s.add(`${f.file_id}:${sourceTool(f.source)}`)
-  return s
-})
-const relevantRuns = computed(() => runs.value.filter((r) => {
-  if (!routeIdSet.value.has(r.file_id)) return false
-  if ((producingToolByNode.value[r.file_id] || new Set()).has(r.tool)) return true
-  if (findingToolKeys.value.has(`${r.file_id}:${r.tool}`)) return true
-  return ['crack', 'hashcat', 'fcrackzip'].includes(r.tool)
-}))
 // files "near" the flag path: siblings and children of route nodes
 const nearIdSet = computed(() => {
   const s = new Set()
@@ -221,11 +219,18 @@ function childrenMap(nodes) {
   return m
 }
 const SRC_PREFIX = ['b64', 'hex', 'fuzzy']
-function sourceTool(src) {
+const SRC_DECODER = { b64: 'base64', hex: 'hex', fuzzy: 'fuzzy/OCR' }
+function sourceParts(src) {
   const parts = String(src || '').split(':').filter(Boolean)
-  while (parts.length > 1 && SRC_PREFIX.includes(parts[0])) parts.shift()
-  if (!parts.length) return '?'
-  return parts[0] === 'raw' ? 'raw scan' : parts[0]
+  const dec = []
+  while (parts.length > 1 && SRC_PREFIX.includes(parts[0])) dec.push(parts.shift())
+  const tool = parts[0] === 'raw' ? 'raw scan' : (parts[0] || '?')
+  return { tool, dec }
+}
+function sourceTool(src) { return sourceParts(src).tool }
+function sourceHow(src) {
+  const { tool, dec } = sourceParts(src)
+  return dec.length ? tool + ' + ' + dec.map((d) => SRC_DECODER[d] || d).join(' + ') : tool
 }
 function chainOf(fileId) {
   const chain = []
@@ -243,7 +248,7 @@ function chainText(f) {
       parts.push(`${n.name} (via ${t}${pw ? ', pwd ' + pw.value : ''})`)
     }
   })
-  parts.push(`[${sourceTool(f.source)}]`)
+  parts.push(`[${sourceHow(f.source)}]`)
   return parts.join('  ->  ')
 }
 function flagTools() {
@@ -300,68 +305,62 @@ async function openReport() {
   L.push('')
   L.push(`- **Stato:** ${P.status}  ·  **Modalità:** ${P.mode}  ·  **File:** ${P.files}  ·  **Data:** ${fmtDate(P.created_at)}`)
   L.push('')
-  L.push('## Findings')
-  if (flags.value.length) {
-    L.push('### Flag'); L.push('| Flag | Origine |'); L.push('|---|---|')
-    for (const f of flags.value) L.push(`| \`${f.value}\` | ${f.source} |`)
-  } else L.push('_Nessuna flag._')
   if (passwords.value.length) {
-    L.push(''); L.push('### Password'); L.push('| Password | Origine |'); L.push('|---|---|')
+    L.push('## Password'); L.push('| Password | Origine |'); L.push('|---|---|')
     for (const p of passwords.value) L.push(`| \`${p.value}\` | ${p.source} |`)
   }
   if (notes.value.length) {
-    L.push(''); L.push('### Note / bloccati'); L.push('| Nota | Tool |'); L.push('|---|---|')
+    L.push(''); L.push('## Note / bloccati'); L.push('| Nota | Tool |'); L.push('|---|---|')
     for (const n of notes.value) L.push(`| ${n.value} | ${n.source} |`)
   }
-  L.push(''); L.push('## Dove è la flag')
+  L.push(''); L.push('## Come è stata trovata la flag')
   if (flags.value.length) {
     for (const f of flags.value) {
       const fn = treeById.value[f.file_id]
-      L.push(`- \`${f.value}\` — trovata da **${sourceTool(f.source)}**` + (fn ? ` in **${fn.name}**` : ''))
-      L.push(`  - catena: \`${chainText(f)}\``)
-      if (fn) L.push(`  - [apri il file](${fileUrl(fn)})`)
+      L.push(`### \`${f.value}\``)
+      L.push(`- **Dove:** ${fn ? fn.name : '?'}${fn ? `  ·  [apri](${fileUrl(fn)})` : ''}`)
+      L.push(`- **Come:** ${sourceHow(f.source)}`)
+      L.push(`- **Catena:** \`${chainText(f)}\``)
+      const ctx = String(f.context || '').replace(/```/g, "'''")
+      if (ctx) { L.push('```'); L.push(ctx); L.push('```') }
+      L.push('')
     }
   } else L.push('_Nessuna flag._')
-  L.push(''); L.push(`## Tool usati per la flag (${flagTools().length})`)
+  L.push(`## Tool usati per la flag (${flagTools().length})`)
   L.push(flagTools().map((t) => `\`${t}\``).join(', ') || '_nessuno_')
   L.push(''); L.push('## Percorso della flag')
   L.push('```')
   L.push(routeNodes().length ? asciiRouteTree() : '(nessuna flag trovata)')
   L.push('```')
   const rel = relevantRuns.value
-  L.push(''); L.push(`## Passaggi rilevanti (${rel.length})`)
   if (rel.length) {
+    L.push(''); L.push(`## Tool sul percorso (${rel.length})`)
     L.push('| File | Tool | Stato | Sintesi |')
     L.push('|---|---|---|---|')
     for (const r of rel) {
       const f = treeById.value[r.file_id]
       L.push(`| ${f ? f.name : '?'} | ${r.tool} | ${r.status} | ${(r.summary || '').replace(/\|/g, '\\|')} |`)
     }
-  } else L.push('_Nessun passaggio rilevante._')
+    const blocks = []
+    for (const r of rel) {
+      const o = outputs.value[r.id] != null ? outputs.value[r.id] : await out(r.id)
+      const cmds = commandsOf(o)
+      if (cmds.length) {
+        blocks.push('```\n# ' + (treeById.value[r.file_id] || {}).name + ' — ' + r.tool + '\n' + cmds.join('\n') + '\n```')
+      }
+    }
+    if (blocks.length) { L.push(''); L.push('## Comandi'); L.push(...blocks) }
+  }
   const routeFiles = routeNodes().filter((n) => n.parent_id != null)
-  L.push(''); L.push(`## File sul percorso (${routeFiles.length})`)
   if (routeFiles.length) {
+    L.push(''); L.push(`## File sul percorso (${routeFiles.length})`)
     L.push('| File | Dim | Prodotto da | Scarica |')
     L.push('|---|---|---|---|')
     for (const n of routeFiles) L.push(`| ${n.name} | ${fmtSize(n.size)} | ${originTool(n)} | [apri](${fileUrl(n)}) |`)
-  } else L.push('_Nessun file intermedio._')
-  L.push(''); L.push('## Comandi')
-  let any = false
-  for (const r of rel) {
-    const o = outputs.value[r.id] != null ? outputs.value[r.id] : await out(r.id)
-    const cmds = commandsOf(o)
-    if (cmds.length) {
-      any = true
-      L.push('```')
-      L.push(`# ${(treeById.value[r.file_id] || {}).name} — ${r.tool}`)
-      for (const c of cmds) L.push(c)
-      L.push('```')
-    }
   }
-  if (!any) L.push('_Nessun comando registrato._')
   const noise = tree.value.length - routeNodes().length
   L.push('')
-  L.push(`> Analizzati ${tree.value.length} file e ${runs.value.length} tool; qui sono mostrati solo i passaggi che portano alla flag. Gli altri ${noise} file sono esplorabili nella GUI.`)
+  L.push(`> Analizzati ${tree.value.length} file e ${runs.value.length} tool; qui solo ciò che porta alla flag. Gli altri ${noise} file sono nella GUI.`)
   report.value = { open: true, text: L.join('\n'), busy: false }
 }
 function copyReport() { navigator.clipboard?.writeText(report.value.text) }
@@ -523,9 +522,10 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
               <div class="mt-1 text-[11px] text-slate-400">
                 in
                 <button class="text-slate-100 hover:underline" @click="f.file_id && (selected = f.file_id)">{{ (treeById[f.file_id] || {}).name || '?' }}</button>
-                · tool <b class="text-slate-200">{{ sourceTool(f.source) }}</b>
+                · <b class="text-slate-200">{{ sourceHow(f.source) }}</b>
               </div>
               <div class="mt-1 break-all text-[10px] text-slate-500">{{ chainText(f) }}</div>
+              <pre v-if="f.context" class="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded bg-ink p-1.5 text-[10px] text-slate-400">{{ f.context }}</pre>
             </div>
             <div class="mb-1 mt-3 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="terminal" :size="13" />Tool usati per la flag ({{ flagTools().length }})</div>
             <div class="flex flex-wrap gap-1">

@@ -137,6 +137,18 @@ def _views(data: bytes) -> list[bytes]:
     return views
 
 
+def _snippet(view: bytes, start: int, end: int, width: int = 80) -> str:
+    """A short, printable excerpt around a match (the flag is marked with «»)."""
+    def clean(b: bytes) -> str:
+        s = b.decode("latin-1", "replace")
+        s = "".join(ch if (32 <= ord(ch) < 127 or ch in "\n\t") else "." for ch in s)
+        return " ".join(s.split())
+    left = clean(view[max(0, start - width):start])
+    right = clean(view[end:end + width])
+    flag = view[start:end].decode("latin-1", "replace")
+    return (f"{left}  «{flag}»  {right}").strip()[:400]
+
+
 def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
           source: str, depth: int = 0) -> None:
     if not text:
@@ -147,18 +159,32 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     is_vision = source.split(":", 1)[0] in VISION_SOURCES
     pats = list(_STRICT_RE) + ([] if is_vision else list(_GENERIC_RE))
 
-    def add(value: str, src: str) -> None:
-        if value in existing or not _ok_flag(value):
+    def add(value: str, src: str, ctx: str = "") -> None:
+        if not _ok_flag(value) or value in existing:
             return
+        # skip fragments of a longer flag (e.g. `CTF{x}` inside `picoCTF{x}`)
+        if any(value != ex and value in ex for ex in existing):
+            return
+        # and remove shorter fragments already stored in favour of this one
+        for ex in list(existing):
+            if ex != value and ex in value:
+                old = session.exec(select(Finding).where(Finding.project_id == project_id)
+                                   .where(Finding.value == ex)).first()
+                if old:
+                    session.delete(old)
+                existing.discard(ex)
         existing.add(value)
-        session.add(Finding(project_id=project_id, file_id=file_id, kind="flag", value=value, source=src))
+        session.add(Finding(project_id=project_id, file_id=file_id, kind="flag",
+                            value=value, source=src, context=ctx))
 
     for view in views:
         for pat in pats:
-            for m in pat.findall(view):
-                add(m.decode("latin-1", "replace"), source)
+            for m in pat.finditer(view):
+                add(m.group(0).decode("latin-1", "replace"), source,
+                    _snippet(view, m.start(), m.end()))
         for m in _FUZZY_RE.finditer(view):
-            add((m.group(1) + b"{" + m.group(2) + b"}").decode("latin-1", "replace"), f"fuzzy:{source}")
+            add((m.group(1) + b"{" + m.group(2) + b"}").decode("latin-1", "replace"),
+                f"fuzzy:{source}", _snippet(view, m.start(), m.end()))
     if depth >= 2:
         return
     # inline encodings in tool outputs (e.g. base64 in EXIF metadata)

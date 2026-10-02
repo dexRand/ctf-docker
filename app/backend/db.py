@@ -14,6 +14,15 @@ engine = create_engine(
 
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
+    _migrate()
+
+
+def _migrate() -> None:
+    """Lightweight, additive migrations for SQLite (create_all won't alter)."""
+    with engine.begin() as conn:
+        cols = {r[1] for r in conn.exec_driver_sql("PRAGMA table_info(finding)").fetchall()}
+        if "context" not in cols:
+            conn.exec_driver_sql("ALTER TABLE finding ADD COLUMN context VARCHAR DEFAULT ''")
 
 
 def get_session():

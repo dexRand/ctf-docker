@@ -63,7 +63,7 @@ def cancel_project(pid: str) -> dict:
 def project_findings(pid: str, session: Session = Depends(get_session)) -> list[dict]:
     rows = session.exec(select(Finding).where(Finding.project_id == pid).order_by(Finding.id)).all()
     return [{"id": f.id, "file_id": f.file_id, "kind": f.kind, "value": f.value,
-             "source": f.source, "created_at": f.created_at} for f in rows]
+             "source": f.source, "context": f.context, "created_at": f.created_at} for f in rows]
 
 
 @router.get("/api/v1/projects/{pid}/runs")

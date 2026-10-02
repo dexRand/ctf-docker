@@ -69,6 +69,7 @@ class Finding(SQLModel, table=True):
     kind: str = "note"           # flag|password|note
     value: str = ""
     source: str = ""
+    context: str = ""            # excerpt around the match (where/how it was found)
     created_at: dt.datetime = Field(default_factory=_now)
 
 
