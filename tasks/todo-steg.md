@@ -1,5 +1,8 @@
 # Todo — StegoForge (app)
 
+> Backlog vivo StegSuite: **`tasks/remaining.md`** (stato attuale + prossimi passi).
+> Qui sotto la storia delle fasi completate.
+
 ## Phase 1 — Backend core ✅
 - [x] T1.1 Scaffolding backend + config (FastAPI)
 - [x] T1.2 Modelli SQLite (Project/FileNode/ToolRun/Finding/Event)
@@ -85,4 +88,4 @@
 - [x] T8.1 Servizio `stegsuite` in compose (19014) + card dashboard
 - [x] T8.2 CLI opzionale (triage resta; StegSuite è GUI+API)
 - [x] T8.3 README (EN/IT) + attribuzioni
-- [ ] T8.4 Test E2E continui + commit/push
+- [x] T8.4 Test E2E continui + commit/push (CI + `./ctf test`)
