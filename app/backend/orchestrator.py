@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import codecs
 import datetime as dt
+import os
 import re
 import shutil
 import threading
@@ -94,6 +95,9 @@ DEFAULT_PLAN = [
     "7z", "binwalk-extract", "foremost", "pngcheck", "png-repair",
 ]
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}
+# cap how many heavy tools run at once across all projects (CPU bound)
+_HEAVY_TOOLS = set(HEAVY_EXTRACT) | {"7z", "steghide", "outguess", "jsteg", "openstego"}
+_HEAVY_SEM = threading.Semaphore(max(1, int(os.environ.get("HEAVY_TOOLS", "1"))))
 ARCHIVE_EXT = (".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz", ".tgz")
 
 
@@ -423,7 +427,12 @@ def _run(pid: str, job: Job) -> None:
                 job.wait()
                 analyzer = get_tool(tool_name)
                 logs: list[str] = []
-                result = analyzer.run(ToolContext(input=abs_path, workdir=out_dir, log=logs.append))
+                tctx = ToolContext(input=abs_path, workdir=out_dir, log=logs.append)
+                if tool_name in _HEAVY_TOOLS:  # bound concurrent heavy tools
+                    with _HEAVY_SEM:
+                        result = analyzer.run(tctx)
+                else:
+                    result = analyzer.run(tctx)
                 record(tool_name, result, logs)
                 for src in result.extracted:
                     child = _store_extracted(session, pid, node, Path(src), order, tool=tool_name)

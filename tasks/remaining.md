@@ -96,12 +96,12 @@ python3 app/tests/real_challenges.py
 
 ### 6. Robustezza / Ops
 - [ ] Migrazioni DB (Alembic) se cambia lo schema.
-- [ ] Cap upload/limiti risorse per tool; semaforo tool pesanti.
-- [ ] Auth `X-API-Key` documentato + rate limiting; terminale protetto.
+- [x] Cap upload (`MAX_UPLOAD`) + semaforo tool pesanti (`HEAVY_TOOLS`).
+- [x] Auth `X-API-Key` su API e WebSocket/terminale (documentato); rate limiting da fare.
 - [ ] Retention opzionale (`RETENTION_DAYS`) — oggi disattivata per scelta utente.
 
 ### 7. Packaging
-- [ ] `package-lock.json` frontend per build riproducibili.
+- [x] `package-lock.json` frontend + `npm ci` (build riproducibili).
 - [ ] Screenshot + esempi nel README.
 - [ ] Valutare base image propria (ora pinnata per digest a AperiSolve, MIT).
 - [ ] Comando `./ctf` per aprire StegSuite/docs.

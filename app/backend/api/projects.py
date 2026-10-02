@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
 from .. import storage
+from ..config import MAX_UPLOAD
 from ..db import get_session
 from ..models import Artifact, Event, FileNode, Finding, Project, ToolRun
 
@@ -37,6 +38,9 @@ def create_project(
         raise HTTPException(400, "no files uploaded")
     if mode not in ("auto", "check"):
         mode = "auto"
+    total = sum((u.size or 0) for u in files)
+    if total > MAX_UPLOAD:
+        raise HTTPException(413, f"upload too large ({total} > {MAX_UPLOAD} bytes)")
     pid = storage.new_project_id()
     storage.init_project(pid)
     proj = Project(id=pid, name=name or f"project {pid}", mode=mode, status="created")

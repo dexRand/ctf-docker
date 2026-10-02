@@ -42,7 +42,7 @@ jobs:
           node-version: "20"
       - name: Install
         working-directory: app/frontend
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Build
         working-directory: app/frontend
         run: npm run build

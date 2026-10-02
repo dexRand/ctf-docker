@@ -15,6 +15,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from .. import storage
 from ..bus import bus
+from ..config import API_KEY
 
 router = APIRouter()
 
@@ -22,10 +23,21 @@ BASH = shutil.which("bash") or "/bin/sh"
 RC = "/etc/stegsuite/term.bashrc"
 
 
+def _ws_authorized(ws: WebSocket) -> bool:
+    """When API_KEY is set, protect the WebSockets too (header or ?key=)."""
+    if not API_KEY:
+        return True
+    return (ws.headers.get("x-api-key") == API_KEY
+            or ws.query_params.get("key") == API_KEY)
+
+
 @router.websocket("/ws/projects/{pid}")
 async def ws_project(ws: WebSocket, pid: str) -> None:
     """Live stream of project events (status, files, tools, progress, findings)."""
     await ws.accept()
+    if not _ws_authorized(ws):
+        await ws.close(code=1008)
+        return
     q = bus.subscribe(f"project:{pid}")
     try:
         while True:
@@ -45,6 +57,9 @@ async def ws_project(ws: WebSocket, pid: str) -> None:
 async def ws_terminal(ws: WebSocket, pid: str) -> None:
     """Interactive, colourised bash shell with cwd = the project directory."""
     await ws.accept()
+    if not _ws_authorized(ws):
+        await ws.close(code=1008)
+        return
     cwd = storage.project_dir(pid)
     if not cwd.is_dir():
         await ws.send_json({"type": "error", "message": "project not found"})

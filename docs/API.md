@@ -1,7 +1,10 @@
 # StegSuite API
 
 Base: `http://localhost:19014/api/v1` · OpenAPI/Swagger: `/api/docs`
-If `API_KEY` is set, send header `X-API-Key: <key>` on every `/api` request.
+If `API_KEY` (env `STEGSUITE_API_KEY`) is set, send header `X-API-Key: <key>`
+on every `/api` request. WebSockets (`/ws/...`) are protected too: send the same
+header or append `?key=<key>`. In the GUI store it with
+`localStorage.setItem('stegsuite_api_key','<key>')`.
 
 ## Use a single tool from another project (stateless)
 

@@ -10,8 +10,8 @@
 # ---------- frontend ----------
 FROM node:20-alpine AS frontend
 WORKDIR /fe
-COPY app/frontend/package.json /fe/package.json
-RUN npm install --no-audit --no-fund
+COPY app/frontend/package.json app/frontend/package-lock.json /fe/
+RUN npm ci --no-audit --no-fund
 COPY app/frontend/ /fe/
 RUN npm run build
 
