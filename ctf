@@ -46,11 +46,15 @@ case "${1:-up}" in
     echo "[*] Dashboard: http://localhost:19001"
     ;;
   down)
-    echo "[*] Fermo i container"
-    docker compose down
+    echo "[*] Fermo tutti i container (inclusi i profili)"
+    args=()
+    for p in "${all_profiles[@]}"; do args+=(--profile "$p"); done
+    docker compose "${args[@]}" down
     ;;
   status|ps)
-    docker compose ps
+    args=()
+    for p in "${all_profiles[@]}"; do args+=(--profile "$p"); done
+    docker compose "${args[@]}" ps
     ;;
   logs)
     shift || true
