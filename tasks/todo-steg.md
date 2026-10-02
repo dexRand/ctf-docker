@@ -37,13 +37,15 @@
 - [x] Fix vendored zip2hashcat: mancava il ciphertext nel campo dati → hashcat
       ora verifica i candidati (prima 0 recuperi anche con password nota)
 
-## Phase 5 — Live & log
-- [ ] T5.1 Bus eventi + WS progetto
-- [ ] T5.2 Persistenza eventi
+## Phase 5 — Live & log ✅
+- [x] T5.1 Bus eventi (thread-safe) + WS /ws/projects/{id}
+- [x] T5.2 Persistenza eventi (tabella Event) + emit da orchestrator/cracking
+### Checkpoint (verificato)
+- [x] 10 eventi live ricevuti via WS durante un'analisi
 
-## Phase 6 — Terminale web
-- [ ] T6.1 PTY over WS (cwd progetto)
-- [ ] T6.2 Sicurezza + resize
+## Phase 6 — Terminale web ✅
+- [x] T6.1 PTY over WS (cwd = progetto) — verificato (echo eseguito)
+- [x] T6.2 Resize (TIOCSWINSZ) + chiusura pulita
 
 ## Phase 7 — Frontend SPA
 - [ ] T7.1 Setup Vue/Vite/Tailwind

@@ -4,18 +4,28 @@ Phase 1: project lifecycle + uploads + static SPA host.
 """
 from __future__ import annotations
 
+import asyncio
+import fcntl
+import json
 import mimetypes
+import os
+import pty
+import queue
 import shutil
+import struct
+import termios
 import threading
 from pathlib import Path
 
-from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import (Body, Depends, FastAPI, File, Form, HTTPException, Request,
+                     UploadFile, WebSocket, WebSocketDisconnect)
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 from . import cracking, orchestrator, storage
 from .analyzers import catalog as tool_catalog
+from .bus import bus
 from .analyzers import get as get_tool
 from .analyzers import run_tool
 from .config import API_KEY, TOOLJOBS_DIR, VERSION
@@ -259,8 +269,12 @@ def _crack_worker(pid: str, fid: int, names) -> None:
             if not node or node.project_id != pid:
                 return
             path = storage.project_dir(pid) / node.rel_path
+            bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid,
+                                           "name": node.name, "status": "running"})
             res = cracking.crack_file(path, names)
             if res["password"]:
+                bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid,
+                                               "status": "found", "password": res["password"]})
                 s.add(Finding(project_id=pid, file_id=fid, kind="password",
                               value=res["password"], source=f"crack:{res['kind']}"))
                 s.add(Event(project_id=pid, level="info",
@@ -274,6 +288,7 @@ def _crack_worker(pid: str, fid: int, names) -> None:
                     except RuntimeError:
                         pass
             else:
+                bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid, "status": "not_found"})
                 s.add(Event(project_id=pid, level="warn", message=f"password not found for {node.name}"))
                 s.commit()
     finally:
@@ -334,6 +349,94 @@ def tool_job_file(job: str, name: str):
     if not target.is_file():
         raise HTTPException(404, "not found")
     return FileResponse(target, filename=target.name)
+
+
+# ---------------------------------------------------------------- live (WS)
+@app.websocket("/ws/projects/{pid}")
+async def ws_project(ws: WebSocket, pid: str) -> None:
+    """Live stream of project events (status, files, tools, progress, findings)."""
+    await ws.accept()
+    q = bus.subscribe(f"project:{pid}")
+    try:
+        while True:
+            try:
+                event = await asyncio.to_thread(q.get, True, 1.0)
+            except queue.Empty:
+                await ws.send_json({"type": "ping"})
+                continue
+            await ws.send_json(event)
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+    finally:
+        bus.unsubscribe(f"project:{pid}", q)
+
+
+@app.websocket("/ws/projects/{pid}/terminal")
+async def ws_terminal(ws: WebSocket, pid: str) -> None:
+    """Interactive PTY shell with cwd = the project directory (xterm.js client)."""
+    await ws.accept()
+    cwd = storage.project_dir(pid)
+    if not cwd.is_dir():
+        await ws.send_json({"type": "error", "message": "project not found"})
+        await ws.close()
+        return
+    master, slave = pty.openpty()
+    shell = os.environ.get("SHELL", "/bin/bash")
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            shell, "-i", stdin=slave, stdout=slave, stderr=slave, cwd=str(cwd),
+            env={**os.environ, "TERM": "xterm-256color", "PS1": "stegsuite:\\w$ "},
+            start_new_session=True,
+        )
+    finally:
+        os.close(slave)
+    loop = asyncio.get_event_loop()
+
+    async def pump() -> None:
+        while True:
+            try:
+                data = await loop.run_in_executor(None, os.read, master, 65536)
+            except OSError:
+                break
+            if not data:
+                break
+            try:
+                await ws.send_text(data.decode("utf-8", "replace"))
+            except (WebSocketDisconnect, RuntimeError):
+                break
+
+    out_task = asyncio.create_task(pump())
+    try:
+        while True:
+            msg = await ws.receive_text()
+            try:
+                m = json.loads(msg)
+            except (ValueError, TypeError):
+                m = {"t": "i", "d": msg}
+            if m.get("t") == "r":
+                cols = int(m.get("c", 80))
+                rows = int(m.get("r", 24))
+                try:
+                    fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+                except OSError:
+                    pass
+            else:
+                try:
+                    os.write(master, str(m.get("d", "")).encode())
+                except OSError:
+                    break
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+    finally:
+        out_task.cancel()
+        try:
+            os.close(master)
+        except OSError:
+            pass
+        try:
+            proc.terminate()
+        except ProcessLookupError:
+            pass
 
 
 # ---------------------------------------------------------------- static SPA

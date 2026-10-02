@@ -17,6 +17,7 @@ from sqlmodel import Session, select
 
 from . import storage
 from .analyzers import get as get_tool
+from .bus import bus
 from .analyzers.base import ToolContext
 from .config import PROJECTS_DIR
 from .db import engine
@@ -77,6 +78,11 @@ def _now() -> dt.datetime:
 
 def _event(session: Session, pid: str, message: str, level: str = "info") -> None:
     session.add(Event(project_id=pid, message=message, level=level))
+    bus.publish(f"project:{pid}", {"type": "event", "level": level, "message": message})
+
+
+def _emit(pid: str, event: dict) -> None:
+    bus.publish(f"project:{pid}", event)
 
 
 def _hunt(session: Session, project_id: str, file_id: int | None, text: str, source: str) -> None:
@@ -136,6 +142,7 @@ def _run(pid: str, job: Job) -> None:
         session.add(proj)
         _event(session, pid, "analysis started")
         session.commit()
+        _emit(pid, {"type": "status", "status": "running"})
 
         nodes = session.exec(select(FileNode).where(FileNode.project_id == pid)
                              .order_by(FileNode.order_index, FileNode.id)).all()
@@ -156,6 +163,8 @@ def _run(pid: str, job: Job) -> None:
             if node.sha256:
                 processed.add(node.sha256)
 
+            _emit(pid, {"type": "file", "file_id": node.id, "name": node.name,
+                        "depth": node.depth, "size": node.size})
             abs_path = work / node.rel_path
             if not abs_path.is_file():
                 continue
@@ -177,6 +186,9 @@ def _run(pid: str, job: Job) -> None:
                 if result.needs_password:
                     session.add(Finding(project_id=pid, file_id=node.id, kind="note",
                                         value=f"password required: {node.name}", source=tool_name))
+                _emit(pid, {"type": "tool", "file_id": node.id, "name": node.name, "tool": tool_name,
+                            "status": result.status, "needs_password": result.needs_password,
+                            "summary": result.summary, "extracted": len(result.extracted)})
 
             # detect type first, then build the plan (text files skip heavy carving)
             ftype = ""
@@ -203,6 +215,7 @@ def _run(pid: str, job: Job) -> None:
             proj.updated_at = _now()
             session.add(proj)
             session.commit()
+            _emit(pid, {"type": "progress", "processed": job.processed})
 
         proj = session.get(Project, pid) or proj
         proj.status = "cancelled" if job.cancelled else "done"
@@ -210,6 +223,7 @@ def _run(pid: str, job: Job) -> None:
         session.add(proj)
         _event(session, pid, f"analysis {proj.status}", "warn" if job.cancelled else "info")
         session.commit()
+        _emit(pid, {"type": "status", "status": proj.status})
     with _JOBS_LOCK:
         JOBS.pop(pid, None)
 
