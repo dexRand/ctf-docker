@@ -77,6 +77,27 @@ def get_project(pid: str, session: Session = Depends(get_session)) -> dict:
     return {**_project_dict(p, files=len(nodes)), "tree": [_node_dict(n) for n in nodes]}
 
 
+@router.delete("/api/v1/projects", status_code=200)
+def delete_all_projects(session: Session = Depends(get_session)) -> dict:
+    """Remove every project and its files (the whole history)."""
+    from .. import orchestrator
+    rows = session.exec(select(Project)).all()
+    ids = [p.id for p in rows]
+    for pid in ids:
+        try:
+            orchestrator.control(pid, "cancel")
+        except Exception:
+            pass
+        for model in (FileNode, ToolRun, Artifact, Finding, Event):
+            for row in session.exec(select(model).where(model.project_id == pid)).all():
+                session.delete(row)
+        session.delete(session.get(Project, pid))
+    session.commit()
+    for pid in ids:
+        storage.delete_project(pid)
+    return {"deleted": len(ids)}
+
+
 @router.delete("/api/v1/projects/{pid}", status_code=200)
 def delete_project(pid: str, session: Session = Depends(get_session)) -> dict:
     p = session.get(Project, pid)

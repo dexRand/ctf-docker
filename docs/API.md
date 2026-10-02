@@ -54,6 +54,10 @@ curl -X POST -H 'Content-Type: application/json' \
      -d '{"file_id":<fid>,"wordlists":["passwords.txt","rockyou-75.txt"]}' \
      localhost:19014/api/v1/projects/$PID/crack
 curl -s localhost:19014/api/v1/projects/$PID/crack/status
+
+# delete one project, or the whole history (all projects + files)
+curl -X DELETE localhost:19014/api/v1/projects/$PID
+curl -X DELETE localhost:19014/api/v1/projects
 ```
 
 ## Live updates & terminal (WebSocket)

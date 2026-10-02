@@ -42,6 +42,16 @@ async function del(id, e) {
   load()
 }
 
+const clearing = ref(false)
+async function clearAll() {
+  if (!projects.value.length) return
+  if (!confirm(`Eliminare TUTTA la history (${projects.value.length} progetti) e tutti i file?`)) return
+  if (!confirm('Confermi definitivamente? L\'operazione non è reversibile.')) return
+  clearing.value = true
+  try { await api('/projects', { method: 'DELETE' }); await load() }
+  catch (e) { err.value = String(e) } finally { clearing.value = false }
+}
+
 function open(id) { router.push(`/p/${id}`) }
 </script>
 
@@ -82,7 +92,14 @@ function open(id) { router.push(`/p/${id}`) }
       <p v-if="err" class="mt-3 text-sm text-red-400">{{ err }}</p>
     </div>
 
-    <h2 class="mb-2 mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">History</h2>
+    <div class="mb-2 mt-8 flex items-center gap-3">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">History</h2>
+      <span class="text-xs text-slate-600">{{ projects.length }} progetti</span>
+      <button v-if="projects.length" :disabled="clearing" @click="clearAll"
+              class="ml-auto inline-flex items-center gap-1 rounded border border-red-500/40 px-3 py-1 text-xs text-red-300 hover:bg-red-500/20 disabled:opacity-50">
+        <Icon name="trash" :size="12" />{{ clearing ? 'Elimino…' : 'Svuota history' }}
+      </button>
+    </div>
     <div class="overflow-hidden rounded-xl border border-edge">
       <table class="w-full text-sm">
         <thead class="bg-panel text-left text-xs uppercase text-slate-500">
