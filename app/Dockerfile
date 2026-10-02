@@ -6,6 +6,11 @@ FROM ghcr.io/zeecka/aperisolve@sha256:d45e1e129f210dd96aef7b2f046cb79d4ea1727591
 
 USER root
 
+# hex viewers (xxd / hexdump / hexyl coloured)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends xxd hexyl bsdmainutils \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY backend/requirements.txt /opt/stegsuite/requirements.txt
 RUN python3 -m venv /opt/stegsuite/venv \
  && /opt/stegsuite/venv/bin/pip install --no-cache-dir -U pip \

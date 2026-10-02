@@ -14,7 +14,8 @@
 - [x] T2.2 Tool metadati/testo (file, exiftool, identify, ffprobe, pdfinfo, strings, pdftotext, pdfid, binwalk-scan)
 - [x] T2.3 Tool estrazione (binwalk-extract, foremost, 7z, pngcheck)
 - [x] T2.4 Tool steg (zsteg, steghide, outguess, jsteg, openstego, bit-planes, channel-remap) + audio (spectrogram, waveform)
-- [x] T2.5 GET /tools (22 tool) + POST /tools/{tool} stateless + download artefatti
+- [x] T2.4b Tool hex: xxd, hexdump, hexyl (colorato)
+- [x] T2.5 GET /tools (25 tool) + POST /tools/{tool} stateless + download artefatti
 ### Checkpoint B ✅
 - [x] Tool eseguibili via API; binwalk-extract/7z/steghide/bit-planes verificati
 

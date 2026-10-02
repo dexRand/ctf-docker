@@ -9,11 +9,11 @@ import shutil
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
-from . import storage
+from . import orchestrator, storage
 from .analyzers import catalog as tool_catalog
 from .analyzers import get as get_tool
 from .analyzers import run_tool
@@ -151,6 +151,80 @@ def file_content(pid: str, fid: int, session: Session = Depends(get_session)):
     if not path.is_file():
         raise HTTPException(404, "file missing on disk")
     return FileResponse(path, filename=node.name, media_type=node.mime or "application/octet-stream")
+
+
+# ------------------------------------------------------------ analysis run
+@app.post("/api/v1/projects/{pid}/start")
+def start_project(pid: str, session: Session = Depends(get_session)) -> dict:
+    p = session.get(Project, pid)
+    if not p:
+        raise HTTPException(404, "project not found")
+    if orchestrator.is_running(pid):
+        raise HTTPException(409, "analysis already running")
+    p.status = "queued"
+    session.add(p)
+    session.commit()
+    orchestrator.start(pid)
+    return {"started": pid}
+
+
+def _control(pid: str, action: str) -> dict:
+    if not orchestrator.control(pid, action):
+        raise HTTPException(404, "no running analysis for this project")
+    return {action: pid}
+
+
+@app.post("/api/v1/projects/{pid}/pause")
+def pause_project(pid: str) -> dict:
+    return _control(pid, "pause")
+
+
+@app.post("/api/v1/projects/{pid}/resume")
+def resume_project(pid: str) -> dict:
+    return _control(pid, "resume")
+
+
+@app.post("/api/v1/projects/{pid}/cancel")
+def cancel_project(pid: str) -> dict:
+    return _control(pid, "cancel")
+
+
+@app.get("/api/v1/projects/{pid}/findings")
+def project_findings(pid: str, session: Session = Depends(get_session)) -> list[dict]:
+    rows = session.exec(select(Finding).where(Finding.project_id == pid).order_by(Finding.id)).all()
+    return [{"id": f.id, "file_id": f.file_id, "kind": f.kind, "value": f.value,
+             "source": f.source, "created_at": f.created_at} for f in rows]
+
+
+def _run_dict(r: ToolRun) -> dict:
+    return {"id": r.id, "file_id": r.file_id, "tool": r.tool, "status": r.status,
+            "needs_password": r.needs_password, "exit_code": r.exit_code,
+            "summary": r.summary, "output_path": r.output_path}
+
+
+@app.get("/api/v1/projects/{pid}/runs")
+def project_runs(pid: str, file_id: int | None = None, session: Session = Depends(get_session)) -> list[dict]:
+    stmt = select(ToolRun).where(ToolRun.project_id == pid)
+    if file_id is not None:
+        stmt = stmt.where(ToolRun.file_id == file_id)
+    return [_run_dict(r) for r in session.exec(stmt.order_by(ToolRun.id)).all()]
+
+
+@app.get("/api/v1/projects/{pid}/files/{fid}/runs/{rid}")
+def run_output(pid: str, fid: int, rid: int, session: Session = Depends(get_session)):
+    r = session.get(ToolRun, rid)
+    if not r or r.project_id != pid or r.file_id != fid or not r.output_path:
+        raise HTTPException(404, "run output not found")
+    path = storage.project_dir(pid) / r.output_path
+    if not path.is_file():
+        raise HTTPException(404, "output missing")
+    return Response(path.read_text(errors="replace"), media_type="text/plain; charset=utf-8")
+
+
+@app.get("/api/v1/projects/{pid}/events")
+def project_events(pid: str, session: Session = Depends(get_session)) -> list[dict]:
+    rows = session.exec(select(Event).where(Event.project_id == pid).order_by(Event.id)).all()
+    return [{"id": e.id, "ts": e.ts, "level": e.level, "message": e.message} for e in rows]
 
 
 # ---------------------------------------------------------------- tools

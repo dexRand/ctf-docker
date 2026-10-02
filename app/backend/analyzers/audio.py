@@ -24,7 +24,6 @@ class SpectrogramAnalyzer(Analyzer):
                         "-lavfi", "showspectrumpic=s=1920x1080:legend=1", str(out)], timeout=300)
         if out.exists():
             return ToolResult(self.name, status="done", summary="spettrogramma",
-                              extracted=[str(out)],
                               artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
         return ToolResult(self.name, status="error", output=out_of(proc)[-8000:], exit_code=proc.returncode)
 
@@ -44,7 +43,6 @@ class WaveformAnalyzer(Analyzer):
                         "-lavfi", "showwavespic=s=1920x480:colors=white", str(out)], timeout=300)
         if out.exists():
             return ToolResult(self.name, status="done", summary="waveform",
-                              extracted=[str(out)],
                               artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
         return ToolResult(self.name, status="error", output=out_of(proc)[-8000:], exit_code=proc.returncode)
 

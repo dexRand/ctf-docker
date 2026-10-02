@@ -41,7 +41,6 @@ class BitPlanesAnalyzer(Analyzer):
                 files.append(fn)
         return ToolResult(
             self.name, status="done", summary=f"{len(files)} bit-plane",
-            extracted=[str(f) for f in files],
             artifacts=[{"name": str(f.relative_to(ctx.workdir)), "path": str(f), "size": f.stat().st_size} for f in files],
         )
 
@@ -77,7 +76,6 @@ class ChannelRemapAnalyzer(Analyzer):
             files.append(fn)
         return ToolResult(
             self.name, status="done", summary=f"{len(files)} remap",
-            extracted=[str(f) for f in files],
             artifacts=[{"name": str(f.relative_to(ctx.workdir)), "path": str(f), "size": f.stat().st_size} for f in files],
         )
 
