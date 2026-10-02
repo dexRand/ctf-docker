@@ -115,6 +115,6 @@ app/backend/analyzers/*.py     # ~30 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3
 app/tests/ctf_regression.py    # 13/13
 app/tests/real_challenges.py   # 5/5 picoCTF
-docs/ADDING-A-TOOL.md, docs/API.md
+docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 compose.yaml                   # servizio stegsuite (19014)
 ```

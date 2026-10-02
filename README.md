@@ -202,6 +202,9 @@ http://localhost:19014 (localhost only).
 - **Flag hunt + cracking**: ZIP (incl. AES via hashcat), steghide, PDF.
 - **REST API** (OpenAPI at `/api/docs`), including stateless single-tool runs:
   `POST /api/v1/tools/{tool}`.
+- **Docs**: `docs/ADDING-A-TOOL.md` (add an analyzer), `docs/API.md` (drive the
+  API from other projects), `docs/CHALLENGES.md` (reference challenges + flags
+  used to verify the suite, with manual solve commands).
 
 ## ⚙️ Configuration
 
