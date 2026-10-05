@@ -54,7 +54,7 @@ tool pesanti stanno dietro **profili** Compose opzionali.
 | Web | **mitmproxy** | http://localhost:19003 | Intercetta e modifica HTTP(S) · proxy su `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoder, converter, hash, regex e simili | core |
 | Deep triage | **CTF Triage** | http://localhost:19013 | Estrazione ricorsiva + cracking wordlist + flag hunt · GUI Auto/Check, report in FileBrowser Quantum (`./ctf triage <file>`) | core |
-| Stego workbench | **StegSuite** | http://localhost:19014 | Analisi ricorsiva auto su 29 tool (stego, forensics, vision/OCR, audio/Morse), albero file, log live, terminale, API REST | core |
+| Stego workbench | **StegSuite** | http://localhost:19014 | Analisi ricorsiva auto su 37 tool (stego, forensics, vision/OCR, audio/Morse), albero file, log live, terminale, API REST | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Scanner di sicurezza web con GUI nel browser · proxy su `:19006` | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domini, IP, email, leak | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Notebook Python/Sage per crypto e matematica | `crypto` |
@@ -192,12 +192,14 @@ http://localhost:19014 (solo localhost).
 
 - Modalità **Auto / Check**: Auto fa tutto e prova tutte le wordlist; Check
   scansiona e poi ti fa scegliere cosa attaccare.
-- Analisi **ricorsiva e ordinata** su **29 tool**: `file`, `exiftool`,
-  `identify`, `ffprobe`, `strings`, `xxd`/`hexdump`/`hexyl`, `binwalk`
-  (scan + `binwalk -e`), `foremost`, `7z`, `zsteg`, `steghide`, `outguess`,
-  `jsteg`, `openstego`, `bit-planes`, `channel-remap`, `gif-frames`
-  (split + frame-diff + decodifica delay + OCR per frame), `ocr` (tesseract),
-  `morse`, `dtmf`, `spectrogram`, `waveform`, `pngcheck`, `pdfid`, `pdftotext`.
+- Analisi **ricorsiva e ordinata** su **37 tool**: `file`, `exiftool`,
+  `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
+  `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
+  `7z`, `pngcheck`, `png-repair`, `qr`, `pcap`, `zsteg`, `steghide`,
+  `outguess`, `jsteg`, `png-chunks`, `openstego`, `bit-planes`,
+  `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff +
+  decodifica delay + OCR per frame), `ocr` (tesseract), `morse`,
+  `morse-text`, `dtmf`, `spectrogram`, `waveform`, `wav-lsb`.
 - **GUI**: albero file, output per tool, figli estratti, anteprime
   immagini/audio, log live via WebSocket e **terminale** integrato (xterm.js).
 - **Flag hunt + cracking**: ZIP (anche AES via hashcat), steghide, PDF.

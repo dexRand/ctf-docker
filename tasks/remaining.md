@@ -98,7 +98,7 @@ app/backend/main.py            # app factory + startup (reconcile + dedupe)
 app/backend/api/*.py           # router: system, projects, analysis, tools, cracking, ws
 app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
-app/backend/analyzers/*.py     # 33 tool (un file, auto-registered)
+app/backend/analyzers/*.py     # 37 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/tests/ctf_regression.py    # 16/16
 app/tests/real_challenges.py   # 7/7 picoCTF

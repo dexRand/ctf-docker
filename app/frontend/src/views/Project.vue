@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, wsUrl, fmtSize, fmtDate, STATUS_COLOR } from '../api'
+import { toolLabel } from '../labels'
 import { mdToHtml } from '../md'
 import Terminal from '../components/Terminal.vue'
 import Icon from '../components/Icon.vue'
@@ -80,7 +81,7 @@ const visibleTree = computed(() => {
     for (const [tool, list] of groups) {
       if (multi) {
         const gid = `g:${pid}:${tool}`
-        out.push({ _group: true, _gid: gid, _pid: pid, _tool: tool, _depth: depth, _kids: list.length, name: tool })
+        out.push({ _group: true, _gid: gid, _pid: pid, _tool: tool, _depth: depth, _kids: list.length, name: tool, label: toolLabel(tool) })
         if (!q && collapsed.value.has(gid)) continue
         for (const n of list) {
           out.push({ ...n, _depth: depth + 1, _kids: (m[n.id] || []).length })
@@ -129,6 +130,18 @@ const relevantRuns = computed(() => {
   }
   return runs.value.filter((r) => wanted.has(`${r.file_id}:${r.tool}`))
 })
+// run ids that actually produced a flag: the tool named in the finding source,
+// on that same file. Highlighted with a green border in the run list.
+const solverRuns = computed(() => {
+  const s = new Set()
+  for (const f of flags.value) {
+    const src = sourceTool(f.source)
+    for (const r of runsByFile.value[f.file_id] || []) if (r.tool === src) s.add(r.id)
+  }
+  return s
+})
+// tools that solved a flag, for the "tool usati per la flag" chip row
+const solverTools = computed(() => new Set(flags.value.map((f) => sourceTool(f.source))))
 // each flag paired with the real tool output that shows it
 const flagCards = computed(() => flags.value.map((f) => ({ f, ev: evidenceFor(f) })))
 // files "near" the flag path: siblings and children of route nodes
@@ -272,7 +285,8 @@ function sourceParts(src) {
 function sourceTool(src) { return sourceParts(src).tool }
 function sourceHow(src) {
   const { tool, dec } = sourceParts(src)
-  return dec.length ? tool + ' + ' + dec.map((d) => SRC_DECODER[d] || d).join(' + ') : tool
+  const name = toolLabel(tool)
+  return dec.length ? name + ' + ' + dec.map((d) => SRC_DECODER[d] || d).join(' + ') : name
 }
 function chainOf(fileId) {
   const chain = []
@@ -287,7 +301,7 @@ function chainText(f) {
     if (i === 0) parts.push(n.name)
     else {
       const pw = passwords.value.find((p) => p.file_id === n.id)
-      parts.push(`${n.name} (via ${t}${pw ? ', pwd ' + pw.value : ''})`)
+      parts.push(`${n.name} (via ${toolLabel(t)}${pw ? ', pwd ' + pw.value : ''})`)
     }
   })
   parts.push(`[${sourceHow(f.source)}]`)
@@ -377,7 +391,7 @@ async function openReport() {
     }
   } else L.push('_Nessuna flag._')
   L.push(`## Tool usati per la flag (${flagTools().length})`)
-  L.push(flagTools().map((t) => `\`${t}\``).join(', ') || '_nessuno_')
+  L.push(flagTools().map((t) => `\`${t}\`${solverTools.value.has(t) ? ' **(risolto)**' : ''}`).join(', ') || '_nessuno_')
   L.push(''); L.push('## Percorso della flag')
   L.push('```')
   L.push(routeNodes().length ? asciiRouteTree() : '(nessuna flag trovata)')
@@ -509,7 +523,7 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
             </button>
             <span v-else class="w-[13px] shrink-0"></span>
             <Icon :name="n._group ? 'folder' : (lockedIds.has(n.id) ? 'lock' : 'file')" :size="13" class="shrink-0 text-slate-500" />
-            <span class="truncate" :class="n._group ? groupColor(n) : nodeColor(n)" :title="n._group ? n.name : n.origin">{{ n._group ? n.name + ' (' + n._kids + ')' : n.name }}</span>
+            <span class="truncate" :class="n._group ? groupColor(n) : nodeColor(n)" :title="n._group ? n.name : n.origin">{{ n._group ? n.label + ' (' + n._kids + ')' : n.name }}</span>
             <span v-if="!n._group" class="shrink-0 text-slate-600">{{ fmtSize(n.size) }}</span>
             <Icon v-if="!n._group && flags.some((f) => f.file_id === n.id)" name="flag" :size="12" class="shrink-0 text-emerald-400" />
           </span>
@@ -526,10 +540,14 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
         <div class="min-h-0 flex-1 overflow-auto p-3">
           <template v-if="tab === 'overview'">
             <div v-if="!selectedRuns.length" class="text-sm text-slate-500">Nessun tool eseguito su questo file (ancora).</div>
-            <div v-for="r in selectedRuns" :key="r.id" class="mb-2 rounded border border-edge bg-panel/40">
+            <div v-for="r in selectedRuns" :key="r.id" class="mb-2 rounded border bg-panel/40"
+                 :class="solverRuns.has(r.id) ? 'border-emerald-500 ring-1 ring-emerald-500/40 bg-emerald-500/5' : 'border-edge'">
               <div class="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-panel" @click="toggle(r.id)">
                 <Icon :name="expanded[r.id] ? 'chevronD' : 'chevronR'" :size="14" class="text-slate-500" />
-                <b class="text-sm">{{ r.tool }}</b>
+                <b class="text-sm" :class="solverRuns.has(r.id) ? 'text-emerald-300' : ''" :title="r.tool">{{ toolLabel(r.tool) }}</b>
+                <span v-if="solverRuns.has(r.id)" class="inline-flex shrink-0 items-center gap-0.5 rounded bg-emerald-500/15 px-1.5 text-[10px] text-emerald-300">
+                  <Icon name="flag" :size="10" />risolto
+                </span>
                 <span class="rounded bg-ink px-1.5 text-[10px]" :class="r.status==='done'?'text-emerald-400':r.status==='needs_password'?'text-amber-400':r.status==='skipped'?'text-slate-400':'text-red-400'">{{ r.status }}</span>
                 <span v-if="r.needs_password" class="text-[10px] text-amber-400">password</span>
                 <span class="truncate text-xs text-slate-500">{{ r.summary }}</span>
@@ -550,7 +568,7 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
             <div v-for="c in childrenOf(selected)" :key="c.id" @click="selected = c.id"
                  class="flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-xs hover:bg-panel">
               <Icon name="file" :size="13" class="text-slate-500" /> {{ c.name }}
-              <span class="text-slate-500">{{ fmtSize(c.size) }} · {{ originTool(c) }}</span>
+              <span class="text-slate-500">{{ fmtSize(c.size) }} · {{ toolLabel(originTool(c)) }}</span>
             </div>
           </template>
 
@@ -598,7 +616,8 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
             </div>
             <div class="mb-1 mt-3 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="terminal" :size="13" />Tool usati per la flag ({{ flagTools().length }})</div>
             <div class="flex flex-wrap gap-1">
-              <span v-for="t in flagTools()" :key="t" class="rounded bg-panel px-1.5 py-0.5 text-[10px] text-slate-300">{{ t }}</span>
+              <span v-for="t in flagTools()" :key="t" :title="t" class="rounded px-1.5 py-0.5 text-[10px]"
+                    :class="solverTools.has(t) ? 'border border-emerald-500 bg-emerald-500/10 text-emerald-300' : 'bg-panel text-slate-300'">{{ toolLabel(t) }}</span>
             </div>
           </template>
           <div v-else class="mb-1 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="flag" :size="13" />Flag (0)</div>
@@ -643,7 +662,7 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
             <span class="text-slate-600">{{ m.type }}</span>
             <span v-if="m.message"> {{ m.message }}</span>
             <span v-else-if="m.type === 'file'"> · {{ m.name }}</span>
-            <span v-else-if="m.type === 'tool'"> · {{ m.name }} → {{ m.tool }} ({{ m.status }})</span>
+            <span v-else-if="m.type === 'tool'"> · {{ m.name }} → {{ toolLabel(m.tool) }} ({{ m.status }})</span>
             <span v-else-if="m.type === 'crack'"> · {{ m.status }} <span v-if="m.password">→ {{ m.password }}</span></span>
           </div>
         </div>
