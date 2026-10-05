@@ -116,8 +116,13 @@ const routeIdSet = computed(() => new Set(routeNodes().map((n) => n.id)))
 // produced each file on the path to the flag (not every tool that ran)
 const relevantRuns = computed(() => {
   const wanted = new Set()
+  const found = new Set()
   for (const f of flags.value) {
     wanted.add(`${f.file_id}:${sourceTool(f.source)}`)
+    // the source can be a pseudo-tool ("raw scan") matching no run; the run that
+    // really showed the flag is found from its output
+    const ev = evidenceFor(f)
+    if (ev && ev.run) found.add(ev.run)
     let cur = f.file_id
     while (cur && treeById.value[cur]) {
       const n = treeById.value[cur]
@@ -128,20 +133,33 @@ const relevantRuns = computed(() => {
       cur = n.parent_id
     }
   }
-  return runs.value.filter((r) => wanted.has(`${r.file_id}:${r.tool}`))
+  return runs.value.filter((r) => found.has(r.id) || wanted.has(`${r.file_id}:${r.tool}`))
 })
-// run ids that actually produced a flag: the tool named in the finding source,
-// on that same file. Highlighted with a green border in the run list.
+// run ids that actually produced a flag. The finding source names a tool, but
+// it can be a pseudo-source ("raw scan") that matches no run at all: the flag
+// may have surfaced in some other tool's output (exiftool Artist, png-chunks
+// tEXt, ...). So prefer the run whose output really contains the flag value,
+// and fall back to the tool named in the source.
 const solverRuns = computed(() => {
   const s = new Set()
   for (const f of flags.value) {
+    const ev = evidenceFor(f)
+    if (ev && ev.run) { s.add(ev.run); continue }
     const src = sourceTool(f.source)
     for (const r of runsByFile.value[f.file_id] || []) if (r.tool === src) s.add(r.id)
   }
   return s
 })
 // tools that solved a flag, for the "tool usati per la flag" chip row
-const solverTools = computed(() => new Set(flags.value.map((f) => sourceTool(f.source))))
+const solverTools = computed(() => {
+  const s = new Set()
+  for (const f of flags.value) {
+    const ev = evidenceFor(f)
+    if (ev && ev.run) s.add(ev.tool)
+    else s.add(sourceTool(f.source))
+  }
+  return s
+})
 // each flag paired with the real tool output that shows it
 const flagCards = computed(() => flags.value.map((f) => ({ f, ev: evidenceFor(f) })))
 // files "near" the flag path: siblings and children of route nodes
@@ -260,7 +278,7 @@ function evidenceFor(f) {
   for (const r of cands) {
     const o = outputs.value[r.id]
     if (o && String(o).includes(f.value)) {
-      return { tool: r.tool, command: commandsOf(o)[0] || '', lines: evidenceLines(String(o), f.value) }
+      return { run: r.id, tool: r.tool, command: commandsOf(o)[0] || '', lines: evidenceLines(String(o), f.value) }
     }
   }
   return null
@@ -296,6 +314,7 @@ function chainOf(fileId) {
 }
 function chainText(f) {
   const parts = []
+  const ev = evidenceFor(f)
   chainOf(f.file_id).forEach((n, i) => {
     const t = originTool(n)
     if (i === 0) parts.push(n.name)
@@ -304,13 +323,14 @@ function chainText(f) {
       parts.push(`${n.name} (via ${toolLabel(t)}${pw ? ', pwd ' + pw.value : ''})`)
     }
   })
-  parts.push(`[${sourceHow(f.source)}]`)
+  parts.push(`[${ev && ev.run ? toolLabel(ev.tool) : sourceHow(f.source)}]`)
   return parts.join('  ->  ')
 }
 function flagTools() {
   const s = new Set()
   for (const f of flags.value) {
-    s.add(sourceTool(f.source))
+    const ev = evidenceFor(f)
+    s.add(ev && ev.run ? ev.tool : sourceTool(f.source))
     for (const n of chainOf(f.file_id)) {
       const t = originTool(n)
       if (t && t !== 'upload' && t !== 'extracted') s.add(t)
@@ -375,7 +395,7 @@ async function openReport() {
       const fn = treeById.value[f.file_id]
       L.push(`### \`${f.value}\``)
       L.push(`- **Dove:** ${fn ? fn.name : '?'}${fn ? `  ·  [apri](${fileUrl(fn)})` : ''}`)
-      L.push(`- **Come:** ${sourceHow(f.source)}`)
+      L.push(`- **Come:** ${ev && ev.run ? toolLabel(ev.tool) : sourceHow(f.source)}`)
       L.push(`- **Catena:** \`${chainText(f)}\``)
       if (ev && ev.lines) {
         L.push('```')
@@ -607,7 +627,7 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
               <div class="mt-1 text-[11px] text-slate-400">
                 in
                 <button class="text-slate-100 hover:underline" @click="c.f.file_id && (selected = c.f.file_id)">{{ (treeById[c.f.file_id] || {}).name || '?' }}</button>
-                · <b class="text-slate-200">{{ sourceHow(c.f.source) }}</b>
+                · <b class="text-slate-200">{{ c.ev && c.ev.run ? toolLabel(c.ev.tool) : sourceHow(c.f.source) }}</b>
               </div>
               <div class="mt-1 break-all text-[10px] text-slate-500">{{ chainText(c.f) }}</div>
               <pre v-if="c.ev" class="mt-1 max-h-32 overflow-auto whitespace-pre rounded bg-ink p-1.5 text-[10px] text-slate-300"># {{ c.ev.tool }}{{ c.ev.command ? '  —  ' + c.ev.command : '' }}
