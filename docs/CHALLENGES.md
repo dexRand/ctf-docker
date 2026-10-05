@@ -139,7 +139,7 @@ script, quindi il test verifica che l'analizzatore le ritrovi).
 ## Come verificare
 
 ```bash
-cd "/home/r/__Github/CTF"
+cd "/home/romeo/Progetti/ctf-docker"
 docker compose up -d stegsuite
 
 # regressione (nel container; le fixture sono generate al volo)

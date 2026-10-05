@@ -312,6 +312,10 @@ services:
       - MAX_DEPTH=${MAX_DEPTH:-6}
       - HEAVY_TOOLS=${HEAVY_TOOLS:-1}
       - API_KEY=${STEGSUITE_API_KEY:-}
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-1024}
+      - RATE_LIMIT_RPM=${RATE_LIMIT_RPM:-0}
+      - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-0}
+      - RETENTION_DAYS=${RETENTION_DAYS:-0}
     volumes:
       - ./data:/data
       - ./wordlists:/wordlists:ro

@@ -19,3 +19,20 @@ MAX_UPLOAD = int(float(os.environ.get("MAX_UPLOAD_MB", "1024")) * 1024 * 1024)
 
 # recursion depth for extracted children (nested archives)
 MAX_DEPTH = int(os.environ.get("MAX_DEPTH", "6"))
+
+# auto-delete projects older than N days (0 = never)
+RETENTION_DAYS = int(os.environ.get("RETENTION_DAYS", "0"))
+
+
+def rate_limit() -> tuple[int, float]:
+    """Per-IP budget as (capacity, refill_per_sec). (0, 0) = disabled.
+
+    Read per request rather than at import so the env stays authoritative for
+    tests and for a future reload endpoint.
+    """
+    rpm = int(os.environ.get("RATE_LIMIT_RPM", "0") or 0)
+    if rpm <= 0:
+        return 0, 0.0
+    burst = int(os.environ.get("RATE_LIMIT_BURST", "0") or 0)
+    capacity = burst if burst > 0 else max(1, rpm)
+    return capacity, rpm / 60.0

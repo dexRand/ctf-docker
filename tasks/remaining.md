@@ -5,7 +5,7 @@
 
 ## Come riprendere
 ```bash
-cd "/home/r/__Github/CTF"
+cd "/home/romeo/Progetti/ctf-docker"
 docker compose up -d stegsuite          # GUI/API su http://localhost:19014
 ./ctf test                              # 16/16 + 7/7 + verifica risposte
 # oppure i singoli passi:

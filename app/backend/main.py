@@ -13,8 +13,9 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import routers
-from .config import API_KEY, VERSION
+from .config import API_KEY, VERSION, rate_limit
 from .db import init_db
+from .ratelimit import client_ip, get_bucket
 from . import orchestrator
 
 app = FastAPI(
@@ -35,11 +36,31 @@ def _startup() -> None:
     orchestrator.dedupe_findings()
 
 
+HEALTH_PATH = "/api/v1/health"
+# endpoints that answer immediately; throttling them breaks liveness checks and
+# would turn a full bucket into a hard-down signal
+NEVER_THROTTLE = {HEALTH_PATH}
+
+
 @app.middleware("http")
 async def api_key_guard(request: Request, call_next):
-    if API_KEY and request.url.path.startswith("/api") and request.url.path != "/api/v1/health":
+    if API_KEY and request.url.path.startswith("/api") and request.url.path != HEALTH_PATH:
         if request.headers.get("x-api-key") != API_KEY:
             return JSONResponse({"detail": "invalid or missing X-API-Key"}, status_code=401)
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def rate_limit_guard(request: Request, call_next):
+    capacity, refill = rate_limit()
+    if not capacity or request.url.path in NEVER_THROTTLE:
+        return await call_next(request)
+    if not get_bucket(client_ip(request), capacity=capacity, refill_per_sec=refill).take():
+        return JSONResponse(
+            {"detail": "rate limit exceeded: too many requests, slow down"},
+            status_code=429,
+            headers={"Retry-After": str(max(1, round(1 / refill))) if refill else "60"},
+        )
     return await call_next(request)
 
 
