@@ -29,7 +29,6 @@ const report = ref({ open: false, text: '', busy: false })
 const reportLang = ref('en')
 const err = ref('')
 const leftW = ref(250)
-const rightW = ref(350)
 const bottomH = ref(208)
 const logW = ref(340)
 const gridRef = ref(null)
@@ -46,10 +45,9 @@ function startDrag(kind, e) {
 function onDrag(e) {
   if (!dstate) return
   const r = dstate.rect
-  if (dstate.kind === 'left') leftW.value = clamp(e.clientX - r.left, 150, r.width - 520)
-  else if (dstate.kind === 'right') rightW.value = clamp(r.right - e.clientX, 240, r.width - 480)
+  if (dstate.kind === 'left') leftW.value = clamp(e.clientX - r.left, 150, r.width - 320)
   else if (dstate.kind === 'bottom') bottomH.value = clamp(r.bottom - e.clientY, 120, r.height - 80)
-  else if (dstate.kind === 'logw') logW.value = clamp(r.right - e.clientX - rightW.value, 220, r.width - leftW.value - 160)
+  else if (dstate.kind === 'logw') logW.value = clamp(r.right - e.clientX, 220, r.width - leftW.value - 160)
 }
 function endDrag() {
   if (!dstate) return
@@ -242,6 +240,9 @@ function runStatusChip(status) {
     skipped: 'border-edge text-dim',
   }
   return map[status] || 'border-danger/40 bg-danger/5 text-danger'
+}
+function tabBtn(tb) {
+  return tab.value === tb ? 'bg-acc text-[#06120b] font-bold' : 'text-dim hover:text-fglite'
 }
 
 async function load() {
@@ -646,10 +647,16 @@ onBeforeUnmount(() => { endDrag(); try { ws && ws.close() } catch {} })
       <div class="flex min-h-0 flex-col">
         <div class="flex items-center gap-1 border-b border-edge bg-panel2 px-2 py-1 text-[11px]">
           <button v-for="tb in ['overview','extracted','preview']" :key="tb" @click="tab = tb"
-                  class="rounded px-2.5 py-0.5" :class="tab === tb ? 'bg-acc text-[#06120b] font-bold' : 'text-dim hover:text-fglite'">
+                  class="rounded px-2.5 py-0.5" :class="tabBtn(tb)">
             {{ t('proj.tab_' + tb) }}
           </button>
-          <span class="ml-2 min-w-0 truncate text-[11px] text-dim">{{ selectedNode?.name }}</span>
+          <span class="ml-2 min-w-0 flex-1 truncate text-[11px] text-dim">{{ selectedNode?.name }}</span>
+          <button type="button" @click="tab = 'findings'" class="ml-auto rounded px-2.5 py-0.5"
+                  :class="tabBtn('findings')">
+            {{ t('proj.tab_findings') }}
+            <span v-if="flags.length" class="text-acc">{{ flags.length }}</span>
+            <span v-if="locked.length" class="text-warn"> ▣{{ locked.length }}</span>
+          </button>
         </div>
         <div class="min-h-0 flex-1 overflow-auto p-2.5">
           <template v-if="tab === 'overview'">
@@ -690,6 +697,70 @@ onBeforeUnmount(() => { endDrag(); try { ws && ws.close() } catch {} })
             </div>
           </template>
 
+          <template v-else-if="tab === 'findings'">
+            <template v-if="flags.length">
+              <div class="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-acc">
+                <Icon name="flag" :size="12" /> {{ t('proj.flags_found', { n: flags.length }) }}
+              </div>
+              <div v-for="c in flagCards" :key="c.f.id" class="mb-2 rounded border border-acc/40 bg-acc/5 p-2">
+                <div class="flex items-start gap-1">
+                  <span class="text-acc">>_</span>
+                  <div class="min-w-0 flex-1 break-all text-xs font-bold text-acc">{{ c.f.value }}</div>
+                  <button type="button" @click="copyText(c.f.value)" :aria-label="t('proj.copy_flag', { v: c.f.value })"
+                          class="shrink-0 rounded border border-edge p-0.5 text-dim hover:border-acc hover:text-acc">
+                    <Icon :name="copied === c.f.value ? 'check' : 'copy'" :size="11" />
+                  </button>
+                </div>
+                <div class="mt-1 text-[11px] text-dim">
+                  {{ t('proj.in') }}
+                  <button class="text-fg hover:text-acc hover:underline" @click="c.f.file_id && (selected = c.f.file_id)">{{ (treeById[c.f.file_id] || {}).name || '?' }}</button>
+                  · <b class="text-fglite">{{ c.ev && c.ev.run ? toolLabel(c.ev.tool) : sourceHow(c.f.source) }}</b>
+                </div>
+                <div class="mt-1 break-all text-[10px] text-dim">{{ chainText(c.f) }}</div>
+                <pre v-if="c.ev" class="mt-1 max-h-28 overflow-auto whitespace-pre rounded border border-edge bg-ink p-1.5 text-[10px] text-fglite"># {{ c.ev.tool }}{{ c.ev.command ? '  —  ' + c.ev.command : '' }}
+{{ c.ev.lines }}</pre>
+                <pre v-else-if="c.f.context" class="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded border border-edge bg-ink p-1.5 text-[10px] text-dim">{{ c.f.context }}</pre>
+              </div>
+              <div class="mb-1 mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-acc">
+                <Icon name="term" :size="12" /> {{ t('proj.solver_chain', { n: flagTools().length }) }}
+              </div>
+              <div class="flex flex-wrap gap-1">
+                <span v-for="t in flagTools()" :key="t" :title="t" class="rounded px-1.5 py-0.5 text-[10px]"
+                      :class="solverTools.has(t) ? 'border border-acc bg-acc/10 text-acc' : 'bg-panel2 text-fglite'">{{ toolLabel(t) }}</span>
+              </div>
+            </template>
+            <div v-else class="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-dim">
+              <Icon name="flag" :size="12" /> {{ t('proj.flag') }} (0)
+            </div>
+
+            <div class="mb-1 mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-warn">
+              <Icon name="key" :size="12" /> {{ t('proj.password', { n: passwords.length }) }}
+            </div>
+            <div v-for="p in passwords" :key="p.id" class="row rounded text-xs text-warn">
+              {{ p.value }}<span class="text-dim"> — {{ t('proj.via') }} </span><b class="text-warn">{{ p.context || '?' }}</b>
+              <span class="text-dim"> ({{ p.source }})</span>
+            </div>
+
+            <div class="mb-1 mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-info">
+              <Icon name="lock" :size="12" /> {{ t('proj.locked', { n: locked.length }) }}
+            </div>
+            <div v-for="l in locked" :key="l.file_id" class="mb-2 rounded border border-edge p-2">
+              <div class="truncate text-xs text-fglite">{{ l.name }} <span class="text-dim">({{ l.kind }})</span></div>
+              <div class="mt-1 flex gap-1">
+                <select v-model="l._wl" class="w-full rounded border border-edge bg-ink px-1 py-0.5 text-[10px] text-fglite focus:border-acc">
+                  <option value="">{{ t('proj.all') }}</option>
+                  <option v-for="w in wordlists" :key="w.name" :value="w.name">{{ w.name }}</option>
+                </select>
+                <button @click="crack(l, l._wl)" class="kb kb-acc shrink-0 text-[10px]"><Icon name="key" :size="11" />{{ t('proj.crack') }}</button>
+              </div>
+            </div>
+
+            <div class="mb-1 mt-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-acc">
+              <Icon name="link" :size="12" /> {{ t('proj.flag_route') }}
+            </div>
+            <pre class="max-h-44 overflow-auto whitespace-pre text-[10px] leading-5 text-fglite">{{ routeTreeText || t('proj.no_flag') }}</pre>
+          </template>
+
           <template v-else>
             <div v-if="!selectedNode" class="text-xs text-dim">{{ t('proj.select_file') }}</div>
             <div v-else>
@@ -707,75 +778,6 @@ onBeforeUnmount(() => { endDrag(); try { ws && ws.close() } catch {} })
               </div>
             </div>
           </template>
-        </div>
-      </div>
-      <div class="w-1 shrink-0 cursor-col-resize border-x border-edge/50 bg-panel transition-colors hover:border-acc/60 hover:bg-acc/30"
-           @pointerdown.prevent="startDrag('right', $event)"></div>
-
-      <!-- right: findings -->
-      <div class="flex min-h-0 flex-col" :style="{ width: rightW + 'px' }">
-        <div class="min-h-0 flex-1 overflow-auto p-2">
-          <template v-if="flags.length">
-            <div class="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-acc">
-              <Icon name="flag" :size="12" /> {{ t('proj.flags_found', { n: flags.length }) }}
-            </div>
-            <div v-for="c in flagCards" :key="c.f.id" class="mb-2 rounded border border-acc/40 bg-acc/5 p-2">
-              <div class="flex items-start gap-1">
-                <span class="text-acc">>_</span>
-                <div class="min-w-0 flex-1 break-all text-xs font-bold text-acc">{{ c.f.value }}</div>
-                <button type="button" @click="copyText(c.f.value)" :aria-label="t('proj.copy_flag', { v: c.f.value })"
-                        class="shrink-0 rounded border border-edge p-0.5 text-dim hover:border-acc hover:text-acc">
-                  <Icon :name="copied === c.f.value ? 'check' : 'copy'" :size="11" />
-                </button>
-              </div>
-              <div class="mt-1 text-[11px] text-dim">
-                {{ t('proj.in') }}
-                <button class="text-fg hover:text-acc hover:underline" @click="c.f.file_id && (selected = c.f.file_id)">{{ (treeById[c.f.file_id] || {}).name || '?' }}</button>
-                · <b class="text-fglite">{{ c.ev && c.ev.run ? toolLabel(c.ev.tool) : sourceHow(c.f.source) }}</b>
-              </div>
-              <div class="mt-1 break-all text-[10px] text-dim">{{ chainText(c.f) }}</div>
-              <pre v-if="c.ev" class="mt-1 max-h-28 overflow-auto whitespace-pre rounded border border-edge bg-ink p-1.5 text-[10px] text-fglite"># {{ c.ev.tool }}{{ c.ev.command ? '  —  ' + c.ev.command : '' }}
-{{ c.ev.lines }}</pre>
-              <pre v-else-if="c.f.context" class="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded border border-edge bg-ink p-1.5 text-[10px] text-dim">{{ c.f.context }}</pre>
-            </div>
-            <div class="mb-1 mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-acc">
-              <Icon name="term" :size="12" /> {{ t('proj.solver_chain', { n: flagTools().length }) }}
-            </div>
-            <div class="flex flex-wrap gap-1">
-              <span v-for="t in flagTools()" :key="t" :title="t" class="rounded px-1.5 py-0.5 text-[10px]"
-                    :class="solverTools.has(t) ? 'border border-acc bg-acc/10 text-acc' : 'bg-panel2 text-fglite'">{{ toolLabel(t) }}</span>
-            </div>
-          </template>
-          <div v-else class="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-dim">
-            <Icon name="flag" :size="12" /> {{ t('proj.flag') }} (0)
-          </div>
-
-          <div class="mb-1 mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-warn">
-            <Icon name="key" :size="12" /> {{ t('proj.password', { n: passwords.length }) }}
-          </div>
-          <div v-for="p in passwords" :key="p.id" class="row rounded text-xs text-warn">
-            {{ p.value }}<span class="text-dim"> — {{ t('proj.via') }} </span><b class="text-warn">{{ p.context || '?' }}</b>
-            <span class="text-dim"> ({{ p.source }})</span>
-          </div>
-
-          <div class="mb-1 mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-info">
-            <Icon name="lock" :size="12" /> {{ t('proj.locked', { n: locked.length }) }}
-          </div>
-          <div v-for="l in locked" :key="l.file_id" class="mb-2 rounded border border-edge p-2">
-            <div class="truncate text-xs text-fglite">{{ l.name }} <span class="text-dim">({{ l.kind }})</span></div>
-            <div class="mt-1 flex gap-1">
-              <select v-model="l._wl" class="w-full rounded border border-edge bg-ink px-1 py-0.5 text-[10px] text-fglite focus:border-acc">
-                <option value="">{{ t('proj.all') }}</option>
-                <option v-for="w in wordlists" :key="w.name" :value="w.name">{{ w.name }}</option>
-              </select>
-              <button @click="crack(l, l._wl)" class="kb kb-acc shrink-0 text-[10px]"><Icon name="key" :size="11" />{{ t('proj.crack') }}</button>
-            </div>
-          </div>
-
-          <div class="mb-1 mt-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-acc">
-            <Icon name="link" :size="12" /> {{ t('proj.flag_route') }}
-          </div>
-          <pre class="max-h-44 overflow-auto whitespace-pre text-[10px] leading-5 text-fglite">{{ routeTreeText || t('proj.no_flag') }}</pre>
         </div>
       </div>
     </div>
