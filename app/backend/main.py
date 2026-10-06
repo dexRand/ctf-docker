@@ -16,6 +16,7 @@ from .api import routers
 from .config import API_KEY, VERSION, rate_limit
 from .db import init_db
 from .ratelimit import client_ip, get_bucket
+from .retention import purge_old_projects
 from . import orchestrator
 
 app = FastAPI(
@@ -34,6 +35,7 @@ def _startup() -> None:
     init_db()
     orchestrator.reconcile_orphans()
     orchestrator.dedupe_findings()
+    purge_old_projects()
 
 
 HEALTH_PATH = "/api/v1/health"

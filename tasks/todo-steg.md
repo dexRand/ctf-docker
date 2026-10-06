@@ -67,6 +67,8 @@
       capture (`WebNet0/1`) ed esporta gli oggetti decifrati (ricorsione)
 - [x] Flag hunt: viste **percent-decoded** e **rot13 twin** dei prefissi noti
       anche sulle sorgenti rumorose (strings/hex/pcap)
+- [x] Migrazioni con **Alembic** (`migrations/`, stampa dei DB pre-Alembic) al
+      posto di `_migrate()`; **retention** opzionale (`RETENTION_DAYS`)
 
 ## Copertura challenge italiane (ITSCyberGame / Olicyber / StarHackademin) ✅
 - [x] `png-chunks`: dump tEXt/iTXt/zTXt/eXIf + dati dopo IEND (IsThatA)

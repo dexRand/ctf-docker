@@ -9,8 +9,8 @@ from sqlmodel import Session, select
 
 from .. import storage
 from ..config import MAX_UPLOAD
-from ..db import get_session
-from ..models import Artifact, Event, FileNode, Finding, Project, ToolRun
+from ..db import delete_project_rows, get_session
+from ..models import Event, FileNode, Project
 
 router = APIRouter()
 
@@ -85,17 +85,13 @@ def get_project(pid: str, session: Session = Depends(get_session)) -> dict:
 def delete_all_projects(session: Session = Depends(get_session)) -> dict:
     """Remove every project and its files (the whole history)."""
     from .. import orchestrator
-    rows = session.exec(select(Project)).all()
-    ids = [p.id for p in rows]
+    ids = [p.id for p in session.exec(select(Project)).all()]
     for pid in ids:
         try:
             orchestrator.control(pid, "cancel")
         except Exception:
             pass
-        for model in (FileNode, ToolRun, Artifact, Finding, Event):
-            for row in session.exec(select(model).where(model.project_id == pid)).all():
-                session.delete(row)
-        session.delete(session.get(Project, pid))
+        delete_project_rows(session, pid)
     session.commit()
     for pid in ids:
         storage.delete_project(pid)
@@ -107,10 +103,7 @@ def delete_project(pid: str, session: Session = Depends(get_session)) -> dict:
     p = session.get(Project, pid)
     if not p:
         raise HTTPException(404, "project not found")
-    for model in (FileNode, ToolRun, Artifact, Finding, Event):
-        for row in session.exec(select(model).where(model.project_id == pid)).all():
-            session.delete(row)
-    session.delete(p)
+    delete_project_rows(session, pid)
     session.commit()
     storage.delete_project(pid)
     return {"deleted": pid}

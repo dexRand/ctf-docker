@@ -57,7 +57,7 @@ It is designed to live next to other self-hosted apps: every service runs on the
 | Web | **mitmproxy** | http://localhost:19003 | Intercept and rewrite HTTP(S) · proxy on `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoders, converters, hashes, regex and friends | core |
 | Deep triage | **CTF Triage** | http://localhost:19013 | Recursive extract + wordlist cracking + flag hunt · Auto/Check GUI, reports in FileBrowser Quantum (`./ctf triage <file>`) | core |
-| Stego workbench | **StegSuite** | http://localhost:19014 | Recursive auto/triage over 38 tools (stego, forensics, vision/OCR, audio/Morse), file tree, live log, embedded terminal, REST API | core |
+| Stego workbench | **StegSuite** | http://localhost:19014 | Recursive auto/triage over 40 tools (stego, forensics, vision/OCR, audio/SSTV/network), file tree, live log, embedded terminal, REST API | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Web security scanner with an in-browser GUI · proxy on `:19006` | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domains, IPs, e-mails, leaks | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Python/Sage notebook for crypto and math | `crypto` |
@@ -210,6 +210,9 @@ http://localhost:19014 (localhost only).
   image/audio previews, live log over WebSocket, embedded **terminal**
   (xterm.js), and a Markdown **report** with its own language selector.
 - **Flag hunt + cracking**: ZIP (incl. AES via hashcat), steghide, PDF.
+- **Ops/security**: schema migrations via **Alembic**, opt-in per-IP **rate
+  limiting** (`RATE_LIMIT_RPM`) and project **retention** (`RETENTION_DAYS`),
+  optional `X-API-Key`.
 - **REST API** (OpenAPI at `/api/docs`), including stateless single-tool runs:
   `POST /api/v1/tools/{tool}`.
 - **Docs**: `docs/ADDING-A-TOOL.md` (add an analyzer), `docs/API.md` (drive the

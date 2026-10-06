@@ -20,8 +20,10 @@ MAX_UPLOAD = int(float(os.environ.get("MAX_UPLOAD_MB", "1024")) * 1024 * 1024)
 # recursion depth for extracted children (nested archives)
 MAX_DEPTH = int(os.environ.get("MAX_DEPTH", "6"))
 
-# auto-delete projects older than N days (0 = never)
-RETENTION_DAYS = int(os.environ.get("RETENTION_DAYS", "0"))
+# auto-delete projects older than N days (0 = never); read per call so tests
+# and a future reload can change it at runtime
+def retention_days() -> int:
+    return int(os.environ.get("RETENTION_DAYS", "0") or 0)
 
 
 def rate_limit() -> tuple[int, float]:

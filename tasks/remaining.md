@@ -18,6 +18,14 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P18 ops: Alembic + retention**: le migrazioni dello schema ora sono gestite
+  da **Alembic** (`app/backend/migrations/`: revisione `0001` baseline
+  autogenerata + `0002` `finding.context`). `init_db()` esegue `upgrade head` e
+  **stampa** i database creati prima di Alembic (`_legacy_revision` riconosce se
+  `context` esiste) — `_migrate()` manuale rimosso. Aggiunta la **retention**
+  opzionale (`RETENTION_DAYS`, 0 = mai): all'avvio elimina i progetti più
+  vecchi (righe DB + filesystem, `backend/retention.py`); dedup della
+  cancellazione in `db.delete_project_rows`, riusata dall'API. `pytest` **88**.
 - **P17 analyzer: TLS su pcap (`WebNet0/1`) + rot13/url inline**: l'analyzer
   `pcap` ora **decifra TLS** quando trova una chiave privata (o un keylog
   `CLIENT_RANDOM`) accanto al capture: `tls.keys_list`/`tls.keylog_file` di
@@ -150,7 +158,7 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
 - **Test/Docs**: regressione **20/20**, reali **9/9**, `verify_flags` **ALL
-  CORRECT** (istanza per istanza), `pytest` **82**, `docs/CHALLENGES.md`.
+  CORRECT** (istanza per istanza), `pytest` **88**, `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
 
@@ -182,10 +190,14 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
    **twin rot13** dei prefissi noti (`VGF{…}` → `ITS{…}`) anche sulle sorgenti
    rumorose dove il pattern generico è disattivato.
 
-### B. Sicurezza / Ops (P3)
-7. [ ] **Rate limiting** sulle API (token bucket per IP, opt-in).
-8. [ ] **Alembic** per le migrazioni (oggi `_migrate()` manuale in `db.py`).
-9. [ ] **Retention** opzionale (`RETENTION_DAYS`) — oggi disattivata per scelta.
+### B. Sicurezza / Ops (P3) — ✅ completata
+7. [x] **Rate limiting** sulle API: token bucket per IP, opt-in
+   (`RATE_LIMIT_RPM`/`RATE_LIMIT_BURST`), health mai throttlato, `Retry-After`.
+8. [x] **Alembic** per le migrazioni: `app/backend/migrations/` (revisioni
+   `0001` baseline, `0002` `finding.context`); `init_db()` fa `upgrade head` e
+   **stampa** i DB pre-Alembic (`_legacy_revision`). `_migrate()` rimosso.
+9. [x] **Retention** opzionale: `RETENTION_DAYS` (0 = mai) elimina i progetti
+   più vecchi all'avvio, DB + filesystem (`backend/retention.py`).
 
 ### C. GUI (rifiniture P1 residue)
 10. [ ] **Barra di progresso** per file (evento `progress` già emesso) e
@@ -241,7 +253,9 @@ presente, flag visiva non OCR-abile), **MacroHard WeakEdge**,
 
 ## File chiave
 ```
-app/backend/main.py            # app factory + startup (reconcile + dedupe)
+app/backend/main.py            # app factory + startup (reconcile + dedupe + retention)
+app/backend/migrations/        # Alembic (env.py + revisioni 0001/0002)
+app/backend/retention.py       # cancellazione progetti oltre RETENTION_DAYS
 app/backend/api/*.py           # router: system, projects, analysis, tools, cracking, ws
 app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
@@ -250,7 +264,7 @@ app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/tests/ctf_regression.py    # 20/20 (incl. image-repair: BMP, dns-tunnel, nested-archive, sstv)
 app/tests/real_challenges.py   # 9/9 picoCTF (incl. WebNet0/1: pcap+TLS key)
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
-app/tests/*.py                 # unit pytest (82)
+app/tests/*.py                 # unit pytest (88)
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 .github/workflows/ci.yml       # CI
 compose.yaml                   # servizio stegsuite (19014)
