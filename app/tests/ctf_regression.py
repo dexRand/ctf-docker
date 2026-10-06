@@ -287,8 +287,15 @@ def run_case(name: str, path: Path, expect: str) -> bool:
         if status in ("done", "error", "cancelled"):
             break
         time.sleep(2)
-    flags = [f["value"] for f in api(f"/projects/{pid}/findings") if f["kind"] == "flag"]
+    findings = api(f"/projects/{pid}/findings")
+    flags = [f["value"] for f in findings if f["kind"] == "flag"]
     ok = any(expect in fl for fl in flags)
+    if ok and name == "real-challenge":
+        # the password finding must expose WHICH wordlist cracked it
+        pw = next((f for f in findings if f["kind"] == "password"), None)
+        if not (pw and pw.get("context") == "10k-most-common.txt"):
+            print(f"    ! password missing wordlist attribution: {pw}")
+            ok = False
     print(f"  [{'PASS' if ok else 'FAIL'}] {name:<10} expected {expect:<22} status={status} flags={flags[:3]}")
     return ok
 

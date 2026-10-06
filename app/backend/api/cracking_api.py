@@ -46,12 +46,16 @@ def _crack_worker(pid: str, fid: int, names) -> None:
                                            "name": node.name, "status": "running"})
             res = cracking.crack_file(path, names)
             if res["password"]:
+                wl_hit = res.get("wordlist_hit") or ""
                 bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid,
-                                               "status": "found", "password": res["password"]})
+                                               "status": "found", "password": res["password"],
+                                               "wordlist": wl_hit or None})
                 s.add(Finding(project_id=pid, file_id=fid, kind="password",
-                              value=res["password"], source=f"crack:{res['kind']}"))
+                              value=res["password"], source=f"crack:{res['kind']}",
+                              context=wl_hit))
                 s.add(Event(project_id=pid, level="info",
-                            message=f"password found for {node.name}: {res['password']}"))
+                            message=f"password found for {node.name}: {res['password']}"
+                                    + (f" via {wl_hit}" if wl_hit else "")))
                 if res["extracted"]:
                     orchestrator.import_children(s, pid, fid, res["extracted"])
                 s.commit()

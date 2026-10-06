@@ -496,12 +496,15 @@ def _auto_crack(session: Session, pid: str, work: Path, job: Job) -> list[FileNo
         _emit(pid, {"type": "crack", "file_id": fid, "name": node.name, "status": "running"})
         res = cracking.crack_file(work / node.rel_path, None)
         if res["password"]:
+            wl_hit = res.get("wordlist_hit") or ""
             session.add(Finding(project_id=pid, file_id=fid, kind="password",
-                                value=res["password"], source=f"crack:{res['kind']}"))
+                                value=res["password"], source=f"crack:{res['kind']}",
+                                context=wl_hit))
             session.add(Event(project_id=pid, level="info",
-                              message=f"password found for {node.name}: {res['password']}"))
+                              message=f"password found for {node.name}: {res['password']}"
+                                      + (f" via {wl_hit}" if wl_hit else "")))
             _emit(pid, {"type": "crack", "file_id": fid, "status": "found",
-                        "password": res["password"]})
+                        "password": res["password"], "wordlist": wl_hit or None})
             if res["extracted"]:
                 ids = import_children(session, pid, fid, res["extracted"])
                 session.flush()

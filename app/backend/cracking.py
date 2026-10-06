@@ -101,9 +101,13 @@ def _kind(path: Path) -> str:
 
 
 # ------------------------------------------------------------------- crackers
-def _crack_zip_hashcat(path: Path, wls: list[Path], log) -> Optional[str]:
-    """ZipCrypto/AES via hashcat; the hash comes from the vendored zip2hashcat."""
-    if not (shutil.which("hashcat") and Path(Z2H).exists()):
+def _crack_zip_hashcat(path: Path, wl: Path, log) -> Optional[str]:
+    """Try to crack a zip (ZipCrypto or AES) with hashcat using ONE wordlist.
+
+    hashcat stops at the first match, so calling it per-wordlist is what lets
+    us attribute the crack to the exact list that produced it.
+    """
+    if not shutil.which("hashcat"):
         return None
     r = _run(["python3", Z2H, "--json", str(path)], timeout=120, log=log)
     try:
@@ -115,14 +119,13 @@ def _crack_zip_hashcat(path: Path, wls: list[Path], log) -> Optional[str]:
         return None
     hf, wf, pf = "/tmp/hc.hash", "/tmp/hc.wordlist", "/tmp/hc.pot"
     Path(hf).write_text(h + "\n")
-    with open(wf, "wb") as out:  # concatenate the chosen lists, small -> large
-        for wl in wls:
-            try:
-                with open(wl, "rb") as src:
-                    shutil.copyfileobj(src, out)
-            except OSError:
-                continue
+    try:
+        with open(wf, "wb") as out:
+            with open(wl, "rb") as src:
+                shutil.copyfileobj(src, out)
             out.write(b"\n")
+    except OSError:
+        return None
     try:
         Path(pf).unlink()
     except OSError:
@@ -137,44 +140,47 @@ def _crack_zip_hashcat(path: Path, wls: list[Path], log) -> Optional[str]:
     return None
 
 
-def _crack_zip(path: Path, wls: list[Path], log) -> Optional[str]:
-    # hashcat first: the vendored zip2hashcat handles BOTH ZipCrypto and AES, and
-    # hashcat stops at the first match. fcrackzip is only a fallback (it would
-    # uselessly churn through huge wordlists on AES archives).
-    pw = _crack_zip_hashcat(path, wls, log)
-    if pw:
-        return pw
+def _crack_zip(path: Path, wls: list[Path], log) -> tuple[Optional[str], Optional[str]]:
+    # hashcat first: the vendored zip2hashcat handles BOTH ZipCrypto and AES.
+    # fcrackzip is only a fallback (it would uselessly churn through huge
+    # wordlists on AES archives). Lists are tried smallest -> largest and we
+    # remember which one hit, so the report can name the cracking wordlist.
+    if shutil.which("hashcat"):
+        for wl in wls:
+            pw = _crack_zip_hashcat(path, wl, log)
+            if pw:
+                return pw, wl.name
     if shutil.which("fcrackzip"):
         for wl in wls:
             r = _run(["fcrackzip", "-u", "-D", "-p", str(wl), str(path)], timeout=3600, log=log)
             m = re.search(r"pw\s*==\s*(\S+)", r.stdout)
             if m:
-                return m.group(1)
-    return None
+                return m.group(1), wl.name
+    return None, None
 
 
-def _crack_pdf(path: Path, wls: list[Path], log) -> Optional[str]:
+def _crack_pdf(path: Path, wls: list[Path], log) -> tuple[Optional[str], Optional[str]]:
     if not shutil.which("pdfcrack"):
-        return None
+        return None, None
     for wl in wls:
         r = _run(["pdfcrack", "-f", str(path), "-w", str(wl)], timeout=3600, log=log)
         m = re.search(r"found (?:user|owner)-password:\s*'([^']+)'", r.stdout)
         if m:
-            return m.group(1)
-    return None
+            return m.group(1), wl.name
+    return None, None
 
 
-def _crack_image(path: Path, wls: list[Path], log) -> Optional[str]:
+def _crack_image(path: Path, wls: list[Path], log) -> tuple[Optional[str], Optional[str]]:
     if not shutil.which("stegseek"):
-        return None
+        return None, None
     outfile = Path("/tmp") / (path.name + ".stegseek.out")
     for wl in wls:
         r = _run(["stegseek", "-sf", str(path), "-wl", str(wl), "-xf", str(outfile), "-f"],
                  timeout=3600, log=log)
         m = re.search(r'passphrase:\s*"?([^"\n]+?)"?\s*$', r.stdout + r.stderr, re.I | re.M)
         if m:
-            return m.group(1).strip()
-    return None
+            return m.group(1).strip(), wl.name
+    return None, None
 
 
 def _extract_with(path: Path, kind: str, password: str, outdir: Path, log) -> list[Path]:
@@ -195,18 +201,20 @@ def crack_file(path: Path, wordlist_names: Optional[list[str]] = None,
                log: Optional[Callable[[str], None]] = None) -> dict:
     wls = resolve_wordlists(wordlist_names)
     kind = _kind(path)
+    no_hit = {"password": None, "kind": kind, "extracted": [],
+              "wordlist_hit": None, "wordlists": [w.name for w in wls]}
     if not wls or kind == "unknown":
-        return {"password": None, "kind": kind, "extracted": [], "wordlists": [w.name for w in wls]}
+        return no_hit
     _log(log, f"cracking {path.name} ({kind}) with {len(wls)} wordlists")
     if kind == "archive":
-        pw = _crack_zip(path, wls, log)
+        pw, wl_hit = _crack_zip(path, wls, log)
     elif kind == "pdf":
-        pw = _crack_pdf(path, wls, log)
+        pw, wl_hit = _crack_pdf(path, wls, log)
     else:
-        pw = _crack_image(path, wls, log)
+        pw, wl_hit = _crack_image(path, wls, log)
     if not pw:
-        return {"password": None, "kind": kind, "extracted": [], "wordlists": [w.name for w in wls]}
+        return no_hit
     outdir = Path("/tmp") / f"cracked-{int(time.time())}"
     extracted = _extract_with(path, kind, pw, outdir, log)
     return {"password": pw, "kind": kind, "extracted": [str(p) for p in extracted],
-            "wordlists": [w.name for w in wls]}
+            "wordlist_hit": wl_hit, "wordlists": [w.name for w in wls]}
