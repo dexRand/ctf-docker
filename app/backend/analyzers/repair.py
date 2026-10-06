@@ -41,7 +41,7 @@ def repair_bmp(data: bytes, log: list[str]) -> bytes | None:
     standard = (54 <= offset <= file_size) and dib in _DIB_SIZES
     row = _rowbytes(width, bpp) if standard and width > 0 and bpp > 0 else 0
     if not standard or row <= 0:
-        log.append("header non standard: ripristino DIB/offset (40/54)")
+        log.append("non-standard header: rebuilding DIB/offset (40/54)")
         offset, dib = 54, 40
         row = _rowbytes(width, bpp)
     if row <= 0:
@@ -51,7 +51,7 @@ def repair_bmp(data: bytes, log: list[str]) -> bytes | None:
     if fitted <= 0:
         return None
     if fitted != height:
-        log.append(f"altezza {height} -> {fitted} ({available} byte, {row} B/riga)")
+        log.append(f"height {height} -> {fitted} ({available} bytes, {row} B/row)")
         height = fitted
 
     out = bytearray(data)
@@ -71,14 +71,14 @@ def repair_jpeg(data: bytes, log: list[str]) -> bytes | None:
         return None
     if data.endswith(_JPEG_EOI):
         return data
-    log.append("marcatore EOI (FFD9) mancante: aggiunto")
+    log.append("missing EOI marker (FFD9): appended")
     return data + _JPEG_EOI
 
 
 class ImageRepairAnalyzer(Analyzer):
     name = "image-repair"
     category = "extract"
-    description = "Ripara immagini JPEG/BMP corrotte (header BMP, altezza, EOI JPEG)."
+    description = "Repair corrupted JPEG/BMP images (BMP header, height, JPEG EOI)."
     # accepts everything: a corrupted image may have a wrong/absent extension
     # and `file` may not recognise it. We gate internally on signatures.
     accepts = ()
@@ -87,7 +87,7 @@ class ImageRepairAnalyzer(Analyzer):
     def run(self, ctx: ToolContext) -> ToolResult:
         data = ctx.input.read_bytes()
         if not data:
-            return ToolResult(self.name, status="skipped", summary="file vuoto")
+            return ToolResult(self.name, status="skipped", summary="empty file")
         log: list[str] = []
         fixed: bytes | None = None
         ext = ""
@@ -100,14 +100,14 @@ class ImageRepairAnalyzer(Analyzer):
                 fixed, ext = jpg, ".jpg"
         if fixed is None:
             return ToolResult(self.name, status="skipped",
-                              summary="non è un JPEG/BMP riparabile")
+                              summary="not a repairable JPEG/BMP")
         if fixed == data:
-            return ToolResult(self.name, status="done", summary="immagine già valida",
+            return ToolResult(self.name, status="done", summary="image already valid",
                               output="\n".join(log))
         out = ctx.sub(self.name) / (ctx.input.name + ".fixed" + ext)
         out.write_bytes(fixed)
         return ToolResult(self.name, status="done", output="\n".join(log),
-                          summary="immagine riparata",
+                          summary="image repaired",
                           extracted=[str(out)],
                           artifacts=[{"name": out.name, "path": str(out),
                                       "size": out.stat().st_size}])

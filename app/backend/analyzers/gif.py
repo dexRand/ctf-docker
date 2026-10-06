@@ -61,7 +61,7 @@ class GifFramesAnalyzer(Analyzer):
         except Exception as exc:
             return ToolResult(self.name, status="error", summary=f"cannot read gif: {exc}")
         if not frames:
-            return ToolResult(self.name, status="done", summary="nessun frame")
+            return ToolResult(self.name, status="done", summary="no frames")
 
         # frame-difference scores
         diffs: list[tuple[float, int]] = []

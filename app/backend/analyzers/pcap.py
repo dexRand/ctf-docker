@@ -129,7 +129,7 @@ class PcapAnalyzer(Analyzer):
         files = list_files(outdir)
         extracted = [str(f) for f in files]
         artifacts = [{"name": f.name, "path": str(f), "size": f.stat().st_size} for f in files]
-        summary = f"{len(extracted)} oggetti esportati" if extracted else "nessun oggetto HTTP"
+        summary = f"{len(extracted)} object(s) exported" if extracted else "no HTTP object"
         if tunnel:
             summary += f", {len(tunnel)} tunnel DNS"
         return ToolResult(self.name, status="done", output="\n\n".join(parts),

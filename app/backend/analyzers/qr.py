@@ -22,10 +22,10 @@ class QrAnalyzer(Analyzer):
         out = out_of(proc)
         if not out.strip():
             # zbarimg exits 4 when no symbol is found: informational, not an error
-            return ToolResult(self.name, status="skipped", summary="nessun QR/barcode",
+            return ToolResult(self.name, status="skipped", summary="no QR/barcode",
                               output=out[-1000:], exit_code=proc.returncode)
         n = len(out.splitlines())
-        return ToolResult(self.name, status="done", summary=f"{n} codice/i decodificato/i",
+        return ToolResult(self.name, status="done", summary=f"{n} code(s) decoded",
                           output=out, exit_code=proc.returncode)
 
 

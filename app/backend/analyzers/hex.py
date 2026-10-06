@@ -21,7 +21,7 @@ class HexylAnalyzer(Analyzer):
             proc = ctx.run(["hexyl", "--length", str(LIMIT), str(ctx.input)])
         return ToolResult(self.name, status="done" if proc.returncode == 0 else "error",
                           output=(proc.stdout or "")[:400000], exit_code=proc.returncode,
-                          summary="hex colorato")
+                          summary="colored hex")
 
 
 class XxdAnalyzer(Analyzer):

@@ -110,7 +110,7 @@ class MorseAnalyzer(Analyzer):
         out = f"decoded: {text}\n\n" + "\n".join(
             f"{'ON ' if s else 'off'} {d*1000:.1f} ms" for s, d in runs[:200])
         return ToolResult(self.name, status="done", output=out,
-                          summary=f"Morse: {text[:60]}" if text else "nessun Morse")
+                          summary=f"Morse: {text[:60]}" if text else "no Morse")
 
 
 register(MorseAnalyzer())
@@ -144,7 +144,7 @@ class MorseTextAnalyzer(Analyzer):
         text = ctx.input.read_text(errors="replace")
         probe = text.strip()[:2000]
         if not probe or not re.fullmatch(r"[\s.\-/|,A-Za-z0-9]+", probe) or probe.count(".") + probe.count("-") < 3:
-            return ToolResult(self.name, status="skipped", summary="non sembra Morse")
+            return ToolResult(self.name, status="skipped", summary="does not look like Morse")
         decoded = decode_text_morse(text.replace(",", " "))
         lines = [f"morse: {decoded}"]
         try:

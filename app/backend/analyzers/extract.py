@@ -39,7 +39,7 @@ class BinwalkExtractAnalyzer(Analyzer):
         return ToolResult(
             self.name, status="done" if files else "done",
             output=out_of(proc)[-20000:], exit_code=proc.returncode,
-            summary=f"{len(files)} file estratti",
+            summary=f"{len(files)} file(s) extracted",
             extracted=[str(f) for f in files], artifacts=_arts(files, ctx.workdir),
         )
 
@@ -59,7 +59,7 @@ class ForemostAnalyzer(Analyzer):
         files = list_files(d)
         return ToolResult(
             self.name, status="done", output=out_of(proc)[-20000:], exit_code=proc.returncode,
-            summary=f"{len(files)} file", extracted=[str(f) for f in files],
+            summary=f"{len(files)} file(s)", extracted=[str(f) for f in files],
             artifacts=_arts(files, ctx.workdir),
         )
 
@@ -87,7 +87,7 @@ class SevenZipAnalyzer(Analyzer):
             shutil.rmtree(d, ignore_errors=True)
             files: list[Path] = []
             if "can't open as archive" in low or "is not archive" in low:
-                return ToolResult(self.name, status="skipped", summary="non è un archivio", output=blob[-4000:])
+                return ToolResult(self.name, status="skipped", summary="not an archive", output=blob[-4000:])
         else:
             files = list_files(d)
         needs = ("password" in low or "encrypted" in low or "wrong" in low) and proc.returncode != 0
@@ -95,7 +95,7 @@ class SevenZipAnalyzer(Analyzer):
             self.name,
             status="needs_password" if needs else ("done" if proc.returncode == 0 else "error"),
             needs_password=needs, output=blob[-20000:], exit_code=proc.returncode,
-            summary="password richiesta" if needs else f"{len(files)} file",
+            summary="password required" if needs else f"{len(files)} file",
             extracted=[str(f) for f in files], artifacts=_arts(files, ctx.workdir),
         )
 

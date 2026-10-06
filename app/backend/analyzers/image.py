@@ -139,7 +139,7 @@ class ImageEnhanceAnalyzer(Analyzer):
             if t:
                 texts.append(f"{name}: {t}")
         return ToolResult(
-            self.name, status="done", summary=f"{len(files)} varianti", output="\n".join(texts),
+            self.name, status="done", summary=f"{len(files)} variant(s)", output="\n".join(texts),
             artifacts=[{"name": str(f.relative_to(ctx.workdir)), "path": str(f), "size": f.stat().st_size} for f in files],
         )
 

@@ -34,7 +34,7 @@ def test_bmp_height_less_than_data_is_recomputed() -> None:
     fixed = repair_bmp(bytes(data), log)
     assert fixed is not None
     assert struct.unpack_from("<I", fixed, 22)[0] == 300
-    assert any("altezza" in l for l in log)
+    assert any("height" in l for l in log)
 
 
 def test_bmp_corrupt_offset_and_dib_rebuilt_tunn3l() -> None:
@@ -52,7 +52,7 @@ def test_bmp_corrupt_offset_and_dib_rebuilt_tunn3l() -> None:
     assert struct.unpack_from("<I", fixed, 14)[0] == 40
     # pixel rows available: (filesize - 54) // rowbytes(=3404 for 24bpp@1134)
     assert struct.unpack_from("<I", fixed, 22)[0] == 850
-    assert any("non standard" in l for l in log)
+    assert any("non-standard" in l for l in log)
     assert any("850" in l for l in log)
 
 

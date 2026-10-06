@@ -1,6 +1,9 @@
-fastapi
-uvicorn[standard]
-sqlmodel
-python-multipart
-Pillow
-numpy
+fastapi==0.142.2
+starlette==1.7.0
+uvicorn[standard]==0.54.0
+sqlmodel==0.0.47
+python-multipart==0.0.32
+Pillow==12.3.0
+numpy==2.5.3
+# httpx: HTTP client required by starlette's TestClient in the CI unit-test job
+httpx

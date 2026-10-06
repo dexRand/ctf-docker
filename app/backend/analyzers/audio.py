@@ -34,7 +34,7 @@ class SpectrogramAnalyzer(Analyzer):
         proc = ctx.run(["ffmpeg", "-y", "-i", str(ctx.input),
                         "-lavfi", "showspectrumpic=s=1920x1080:legend=1", str(out)], timeout=300)
         if out.exists():
-            return ToolResult(self.name, status="done", summary="spettrogramma",
+            return ToolResult(self.name, status="done", summary="spectrogram",
                               artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
         return ToolResult(self.name, status="error", output=out_of(proc)[-8000:], exit_code=proc.returncode)
 
@@ -71,7 +71,7 @@ class WavLsbAnalyzer(Analyzer):
                 nch, sw, _sr, nfr = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
                 raw = w.readframes(min(nfr, 2_000_000))
         except Exception as exc:
-            return ToolResult(self.name, status="skipped", summary=f"WAV non leggibile ({exc})")
+            return ToolResult(self.name, status="skipped", summary=f"WAV not readable ({exc})")
         views: list[tuple[str, str]] = []
         if sw == 2:
             vals = struct.unpack("<" + "h" * (len(raw) // 2), raw[:len(raw) // 2 * 2])
@@ -83,7 +83,7 @@ class WavLsbAnalyzer(Analyzer):
             for ch in range(nch):
                 views.append((f"lsb8 ch{ch}", _bits_to_text([b & 1 for b in raw[ch::nch]])))
         else:
-            return ToolResult(self.name, status="skipped", summary=f"sample width {sw * 8} bit non supportata")
+            return ToolResult(self.name, status="skipped", summary=f"unsupported sample width {sw * 8} bit")
 
         lines: list[str] = []
         for label, text in views:

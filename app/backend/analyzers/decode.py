@@ -104,7 +104,7 @@ class DecodeAnalyzer(Analyzer):
     def run(self, ctx: ToolContext) -> ToolResult:
         lines = chain(ctx.input.read_bytes())
         return ToolResult(self.name, status="done", output="\n".join(lines[:300]),
-                          summary=f"{len(lines)} decodifiche")
+                          summary=f"{len(lines)} decode(s)")
 
 
 register(DecodeAnalyzer())

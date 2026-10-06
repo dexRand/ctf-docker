@@ -131,17 +131,17 @@ class PngRepairAnalyzer(Analyzer):
                      or b"IDAT" in data[:8192]
                      or bytes(data[12:16]) == b'C"DR')
         if not looks_png:
-            return ToolResult(self.name, status="skipped", summary="non è un PNG")
+            return ToolResult(self.name, status="skipped", summary="not a PNG")
         fixed, log = repair_png(data)
         if fixed[:8] != PNG_SIG:
-            return ToolResult(self.name, status="skipped", summary="non riparabile")
+            return ToolResult(self.name, status="skipped", summary="not repairable")
         if fixed == data:
-            return ToolResult(self.name, status="done", summary="PNG già valido",
+            return ToolResult(self.name, status="done", summary="PNG already valid",
                               output="\n".join(log))
         out = ctx.sub(self.name) / (ctx.input.name + ".fixed.png")
         out.write_bytes(fixed)
         return ToolResult(self.name, status="done", output="\n".join(log),
-                          summary="PNG riparato" + (f" ({len(log)} fix)" if log else ""),
+                          summary="PNG repaired" + (f" ({len(log)} fix)" if log else ""),
                           extracted=[str(out)],
                           artifacts=[{"name": out.name, "path": str(out),
                                       "size": out.stat().st_size}])

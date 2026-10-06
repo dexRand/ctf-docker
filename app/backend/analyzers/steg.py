@@ -32,14 +32,14 @@ class SteghideAnalyzer(Analyzer):
         proc = ctx.run(["steghide", "extract", "-sf", str(ctx.input),
                         "-p", ctx.password or "", "-xf", str(out), "-f"], timeout=120)
         if proc.returncode == 0 and out.exists():
-            return ToolResult(self.name, status="done", summary="dato estratto",
+            return ToolResult(self.name, status="done", summary="data extracted",
                               extracted=[str(out)],
                               artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
         blob = out_of(proc)
         needs = "passphrase" in blob.lower() or proc.returncode != 0
         return ToolResult(self.name, status="needs_password" if needs else "done",
                           needs_password=needs, output=blob[-8000:], exit_code=proc.returncode,
-                          summary="password richiesta" if needs else "nessun dato")
+                          summary="password required" if needs else "no data")
 
 
 class OutguessAnalyzer(Analyzer):
@@ -60,11 +60,11 @@ class OutguessAnalyzer(Analyzer):
         cmd += ["-r", str(ctx.input), str(out)]
         proc = ctx.run(cmd, timeout=120)
         if proc.returncode == 0 and out.exists():
-            return ToolResult(self.name, status="done", summary="dato estratto",
+            return ToolResult(self.name, status="done", summary="data extracted",
                               extracted=[str(out)],
                               artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
         return ToolResult(self.name, status="error", output=out_of(proc)[-8000:], exit_code=proc.returncode,
-                          summary="nessun dato / chiave errata")
+                          summary="no data / wrong key")
 
 
 class JstegAnalyzer(Analyzer):
@@ -80,11 +80,11 @@ class JstegAnalyzer(Analyzer):
         out = ctx.sub(self.name) / (ctx.input.name + ".jsteg")
         proc = ctx.run(["jsteg", "reveal", str(ctx.input), str(out)], timeout=120)
         if out.exists() and out.stat().st_size:
-            return ToolResult(self.name, status="done", summary="dato estratto",
+            return ToolResult(self.name, status="done", summary="data extracted",
                               extracted=[str(out)],
                               artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
         return ToolResult(self.name, status="done", output=out_of(proc)[-8000:], exit_code=proc.returncode,
-                          summary="nessun dato")
+                          summary="no data")
 
 
 class OpenStegoAnalyzer(Analyzer):
@@ -104,11 +104,11 @@ class OpenStegoAnalyzer(Analyzer):
         blob = out_of(proc)
         if proc.returncode == 0 and out.exists():
             return ToolResult(self.name, status="done", output=blob[-8000:],
-                              summary="dato estratto", extracted=[str(out)],
+                              summary="data extracted", extracted=[str(out)],
                               artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
         # no OpenStego payload (or unsupported): not an error
         return ToolResult(self.name, status="skipped", output=blob[-4000:],
-                          exit_code=proc.returncode, summary="nessun dato OpenStego")
+                          exit_code=proc.returncode, summary="no OpenStego data")
 
 
 register(SteghideAnalyzer())
