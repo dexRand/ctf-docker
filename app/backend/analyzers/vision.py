@@ -44,6 +44,7 @@ def ocr_image(path: Path, timeout: int = 90) -> str:
     try:
         from PIL import Image
         base = Image.open(path)
+        base.load()  # decode now so a truncated image degrades to "" instead of raising later
     except Exception:
         return ""
     texts: list[str] = []

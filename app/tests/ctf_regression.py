@@ -273,6 +273,28 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
                                     for i in range(0, len(enc18), 5)])
     cases.append(("dns-tunnel", TMP / "tunnel.pcap", flag18))
 
+    # 19) deeply nested archives (like1000): 30 tars, each with a filler.txt
+    #     sidecar, innermost holds flag.txt -> nested-archive unwraps in one pass
+    import io as _io
+    import tarfile as _tar
+    payload = b"ITS{nested_archive_19}"
+    cur = payload
+    for i in range(1, 31):
+        buf = _io.BytesIO()
+        with _tar.open(fileobj=buf, mode="w") as t:
+            inner = ("flag.txt", payload) if i == 1 else (f"{i - 1}.tar", cur)
+            info = _tar.TarInfo(inner[0])
+            info.size = len(inner[1])
+            t.addfile(info, _io.BytesIO(inner[1]))
+            filler = b"filler" + str(i).encode()
+            fi = _tar.TarInfo("filler.txt")
+            fi.size = len(filler)
+            t.addfile(fi, _io.BytesIO(filler))
+        cur = buf.getvalue()
+    p = TMP / "nested.tar"
+    p.write_bytes(cur)
+    cases.append(("nested-archive", p, "ITS{nested_archive_19}"))
+
     return cases
 
 

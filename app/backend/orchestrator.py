@@ -13,6 +13,7 @@ import os
 import re
 import shutil
 import threading
+import traceback
 import uuid
 from pathlib import Path
 
@@ -21,7 +22,7 @@ from sqlmodel import Session, select
 from . import storage
 from .analyzers import get as get_tool
 from .bus import bus
-from .analyzers.base import ToolContext
+from .analyzers.base import ToolContext, ToolResult
 from .config import MAX_DEPTH, PROJECTS_DIR
 from .db import engine
 from .models import Artifact, Event, FileNode, Finding, Project, ToolRun
@@ -42,7 +43,7 @@ VISION_SOURCES = ("ocr", "bit-planes", "channel-remap", "image-enhance",
 # sources where the generic "<word>{...}" pattern is skipped too: on raw dumps
 # (strings/hex viewers) and pcap text it mostly matches binary noise
 GENERIC_NOISY = ("strings", "hexyl", "xxd", "hexdump", "pcap",
-                 "binwalk-scan", "binwalk-extract", "foremost")
+                 "binwalk-scan", "binwalk-extract", "foremost", "nested-archive")
 # the fuzzy (OCR-confusion) matcher only makes sense on visual/audio output,
 # not on raw file bytes where it matches markup/entities
 FUZZY_SOURCES = tuple(s for s in VISION_SOURCES if s != "raw")
@@ -97,7 +98,8 @@ DEFAULT_PLAN = [
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb",
     "pcap",
-    "7z", "binwalk-extract", "foremost", "pngcheck", "png-repair", "image-repair",
+    "nested-archive", "7z", "binwalk-extract", "foremost", "pngcheck",
+    "png-repair", "image-repair",
 ]
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}
 # cap how many heavy tools run at once across all projects (CPU bound)
@@ -434,16 +436,23 @@ def _run(pid: str, job: Job) -> None:
                 analyzer = get_tool(tool_name)
                 logs: list[str] = []
                 tctx = ToolContext(input=abs_path, workdir=out_dir, log=logs.append)
-                if tool_name in _HEAVY_TOOLS:  # bound concurrent heavy tools
-                    with _HEAVY_SEM:
+                try:
+                    if tool_name in _HEAVY_TOOLS:  # bound concurrent heavy tools
+                        with _HEAVY_SEM:
+                            result = analyzer.run(tctx)
+                    else:
                         result = analyzer.run(tctx)
-                else:
-                    result = analyzer.run(tctx)
+                except Exception as exc:  # one broken analyzer must not kill the job
+                    result = ToolResult(tool_name, status="error",
+                                        summary=f"{type(exc).__name__}: {exc}"[:500],
+                                        output=traceback.format_exc()[-8000:])
                 record(tool_name, result, logs)
                 for src in result.extracted:
                     child = _store_extracted(session, pid, node, Path(src), order, tool=tool_name)
                     order += 1
                     pending.append(child)
+                if result.consumed:
+                    break
 
             job.processed += 1
             proj.updated_at = _now()
@@ -452,21 +461,33 @@ def _run(pid: str, job: Job) -> None:
             _emit(pid, {"type": "progress", "processed": job.processed})
 
         rounds = 0
-        while True:
-            while pending:
-                if job.cancelled:
+        try:
+            while True:
+                while pending:
+                    if job.cancelled:
+                        break
+                    job.wait()
+                    if job.cancelled:
+                        break
+                    analyze(pending.pop(0))
+                if job.cancelled or proj.mode != "auto" or rounds >= 3:
                     break
-                job.wait()
-                if job.cancelled:
+                new_nodes = _auto_crack(session, pid, work, job)
+                if not new_nodes:
                     break
-                analyze(pending.pop(0))
-            if job.cancelled or proj.mode != "auto" or rounds >= 3:
-                break
-            new_nodes = _auto_crack(session, pid, work, job)
-            if not new_nodes:
-                break
-            pending.extend(new_nodes)
-            rounds += 1
+                pending.extend(new_nodes)
+                rounds += 1
+        except Exception:  # never leave a project spinning in "running"
+            _event(session, pid, "analysis failed: " + traceback.format_exc()[-800:], "error")
+            proj = session.get(Project, pid) or proj
+            proj.status = "error"
+            proj.updated_at = _now()
+            session.add(proj)
+            session.commit()
+            _emit(pid, {"type": "status", "status": "error"})
+            with _JOBS_LOCK:
+                JOBS.pop(pid, None)
+            return
 
         proj = session.get(Project, pid) or proj
         proj.status = "cancelled" if job.cancelled else "done"

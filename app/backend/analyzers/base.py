@@ -18,6 +18,7 @@ class ToolResult:
     needs_password: bool = False
     artifacts: list[dict] = field(default_factory=list)   # {name, path, size}
     extracted: list[str] = field(default_factory=list)    # new files (abs paths)
+    consumed: bool = False        # tool fully handled the input: skip remaining analyzers
 
     def as_dict(self, *, include_output: bool = True) -> dict:
         d = {

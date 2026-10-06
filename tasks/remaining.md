@@ -18,6 +18,18 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P15 core: `nested-archive` + job resiliente**: nuovo analyzer che apre in
+  **un solo passaggio** le catene di archivi annidati (*like1000*: 1000 tar con
+  un `filler.txt` per livello) seguendo il membro archivio più grande e
+  restituendo solo il file finale (che viene poi analizzato normalmente). Con
+  `ToolResult.consumed` l'orchestratore salta gli estrattori rimanenti sul nodo
+  → niente ricorsione profonda né tool pesanti per livello. **Bugfix di
+  robustezza** scoperto in E2E: un'eccezione in un analyzer (`ocr` su un PNG
+  troncato → `OSError: Truncated File Read`) uccideva il thread del job lasciando
+  il progetto bloccato in `running`; ora l'orchestratore cattura l'eccezione
+  (run `error`) **e** ha una rete di sicurezza che marca il job `error`, inoltre
+  `ocr_image` decodifica con guardia. Regressione **19/19** (nuovo caso
+  `nested-archive`), `pytest` **73**.
 - **P14 CI + falsi positivi + OCR canali + test**: CI reso verde — dipendenze
   backend **pinnate** alle versioni verificate nell'immagine e **`httpx`** in
   `requirements.txt` (il CI prendeva uno starlette nuovo che pretende `httpx2` e
@@ -118,8 +130,8 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 - **Robustezza**: tipo da `file` per il piano (estensione che mente), SQLite
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
-- **Test/Docs**: regressione **18/18**, reali **7/7**, `verify_flags` **ALL
-  CORRECT** (istanza per istanza), `pytest` **58**, `docs/CHALLENGES.md`.
+- **Test/Docs**: regressione **19/19**, reali **7/7**, `verify_flags` **ALL
+  CORRECT** (istanza per istanza), `pytest` **73**, `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
 
@@ -136,8 +148,11 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
    `sslkeylogfile` per decifrare; poi campi HTTP.
 4. [ ] **SSTV** (*m00nwalk*): serve un decoder (es. `qsstv`/`pysstv`); valutare
    dipendenza o decoder minimo in Python.
-5. [ ] **Fast-path archivi annidati** (*like1000*): con `MAX_DEPTH` alto è lento
-   (tool pesanti per livello) → loop tar/zip mirato senza ricreare N nodi.
+5. [x] **Fast-path archivi annidati** (*like1000*): analyzer `nested-archive`
+   segue in-process catene tar/zip/gz/bz2/xz ignorando i sidecar non-archivio
+   (`filler.txt`), in un solo run, e restituisce solo il payload finale come
+   figlio → niente più dipendenza da `MAX_DEPTH` né tool pesanti per livello.
+   Verificato su **like1000 reale** (1000 tar → `flag.png`).
 6. [ ] **rot13/url inline** nella flag hunt (oltre b64/hex già fatti).
 
 ### B. Sicurezza / Ops (P3)
@@ -173,6 +188,9 @@ Runner non committato (in `/tmp/opencode/hard_challenges.py`); esiti osservati:
 - [ ] **tunn3l v1s10n** (2021, `tunn3l_v1s10n`) → `image-repair` OK (1134×850);
   OCR canale R legge `picoCTF{quit3_a_v13w_2020}` (near-miss: tesseract 1→i).
   **Da riconfermare** dopo la fix bande e aggiornare docs.
+- [x] **like1000** (2019, `1000.tar`) → **PASS strutturale**: `nested-archive`
+  apre i 1000 tar in un colpo e raggiunge `flag.png` (1642×1095). L'OCR legge
+  `picoCTF{l0t5_0f_TAR5}` come `lOtS Of TAR5S` (near-miss `0/O`, `5/S`).
 - [ ] **c0rrupt** (2019, `mystery`) → FAIL (PNG repair OK, flag visiva non letta).
 - [ ] **Very very very Hidden** (2021, `try_me.pcap`) → FAIL (serve pcap+immagine).
 - [ ] Valutare correzione OCR `1↔i/l`, `0↔o`, `5↔s` **solo per prefissi noti**
@@ -180,9 +198,9 @@ Runner non committato (in `/tmp/opencode/hard_challenges.py`); esiti osservati:
 
 ## Gap challenge noti
 Vedi `docs/CHALLENGES.md` → "Altri casi provati": **c0rrupt** (PNG repair
-presente, flag visiva non OCR-abile), **like1000**, **MacroHard WeakEdge**,
+presente, flag visiva non OCR-abile), **MacroHard WeakEdge**,
 **Surfing the Waves** (WAV: mapping custom), **Very very very Hidden** (pcap+tool),
-**tunn3l v1s10n** (OCR 1→i sul near-flag).
+**tunn3l v1s10n** e **like1000** (risolte strutturalmente, resta il near-miss OCR).
 
 ## Limiti noti
 - Flag **visive** via OCR (buono, non perfetto; alcune immagini rumorose non
@@ -198,12 +216,12 @@ app/backend/main.py            # app factory + startup (reconcile + dedupe)
 app/backend/api/*.py           # router: system, projects, analysis, tools, cracking, ws
 app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
-app/backend/analyzers/*.py     # 38 tool (un file, auto-registered)
+app/backend/analyzers/*.py     # 39 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
-app/tests/ctf_regression.py    # 18/18 (incl. image-repair: BMP + dns-tunnel)
+app/tests/ctf_regression.py    # 19/19 (incl. image-repair: BMP, dns-tunnel, nested-archive)
 app/tests/real_challenges.py   # 7/7 picoCTF
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
-app/tests/*.py                 # unit pytest (58)
+app/tests/*.py                 # unit pytest (73)
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 .github/workflows/ci.yml       # CI
 compose.yaml                   # servizio stegsuite (19014)
