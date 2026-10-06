@@ -68,6 +68,7 @@ const en = {
   'home.name_placeholder': 'project name (optional)',
   'home.run': 'run',
   'home.running': 'running…',
+  'home.uploading': 'uploading {pct}%',
   'home.select_file': 'Select at least one file.',
   'home.redirect': 'analysis started, redirecting to the project…',
   'home.history': 'history',
@@ -163,6 +164,18 @@ const en = {
   'proj.log_runs': 'runs ({n})',
   'proj.no_events': 'No events yet.',
   'proj.copy_flag': 'Copy flag {v}',
+  'proj.copy_all_flags': 'copy all flags',
+  'proj.progress': '{done}/{total} files',
+  'proj.view_files': 'files',
+  'proj.view_detail': 'detail',
+  'proj.view_panel': 'panel',
+
+  // ---- toasts ----
+  'toast.copied': 'copied',
+  'toast.copied_flags': 'copied {n} flag(s)',
+  'toast.deleted': 'project deleted',
+  'toast.cleared': 'history cleared',
+  'toast.uploaded': 'uploaded {n} file(s)',
 
   // ---- report ----
   'report.title': 'report',
@@ -249,6 +262,7 @@ const it = {
   'home.name_placeholder': 'nome progetto (opzionale)',
   'home.run': 'run',
   'home.running': 'sto partendo…',
+  'home.uploading': 'carico {pct}%',
   'home.select_file': 'Seleziona almeno un file.',
   'home.redirect': 'analisi avviata, reindirizzo al progetto…',
   'home.history': 'history',
@@ -343,6 +357,17 @@ const it = {
   'proj.log_runs': 'run ({n})',
   'proj.no_events': 'Nessun evento (ancora).',
   'proj.copy_flag': 'Copia flag {v}',
+  'proj.copy_all_flags': 'copia tutte le flag',
+  'proj.progress': '{done}/{total} file',
+  'proj.view_files': 'file',
+  'proj.view_detail': 'dettaglio',
+  'proj.view_panel': 'pannello',
+
+  'toast.copied': 'copiato',
+  'toast.copied_flags': 'copiate {n} flag',
+  'toast.deleted': 'progetto eliminato',
+  'toast.cleared': 'history svuotata',
+  'toast.uploaded': 'caricati {n} file',
 
   'report.title': 'report',
   'report.copy': 'copia',

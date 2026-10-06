@@ -5,6 +5,7 @@ import { api, wsUrl, fmtSize, fmtDate, fmtTime, STATUS_COLOR } from '../api'
 import { toolLabel } from '../labels'
 import { t, tt, lang } from '../i18n'
 import { mdToHtml } from '../md'
+import { notify } from '../toast'
 import Terminal from '../components/Terminal.vue'
 import GraphView from '../components/GraphView.vue'
 import Icon from '../components/Icon.vue'
@@ -28,6 +29,21 @@ const previewErr = ref(false)
 const report = ref({ open: false, text: '', busy: false })
 const reportLang = ref('en')
 const err = ref('')
+const progress = ref({ processed: 0, total: 0 })
+const currentFile = ref('')
+const progressPct = computed(() => {
+  const total = progress.value.total || tree.value.length
+  return total ? Math.min(100, Math.round((progress.value.processed / total) * 100)) : 0
+})
+// responsive: below 900px we show one pane at a time (files/detail/panel)
+const narrow = ref(false)
+const mobilePane = ref('detail')
+const MOBILE_PANES = ['files', 'detail', 'panel']
+let mq = null
+function onMq() { if (mq) narrow.value = mq.matches }
+function mobileTabBtn(p) {
+  return mobilePane.value === p ? 'bg-acc text-[#06120b] font-bold' : 'text-dim hover:text-fglite'
+}
 function loadW(key, def) {
   try { const v = parseInt(localStorage.getItem('steg.pane.' + key) || '', 10); return isNaN(v) ? def : v } catch { return def }
 }
@@ -370,6 +386,12 @@ function connect() {
     if (m.type === 'ping') return
     log.value.push(m)
     if (log.value.length > 800) log.value.splice(0, 400)
+    if (m.total != null) progress.value.total = m.total
+    if (m.type === 'file') currentFile.value = m.name
+    if (m.type === 'progress') progress.value.processed = m.processed
+    if (m.type === 'crack' && m.status === 'found') {
+      notify(`🔑 ${m.password}${m.wordlist ? ` (via ${m.wordlist})` : ''}`, 'ok')
+    }
     if (['status', 'file', 'tool', 'crack'].includes(m.type)) scheduleRefresh()
   }
 }
@@ -378,18 +400,24 @@ function scheduleRefresh() {
   refreshTimer = setTimeout(() => { refreshTimer = null; load() }, 600)
 }
 async function action(kind) {
-  try { await api(`/projects/${props.id}/${kind}`, { method: 'POST' }) } catch (e) { err.value = String(e) }
+  try { await api(`/projects/${props.id}/${kind}`, { method: 'POST' }) }
+  catch (e) { err.value = String(e); notify(String(e), 'error') }
 }
 async function del() {
   if (!confirm(t('proj.del_confirm'))) return
-  await api(`/projects/${props.id}`, { method: 'DELETE' })
-  router.push('/')
+  try {
+    await api(`/projects/${props.id}`, { method: 'DELETE' })
+    notify(t('toast.deleted'), 'ok')
+    router.push('/')
+  } catch (e) { notify(String(e), 'error') }
 }
 async function crack(item, wl) {
-  await api(`/projects/${props.id}/crack`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ file_id: item.file_id, wordlists: wl ? [wl] : null }),
-  })
+  try {
+    await api(`/projects/${props.id}/crack`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: item.file_id, wordlists: wl ? [wl] : null }),
+    })
+  } catch (e) { notify(String(e), 'error') }
 }
 async function out(rid) {
   if (outputs.value[rid] != null) return outputs.value[rid]
@@ -630,6 +658,11 @@ async function copyText(text) {
     copied.value = text
     setTimeout(() => { if (copied.value === text) copied.value = '' }, 1500)
   } catch { /* clipboard unavailable */ }
+}
+async function copyAllFlags() {
+  if (!flags.value.length) return
+  await copyText(flags.value.map((f) => f.value).join('\n'))
+  notify(t('toast.copied_flags', { n: flags.value.length }), 'ok')
 }
 function downloadReport() {
   const blob = new Blob([report.value.text], { type: 'text/markdown' })
@@ -881,9 +914,22 @@ watch(reportLang, (l) => {
     .catch((e) => { report.value = { open: true, text: '⚠️ ' + String(e), busy: false } })
 })
 watch(rightTab, async () => { await nextTick(); window.dispatchEvent(new Event('resize')) })
-watch(() => props.id, () => { selected.value = null; outputs.value = {}; expanded.value = {}; log.value = []; logSeeded = false; load() })
-onMounted(() => { load(); connect() })
-onBeforeUnmount(() => { endDrag(); try { ws && ws.close() } catch {} })
+watch(() => props.id, () => {
+  selected.value = null; outputs.value = {}; expanded.value = {}; log.value = []; logSeeded = false
+  progress.value = { processed: 0, total: 0 }; currentFile.value = ''
+  load()
+})
+onMounted(() => {
+  mq = window.matchMedia('(max-width: 900px)')
+  narrow.value = mq.matches
+  mq.addEventListener('change', onMq)
+  load(); connect()
+})
+onBeforeUnmount(() => {
+  if (mq) mq.removeEventListener('change', onMq)
+  endDrag()
+  try { ws && ws.close() } catch {}
+})
 </script>
 
 <template>
@@ -909,11 +955,34 @@ onBeforeUnmount(() => { endDrag(); try { ws && ws.close() } catch {} })
         <button @click="del" class="kb kb-danger text-[10px]" :aria-label="t('proj.delete')"><Icon name="trash" :size="11" /></button>
       </div>
     </div>
+
+    <!-- per-file progress (live, from the WS progress events) -->
+    <div v-if="project && ['running','queued'].includes(project.status)"
+         class="flex items-center gap-2 border-b border-edge bg-panel2 px-3 py-1 text-[10px] text-dim">
+      <Icon name="cpu" :size="11" class="shrink-0 text-warn" />
+      <span class="shrink-0">{{ t('proj.progress', { done: progress.processed, total: progress.total || tree.length }) }}</span>
+      <div class="h-1.5 min-w-0 flex-1 overflow-hidden rounded bg-ink"
+           role="progressbar" :aria-valuenow="progressPct" aria-valuemin="0" aria-valuemax="100"
+           :aria-label="t('proj.progress', { done: progress.processed, total: progress.total || tree.length })">
+        <div class="h-1.5 rounded bg-warn transition-all" :style="{ width: Math.max(2, progressPct) + '%' }"></div>
+      </div>
+      <span class="shrink-0 text-warn">{{ progressPct }}%</span>
+      <span class="hidden min-w-0 max-w-[28ch] truncate sm:inline" :title="currentFile">{{ currentFile }}</span>
+    </div>
+
     <p v-if="err" class="border-b border-edge bg-danger/10 px-3 py-1 text-[11px] text-danger">[!] {{ err }}</p>
+
+    <!-- mobile: one pane at a time -->
+    <div v-if="narrow" class="flex items-center gap-1 border-b border-edge bg-panel px-2 py-1 text-[11px]">
+      <button v-for="p in MOBILE_PANES" :key="p" type="button" @click="mobilePane = p"
+              class="rounded px-2.5 py-0.5" :class="mobileTabBtn(p)" :aria-pressed="mobilePane === p">{{ t('proj.view_' + p) }}</button>
+    </div>
 
     <div ref="gridRef" class="flex min-h-0 flex-1 overflow-hidden">
       <!-- files (left) -->
-      <aside class="flex min-h-0 shrink-0 flex-col bg-panel" :style="{ width: leftW + 'px' }">
+      <aside class="flex min-h-0 flex-col bg-panel"
+             :class="narrow ? (mobilePane === 'files' ? 'flex-1' : 'hidden') : 'shrink-0'"
+             :style="narrow ? {} : { width: leftW + 'px' }">
         <div class="flex items-center gap-2 border-b border-edge bg-panel2 px-2 py-1.5 text-[10px] uppercase tracking-widest text-dim">
           <Icon name="folder" :size="12" /> files <span class="normal-case text-acc">({{ tree.length }})</span>
           <input v-model="search" type="search" :placeholder="t('proj.filter_placeholder')" :aria-label="t('proj.filter_placeholder')"
@@ -946,12 +1015,12 @@ onBeforeUnmount(() => { endDrag(); try { ws && ws.close() } catch {} })
           </div>
         </div>
       </aside>
-      <div class="sep sep-v" role="separator" aria-orientation="vertical" tabindex="0" :aria-label="t('proj.resize_files')"
+      <div v-if="!narrow" class="sep sep-v" role="separator" aria-orientation="vertical" tabindex="0" :aria-label="t('proj.resize_files')"
            @pointerdown="startDrag('left', $event)"
            @keydown.left.prevent="nudge('left', -16)" @keydown.right.prevent="nudge('left', 16)"></div>
 
       <!-- detail (center) -->
-      <main class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <main class="flex min-h-0 min-w-0 flex-1 flex-col" :class="narrow && mobilePane !== 'detail' ? 'hidden' : ''">
         <div class="flex items-center gap-1 border-b border-edge bg-panel2 px-2 py-1.5 text-[11px]">
           <button v-for="tb in ['overview','extracted','preview']" :key="tb" @click="tab = tb"
                   class="rounded px-2.5 py-0.5" :class="tabBtn(tb)">
@@ -1022,12 +1091,14 @@ onBeforeUnmount(() => { endDrag(); try { ws && ws.close() } catch {} })
           </template>
         </div>
       </main>
-      <div class="sep sep-v" role="separator" aria-orientation="vertical" tabindex="0" :aria-label="t('proj.resize_panel')"
+      <div v-if="!narrow" class="sep sep-v" role="separator" aria-orientation="vertical" tabindex="0" :aria-label="t('proj.resize_panel')"
            @pointerdown="startDrag('right', $event)"
            @keydown.left.prevent="nudge('right', -16)" @keydown.right.prevent="nudge('right', 16)"></div>
 
       <!-- findings / terminal / logs (right) -->
-      <aside class="flex min-h-0 shrink-0 flex-col border-l border-edge bg-panel" :style="{ width: rightW + 'px' }">
+      <aside class="flex min-h-0 flex-col border-l border-edge bg-panel"
+             :class="narrow ? (mobilePane === 'panel' ? 'flex-1' : 'hidden') : 'shrink-0'"
+             :style="narrow ? {} : { width: rightW + 'px' }">
         <div class="flex items-center gap-1 border-b border-edge bg-panel2 px-2 py-1.5 text-[11px]">
           <button type="button" @click="rightTab = 'findings'" class="rounded px-2.5 py-0.5" :class="rightTabBtn('findings')">
             {{ t('proj.tab_findings') }}
@@ -1051,6 +1122,9 @@ onBeforeUnmount(() => { endDrag(); try { ws && ws.close() } catch {} })
           <template v-if="flags.length">
             <div class="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-acc">
               <Icon name="flag" :size="12" /> {{ t('proj.flags_found', { n: flags.length }) }}
+              <button type="button" @click="copyAllFlags"
+                      class="ml-auto rounded border border-edge px-1.5 py-0.5 font-normal normal-case tracking-normal text-dim hover:border-acc hover:text-acc"
+                      :aria-label="t('proj.copy_all_flags')"><Icon name="copy" :size="10" /> {{ t('proj.copy_all_flags') }}</button>
             </div>
             <div v-for="c in flagCards" :key="c.f.id" class="mb-2 rounded border border-acc/40 bg-acc/5 p-2">
               <div class="flex items-start gap-1">
@@ -1225,8 +1299,8 @@ onBeforeUnmount(() => { endDrag(); try { ws && ws.close() } catch {} })
     </div>
 
     <!-- report modal -->
-    <div v-if="report.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" @click.self="report.open = false">
-      <div class="flex max-h-[88vh] w-[980px] flex-col rounded border border-edge bg-panel">
+    <div v-if="report.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6" @click.self="report.open = false">
+      <div class="flex max-h-[88vh] w-[min(980px,calc(100vw-1.5rem))] flex-col rounded border border-edge bg-panel">
         <div class="flex items-center gap-2 border-b border-edge bg-panel2 px-4 py-2 text-xs">
           <Icon name="report" :size="14" class="text-acc" /><b>{{ t('report.title') }}</b><span v-if="report.busy" class="animate-blink text-acc">▋</span>
           <label class="flex items-center gap-1.5 text-[10px] text-dim">
@@ -1245,8 +1319,8 @@ onBeforeUnmount(() => { endDrag(); try { ws && ws.close() } catch {} })
     </div>
 
     <!-- transcript modal (copy/paste into an AI agent) -->
-    <div v-if="transcript.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" @click.self="transcript.open = false">
-      <div class="flex max-h-[88vh] w-[900px] flex-col rounded border border-edge bg-panel">
+    <div v-if="transcript.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6" @click.self="transcript.open = false">
+      <div class="flex max-h-[88vh] w-[min(900px,calc(100vw-1.5rem))] flex-col rounded border border-edge bg-panel">
         <div class="flex items-center gap-2 border-b border-edge bg-panel2 px-4 py-2 text-xs">
           <Icon name="copy" :size="14" class="text-acc" /><b>{{ t('proj.transcript') }}</b><span v-if="transcript.busy" class="animate-blink text-acc">▋</span>
           <button @click="copyTranscript" class="kb ml-auto text-[10px]"><Icon name="copy" :size="11" />{{ t('report.copy') }}</button>

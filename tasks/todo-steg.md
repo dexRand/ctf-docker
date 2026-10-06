@@ -90,6 +90,8 @@
 - [x] T7.4 Log live + pannello cracking (scelta wordlist)
 - [x] T7.5 Terminale xterm.js + Elimina
 - [x] T7.6 History (lista progetti + apertura/eliminazione)
+- [x] T7.7 Progress bar per-file (evento `total`) + toast + upload con progress
+      + copia-tutte-le-flag + layout responsive/mobile (un pannello per vista)
 - [x] Build multi-stage nell'immagine (Node → dist servita da FastAPI)
 ### Checkpoint E ✅
 - [x] Flusso completo da browser (SPA servita, 29 tool, St3g0 risolta)

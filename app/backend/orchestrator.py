@@ -388,7 +388,8 @@ def _run(pid: str, job: Job) -> None:
                 processed.add(node.sha256)
 
             _emit(pid, {"type": "file", "file_id": node.id, "name": node.name,
-                        "depth": node.depth, "size": node.size})
+                        "depth": node.depth, "size": node.size,
+                        "total": job.processed + 1 + len(pending)})
             abs_path = work / node.rel_path
             if not abs_path.is_file():
                 return
@@ -493,7 +494,8 @@ def _run(pid: str, job: Job) -> None:
             proj.updated_at = _now()
             session.add(proj)
             session.commit()
-            _emit(pid, {"type": "progress", "processed": job.processed})
+            _emit(pid, {"type": "progress", "processed": job.processed,
+                        "total": job.processed + len(pending)})
 
         rounds = 0
         try:

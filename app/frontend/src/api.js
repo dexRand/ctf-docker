@@ -14,6 +14,27 @@ export async function api(path, opts = {}) {
   return ct.includes('application/json') ? r.json() : r.text()
 }
 
+// Like api() but through XHR so the browser reports upload progress (used for
+// the project upload: a challenge can be hundreds of MB).
+export function uploadFile(path, formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', BASE + path)
+    const key = apiKey()
+    if (key) xhr.setRequestHeader('x-api-key', key)
+    if (xhr.upload && onProgress) {
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total) }
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)) } catch { resolve(xhr.responseText) }
+      } else { reject(new Error(`${xhr.status} ${xhr.responseText}`)) }
+    }
+    xhr.onerror = () => reject(new Error('upload failed (network)'))
+    xhr.send(formData)
+  })
+}
+
 export function wsUrl(path) {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
   const key = apiKey()

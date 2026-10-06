@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, fmtDate, STATUS_COLOR } from '../api'
+import { api, uploadFile, fmtDate, STATUS_COLOR } from '../api'
+import { notify } from '../toast'
 import { t } from '../i18n'
 import Icon from '../components/Icon.vue'
 
@@ -11,6 +12,7 @@ const files = ref([])
 const name = ref('')
 const mode = ref('check')
 const busy = ref(false)
+const uploadPct = ref(0)
 const drag = ref(false)
 const projects = ref([])
 const err = ref('')
@@ -124,8 +126,8 @@ function onPick(e) { files.value = Array.from(e.target.files || []) }
 const totalBytes = computed(() => files.value.reduce((s, f) => s + f.size, 0))
 
 async function start() {
-  if (!files.value.length) { err.value = t('home.select_file'); return }
-  busy.value = true; err.value = ''
+  if (!files.value.length) { err.value = t('home.select_file'); notify(t('home.select_file'), 'error'); return }
+  busy.value = true; err.value = ''; uploadPct.value = 0
   const cmd = `stegsuite --${mode.value} ${files.value.map((f) => f.name).join(' ')}`
   echo.value = `$ ${cmd}`
   try {
@@ -133,11 +135,13 @@ async function start() {
     fd.append('mode', mode.value)
     if (name.value) fd.append('name', name.value)
     for (const f of files.value) fd.append('files', f)
-    const p = await api('/projects', { method: 'POST', body: fd })
+    const p = await uploadFile('/projects', fd, (pct) => { uploadPct.value = pct })
+    uploadPct.value = 1
     await api(`/projects/${p.id}/start`, { method: 'POST' })
     echo.value += `\n$ ... ${t('home.redirect')}`
+    notify(t('toast.uploaded', { n: files.value.length }), 'ok')
     router.push(`/p/${p.id}`)
-  } catch (e) { err.value = String(e) } finally { busy.value = false }
+  } catch (e) { err.value = String(e); notify(String(e), 'error') } finally { busy.value = false; uploadPct.value = 0 }
 }
 
 function fmtKb(n) {
@@ -149,8 +153,11 @@ function fmtKb(n) {
 async function del(id, e) {
   e.stopPropagation()
   if (!confirm(t('home.del_confirm'))) return
-  await api(`/projects/${id}`, { method: 'DELETE' })
-  load()
+  try {
+    await api(`/projects/${id}`, { method: 'DELETE' })
+    notify(t('toast.deleted'), 'ok')
+    load()
+  } catch (err2) { notify(String(err2), 'error') }
 }
 
 async function clearAll() {
@@ -158,15 +165,15 @@ async function clearAll() {
   if (!confirm(t('home.clear_confirm_1', { n: projects.value.length }))) return
   if (!confirm(t('home.clear_confirm_2'))) return
   clearing.value = true
-  try { await api('/projects', { method: 'DELETE' }); await load() }
-  catch (e) { err.value = String(e) } finally { clearing.value = false }
+  try { await api('/projects', { method: 'DELETE' }); notify(t('toast.cleared'), 'ok'); await load() }
+  catch (e) { err.value = String(e); notify(String(e), 'error') } finally { clearing.value = false }
 }
 
 function open(id) { router.push(`/p/${id}`) }
 </script>
 
 <template>
-  <div class="mx-auto max-w-5xl p-6 font-mono">
+  <div class="mx-auto max-w-5xl p-4 font-mono sm:p-6">
     <!-- hero / command console -->
     <section class="animate-fadeUp rounded border border-edge bg-panel shadow">
       <div class="flex items-center gap-2 border-b border-edge bg-panel2 px-3 py-1.5 text-[11px] text-dim">
@@ -208,6 +215,18 @@ function open(id) { router.push(`/p/${id}`) }
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- upload progress -->
+        <div v-if="busy" class="mt-3" role="progressbar" :aria-valuenow="Math.round(uploadPct * 100)"
+             aria-valuemin="0" aria-valuemax="100" :aria-label="t('home.uploading', { pct: Math.round(uploadPct * 100) })">
+          <div class="flex items-center justify-between text-[10px] text-dim">
+            <span>{{ t('home.uploading', { pct: Math.round(uploadPct * 100) }) }}</span>
+            <span class="text-acc">{{ Math.round(uploadPct * 100) }}%</span>
+          </div>
+          <div class="mt-1 h-1.5 overflow-hidden rounded bg-ink">
+            <div class="h-1.5 rounded bg-acc transition-all" :style="{ width: Math.max(2, Math.round(uploadPct * 100)) + '%' }"></div>
+          </div>
         </div>
 
         <!-- modes + name + run -->

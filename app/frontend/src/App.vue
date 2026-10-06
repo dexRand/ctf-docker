@@ -1,11 +1,12 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
 import { LANGUAGES, lang, setLang, t } from './i18n'
+import Toasts from './components/Toasts.vue'
 </script>
 
 <template>
   <div class="flex h-dvh flex-col bg-ink text-fg">
-    <header class="flex items-center gap-3 border-b border-edge bg-panel px-4 py-2 text-xs">
+    <header class="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-edge bg-panel px-3 py-2 text-xs sm:px-4">
       <RouterLink to="/" class="flex items-center gap-2">
         <span class="grid h-6 w-7 place-items-center rounded border border-acc/70 bg-acc/10 font-bold text-acc" aria-hidden="true">$_</span>
         <span class="text-sm font-bold tracking-tight text-acc">stegsuite</span>
@@ -27,7 +28,8 @@ import { LANGUAGES, lang, setLang, t } from './i18n'
     <main class="min-h-0 flex-1 overflow-y-auto">
       <RouterView />
     </main>
-    <footer class="flex items-center gap-4 border-t border-edge bg-panel px-4 py-1 text-[10px] text-dim">
+    <Toasts />
+    <footer class="flex flex-wrap items-center gap-x-4 gap-y-0.5 border-t border-edge bg-panel px-3 py-1 text-[10px] text-dim sm:px-4">
       <span><span class="text-acc">●</span> {{ t('app.coreOnline') }}</span>
       <span class="hidden sm:inline">steghide · zsteg · outguess · jsteg · openstego · binwalk · tshark · OCR · crack</span>
       <span class="ml-auto">:19014</span>

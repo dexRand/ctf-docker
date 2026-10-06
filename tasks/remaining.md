@@ -18,6 +18,15 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P19 GUI: progress + toast + upload + copy-all + responsive**: l'orchestratore
+  emette `total` negli eventi `file`/`progress`, così la vista progetto mostra
+  una **barra di progresso** live (file corrente + percentuale). Nuovo store
+  **toast** globale (`toast.js` + `components/Toasts.vue`) per errori e successi
+  (crack trovato, copie, delete, svuota history). **Upload con progress** via XHR
+  (`api.uploadFile`). Bottone **copia tutte le flag** nel pannello findings +
+  export report `.md` (già presente). **Layout mobile**: sotto i 900px la vista
+  progetto mostra un pannello alla volta (files/detail/panel) con selettore;
+  separatori nascosti, modali `min(…, 100vw-…)`, header/footer che vanno a capo.
 - **P18 ops: Alembic + retention**: le migrazioni dello schema ora sono gestite
   da **Alembic** (`app/backend/migrations/`: revisione `0001` baseline
   autogenerata + `0002` `finding.context`). `init_db()` esegue `upgrade head` e
@@ -199,11 +208,17 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 9. [x] **Retention** opzionale: `RETENTION_DAYS` (0 = mai) elimina i progetti
    più vecchi all'avvio, DB + filesystem (`backend/retention.py`).
 
-### C. GUI (rifiniture P1 residue)
-10. [ ] **Barra di progresso** per file (evento `progress` già emesso) e
-    **toast**/errori; upload con progress.
-11. [ ] Copia **tutte** le flag / export report `.md` (il per-file c'è già).
-12. [ ] Layout responsive/mobile.
+### C. GUI (rifiniture P1 residue) — ✅ completata
+10. [x] **Barra di progresso** per file: l'orchestratore emette `total` (oltre a
+    `processed`) negli eventi `file`/`progress`; la vista progetto mostra una
+    barra live (file corrente + %). **Toast** globali (`toast.js` +
+    `components/Toasts.vue`) per errori/successi (crack, copie, delete).
+    **Upload con progress** via XHR (`api.uploadFile`).
+11. [x] **Copia tutte le flag** (bottone nel pannello findings) + export report
+    `.md` (già presente, per-file e progettuale).
+12. [x] **Layout responsive/mobile**: sotto i 900px la vista progetto mostra un
+    pannello alla volta (files/detail/panel) con selettore; separatori nascosti,
+    modali e header adattati a 320px.
 
 ### D. Test & qualita (P0 residuo)
 13. [ ] Ampliare `pytest`: analyzer, orchestrator, API con **TestClient**.
@@ -261,6 +276,8 @@ app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
 app/backend/analyzers/*.py     # 40 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
+app/frontend/src/toast.js      # store toast globale
+app/frontend/src/components/Toasts.vue  # rendering toast
 app/tests/ctf_regression.py    # 20/20 (incl. image-repair: BMP, dns-tunnel, nested-archive, sstv)
 app/tests/real_challenges.py   # 9/9 picoCTF (incl. WebNet0/1: pcap+TLS key)
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)

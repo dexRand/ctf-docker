@@ -207,8 +207,9 @@ http://localhost:19014 (localhost only).
   `wav-lsb`, `morse`, `morse-text`, `dtmf`, `sstv` (Scottie S1/S2).
 - **GUI**: terminal-themed, defaults to **English** with an any-time **EN/IT**
   switch (choice persisted), file tree, per-tool output, extracted children,
-  image/audio previews, live log over WebSocket, embedded **terminal**
-  (xterm.js), and a Markdown **report** with its own language selector.
+  image/audio previews, live per-file **progress**, **toasts**, live log over
+  WebSocket, embedded **terminal** (xterm.js), a Markdown **report** with its
+  own language selector, and a **responsive** one-pane-per-view layout on mobile.
 - **Flag hunt + cracking**: ZIP (incl. AES via hashcat), steghide, PDF.
 - **Ops/security**: schema migrations via **Alembic**, opt-in per-IP **rate
   limiting** (`RATE_LIMIT_RPM`) and project **retention** (`RETENTION_DAYS`),
