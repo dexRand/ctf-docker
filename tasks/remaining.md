@@ -18,6 +18,17 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P14 CI + falsi positivi + OCR canali + test**: CI reso verde — dipendenze
+  backend **pinnate** alle versioni verificate nell'immagine e **`httpx`** in
+  `requirements.txt` (il CI prendeva uno starlette nuovo che pretende `httpx2` e
+  non installava il client HTTP per `TestClient`). Nuovo `test_crack_locked.py`
+  (locked/crack 409/`record_crack_run`/`mark_unlocked`/timestamp) e
+  `test_api_tools` robusto se il binario `strings` manca. Il pattern generico
+  `<word>{...}` è **saltato su sorgenti rumorose** (`strings`/hex/pcap): niente
+  più flag spazzatura (`MxeV{...}`, `9K{...}`). **OCR per canale/banda**:
+  se la passata grayscale non trova flag note, prova R/G/B su banda alta/bassa
+  (bounded, 6 chiamate) per testo a basso contrasto (tunn3l: canale R legge
+  `picoCTF{quit3_a_v13w_2020}`).
 - **P13 GUI: transcript XML (context-engineering) + full logs**: il **transcript**
   segue le linee guida Anthropic (*effective context engineering* / prompting):
   **tutto in `<transcript>`** con tag XML (`<challenge>`, `<findings>`,
@@ -155,10 +166,23 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
     e salvataggio persistente per item.
 20. [ ] `bkcrack` (ZipCrypto known-plaintext); rules/mask + budget CPU.
 
+### G. Challenge difficili (verifica con soluzione) — IN CORSO
+Runner non committato (in `/tmp/opencode/hard_challenges.py`); esiti osservati:
+- [x] **St3g0** (2022, `pico.flag.png`) → **PASS** `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}`.
+  → da aggiungere a `CASES` di `app/tests/real_challenges.py` (B22) e a `docs/CHALLENGES.md`.
+- [ ] **tunn3l v1s10n** (2021, `tunn3l_v1s10n`) → `image-repair` OK (1134×850);
+  OCR canale R legge `picoCTF{quit3_a_v13w_2020}` (near-miss: tesseract 1→i).
+  **Da riconfermare** dopo la fix bande e aggiornare docs.
+- [ ] **c0rrupt** (2019, `mystery`) → FAIL (PNG repair OK, flag visiva non letta).
+- [ ] **Very very very Hidden** (2021, `try_me.pcap`) → FAIL (serve pcap+immagine).
+- [ ] Valutare correzione OCR `1↔i/l`, `0↔o`, `5↔s` **solo per prefissi noti**
+  (rischiosa: può corrompere flag reali con lettere) o accettarla come limite.
+
 ## Gap challenge noti
 Vedi `docs/CHALLENGES.md` → "Altri casi provati": **c0rrupt** (PNG repair
 presente, flag visiva non OCR-abile), **like1000**, **MacroHard WeakEdge**,
-**Surfing the Waves** (WAV: mapping custom), **Very very very Hidden** (pcap+tool).
+**Surfing the Waves** (WAV: mapping custom), **Very very very Hidden** (pcap+tool),
+**tunn3l v1s10n** (OCR 1→i sul near-flag).
 
 ## Limiti noti
 - Flag **visive** via OCR (buono, non perfetto; alcune immagini rumorose non
