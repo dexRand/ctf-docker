@@ -138,6 +138,7 @@ script, quindi il test verifica che l'analizzatore le ritrovi).
 | image-repair | BMP con header corrotto, riparato | `ITS{repair_17}` |
 | dns-tunnel | base32 nei label DNS di un pcap | `ITS{dns_tunnel_18}` |
 | nested-archive | 30 tar annidati (stile *like1000*) + `filler.txt` | `ITS{nested_archive_19}` |
+| sstv | trasmissione SSTV Scottie S1 di un frame con la flag | `ITS{sstv20}` |
 
 ## Come verificare
 
@@ -149,7 +150,7 @@ docker compose up -d stegsuite
 docker cp app/tests/ctf_regression.py ctf-stegsuite-1:/tmp/ctf_regression.py
 docker cp app/tests/fixtures ctf-stegsuite-1:/tmp/fixtures
 docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
-  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 19/19
+  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 20/20
 
 # challenge reali (host: scaricano i file da sole)
 python3 app/tests/real_challenges.py                        # → 7/7
@@ -186,6 +187,7 @@ del tutto. Restano qui come riferimento e come TODO per nuovi analyzer.
 | MacroHard WeakEdge | 2021 | `picoCTF{D1d_u_kn0w_ppts_r_z1p5}` | base64 multi-step nel `pptm` |
 | Surfing the Waves | 2021 | `picoCTF{mU21C_1s_1337_115155af}` | decodifica custom dei campioni WAV |
 | Very very very Hidden | 2021 | `picoCTF{n1c3_job_f1nd1ng_th3_s3cr3t_in_the_im@g3}` | pcap + tool dedicato |
+| m00nwalk | 2019 | `picoCTF{beep_boop_im_in_space}` | **decodificata** da `sstv` (Scottie S1, frame verificato contro QSSTV); il testo è trasmesso capovolto in un frame 320×256 rumoroso → OCR near-miss |
 
 ## Aggiungere una challenge
 

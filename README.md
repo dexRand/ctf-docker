@@ -195,15 +195,16 @@ http://localhost:19014 (localhost only).
 
 - **Auto / Check** modes: Auto runs everything and tries every wordlist; Check
   first scans, then lets you choose what to attack.
-- **Recursive, ordered** analysis over **38 tools**: `file`, `exiftool`,
+- **Recursive, ordered** analysis over **40 tools**: `file`, `exiftool`,
   `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
-  `7z`, `pngcheck`, `png-repair`, `image-repair` (JPEG/BMP header/height),
+  `nested-archive` (deep archive chains), `7z`, `pngcheck`, `png-repair`,
+  `image-repair` (JPEG/BMP header/height),
   `qr` (zbarimg), `pcap` (tshark), `zsteg`,
   `steghide`, `outguess`, `jsteg`, `png-chunks`, `openstego`, `bit-planes`,
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff + delay
   decode + per-frame OCR), `ocr` (tesseract), `spectrogram`, `waveform`,
-  `wav-lsb`, `morse`, `morse-text`, `dtmf`.
+  `wav-lsb`, `morse`, `morse-text`, `dtmf`, `sstv` (Scottie S1/S2).
 - **GUI**: terminal-themed, defaults to **English** with an any-time **EN/IT**
   switch (choice persisted), file tree, per-tool output, extracted children,
   image/audio previews, live log over WebSocket, embedded **terminal**

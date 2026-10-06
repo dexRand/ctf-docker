@@ -96,14 +96,14 @@ DEFAULT_PLAN = [
     "ocr", "qr",
     "zsteg", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
-    "morse", "dtmf", "spectrogram", "waveform", "wav-lsb",
+    "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "sstv",
     "pcap",
     "nested-archive", "7z", "binwalk-extract", "foremost", "pngcheck",
     "png-repair", "image-repair",
 ]
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}
 # cap how many heavy tools run at once across all projects (CPU bound)
-_HEAVY_TOOLS = set(HEAVY_EXTRACT) | {"7z", "steghide", "outguess", "jsteg", "openstego"}
+_HEAVY_TOOLS = set(HEAVY_EXTRACT) | {"7z", "steghide", "outguess", "jsteg", "openstego", "sstv"}
 _HEAVY_SEM = threading.Semaphore(max(1, int(os.environ.get("HEAVY_TOOLS", "1"))))
 ARCHIVE_EXT = (".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz", ".tgz")
 

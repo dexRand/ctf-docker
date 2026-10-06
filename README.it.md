@@ -192,15 +192,16 @@ http://localhost:19014 (solo localhost).
 
 - Modalità **Auto / Check**: Auto fa tutto e prova tutte le wordlist; Check
   scansiona e poi ti fa scegliere cosa attaccare.
-- Analisi **ricorsiva e ordinata** su **38 tool**: `file`, `exiftool`,
+- Analisi **ricorsiva e ordinata** su **40 tool**: `file`, `exiftool`,
   `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
-  `7z`, `pngcheck`, `png-repair`, `image-repair` (JPEG/BMP header/altezza),
+  `nested-archive` (catene di archivi annidati), `7z`, `pngcheck`, `png-repair`,
+  `image-repair` (JPEG/BMP header/altezza),
   `qr`, `pcap`, `zsteg`, `steghide`,
   `outguess`, `jsteg`, `png-chunks`, `openstego`, `bit-planes`,
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff +
   decodifica delay + OCR per frame), `ocr` (tesseract), `morse`,
-  `morse-text`, `dtmf`, `spectrogram`, `waveform`, `wav-lsb`.
+  `morse-text`, `dtmf`, `spectrogram`, `waveform`, `wav-lsb`, `sstv` (Scottie S1/S2).
 - **GUI**: tema terminale, **inglese di default** con switch **EN/IT** in
   qualsiasi momento (scelta memorizzata), albero file, output per tool, figli
   estratti, anteprime immagini/audio, log live via WebSocket, **terminale**

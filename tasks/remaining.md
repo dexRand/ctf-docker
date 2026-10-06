@@ -18,6 +18,16 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P16 analyzer: decoder SSTV (`sstv`)**: nuovo analyzer audio che demodula una
+  trasmissione **SSTV** senza dipendenze esterne (band-pass + Hilbert →
+  frequenza istantanea → sync pulse 1200 Hz → riconoscimento **modo dallo
+  spacing** dei sync → ricostruzione RGB). Supporta **Scottie S1/S2**; il
+  `message.wav` reale di *m00nwalk* decodifica un frame 320×256 identico a
+  quello di QSSTV (verificato). Il frame è salvato come artefatto e OCR-ato
+  dritto e capovolto (le immagini SSTV arrivano spesso ruotate). Regressione
+  **20/20** (nuovo caso `sstv` con encoder Scottie S1 sintetico), `pytest` **77**.
+  Limite noto: il testo di m00nwalk è capovolto e il frame 320×256 rumoroso →
+  OCR near-miss (documentato in `docs/CHALLENGES.md`).
 - **P15 core: `nested-archive` + job resiliente**: nuovo analyzer che apre in
   **un solo passaggio** le catene di archivi annidati (*like1000*: 1000 tar con
   un `filler.txt` per livello) seguendo il membro archivio più grande e
@@ -130,8 +140,8 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 - **Robustezza**: tipo da `file` per il piano (estensione che mente), SQLite
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
-- **Test/Docs**: regressione **19/19**, reali **7/7**, `verify_flags` **ALL
-  CORRECT** (istanza per istanza), `pytest` **73**, `docs/CHALLENGES.md`.
+- **Test/Docs**: regressione **20/20**, reali **7/7**, `verify_flags` **ALL
+  CORRECT** (istanza per istanza), `pytest` **77**, `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
 
@@ -146,8 +156,10 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
   Unit (7) + regressione E2E #18 (pcap DNS sintetico).
 3. [ ] **TLS/pcap con chiave** (*WebNet*): `tshark -o tls.keylog_file=...` o
    `sslkeylogfile` per decifrare; poi campi HTTP.
-4. [ ] **SSTV** (*m00nwalk*): serve un decoder (es. `qsstv`/`pysstv`); valutare
-   dipendenza o decoder minimo in Python.
+4. [x] **SSTV** (*m00nwalk*): analyzer `sstv` senza dipendenze esterne — demod
+   FM (band-pass + Hilbert) → sync pulse → riconoscimento modo dallo spacing →
+   ricostruzione RGB. Supporta **Scottie S1/S2**, verificato sul `message.wav`
+   reale (frame identico a QSSTV); OCR testo capovolto/rumoroso = limite noto.
 5. [x] **Fast-path archivi annidati** (*like1000*): analyzer `nested-archive`
    segue in-process catene tar/zip/gz/bz2/xz ignorando i sidecar non-archivio
    (`filler.txt`), in un solo run, e restituisce solo il payload finale come
@@ -191,6 +203,8 @@ Runner non committato (in `/tmp/opencode/hard_challenges.py`); esiti osservati:
 - [x] **like1000** (2019, `1000.tar`) → **PASS strutturale**: `nested-archive`
   apre i 1000 tar in un colpo e raggiunge `flag.png` (1642×1095). L'OCR legge
   `picoCTF{l0t5_0f_TAR5}` come `lOtS Of TAR5S` (near-miss `0/O`, `5/S`).
+- [x] **m00nwalk** (2019, `message.wav`) → **decodifica OK** (`sstv`, Scottie S1,
+  frame identico a QSSTV); OCR near-miss: testo capovolto in un frame rumoroso.
 - [ ] **c0rrupt** (2019, `mystery`) → FAIL (PNG repair OK, flag visiva non letta).
 - [ ] **Very very very Hidden** (2021, `try_me.pcap`) → FAIL (serve pcap+immagine).
 - [ ] Valutare correzione OCR `1↔i/l`, `0↔o`, `5↔s` **solo per prefissi noti**
@@ -216,12 +230,12 @@ app/backend/main.py            # app factory + startup (reconcile + dedupe)
 app/backend/api/*.py           # router: system, projects, analysis, tools, cracking, ws
 app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
-app/backend/analyzers/*.py     # 39 tool (un file, auto-registered)
+app/backend/analyzers/*.py     # 40 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
-app/tests/ctf_regression.py    # 19/19 (incl. image-repair: BMP, dns-tunnel, nested-archive)
+app/tests/ctf_regression.py    # 20/20 (incl. image-repair: BMP, dns-tunnel, nested-archive, sstv)
 app/tests/real_challenges.py   # 7/7 picoCTF
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
-app/tests/*.py                 # unit pytest (73)
+app/tests/*.py                 # unit pytest (77)
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 .github/workflows/ci.yml       # CI
 compose.yaml                   # servizio stegsuite (19014)

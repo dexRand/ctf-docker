@@ -61,6 +61,8 @@
 - [x] Test vision: GIF con flag in un frame → trovata via OCR (`gif-frames`)
 - [x] `nested-archive`: catene di archivi annidati (*like1000*, 1000 tar) aperte
       in un solo passaggio, ignorando i `filler.txt`, fino al payload finale
+- [x] `sstv`: decoder SSTV in Python (band-pass + Hilbert + sync + modo da
+      spacing), Scottie S1/S2; *m00nwalk* decodificata (frame = QSSTV), OCR near-miss
 
 ## Copertura challenge italiane (ITSCyberGame / Olicyber / StarHackademin) ✅
 - [x] `png-chunks`: dump tEXt/iTXt/zTXt/eXIf + dati dopo IEND (IsThatA)

@@ -295,6 +295,43 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     p.write_bytes(cur)
     cases.append(("nested-archive", p, "ITS{nested_archive_19}"))
 
+    # 20) SSTV (Scottie S1) transmission with a visible flag -> sstv decoder + OCR
+    import numpy as _np
+    from PIL import Image as _Image, ImageDraw as _ImageDraw, ImageFont as _ImageFont
+    SW, SF = 320, 48000
+    _sim = _Image.new("L", (SW, 256), 0)
+    try:
+        _font = _ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 30)
+    except OSError:
+        _font = None
+    _ImageDraw.Draw(_sim).text((8, 110), "ITS{sstv20}", fill=255, font=_font)
+    _sarr = _np.array(_sim)
+    _SEP, _SYNC, _PORCH, _SCAN = 1.5, 9.0, 1.5, 138.240
+
+    def _tone(fr: float, ms: float):
+        return _np.full(int(round(ms / 1000 * SF)), fr, dtype=_np.float64)
+
+    def _scan(vals):
+        n = _np.round((_np.arange(1, SW + 1)) * _SCAN / SW / 1000 * SF) - \
+            _np.round(_np.arange(SW) * _SCAN / SW / 1000 * SF)
+        return _np.repeat(1500 + vals / 255 * 800, n.astype(int))
+
+    _parts = [_tone(1200, _SYNC)]
+    for _y in range(256):
+        _parts += [_tone(1500, _SEP), _scan(_sarr[_y]),
+                   _tone(1500, _SEP), _scan(_sarr[_y]),
+                   _tone(1200, _SYNC), _tone(1500, _PORCH), _scan(_sarr[_y])]
+    _audio = _np.sin(_np.cumsum(2 * _np.pi * _np.concatenate(_parts) / SF))
+    import wave as _wave2
+    p = TMP / "sstv.wav"
+    with _wave2.open(str(p), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SF)
+        w.writeframes((_audio * 32767).astype("<i2").tobytes())
+    cases.append(("sstv", p, "ITS{sstv20}"))
+
     return cases
 
 
