@@ -48,8 +48,10 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
   header BMP standard (offset 54, DIB 40) quando i campi sono corrotti (`ba d0…`)
   e ricalcola l'altezza dai dati; JPEG: riattacca EOI mancante. Verificato sulla
   challenge reale (1134×850, flag via OCR/vision) + caso regressione #17.
-2. [ ] **DNS tunneling** (*ExtractionD'ADNs*): concatenare i sottodomini
-   (`dns.qry.name`) → base32/base64 → flag. Base: analyzer `pcap` già presente.
+- [x] **DNS tunneling** (*ExtractionD'ADNs*): nell'analyzer `pcap`, le euristiche
+  base-domain / posizione-etichetta ricompongono i chunk (dedup, ordine pacchetti)
+  e provano base32/base64 con gate di printable; flag poi presa dalla flag hunt.
+  Unit (7) + regressione E2E #18 (pcap DNS sintetico).
 3. [ ] **TLS/pcap con chiave** (*WebNet*): `tshark -o tls.keylog_file=...` o
    `sslkeylogfile` per decifrare; poi campi HTTP.
 4. [ ] **SSTV** (*m00nwalk*): serve un decoder (es. `qsstv`/`pysstv`); valutare

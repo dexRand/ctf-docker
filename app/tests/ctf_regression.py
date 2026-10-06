@@ -207,7 +207,10 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     _pcap_http(p, "/ITS{pcap_15}")
     cases.append(("pcap", p, "ITS{pcap_15}"))
 
-    # 16) the real challenge.png (1x1 PNG + AES zip appended, password "robot")
+    # 16) the real challenge.png (1x1 PNG + AES zip appended). Password "robot"
+    #     is cracked by 10k-most-common.txt: cracking concatenates the image's
+    #     wordlists smallest->largest (/wordlists + /opt/wordlists) and stops at
+    #     the first hit; "robot" is on line 5387 of 10k-most-common.txt
     fixtures = Path(os.environ.get("FIXTURES_DIR", "/tmp/fixtures"))
     real = fixtures / "challenge.png"
     if real.is_file():
@@ -230,6 +233,45 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     p = TMP / "corrupt.bmp"
     _corrupt_bmp(p, "ITS{repair_17}")
     cases.append(("image-repair", p, "ITS{repair_17}"))
+
+    # 18) DNS tunneling: the flag, base32-encoded, split into subdomain labels
+    #     of queries to a shared base domain -> pcap dns tunneling decoder
+    import base64 as _b64
+
+    def _pcap_dns(path: Path, queries: list[str]) -> None:
+        def frame(qname: str, ident: int) -> bytes:
+            dns_hdr = _struct.pack("!HHHHHH", ident, 0x0100, 1, 0, 0, 0)
+            qname_b = b"".join(bytes([len(l)]) + l.encode() for l in qname.split(".")) + b"\x00"
+            dns = dns_hdr + qname_b + _struct.pack("!HH", 1, 1)
+            udp = _struct.pack("!HHHH", 0xC000 + ident, 53, 8 + len(dns), 0)
+            udp_len = len(udp) + len(dns)
+            total = 20 + udp_len
+            src, dst = b"\x0a\x00\x00\x01", b"\x08\x08\x08\x08"
+            ip = _struct.pack("!BBHHHBBH4s4s", 0x45, 0, total, 1, 0, 64, 17, 0, src, dst)
+
+            def cksum(h: bytes) -> int:
+                s = sum((h[i] << 8) + (h[i + 1] if i + 1 < len(h) else 0)
+                        for i in range(0, len(h), 2))
+                while s >> 16:
+                    s = (s & 0xFFFF) + (s >> 16)
+                return (~s) & 0xFFFF
+
+            ip = ip[:10] + _struct.pack("!H", cksum(ip)) + ip[12:]
+            eth = b"\x02\x00\x00\x00\x00\x02" + b"\x02\x00\x00\x00\x00\x01" + b"\x08\x00"
+            return eth + ip + udp + dns
+
+        gh = _struct.pack("<IHHiIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, 1)
+        recs = b"".join(
+            _struct.pack("<IIII", 0, 0, len(f), len(f)) + f
+            for f in (frame(q, i) for i, q in enumerate(queries))
+        )
+        path.write_bytes(gh + recs)
+
+    flag18 = "ITS{dns_tunnel_18}"
+    enc18 = _b64.b32encode(flag18.encode()).decode()
+    _pcap_dns(TMP / "tunnel.pcap", [enc18[i:i + 5] + ".exfil.ctf"
+                                    for i in range(0, len(enc18), 5)])
+    cases.append(("dns-tunnel", TMP / "tunnel.pcap", flag18))
 
     return cases
 
