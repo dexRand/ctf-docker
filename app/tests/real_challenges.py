@@ -34,6 +34,18 @@ CASES = [
     ("weird.docm", f"{B21}/Weird File/weird.docm", "picoCTF{m4cr0s_r_d4ng3r0us}"),
 ]
 
+# multi-file challenges: (label, [(filename, url), ...], expected flag)
+MULTI = [
+    # TLS with an RSA private key: header in the decrypted stream
+    ("webnet0", [("capture.pcap", f"{B19}/WebNet0/capture.pcap"),
+                 ("picopico.key", f"{B19}/WebNet0/picopico.key")],
+     "picoCTF{nongshim.shrimp.crackers}"),
+    # TLS with a key: the real flag is in the metadata of a downloaded JPEG
+    ("webnet1", [("capture.pcap", f"{B19}/WebNet1/capture.pcap"),
+                 ("picopico.key", f"{B19}/WebNet1/picopico.key")],
+     "picoCTF{honey.roasted.peanuts}"),
+]
+
 
 def download(url: str, dest: Path) -> None:
     if dest.exists() and dest.stat().st_size > 0:
@@ -44,10 +56,15 @@ def download(url: str, dest: Path) -> None:
 
 
 def _multipart(path: Path, mode: str) -> tuple[bytes, str]:
+    return _multipart_many([path], mode)
+
+
+def _multipart_many(paths: list[Path], mode: str) -> tuple[bytes, str]:
     b = "----stegreal"
     body = (f'--{b}\r\nContent-Disposition: form-data; name="mode"\r\n\r\n{mode}\r\n').encode()
-    body += (f'--{b}\r\nContent-Disposition: form-data; name="files"; filename="{path.name}"\r\n'
-             f'Content-Type: application/octet-stream\r\n\r\n').encode() + path.read_bytes() + b"\r\n"
+    for path in paths:
+        body += (f'--{b}\r\nContent-Disposition: form-data; name="files"; filename="{path.name}"\r\n'
+                 f'Content-Type: application/octet-stream\r\n\r\n').encode() + path.read_bytes() + b"\r\n"
     body += f"--{b}--\r\n".encode()
     return body, b
 
@@ -88,9 +105,33 @@ def run_case(name: str, url: str, expect: str) -> bool:
     return ok
 
 
+def run_multi(label: str, files: list[tuple[str, str]], expect: str) -> bool:
+    d = DEST / label
+    d.mkdir(parents=True, exist_ok=True)
+    paths: list[Path] = []
+    for name, url in files:
+        p = d / name
+        download(url, p)
+        paths.append(p)
+    body, b = _multipart_many(paths, "auto")
+    proj = post("/projects", body, f"multipart/form-data; boundary={b}")
+    post(f"/projects/{proj['id']}/start")
+    status = "?"
+    for _ in range(300):
+        status = get(f"/projects/{proj['id']}")["status"]
+        if status in ("done", "error", "cancelled"):
+            break
+        time.sleep(3)
+    flags = [f["value"] for f in get(f"/projects/{proj['id']}/findings") if f["kind"] == "flag"]
+    ok = any(expect in fl for fl in flags)
+    print(f"  [{'PASS' if ok else 'FAIL'}] {label:<15} status={status} expect={expect} got={flags[:3]}")
+    return ok
+
+
 def main() -> int:
     print(f"* real picoCTF challenges against {API}")
     results = [run_case(*c) for c in CASES]
+    results += [run_multi(*c) for c in MULTI]
     print(f"* {sum(results)}/{len(results)} passed")
     return 0 if all(results) else 1
 

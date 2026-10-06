@@ -18,6 +18,15 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P17 analyzer: TLS su pcap (`WebNet0/1`) + rot13/url inline**: l'analyzer
+  `pcap` ora **decifra TLS** quando trova una chiave privata (o un keylog
+  `CLIENT_RANDOM`) accanto al capture: `tls.keys_list`/`tls.keylog_file` di
+  tshark, sezione "TLS decrypted" (header inclusi) e `--export-objects` sugli
+  oggetti decifrati (WebNet1 → `vulture.jpg` → flag nei metadati, via ricorsione).
+  Verificato: **WebNet0** `picoCTF{nongshim.shrimp.crackers}` e **WebNet1**
+  `picoCTF{honey.roasted.peanuts}` (reali **9/9**). Nella flag hunt: vista
+  **percent-decoded** e ricerca dei **twin rot13** dei prefissi noti anche sulle
+  sorgenti rumorose. `pytest` **82**.
 - **P16 analyzer: decoder SSTV (`sstv`)**: nuovo analyzer audio che demodula una
   trasmissione **SSTV** senza dipendenze esterne (band-pass + Hilbert →
   frequenza istantanea → sync pulse 1200 Hz → riconoscimento **modo dallo
@@ -140,12 +149,12 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 - **Robustezza**: tipo da `file` per il piano (estensione che mente), SQLite
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
-- **Test/Docs**: regressione **20/20**, reali **7/7**, `verify_flags` **ALL
-  CORRECT** (istanza per istanza), `pytest` **77**, `docs/CHALLENGES.md`.
+- **Test/Docs**: regressione **20/20**, reali **9/9**, `verify_flags` **ALL
+  CORRECT** (istanza per istanza), `pytest` **82**, `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
 
-### A. Analyzer da completare (P2)
+### A. Analyzer (P2) — ✅ completata
 - [x] **JPEG/BMP height repair** — *tunn3l v1s10n*: `image-repair` ripristina
   header BMP standard (offset 54, DIB 40) quando i campi sono corrotti (`ba d0…`)
   e ricalcola l'altezza dai dati; JPEG: riattacca EOI mancante. Verificato sulla
@@ -154,8 +163,11 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
   base-domain / posizione-etichetta ricompongono i chunk (dedup, ordine pacchetti)
   e provano base32/base64 con gate di printable; flag poi presa dalla flag hunt.
   Unit (7) + regressione E2E #18 (pcap DNS sintetico).
-3. [ ] **TLS/pcap con chiave** (*WebNet*): `tshark -o tls.keylog_file=...` o
-   `sslkeylogfile` per decifrare; poi campi HTTP.
+3. [x] **TLS/pcap con chiave** (*WebNet0/1*): l'analyzer `pcap` rileva un file
+   con `PRIVATE KEY` (o un keylog `CLIENT_RANDOM`) accanto al pcap e passa a
+   tshark `tls.keys_list` / `tls.keylog_file`; estrae l'HTTP decifrato
+   (header custom come `Pico-Flag`) e fa `--export-objects` (WebNet1: la flag è
+   nei metadati del JPEG scaricato). Verificato su entrambe le challenge reali.
 4. [x] **SSTV** (*m00nwalk*): analyzer `sstv` senza dipendenze esterne — demod
    FM (band-pass + Hilbert) → sync pulse → riconoscimento modo dallo spacing →
    ricostruzione RGB. Supporta **Scottie S1/S2**, verificato sul `message.wav`
@@ -165,7 +177,10 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
    (`filler.txt`), in un solo run, e restituisce solo il payload finale come
    figlio → niente più dipendenza da `MAX_DEPTH` né tool pesanti per livello.
    Verificato su **like1000 reale** (1000 tar → `flag.png`).
-6. [ ] **rot13/url inline** nella flag hunt (oltre b64/hex già fatti).
+6. [x] **rot13/url inline** nella flag hunt: oltre a b64/hex inline, ora la
+   flag hunt prova una vista **percent-decoded** (flag `%7B…%7D`) e cerca i
+   **twin rot13** dei prefissi noti (`VGF{…}` → `ITS{…}`) anche sulle sorgenti
+   rumorose dove il pattern generico è disattivato.
 
 ### B. Sicurezza / Ops (P3)
 7. [ ] **Rate limiting** sulle API (token bucket per IP, opt-in).
@@ -233,9 +248,9 @@ app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
 app/backend/analyzers/*.py     # 40 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/tests/ctf_regression.py    # 20/20 (incl. image-repair: BMP, dns-tunnel, nested-archive, sstv)
-app/tests/real_challenges.py   # 7/7 picoCTF
+app/tests/real_challenges.py   # 9/9 picoCTF (incl. WebNet0/1: pcap+TLS key)
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
-app/tests/*.py                 # unit pytest (77)
+app/tests/*.py                 # unit pytest (82)
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 .github/workflows/ci.yml       # CI
 compose.yaml                   # servizio stegsuite (19014)

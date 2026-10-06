@@ -14,6 +14,7 @@ import re
 import shutil
 import threading
 import traceback
+import urllib.parse
 import uuid
 from pathlib import Path
 
@@ -73,6 +74,38 @@ KNOWN_PREFIXES = {"ITS", "flag", "FLAG", "ctf", "CTF", "HTB", "picoCTF"}
 
 def _is_known_prefix(value: str) -> bool:
     return value.split("{", 1)[0] in KNOWN_PREFIXES
+
+
+# Flags hidden as their rot13 twin (e.g. `VGF{...}` for `ITS{...}`) are common
+# in tool outputs; on noisy sources (strings/hex) the generic pattern is skipped
+# so we look for the rot13 form of the known prefixes explicitly.
+_ROT13_PREFIXES = tuple(sorted({codecs.encode(p, "rot13") for p in KNOWN_PREFIXES}))
+_ROT13_RE = [re.compile((_LB + re.escape(p) + r"\{[^}\n]{1,200}\}").encode())
+             for p in _ROT13_PREFIXES]
+
+# inline URL-encoding: any %XX escape triggers a de-quoted view
+_PCT_RE = re.compile(rb"%[0-9A-Fa-f]{2}")
+
+
+def _url_decoded(data: bytes) -> list[bytes]:
+    """Percent-decoded views (inline `%7B`-style flags), only when it changes."""
+    if not _PCT_RE.search(data):
+        return []
+    try:
+        out = urllib.parse.unquote_to_bytes(data)
+    except Exception:
+        return []
+    return [out] if out != data else []
+
+
+def _rot13_candidates(view: bytes) -> list[tuple[str, int, int]]:
+    """(decoded_flag, start, end) for rot13-twin prefixes found in ``view``."""
+    out: list[tuple[str, int, int]] = []
+    for pat in _ROT13_RE:
+        for m in pat.finditer(view):
+            val = codecs.decode(m.group(0).decode("latin-1", "replace"), "rot13")
+            out.append((val, m.start(), m.end()))
+    return out
 
 
 def _canon_flag(value: str) -> str:
@@ -196,7 +229,7 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     if not text:
         return
     data = text.encode("latin-1", "replace")
-    views = _views(data)
+    views = _views(data) + _url_decoded(data)
     existing = {f.value for f in session.exec(select(Finding).where(Finding.project_id == project_id)).all()}
     existing_norm = {v.replace(" ", "") for v in existing}
     canon_index = {_canon_flag(v): v for v in existing}
@@ -255,6 +288,8 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
             for m in _FUZZY_RE.finditer(view):
                 add((m.group(1) + b"{" + m.group(2) + b"}").decode("latin-1", "replace"),
                     f"fuzzy:{source}", _snippet(view, m.start(), m.end()))
+        for val, s, e in _rot13_candidates(view):
+            add(val, f"rot13:{source}", _snippet(view, s, e))
     if depth >= 2:
         return
     # inline encodings in tool outputs (e.g. base64 in EXIF metadata)

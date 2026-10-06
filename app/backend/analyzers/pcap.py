@@ -3,6 +3,9 @@
 Also reassembles data exfiltrated via DNS tunneling: each query leaks one
 chunk (usually the first label, sharing a fixed base domain); concatenating
 them and base32/base64-decoding yields the payload.
+
+If a private key or an SSLKEYLOGFILE is uploaded next to the capture (WebNet0/1),
+TLS traffic is decrypted with tshark and the plaintext HTTP is inspected too.
 """
 from __future__ import annotations
 
@@ -13,6 +16,54 @@ from .base import Analyzer, ToolContext, ToolResult, list_files, out_of, which
 from .registry import register
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
+
+
+def _key_files(ctx: ToolContext) -> list[Path]:
+    """Private keys / TLS keylog files uploaded alongside the capture.
+
+    Analyzers only receive the current file, so we look at the sibling uploads
+    and analysed nodes of the same project (that is how WebNet0/1 ship the key).
+    """
+    proj = ctx.workdir.parent.parent
+    found: list[Path] = []
+    for sub in ("uploads", "files"):
+        d = proj / sub
+        if not d.is_dir():
+            continue
+        for p in sorted(d.iterdir()):
+            if not p.is_file() or p == ctx.input:
+                continue
+            try:
+                head = p.read_bytes()[:4096]
+            except OSError:
+                continue
+            if (b"PRIVATE KEY-----" in head or b"CLIENT_RANDOM" in head
+                    or b"sslkeylog" in head.lower()):
+                found.append(p)
+    seen: set[tuple] = set()
+    uniq: list[Path] = []
+    for p in found:  # a key may appear both as upload and as analysed node
+        sig = (p.stat().st_size, p.name.split("__", 1)[-1])
+        if sig not in seen:
+            seen.add(sig)
+            uniq.append(p)
+    return uniq
+
+
+def _tls_options(keys: list[Path]) -> list[str]:
+    """tshark ``-o`` options to decrypt with the given keys / keylog files."""
+    opts: list[str] = []
+    for k in keys:
+        try:
+            head = k.read_bytes()[:4096]
+        except OSError:
+            continue
+        if b"CLIENT_RANDOM" in head:
+            opts += ["-o", f"tls.keylog_file:{k}"]
+        else:
+            opts += ["-o", f"tls.keys_list:0.0.0.0,0,http,{k}"]
+    return opts
+
 
 
 def _printable(text: str) -> float:
@@ -100,19 +151,29 @@ class PcapAnalyzer(Analyzer):
     def run(self, ctx: ToolContext) -> ToolResult:
         if not which("tshark"):
             return ToolResult(self.name, status="skipped", summary="tshark not installed")
+        keys = _key_files(ctx)
+        tls = _tls_options(keys)
         parts: list[str] = []
-        proc = ctx.run(["tshark", "-r", str(ctx.input), "-q", "-z", "io,phs"], timeout=180)
+        proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-q", "-z", "io,phs"], timeout=180)
         if proc.returncode == 0 and (proc.stdout or "").strip():
             parts.append("== protocols ==\n" + proc.stdout.strip())
         # flags are often in request URIs, DNS queries or raw HTTP bodies
         proc = ctx.run([
-            "tshark", "-r", str(ctx.input), "-T", "fields",
+            "tshark", "-r", str(ctx.input), *tls, "-T", "fields",
             "-e", "http.request.full_uri", "-e", "http.host", "-e", "http.file_data",
             "-e", "data.data",
         ], timeout=180)
         fields = " ".join(line for line in (proc.stdout or "").splitlines() if line.strip())
         if fields:
             parts.append("== fields ==\n" + fields[:20000])
+        # TLS with a provided key: decrypted HTTP headers (e.g. Pico-Flag)
+        if tls:
+            proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-Y", "http",
+                            "-T", "fields", "-e", "http.request.full_uri",
+                            "-e", "http.response.line"], timeout=180)
+            plain = "\n".join(l for l in (proc.stdout or "").splitlines() if l.strip())
+            if plain:
+                parts.append("== TLS decrypted (key) ==\n" + plain[:20000])
         # DNS tunneling: chunk-per-query exfiltration (ExtractionD'ADNs style)
         proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields",
                         "-e", "dns.qry.name"], timeout=180)
@@ -125,13 +186,16 @@ class PcapAnalyzer(Analyzer):
             parts.append("== DNS tunneling ==\n" + "\n".join(tunnel))
         # export HTTP objects (become children to recurse into)
         outdir = ctx.sub(self.name)
-        ctx.run(["tshark", "-r", str(ctx.input), "--export-objects", f"http,{outdir}"], timeout=180)
+        ctx.run(["tshark", "-r", str(ctx.input), *tls, "--export-objects",
+                 f"http,{outdir}"], timeout=180)
         files = list_files(outdir)
         extracted = [str(f) for f in files]
         artifacts = [{"name": f.name, "path": str(f), "size": f.stat().st_size} for f in files]
         summary = f"{len(extracted)} object(s) exported" if extracted else "no HTTP object"
         if tunnel:
             summary += f", {len(tunnel)} tunnel DNS"
+        if keys:
+            summary += f", TLS decrypted ({len(keys)} key)"
         return ToolResult(self.name, status="done", output="\n\n".join(parts),
                           summary=summary, extracted=extracted, artifacts=artifacts)
 

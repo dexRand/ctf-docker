@@ -33,6 +33,8 @@ Test: `app/tests/real_challenges.py` (scarica i file dai mirror GitHub, perché
 | Glory of the Garden | 2019 | `garden.jpg` | `picoCTF{more_than_m33ts_the_3y35a97d3bB}` |
 | extensions | 2019 | `flag.txt` (è un PNG) | `picoCTF{now_you_know_about_extensions}` |
 | Weird File | 2021 | `weird.docm` | `picoCTF{m4cr0s_r_d4ng3r0us}` |
+| WebNet0 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{nongshim.shrimp.crackers}` (TLS decifrato) |
+| WebNet1 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{honey.roasted.peanuts}` (TLS → metadata JPEG) |
 
 Mirror usati:
 
@@ -112,6 +114,25 @@ strings weird/word/vbaProject.bin | grep -oE '[A-Za-z0-9+/=]{24,}' \
 # picoCTF{m4cr0s_r_d4ng3r0us}
 ```
 
+### WebNet0 / WebNet1 — TLS con chiave privata
+
+Il pcap è una sessione TLS; la chiave privata fornita accanto permette a
+`tshark` di decifrarla. StegSuite **rileva automaticamente** un file che
+contiene `PRIVATE KEY` (o un keylog con `CLIENT_RANDOM`) nella cartella del
+progetto e lo passa a tshark (`tls.keys_list` / `tls.keylog_file`).
+
+```bash
+# WebNet0: la flag è in un header HTTP della sessione decifrata
+tshark -r capture.pcap -o "tls.keys_list:0.0.0.0,0,http,picopico.key" \
+  -Y http -T fields -e http.request.full_uri -e http.response.line
+# Pico-Flag: picoCTF{nongshim.shrimp.crackers}
+
+# WebNet1: la flag vera è nei metadati di un JPEG scaricato via TLS
+tshark -r capture.pcap -o "tls.keys_list:0.0.0.0,0,http,picopico.key" \
+  --export-objects http,./out
+exiftool out/vulture.jpg | grep Artist      # picoCTF{honey.roasted.peanuts}
+```
+
 ## Fixture di regressione
 
 Generazione e attese: `app/tests/ctf_regression.py` (le flag sono create dallo
@@ -153,7 +174,7 @@ docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
   /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 20/20
 
 # challenge reali (host: scaricano i file da sole)
-python3 app/tests/real_challenges.py                        # → 7/7
+python3 app/tests/real_challenges.py                        # → 9/9
 
 # verifica INDIPENDENTE: per ogni (artifact, writeup) confronta la flag trovata
 # con quella dichiarata dal writeup per QUELL'artifact; include una seconda

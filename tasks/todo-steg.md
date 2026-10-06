@@ -63,6 +63,10 @@
       in un solo passaggio, ignorando i `filler.txt`, fino al payload finale
 - [x] `sstv`: decoder SSTV in Python (band-pass + Hilbert + sync + modo da
       spacing), Scottie S1/S2; *m00nwalk* decodificata (frame = QSSTV), OCR near-miss
+- [x] `pcap` + TLS: decifra con una chiave privata/keylog fornita accanto al
+      capture (`WebNet0/1`) ed esporta gli oggetti decifrati (ricorsione)
+- [x] Flag hunt: viste **percent-decoded** e **rot13 twin** dei prefissi noti
+      anche sulle sorgenti rumorose (strings/hex/pcap)
 
 ## Copertura challenge italiane (ITSCyberGame / Olicyber / StarHackademin) ✅
 - [x] `png-chunks`: dump tEXt/iTXt/zTXt/eXIf + dati dopo IEND (IsThatA)

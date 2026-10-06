@@ -10,7 +10,9 @@ from backend.orchestrator import (
     _detect_ext,
     _is_known_prefix,
     _ok_flag,
+    _rot13_candidates,
     _snippet,
+    _url_decoded,
 )
 
 
@@ -73,6 +75,23 @@ def test_is_known_prefix() -> None:
     assert _is_known_prefix("picoCTF{x}")
     assert _is_known_prefix("flag{x}")
     assert not _is_known_prefix("VGF{x}")
+
+
+def test_url_decoded_view_finds_inline_percent_encoded_flag() -> None:
+    views = _url_decoded(b"xx ITS%7Burl_flag%7D yy")
+    assert any(b"ITS{url_flag}" in v for v in views)
+    assert _url_decoded(b"nothing % here") == []
+
+
+def test_rot13_candidates_decode_twin_prefixes() -> None:
+    twin = codecs.encode("ITS{rot13_inline}", "rot13")
+    assert twin.startswith("VGF")
+    found = [c[0] for c in _rot13_candidates(twin.encode())]
+    assert "ITS{rot13_inline}" in found
+
+
+def test_rot13_candidates_ignore_unrelated_text() -> None:
+    assert _rot13_candidates(b"nothing to see here") == []
 
 
 def test_wav_lsb_bits_roundtrip() -> None:

@@ -2,8 +2,15 @@
 from __future__ import annotations
 
 import base64
+from pathlib import Path
 
-from backend.analyzers.pcap import dns_tunnel_candidates, _try_decodes
+from backend.analyzers.base import ToolContext
+from backend.analyzers.pcap import (
+    _key_files,
+    _tls_options,
+    dns_tunnel_candidates,
+    _try_decodes,
+)
 
 
 def b32_chunks(text: str, size: int = 5) -> list[str]:
@@ -56,3 +63,33 @@ def test_normal_traffic_yields_nothing() -> None:
 
 def test_decodes_none_for_junk() -> None:
     assert _try_decodes("kdfjkdfjdk") == []
+
+
+def _project(tmp_path: Path) -> ToolContext:
+    proj = tmp_path / "proj"
+    (proj / "uploads").mkdir(parents=True)
+    (proj / "files").mkdir()
+    work = proj / "work" / "5"
+    work.mkdir(parents=True)
+    (proj / "files" / "0002__picopico.key").write_bytes(
+        b"-----BEGIN PRIVATE KEY-----\nMIIabc\n")
+    (proj / "uploads" / "sslkeylog.txt").write_bytes(b"CLIENT_RANDOM aa bb\n")
+    (proj / "files" / "0003__notes.txt").write_text("just a note")
+    cap = proj / "files" / "0001__capture.pcap"
+    cap.write_bytes(b"\xd4\xc3\xb2\xa1")
+    return ToolContext(input=cap, workdir=work)
+
+
+def test_key_files_are_discovered_and_deduplicated(tmp_path: Path) -> None:
+    keys = _key_files(_project(tmp_path))
+    names = {k.name for k in keys}
+    assert "0002__picopico.key" in names
+    assert "sslkeylog.txt" in names
+    assert "0003__notes.txt" not in names      # not a key
+    assert len(keys) == 2
+
+
+def test_tls_options_for_rsa_and_keylog(tmp_path: Path) -> None:
+    opts = _tls_options(_key_files(_project(tmp_path)))
+    assert any(o.startswith("tls.keys_list:0.0.0.0,0,http,") for o in opts)
+    assert any(o.startswith("tls.keylog_file:") for o in opts)

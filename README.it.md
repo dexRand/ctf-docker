@@ -197,7 +197,7 @@ http://localhost:19014 (solo localhost).
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
   `nested-archive` (catene di archivi annidati), `7z`, `pngcheck`, `png-repair`,
   `image-repair` (JPEG/BMP header/altezza),
-  `qr`, `pcap`, `zsteg`, `steghide`,
+  `qr`, `pcap` (con decifratura TLS se fornita la chiave), `zsteg`, `steghide`,
   `outguess`, `jsteg`, `png-chunks`, `openstego`, `bit-planes`,
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff +
   decodifica delay + OCR per frame), `ocr` (tesseract), `morse`,
