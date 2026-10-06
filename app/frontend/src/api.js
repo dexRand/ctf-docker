@@ -35,6 +35,6 @@ export function fmtDate(s) {
 }
 
 export const STATUS_COLOR = {
-  created: 'text-slate-400', queued: 'text-amber-400', running: 'text-amber-400',
-  paused: 'text-sky-400', done: 'text-emerald-400', error: 'text-red-400', cancelled: 'text-slate-400',
+  created: 'text-dim', queued: 'text-warn', running: 'text-warn',
+  paused: 'text-info', done: 'text-acc', error: 'text-danger', cancelled: 'text-dim',
 }

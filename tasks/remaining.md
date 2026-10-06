@@ -18,6 +18,16 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P7 GUI: palette neutra + pannelli resizable + log comandi + dashboard utile**:
+  superfici **neutre dark** (`ink/panel/edge`) con verdi solo come accent;
+  terminale con **palette ANSI Linux-console/Debian** (nero, 16 colori classici)
+  e PS1 *debian user*; **handle di drag** per albero/colonne, altezza terminale e
+  larghezza log; pannello log con tab **live / comandi** (tutti i run,
+  newest-first, output espandibile con i comandi eseguiti); **dashboard** con
+  strip attivi/risolti/flag/bloccati, **solve rate %**, pannello warn "in stallo —
+  serve una password (crack)" cliccabile sui progetti, badge `▣N` sui bloccati in
+  history, analytics limitata agli ultimi 20 progetti; logo `$_`; `tree` in
+  immagine; fix report "…" (tt + try/catch alla build).
 - **P6 GUI overhaul + i18n**: look "terminal" end-to-end (tema fosforo scuro,
   mono, prompt); default **inglese** con switch **EN/IT** anytime (persistito in
   `localStorage`, tutto i18n via `src/i18n.js`); **report** scaricabile con

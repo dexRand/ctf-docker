@@ -4,11 +4,11 @@ import { LANGUAGES, lang, setLang, t } from './i18n'
 </script>
 
 <template>
-  <div class="flex h-full flex-col bg-ink text-[#c8e8d5]">
+  <div class="flex h-dvh flex-col bg-ink text-fg">
     <header class="flex items-center gap-3 border-b border-edge bg-panel px-4 py-2 text-xs">
-      <RouterLink to="/" class="flex items-center gap-2 font-bold tracking-tight text-acc">
-        <span class="inline-block h-3 w-3 bg-acc animate-blink"></span>
-        <span class="text-sm">$ stegsuite</span>
+      <RouterLink to="/" class="flex items-center gap-2">
+        <span class="grid h-6 w-7 place-items-center rounded border border-acc/70 bg-acc/10 font-bold text-acc" aria-hidden="true">$_</span>
+        <span class="text-sm font-bold tracking-tight text-acc">stegsuite</span>
       </RouterLink>
       <span class="hidden max-w-[30ch] truncate text-dim md:inline">— {{ t('app.tagline') }}</span>
       <div class="ml-auto flex items-center gap-3">
@@ -18,13 +18,13 @@ import { LANGUAGES, lang, setLang, t } from './i18n'
         <div class="flex items-center gap-0.5 rounded border border-edge bg-ink p-0.5" role="group" aria-label="language">
           <button v-for="l in LANGUAGES" :key="l" @click="setLang(l)"
                   class="rounded px-1.5 py-0.5 text-[10px]"
-                  :class="lang === l ? 'bg-acc font-bold text-[#06120b]' : 'text-dim hover:text-slate-200'">
+                  :class="lang === l ? 'bg-acc font-bold text-[#06120b]' : 'text-dim hover:text-fglite'">
             {{ l.toUpperCase() }}
           </button>
         </div>
       </div>
     </header>
-    <main class="min-h-0 flex-1">
+    <main class="min-h-0 flex-1 overflow-y-auto">
       <RouterView />
     </main>
     <footer class="flex items-center gap-4 border-t border-edge bg-panel px-4 py-1 text-[10px] text-dim">

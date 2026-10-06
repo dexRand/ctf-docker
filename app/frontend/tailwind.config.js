@@ -4,17 +4,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: '#050a08',
-        panel: '#0b1510',
-        panel2: '#0e1a13',
-        edge: '#1b3326',
-        edge2: '#274a35',
+        ink: '#0c0e10',
+        panel: '#14171a',
+        panel2: '#1a1e22',
+        edge: '#262b31',
+        edge2: '#384049',
         acc: '#45e08c',
-        accdim: '#1f3a2c',
+        accdim: '#143325',
         warn: '#f5c542',
         danger: '#ff6166',
+        dangerlite: '#ffb3b6',
         info: '#5fd0f2',
-        dim: '#4e6a5a',
+        dim: '#66717c',
+        fg: '#d7dde3',
+        fglite: '#aab4bd',
+        fgx: '#f4f7f9',
       },
       fontFamily: {
         mono: ['ui-monospace', '"JetBrains Mono"', '"Cascadia Code"', '"Fira Code"', 'Menlo',

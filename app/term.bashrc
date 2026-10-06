@@ -1,6 +1,7 @@
 # StegSuite interactive terminal
 export TERM=xterm-256color
-export PS1='\[\e[1;35m\]stegsuite\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '
+# classic Debian user prompt: green user@host, blue working dir, white $
+export PS1='\[\e[01;32m\]\u@\h\[\e[0m\]:\[\e[01;34m\]\w\[\e[0m\]\$ '
 export CLICOLOR=1
 
 # colours by file type (directories, executables, symlinks, archives, images…)

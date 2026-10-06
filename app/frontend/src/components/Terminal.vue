@@ -11,8 +11,21 @@ let term, fit, ws, onResize
 
 onMounted(() => {
   term = new Terminal({
-    fontSize: 12, cursorBlink: true, convertEol: false,
-    theme: { background: '#0b1220', foreground: '#e2e8f0', cursor: '#6e56cf' },
+    fontSize: 12, cursorBlink: true, convertEol: false, cursorStyle: 'block',
+    theme: {
+      // standard Linux-console / Debian palette: black bg, grey fg,
+      // classic 16-color ANSI (aa/55 base tones)
+      background: '#000000',
+      foreground: '#aaaaaa',
+      cursor: '#ffffff',
+      cursorAccent: '#000000',
+      selectionBackground: 'rgba(255, 255, 255, 0.4)',
+      black: '#000000', red: '#aa0000', green: '#00aa00', yellow: '#aa5500',
+      blue: '#0000aa', magenta: '#aa00aa', cyan: '#00aaaa', white: '#aaaaaa',
+      brightBlack: '#555555', brightRed: '#ff5555', brightGreen: '#55ff55',
+      brightYellow: '#ffff55', brightBlue: '#5555ff', brightMagenta: '#ff55ff',
+      brightCyan: '#55ffff', brightWhite: '#ffffff',
+    },
   })
   fit = new FitAddon()
   term.loadAddon(fit)

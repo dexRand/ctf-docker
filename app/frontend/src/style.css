@@ -8,15 +8,15 @@ body {
   margin: 0;
   font-family: ui-monospace, "JetBrains Mono", "Cascadia Code", "Fira Code", Menlo,
     Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
-  background: #050a08;
-  color: #c3e8d2;
+  background: #0c0e10;
+  color: #d7dde3;
 }
 
-::selection { background: rgba(69, 224, 140, .25); color: #eafff3; }
+::selection { background: rgba(69, 224, 140, .3); color: #f4f7f9; }
 
-* { scrollbar-width: thin; scrollbar-color: #274a35 transparent; }
+* { scrollbar-width: thin; scrollbar-color: #384049 transparent; }
 *::-webkit-scrollbar { width: 9px; height: 9px; }
-*::-webkit-scrollbar-thumb { background: #274a35; }
+*::-webkit-scrollbar-thumb { background: #384049; }
 *::-webkit-scrollbar-track { background: transparent; }
 
 /* faint CRT: scanlines + vignette, never intersect modals (z>=40) */
@@ -27,9 +27,9 @@ body::before {
   z-index: 1;
   pointer-events: none;
   background:
-    repeating-linear-gradient(0deg, rgba(0, 0, 0, .16) 0 1px, transparent 1px 4px),
-    radial-gradient(ellipse at center, transparent 58%, rgba(0, 0, 0, .42));
-  opacity: .35;
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, .14) 0 1px, transparent 1px 4px),
+    radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, .4));
+  opacity: .3;
 }
 
 input, select, button, textarea { font-family: inherit; }
@@ -51,19 +51,19 @@ pre.out {
   display: inline-flex;
   align-items: center;
   gap: .35rem;
-  border: 1px solid #1b3326;
-  background: #0b1510;
-  color: #9edfb9;
+  border: 1px solid #262b31;
+  background: #14171a;
+  color: #aab4bd;
   padding: .18rem .55rem;
   font-size: 11px;
   line-height: 1.2;
   text-transform: uppercase;
   letter-spacing: .04em;
 }
-.kb:hover:not(:disabled) { border-color: #45e08c; color: #eafff3; background: #0e1a13; }
+.kb:hover:not(:disabled) { border-color: #45e08c; color: #f4f7f9; background: #1a1e22; }
 .kb:disabled { opacity: .45; cursor: not-allowed; }
-.kb-acc { border-color: #45e08c; color: #0a2013; background: #45e08c; font-weight: 700; }
-.kb-acc:hover:not(:disabled) { background: #6bf0a9; color: #06120b; }
+.kb-acc { border-color: #45e08c; color: #06120b; background: #45e08c; font-weight: 700; }
+.kb-acc:hover:not(:disabled) { background: #aae9c8; color: #06120b; }
 .kb-danger { color: #ffb3b6; }
 .kb-danger:hover:not(:disabled) { border-color: #ff6166; background: rgba(255, 97, 102, .12); color: #ffb3b6; }
 
@@ -74,40 +74,40 @@ pre.out {
 .row:hover { background: rgba(69, 224, 140, .06); }
 
 /* --- markdown rendering (report) ------------------------------------ */
-.md { font-size: 13px; line-height: 1.55; color: #c8e8d5; }
+.md { font-size: 13px; line-height: 1.55; color: #d7dde3; }
 .md h1, .md h2 { color: #45e08c; font-weight: 700; }
 .md h1 { font-size: 1.3rem; margin: .4rem 0 .7rem; }
 .md h2 {
   font-size: 1.05rem;
   margin: 1.2rem 0 .5rem;
   padding-bottom: .3rem;
-  border-bottom: 1px solid #1b3326;
+  border-bottom: 1px solid #262b31;
 }
-.md h3 { font-size: .95rem; font-weight: 700; margin: .9rem 0 .35rem; color: #eafff3; }
+.md h3 { font-size: .95rem; font-weight: 700; margin: .9rem 0 .35rem; color: #f4f7f9; }
 .md p { margin: .35rem 0; }
 .md ul { list-style: none; margin: .35rem 0 .35rem .4rem; }
 .md ul > li::before { content: '• '; color: #45e08c; }
 .md code {
-  background: #050a08;
-  border: 1px solid #1b3326;
+  background: #0c0e10;
+  border: 1px solid #262b31;
   border-radius: 3px;
   padding: 0 4px;
   font-family: inherit;
   font-size: .86em;
-  color: #7be8ab;
+  color: #aab4bd;
 }
 .md pre {
-  background: #050a08;
-  border: 1px solid #1b3326;
+  background: #0c0e10;
+  border: 1px solid #262b31;
   border-left: 2px solid #45e08c;
   border-radius: 4px;
   padding: 10px;
   overflow: auto;
   font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
-  color: #c8e8d5;
+  color: #d7dde3;
 }
 .md table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 12px; }
-.md th, .md td { border: 1px solid #1b3326; padding: 5px 8px; text-align: left; vertical-align: top; }
-.md th { background: #0e1a13; color: #45e08c; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.md th, .md td { border: 1px solid #262b31; padding: 5px 8px; text-align: left; vertical-align: top; }
+.md th { background: #1a1e22; color: #45e08c; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
 .md a { color: #5fd0f2; }
-.md strong { color: #eafff3; }
+.md strong { color: #f4f7f9; }
