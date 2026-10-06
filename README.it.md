@@ -201,8 +201,10 @@ http://localhost:19014 (solo localhost).
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff +
   decodifica delay + OCR per frame), `ocr` (tesseract), `morse`,
   `morse-text`, `dtmf`, `spectrogram`, `waveform`, `wav-lsb`.
-- **GUI**: albero file, output per tool, figli estratti, anteprime
-  immagini/audio, log live via WebSocket e **terminale** integrato (xterm.js).
+- **GUI**: tema terminale, **inglese di default** con switch **EN/IT** in
+  qualsiasi momento (scelta memorizzata), albero file, output per tool, figli
+  estratti, anteprime immagini/audio, log live via WebSocket, **terminale**
+  integrato (xterm.js) e **report** Markdown con selettore lingua dedicato.
 - **Flag hunt + cracking**: ZIP (anche AES via hashcat), steghide, PDF.
 - **API REST** (OpenAPI su `/api/docs`), incluso il singolo tool stateless:
   `POST /api/v1/tools/{tool}`.

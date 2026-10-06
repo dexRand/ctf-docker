@@ -204,8 +204,10 @@ http://localhost:19014 (localhost only).
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff + delay
   decode + per-frame OCR), `ocr` (tesseract), `spectrogram`, `waveform`,
   `wav-lsb`, `morse`, `morse-text`, `dtmf`.
-- **GUI**: file tree, per-tool output, extracted children, image/audio
-  previews, live log over WebSocket, and an embedded **terminal** (xterm.js).
+- **GUI**: terminal-themed, defaults to **English** with an any-time **EN/IT**
+  switch (choice persisted), file tree, per-tool output, extracted children,
+  image/audio previews, live log over WebSocket, embedded **terminal**
+  (xterm.js), and a Markdown **report** with its own language selector.
 - **Flag hunt + cracking**: ZIP (incl. AES via hashcat), steghide, PDF.
 - **REST API** (OpenAPI at `/api/docs`), including stateless single-tool runs:
   `POST /api/v1/tools/{tool}`.

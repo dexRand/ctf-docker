@@ -124,19 +124,31 @@ Registry con auto-discovery. Categorie e tool:
 - `GET /health` · `GET /version`
 - Auth opzionale: header `X-API-Key`.
 
-### 3.5 GUI (Vue 3)
+### 3.5 GUI (Vue 3 + Tailwind, estetica "terminal")
 
-- **Home / Nuova analisi:** drag&drop, scelta modalità (Auto / Check), avvio.
+- **Design:** tema fosforo scuro stile terminale (mono, CRT sottile, prompt);
+  stringhe **i18n** con **default inglese** e switch **EN/IT** in qualsiasi
+  momento (preferenza in `localStorage`).
+- **Home / Nuova analisi:** drag&drop "da linea di comando" (`$ stegsuite
+  --analyze`), scelta modalità (`--auto` / `--check`), nome opzionale, avvio.
+  History come `ls -la` con stato colorato, elimina singolo o svuota tutto.
 - **Vista progetto:**
-  - **Sinistra:** albero file (nesting, badge tipo, icone finding, ordine).
-  - **Centro:** dettaglio file con tab → *Overview* (metadati), *Tool* (output
-    per analizzatore, collassabili), *Estratti* (figli), *Preview* (immagine,
-    audio, testo, hex).
-  - **Destra:** pannello *Finding* (flag 🚩, password 🔑) e **log live**.
-  - **Sotto:** **terminale** (xterm.js) con `cwd` = cartella del progetto.
-  - **Azioni:** Run/Resume, Pause/Cancel, **Crack** (scelta wordlist per ogni
-    elemento bloccato), **Elimina** (con conferma), **Keep in history**.
-- **History:** elenco progetti (data, stato, n. finding), apri per revisionare o
+  - **Sinistra:** albero file (nesting, gruppo per tool di origine, icone
+    finding, evidenza del *percorso verso la flag*: percorso/adiacente/via
+    morta, filtro testuale).
+  - **Centro:** tab *Overview* (run per tool, artefatti, output ANSI
+    collassabile, badge "risolto"), *Estratti*, *Preview* (immagine, audio,
+    video, testo, download).
+  - **Destra:** pannello *Finding* (flag con **catena solver** e *chip* dei
+    tool usati, password con **wordlist che le ha craccate** — `via <list>` —
+    incentivata dal backend, elementi bloccati con crack per-wordlist
+    selezionabile) e **route ASCII** della flag.
+  - **Sotto:** **terminale** (xterm.js) con `cwd` = cartella progetto + **log
+    live** via WebSocket.
+  - **Azioni:** Run/Resume, Pause/Cancel, **Report** (modal Markdown con
+    **selettore lingua** del report, indipendente dalla lingua UI: copia o
+    scarica `.md`), **Elimina** (con conferma).
+- **History:** elenco progetti (data, stato, n. file), apri per revisionare o
   elimina.
 
 ### 3.6 Ciclo di vita

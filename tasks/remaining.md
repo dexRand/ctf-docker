@@ -7,7 +7,7 @@
 ```bash
 cd "/home/romeo/Progetti/ctf-docker"
 docker compose up -d stegsuite          # GUI/API su http://localhost:19014
-./ctf test                              # 17/17 + 7/7 + verifica risposte
+./ctf test                              # 18/18 + 7/7 + verifica risposte
 # oppure i singoli passi:
 #   regressione (nel container): copia app/tests/ctf_regression.py in /tmp e lancia
 #   challenge reali (host):      python3 app/tests/real_challenges.py
@@ -18,9 +18,18 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P6 GUI overhaul + i18n**: look "terminal" end-to-end (tema fosforo scuro,
+  mono, prompt); default **inglese** con switch **EN/IT** anytime (persistito in
+  `localStorage`, tutto i18n via `src/i18n.js`); **report** scaricabile con
+  **selettore lingua** indipendente dalla UI; flag con catena solver, password
+  con **`via <wordlist>`** (attribuzione dal backend), route ASCII, live log,
+  history stile `ls -la`. Build frontend multi-stage invariata (`vite build`).
 - **P5 image repair**: `image-repair` (BMP: header standard se offset/DIB
   corrotti + altezza ricalcolata dai dati; JPEG: EOI mancante). Risolve
   *tunn3l v1s10n* reale; unit test puri + regressione E2E #17.
+- **Cracking con attribuzione wordlist**: il craccatore procede **per wordlist**
+  (smallest→largest) e il Finding password espone **quale lista ha craccato**
+  (`context`, es. `10k-most-common.txt`); E2E #18 la asserisce.
 - **P1 pulizia**: dedup **rot13** (`VGF{..}` vs `ITS{..}`, preferisce il prefisso
   noto), frammenti (`CTF{..}` dentro `picoCTF{..}`), varianti con spazi e note
   `password required` duplicate (anche all'avvio sui progetti vecchi). GUI:
@@ -38,8 +47,8 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 - **Robustezza**: tipo da `file` per il piano (estensione che mente), SQLite
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
-- **Test/Docs**: regressione **17/17**, reali **7/7**, `verify_flags` **ALL
-  CORRECT** (istanza per istanza), `pytest` 9, `docs/CHALLENGES.md`.
+- **Test/Docs**: regressione **18/18**, reali **7/7**, `verify_flags` **ALL
+  CORRECT** (istanza per istanza), `pytest` **58**, `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
 
@@ -82,7 +91,8 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 18. [ ] Valutare base image propria (ora pinnata per digest a AperiSolve, MIT).
 
 ### F. Cracking
-19. [ ] UI wordlist (upload/scelta, salvataggio per item).
+19. [ ] Upload di nuove wordlist (scelta per-item **già**: select in GUI `proj`)
+    e salvataggio persistente per item.
 20. [ ] `bkcrack` (ZipCrypto known-plaintext); rules/mask + budget CPU.
 
 ## Gap challenge noti
@@ -106,11 +116,10 @@ app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
 app/backend/analyzers/*.py     # 38 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
-app/tests/ctf_regression.py    # 17/17 (incl. image-repair: BMP corrotto)
+app/tests/ctf_regression.py    # 18/18 (incl. image-repair: BMP + dns-tunnel)
 app/tests/real_challenges.py   # 7/7 picoCTF
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
-app/tests/test_flags.py        # unit (9)
-app/tests/test_repair.py       # unit repair JPEG/BMP (7)
+app/tests/*.py                 # unit pytest (58)
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 .github/workflows/ci.yml       # CI
 compose.yaml                   # servizio stegsuite (19014)

@@ -49,6 +49,43 @@
 - [ ] Profilo `crack`: Hashtopolis (frontend + backend + agent + DB)
 - [ ] (Opz.) Docker integration di Homepage via socket read-only per stats container
 
+### Backlog — ZAP: add-on "potenti" (profilo `web`)
+Installare in un'unica passata i marketplace add-on con più peso per il pentesting
+(dockervesti l'immagine `ghcr.io/zaproxy/zaproxy` con un `Dockerfile` che esegue
+`zap.sh -cmd -addoninstall <id>` per la lista sotto; ids verificati sul marketplace 2026):
+- [ ] `ascanrules` (release rules) + `ascanrulesBeta` + `ascanrulesAlpha` (regole
+      attive extra: SQLi time-based multi-DBMS, XSS persistente, LDAP/NoSQLi, etc.)
+- [ ] `pscanrulesBeta` + `pscanrulesAlpha` (regole passive extra)
+- [ ] `domxss` — active scan rule per XSS/DOM nel browser
+- [ ] `accessControl` — test di autorizzazione/role-based (IDOR)
+- [ ] `sequence` — attacco CSRF su sequenze di richieste correlate
+- [ ] `authhelper` — automazione login (Microsoft/forme di autenticazione)
+- [ ] `fuzz` + `fuzzdb` — fuzzing con un payload DB aggiornato
+- [ ] `graphql`, `openapi`, `soap`, `grpc`, `sse` — supporto API moderne
+- [ ] `exim` (Import/Export) + `requester` + `database` — export/replay/DB delle sessioni
+- [ ] `retire` — rilevamento componenti JS obsoleti/vulnerabili
+- [ ] `custompayloads` + `directorylistv2_3`/`lc` — wordlist per brute-force dirs
+- [ ] `httpsInfo` + `tech` (Technology Detection) — fingerprinting TLS/stack
+- [ ] `insights` + `scanpolicies` — vista avanzata e policy di scan riusabili
+- [ ] PyIrc?/`jython` (scripting) + community scripts — hook automatici
+- [ ] Valutare integrazione **OWASP PTK** (estensione browser-side, 2026:
+      import findings PTK come alert ZAP) — `ptk`
+- Verifica: add-on elencati in Help/About dopo il primo boot + un active scan di prova su DVWA.
+
+### Backlog — OSINT: piattaforme e "plugin" (nuovo profilo `osint`)
+- [ ] **Prism-platform** (MIT, self-hosted): un target (dominio/IP/email/telefono/
+      username) → 22+ moduli in parallelo (WHOIS, DNS/CT/wayback, GeoIP, SMTP verify,
+      breach, Blackbird + **Maigret** username search, exposure score, entity graph,
+      report HTML/PDF). Candidato principale come "tool OSINT che risolve osint difficili".
+      Da verificare: build via docker-compose, validare immagine/affidabilità prima del pin.
+- [ ] **Web-Check** (`lissy93/web-check`, `ghcr.io/lissy93/web-check`) — OSINT "one-shot"
+      su un sito (headers, DNS, certs, tech, screenshot, metadata…) con GUI, self-hosted.
+- [ ] **GeoSpy / Pim Su** (geolocalizzazione foto con AI/EXIF) — riservare la parte
+      geolocation "difficile": candidati `pimwashere/pim-su` (GUI web) e geospy (AI).
+- [ ] Estendere l'esistente **SpiderFoot** (profilo `recon`) con più moduli/sources.
+- [ ] Se profilo `osint` confermato: porte `19015+` in `.env.example`, service in
+      Homepage con descrizione italiana, README, `mem_limit`/`cpus`, restart policy.
+
 ### Checkpoint: Complete ✅
 - [x] Ogni servizio risponde a runtime (9/9 → HTTP 200)
 - [x] Dashboard mostra tutti i tool con descrizione e stato
