@@ -21,6 +21,7 @@ Uso: ./ctf <comando>
   triage <file>     Deep triage: estrazione ricorsiva + cracking wordlist + flag hunt
   reports           URL dei report (FileBrowser)
   test              Regressione + challenge reali + verifica risposte
+  ui-smoke          Smoke test della SPA con un browser headless (Docker)
 
 Profili: web  recon  crypto  forensics
 Dashboard: http://localhost:19001
@@ -110,6 +111,11 @@ case "${1:-up}" in
     echo
     echo "== Verifica risposte (writeup) =="
     ( cd app/tests && python3 verify_flags.py )
+    ;;
+  ui-smoke)
+    echo "[*] Avvio StegSuite..."
+    docker compose up -d stegsuite >/dev/null
+    bash app/tests/ui_smoke.sh
     ;;
   -h|--help|help)
     usage

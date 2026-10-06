@@ -18,6 +18,14 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P20 test/qualità (sezione D)**: **OCR italiano** (`tesseract-ocr-ita` +
+  `OCR_LANGS`, default `eng` sugli host senza il pack, `eng+ita` nel container,
+  fallback automatico). **Fixture reali** committate (`app/tests/fixtures/webnet0/`,
+  pcap+chiave ~15 KB) con nuovo caso di regressione **`tls-pcap`** → **21/21**.
+  **Smoke test della UI** con Chromium headless in Docker (`app/tests/ui_smoke.mjs`
+  + `./ctf ui-smoke`: home, vista progetto, switcher mobile a 375px, zero errori
+  in console). Nuovo test unit per le lingue OCR. **Da riconfermare domani**:
+  `real_challenges`/`verify_flags` dopo la modifica OCR (fallback ita).
 - **P19 GUI: progress + toast + upload + copy-all + responsive**: l'orchestratore
   emette `total` negli eventi `file`/`progress`, così la vista progetto mostra
   una **barra di progresso** live (file corrente + percentuale). Nuovo store
@@ -166,8 +174,9 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 - **Robustezza**: tipo da `file` per il piano (estensione che mente), SQLite
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
-- **Test/Docs**: regressione **20/20**, reali **9/9**, `verify_flags` **ALL
-  CORRECT** (istanza per istanza), `pytest` **88**, `docs/CHALLENGES.md`.
+- **Test/Docs**: regressione **21/21**, reali **9/9** (da riconfermare dopo l'OCR
+  ita), `verify_flags` **ALL CORRECT**, `pytest` **90**, UI smoke
+  (`./ctf ui-smoke`), `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
 
@@ -220,10 +229,14 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
     pannello alla volta (files/detail/panel) con selettore; separatori nascosti,
     modali e header adattati a 320px.
 
-### D. Test & qualita (P0 residuo)
-13. [ ] Ampliare `pytest`: analyzer, orchestrator, API con **TestClient**.
-14. [ ] Committare le fixture reali (opzionale, ~4 MB) + nuovi casi regressione.
-15. [ ] OCR lingua **italiana** (`tesseract-ocr-ita`).
+### D. Test & qualita (P0 residuo) — ✅ completata
+13. [x] **pytest** ampliato: migrazioni/retention, nested-archive, sstv, guardia
+    OCR, url/rot13, discovery chiave TLS; più uno **smoke test della UI** con un
+    browser headless (`app/tests/ui_smoke.mjs` + `./ctf ui-smoke`).
+14. [x] **Fixture reali** committate: `app/tests/fixtures/webnet0/` (pcap+chiave,
+    ~15 KB) + caso di regressione `tls-pcap` (decifra TLS e legge la flag).
+15. [x] **OCR italiano**: `tesseract-ocr-ita` nell'immagine; `OCR_LANGS`
+    (`eng+ita` nel container, fallback `eng` se il pack manca).
 
 ### E. Packaging (P4)
 16. [ ] **Screenshot** + esempi nel README.
@@ -278,10 +291,12 @@ app/backend/analyzers/*.py     # 40 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/frontend/src/toast.js      # store toast globale
 app/frontend/src/components/Toasts.vue  # rendering toast
-app/tests/ctf_regression.py    # 20/20 (incl. image-repair: BMP, dns-tunnel, nested-archive, sstv)
+app/tests/ctf_regression.py    # 21/21 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap)
 app/tests/real_challenges.py   # 9/9 picoCTF (incl. WebNet0/1: pcap+TLS key)
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
-app/tests/*.py                 # unit pytest (88)
+app/tests/ui_smoke.mjs         # smoke test UI (Playwright/Chromium) + ui_smoke.sh
+app/tests/fixtures/            # challenge.png + webnet0/{capture.pcap,picopico.key}
+app/tests/*.py                 # unit pytest (90)
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 .github/workflows/ci.yml       # CI
 compose.yaml                   # servizio stegsuite (19014)

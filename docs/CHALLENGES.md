@@ -160,6 +160,7 @@ script, quindi il test verifica che l'analizzatore le ritrovi).
 | dns-tunnel | base32 nei label DNS di un pcap | `ITS{dns_tunnel_18}` |
 | nested-archive | 30 tar annidati (stile *like1000*) + `filler.txt` | `ITS{nested_archive_19}` |
 | sstv | trasmissione SSTV Scottie S1 di un frame con la flag | `ITS{sstv20}` |
+| tls-pcap | pcap TLS + chiave privata (WebNet0), header decifrato | `picoCTF{nongshim.shrimp.crackers}` |
 
 ## Come verificare
 
@@ -171,7 +172,7 @@ docker compose up -d stegsuite
 docker cp app/tests/ctf_regression.py ctf-stegsuite-1:/tmp/ctf_regression.py
 docker cp app/tests/fixtures ctf-stegsuite-1:/tmp/fixtures
 docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
-  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 20/20
+  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 21/21
 
 # challenge reali (host: scaricano i file da sole)
 python3 app/tests/real_challenges.py                        # → 9/9
@@ -180,6 +181,10 @@ python3 app/tests/real_challenges.py                        # → 9/9
 # con quella dichiarata dal writeup per QUELL'artifact; include una seconda
 # istanza (repo kevinjycui) con flag diverse -> 11/11
 python3 app/tests/verify_flags.py                           # → ALL CORRECT
+
+# smoke test della UI: un Chromium headless (in Docker) guida la SPA e controlla
+# pannelli, tab, layout mobile (375px) e assenza di errori in console
+./ctf ui-smoke                                              # → ALL UI CHECKS PASSED
 ```
 
 `verify_flags.py` legge le risposte **a runtime** (niente costanti nostre) e

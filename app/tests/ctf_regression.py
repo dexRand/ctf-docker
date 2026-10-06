@@ -332,11 +332,19 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
         w.writeframes((_audio * 32767).astype("<i2").tobytes())
     cases.append(("sstv", p, "ITS{sstv20}"))
 
+    # 21) TLS capture + private key (WebNet0-style fixture): the key lets
+    #     tshark decrypt the session and the flag is in a decrypted HTTP header
+    wd = fixtures / "webnet0"
+    cap, key = wd / "capture.pcap", wd / "picopico.key"
+    if cap.is_file() and key.is_file():
+        cases.append(("tls-pcap", [cap, key], "picoCTF{nongshim.shrimp.crackers}"))
+
     return cases
 
 
-def run_case(name: str, path: Path, expect: str) -> bool:
-    body, boundary = _multipart([("files", path)], {"mode": "auto"})
+def run_case(name: str, path, expect: str) -> bool:
+    paths = path if isinstance(path, (list, tuple)) else [path]
+    body, boundary = _multipart([("files", p) for p in paths], {"mode": "auto"})
     p = api("/projects", "POST", body, f"multipart/form-data; boundary={boundary}")
     pid = p["id"]
     api(f"/projects/{pid}/start", "POST", b"", "application/json")

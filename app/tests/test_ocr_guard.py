@@ -25,5 +25,19 @@ def test_truncated_png_returns_empty_string(tmp_path: Path):
     assert ocr_image(p) == ""
 
 
+def test_tess_cmd_uses_the_language_only_when_configured():
+    from backend.analyzers.vision import _tess_cmd
+
+    assert _tess_cmd("/x.png", 6, "eng") == ["tesseract", "/x.png", "stdout", "--psm", "6"]
+    assert _tess_cmd("/x.png", 7, "eng+ita")[-2:] == ["-l", "eng+ita"]
+
+
+def test_combined_langs_is_empty_without_an_extra_language():
+    from backend.analyzers.vision import _combined_langs
+
+    assert _combined_langs("eng", "") == ""
+    assert _combined_langs("eng", "ita") == "eng+ita"
+
+
 def test_missing_file_returns_empty_string(tmp_path: Path):
     assert ocr_image(tmp_path / "nope.png") == ""

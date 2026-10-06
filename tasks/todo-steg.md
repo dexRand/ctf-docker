@@ -69,6 +69,9 @@
       anche sulle sorgenti rumorose (strings/hex/pcap)
 - [x] Migrazioni con **Alembic** (`migrations/`, stampa dei DB pre-Alembic) al
       posto di `_migrate()`; **retention** opzionale (`RETENTION_DAYS`)
+- [x] Test: fixture reale WebNet0 (pcap+chiave) + regressione `tls-pcap`;
+      **OCR italiano** (`tesseract-ocr-ita`, `OCR_LANGS`); smoke test UI con
+      Chromium headless (`./ctf ui-smoke`)
 
 ## Copertura challenge italiane (ITSCyberGame / Olicyber / StarHackademin) ✅
 - [x] `png-chunks`: dump tEXt/iTXt/zTXt/eXIf + dati dopo IEND (IsThatA)

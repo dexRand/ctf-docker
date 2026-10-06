@@ -8,18 +8,36 @@ import subprocess
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult
+from ..config import OCR_EXTRA_LANGS, OCR_LANGS
 from .registry import register
 
 IMG_EXT = (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff", ".tif", ".webp", ".ppm")
 _KNOWN_FLAG = re.compile(r"(?i)(picoCTF|ITS|flag|CTF|HTB)\{[^}\n]{2,}\}")
 
 
-def _tess(img, psm: int, timeout: int) -> str:
+def _tess_cmd(tmp, psm: int, langs: str) -> list:
+    cmd = ["tesseract", str(tmp), "stdout", "--psm", str(psm)]
+    if langs and langs != "eng":
+        cmd += ["-l", langs]
+    return cmd
+
+
+def _combined_langs(base: str, extra: str) -> str:
+    """Language spec for the fallback pass ('' when no extra language is set)."""
+    return f"{base}+{extra}" if extra else ""
+
+
+def _tess(img, psm: int, timeout: int, langs: str | None = None) -> str:
+    lang = OCR_LANGS if langs is None else langs
     tmp = Path("/tmp") / f"ocr_{os.getpid()}_{abs(hash(img.tobytes())) % 100000}_{psm}.png"
     try:
         img.save(tmp)
-        r = subprocess.run(["tesseract", str(tmp), "stdout", "--psm", str(psm)],
+        r = subprocess.run(_tess_cmd(tmp, psm, lang),
                            capture_output=True, text=True, errors="replace", timeout=timeout)
+        if r.returncode != 0 and lang != "eng":
+            # e.g. the extra language pack is not installed in this environment
+            r = subprocess.run(_tess_cmd(tmp, psm, "eng"),
+                               capture_output=True, text=True, errors="replace", timeout=timeout)
         return (r.stdout or "").strip()
     except Exception:
         return ""
@@ -74,6 +92,13 @@ def ocr_image(path: Path, timeout: int = 90) -> str:
                 txt = _tess(c, 6, timeout)
                 if txt and txt not in texts:
                     texts.append(txt)
+    if OCR_EXTRA_LANGS and not any(_KNOWN_FLAG.search(t) for t in texts):
+        # no flag in English: one more pass with the extra language(s) (e.g. ita)
+        extra = _combined_langs(OCR_LANGS, OCR_EXTRA_LANGS)
+        for psm in (6, 7):
+            t = _tess(gray, psm, timeout, extra)
+            if t and t not in texts:
+                texts.append(t)
     return "\n".join(texts)
 
 

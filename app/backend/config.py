@@ -26,6 +26,13 @@ def retention_days() -> int:
     return int(os.environ.get("RETENTION_DAYS", "0") or 0)
 
 
+# OCR languages passed to tesseract (`-l`). Default English; the container adds
+# Italian (`italian`) as a *fallback* pass, used only when the English pass finds
+# no flag (so Italian text is covered without adding noise on English challenges).
+OCR_LANGS = os.environ.get("OCR_LANGS", "eng").strip() or "eng"
+OCR_EXTRA_LANGS = os.environ.get("OCR_EXTRA_LANGS", "").strip()
+
+
 def rate_limit() -> tuple[int, float]:
     """Per-IP budget as (capacity, refill_per_sec). (0, 0) = disabled.
 
