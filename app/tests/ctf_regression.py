@@ -212,6 +212,25 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     real = fixtures / "challenge.png"
     if real.is_file():
         cases.append(("real-challenge", real, "ITS{stego_z1p_appended}"))
+
+    # 17) BMP with a corrupt header (offset/DIB = 0xD0BA, declared height 1):
+    #     image-repair rebuilds it, then OCR reads the drawn flag
+    from PIL import Image, ImageDraw
+
+    def _corrupt_bmp(path: Path, text: str, width: int = 400, height: int = 60) -> None:
+        im = Image.new("RGB", (width, height), (20, 20, 20))
+        ImageDraw.Draw(im).text((10, height // 2 - 8), text, fill="white")
+        im.save(path)
+        raw = bytearray(path.read_bytes())
+        raw[10:14] = (0xD0BA).to_bytes(4, "little")  # pixel-data offset
+        raw[14:18] = (0xD0BA).to_bytes(4, "little")  # DIB header size
+        raw[22:26] = (1).to_bytes(4, "little")       # height
+        path.write_bytes(raw)
+
+    p = TMP / "corrupt.bmp"
+    _corrupt_bmp(p, "ITS{repair_17}")
+    cases.append(("image-repair", p, "ITS{repair_17}"))
+
     return cases
 
 

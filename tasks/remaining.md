@@ -7,7 +7,7 @@
 ```bash
 cd "/home/romeo/Progetti/ctf-docker"
 docker compose up -d stegsuite          # GUI/API su http://localhost:19014
-./ctf test                              # 16/16 + 7/7 + verifica risposte
+./ctf test                              # 17/17 + 7/7 + verifica risposte
 # oppure i singoli passi:
 #   regressione (nel container): copia app/tests/ctf_regression.py in /tmp e lancia
 #   challenge reali (host):      python3 app/tests/real_challenges.py
@@ -18,6 +18,9 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P5 image repair**: `image-repair` (BMP: header standard se offset/DIB
+  corrotti + altezza ricalcolata dai dati; JPEG: EOI mancante). Risolve
+  *tunn3l v1s10n* reale; unit test puri + regressione E2E #17.
 - **P1 pulizia**: dedup **rot13** (`VGF{..}` vs `ITS{..}`, preferisce il prefisso
   noto), frammenti (`CTF{..}` dentro `picoCTF{..}`), varianti con spazi e note
   `password required` duplicate (anche all'avvio sui progetti vecchi). GUI:
@@ -35,15 +38,16 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 - **Robustezza**: tipo da `file` per il piano (estensione che mente), SQLite
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
-- **Test/Docs**: regressione **16/16**, reali **7/7**, `verify_flags` **ALL
+- **Test/Docs**: regressione **17/17**, reali **7/7**, `verify_flags` **ALL
   CORRECT** (istanza per istanza), `pytest` 9, `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
 
 ### A. Analyzer da completare (P2)
-1. [ ] **JPEG/BMP height repair** — *tunn3l v1s10n*: se l'altezza nell'header è
-   troppo piccola rispetto ai dati, ricalcolala e scrivi il file riparato
-   (analogo di `png-repair`).
+- [x] **JPEG/BMP height repair** — *tunn3l v1s10n*: `image-repair` ripristina
+  header BMP standard (offset 54, DIB 40) quando i campi sono corrotti (`ba d0…`)
+  e ricalcola l'altezza dai dati; JPEG: riattacca EOI mancante. Verificato sulla
+  challenge reale (1134×850, flag via OCR/vision) + caso regressione #17.
 2. [ ] **DNS tunneling** (*ExtractionD'ADNs*): concatenare i sottodomini
    (`dns.qry.name`) → base32/base64 → flag. Base: analyzer `pcap` già presente.
 3. [ ] **TLS/pcap con chiave** (*WebNet*): `tshark -o tls.keylog_file=...` o
@@ -98,12 +102,13 @@ app/backend/main.py            # app factory + startup (reconcile + dedupe)
 app/backend/api/*.py           # router: system, projects, analysis, tools, cracking, ws
 app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
-app/backend/analyzers/*.py     # 37 tool (un file, auto-registered)
+app/backend/analyzers/*.py     # 38 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
-app/tests/ctf_regression.py    # 16/16
+app/tests/ctf_regression.py    # 17/17 (incl. image-repair: BMP corrotto)
 app/tests/real_challenges.py   # 7/7 picoCTF
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
 app/tests/test_flags.py        # unit (9)
+app/tests/test_repair.py       # unit repair JPEG/BMP (7)
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 .github/workflows/ci.yml       # CI
 compose.yaml                   # servizio stegsuite (19014)

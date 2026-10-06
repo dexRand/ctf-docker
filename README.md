@@ -57,7 +57,7 @@ It is designed to live next to other self-hosted apps: every service runs on the
 | Web | **mitmproxy** | http://localhost:19003 | Intercept and rewrite HTTP(S) · proxy on `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoders, converters, hashes, regex and friends | core |
 | Deep triage | **CTF Triage** | http://localhost:19013 | Recursive extract + wordlist cracking + flag hunt · Auto/Check GUI, reports in FileBrowser Quantum (`./ctf triage <file>`) | core |
-| Stego workbench | **StegSuite** | http://localhost:19014 | Recursive auto/triage over 37 tools (stego, forensics, vision/OCR, audio/Morse), file tree, live log, embedded terminal, REST API | core |
+| Stego workbench | **StegSuite** | http://localhost:19014 | Recursive auto/triage over 38 tools (stego, forensics, vision/OCR, audio/Morse), file tree, live log, embedded terminal, REST API | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Web security scanner with an in-browser GUI · proxy on `:19006` | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domains, IPs, e-mails, leaks | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Python/Sage notebook for crypto and math | `crypto` |
@@ -195,10 +195,11 @@ http://localhost:19014 (localhost only).
 
 - **Auto / Check** modes: Auto runs everything and tries every wordlist; Check
   first scans, then lets you choose what to attack.
-- **Recursive, ordered** analysis over **37 tools**: `file`, `exiftool`,
+- **Recursive, ordered** analysis over **38 tools**: `file`, `exiftool`,
   `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
-  `7z`, `pngcheck`, `png-repair`, `qr` (zbarimg), `pcap` (tshark), `zsteg`,
+  `7z`, `pngcheck`, `png-repair`, `image-repair` (JPEG/BMP header/height),
+  `qr` (zbarimg), `pcap` (tshark), `zsteg`,
   `steghide`, `outguess`, `jsteg`, `png-chunks`, `openstego`, `bit-planes`,
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff + delay
   decode + per-frame OCR), `ocr` (tesseract), `spectrogram`, `waveform`,

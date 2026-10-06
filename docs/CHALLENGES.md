@@ -178,6 +178,16 @@ del tutto. Restano qui come riferimento e come TODO per nuovi analyzer.
 | Challenge | Anno | Flag | Cosa manca |
 |---|---|---|---|
 | c0rrupt | 2019 | `picoCTF{c0rrupt10n_1847995}` | **PNG repair** ora presente: produce l'immagine valida (la flag è visiva, OCR non affidabile) |
+
+La challenge **tunn3l v1s10n** (2021, BMP con offset/DIB `0xD0BA` e altezza
+dichiarata 306 contro ~850 righe reali) ora è risolta da **`image-repair`**:
+ripristina un header BMP standard (offset 54, DIB 40) e ricalcola l'altezza,
+poi OCR/vision leggono la flag (`picoCTF{qu1t3_a_v13w_2020}`; la rottura OCR
+del prefisso/degli spazi resta un limite noto).
+
+| Challenge | Anno | Flag | Cosa manca |
+|---|---|---|---|
+| c0rrupt | 2019 | `picoCTF{c0rrupt10n_1847995}` | **PNG repair** ora presente: produce l'immagine valida (la flag è visiva, OCR non affidabile) |
 | like1000 | 2019 | `picoCTF{l0t5_0f_TAR5}` | 1000 tar annidati: alza `MAX_DEPTH` (molto lento) |
 | MacroHard WeakEdge | 2021 | `picoCTF{D1d_u_kn0w_ppts_r_z1p5}` | base64 multi-step nel `pptm` |
 | Surfing the Waves | 2021 | `picoCTF{mU21C_1s_1337_115155af}` | decodifica custom dei campioni WAV |

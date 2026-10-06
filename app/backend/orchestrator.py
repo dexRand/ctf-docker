@@ -93,7 +93,7 @@ DEFAULT_PLAN = [
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb",
     "pcap",
-    "7z", "binwalk-extract", "foremost", "pngcheck", "png-repair",
+    "7z", "binwalk-extract", "foremost", "pngcheck", "png-repair", "image-repair",
 ]
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}
 # cap how many heavy tools run at once across all projects (CPU bound)
