@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -10,45 +11,68 @@ from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
 
 IMG_EXT = (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff", ".tif", ".webp", ".ppm")
+_KNOWN_FLAG = re.compile(r"(?i)(picoCTF|ITS|flag|CTF|HTB)\{[^}\n]{2,}\}")
+
+
+def _tess(img, psm: int, timeout: int) -> str:
+    tmp = Path("/tmp") / f"ocr_{os.getpid()}_{abs(hash(img.tobytes())) % 100000}_{psm}.png"
+    try:
+        img.save(tmp)
+        r = subprocess.run(["tesseract", str(tmp), "stdout", "--psm", str(psm)],
+                           capture_output=True, text=True, errors="replace", timeout=timeout)
+        return (r.stdout or "").strip()
+    except Exception:
+        return ""
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
 
 
 def ocr_image(path: Path, timeout: int = 90) -> str:
     """Run tesseract on a file and return recognized text ('' if unavailable).
 
-    Small images are upscaled first: OCR on tiny text (e.g. GIF frames) is very
-    inaccurate otherwise.
+    Small images are upscaled first (OCR on tiny text is otherwise poor). When
+    the plain grayscale pass finds no brace-delimited token (a flag), each RGB
+    channel is tried too: a flag drawn in a colour close to the background
+    (e.g. light blue on sky) is invisible in grayscale but stands out in one
+    channel.
     """
     if not shutil.which("tesseract"):
         return ""
-    src = path
-    tmp: Path | None = None
     try:
         from PIL import Image
-        im = Image.open(path).convert("L")
-        w, h = im.size
-        if max(w, h) < 1000:
-            f = max(2, (1000 // max(w, h)) + 1)
-            im = im.resize((w * f, h * f), Image.LANCZOS)
-            tmp = Path("/tmp") / f"ocr_{os.getpid()}_{abs(hash(str(path))) % 100000}.png"
-            im.save(tmp)
-            src = tmp
+        base = Image.open(path)
     except Exception:
-        pass
+        return ""
     texts: list[str] = []
-    try:
-        for extra in ([], ["--psm", "7"]):
-            r = subprocess.run(["tesseract", str(src), "stdout", *extra],
-                               capture_output=True, text=True, errors="replace", timeout=timeout)
-            t = (r.stdout or "").strip()
-            if t and t not in texts:
-                texts.append(t)
-    except Exception:
-        pass
-    if tmp:
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
+    gray = base.convert("L")
+    w, h = gray.size
+    if max(w, h) < 1000:
+        f = max(2, (1000 // max(w, h)) + 1)
+        gray = gray.resize((w * f, h * f), Image.LANCZOS)
+    for psm in (6, 7):
+        t = _tess(gray, psm, timeout)
+        if t and t not in texts:
+            texts.append(t)
+    if not any(_KNOWN_FLAG.search(t) for t in texts):
+        # a flag drawn in a colour close to the background is invisible in
+        # grayscale but stands out in one channel; OCR each channel on the top
+        # and bottom bands, where such flags are usually placed
+        rgb = base.convert("RGB")
+        W, H = rgb.size
+        band = max(64, H // 5) if H >= 100 else H
+        bands = [(0, band)] if H < 100 else [(0, band), (H - band, H)]
+        for ch in ("R", "G", "B"):
+            full = rgb.getchannel(ch)
+            for (t, b) in bands:
+                c = full.crop((0, t, W, b))
+                if max(c.size) < 2000:
+                    c = c.resize((c.width * 2, c.height * 2), Image.LANCZOS)
+                txt = _tess(c, 6, timeout)
+                if txt and txt not in texts:
+                    texts.append(txt)
     return "\n".join(texts)
 
 

@@ -39,6 +39,10 @@ _GENERIC_RE = [re.compile(p.encode(), re.IGNORECASE) for p in GENERIC_PATTERNS]
 # sources where the generic "<word>{...}" pattern is skipped (noisy OCR / raw bytes)
 VISION_SOURCES = ("ocr", "bit-planes", "channel-remap", "image-enhance",
                   "gif-frames", "spectrogram", "waveform", "raw")
+# sources where the generic "<word>{...}" pattern is skipped too: on raw dumps
+# (strings/hex viewers) and pcap text it mostly matches binary noise
+GENERIC_NOISY = ("strings", "hexyl", "xxd", "hexdump", "pcap",
+                 "binwalk-scan", "binwalk-extract", "foremost")
 # the fuzzy (OCR-confusion) matcher only makes sense on visual/audio output,
 # not on raw file bytes where it matches markup/entities
 FUZZY_SOURCES = tuple(s for s in VISION_SOURCES if s != "raw")
@@ -197,7 +201,8 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     head = source.split(":", 1)[0]
     is_vision = head in VISION_SOURCES
     fuzzy_ok = head in FUZZY_SOURCES
-    pats = list(_STRICT_RE) + ([] if is_vision else list(_GENERIC_RE))
+    noisy = any(p in VISION_SOURCES or p in GENERIC_NOISY for p in source.split(":"))
+    pats = list(_STRICT_RE) + ([] if noisy else list(_GENERIC_RE))
 
     def add(value: str, src: str, ctx: str = "") -> None:
         if not _ok_flag(value) or value in existing:
