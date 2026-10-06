@@ -18,6 +18,56 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P13 GUI: transcript XML (context-engineering) + full logs**: il **transcript**
+  segue le linee guida Anthropic (*effective context engineering* / prompting):
+  **tutto in `<transcript>`** con tag XML (`<challenge>`, `<findings>`,
+  `<flag_path>`, `<timeline>`, `<files>`, `<runs>` con `<commands>`/`<output>` in
+  CDATA, `<event_log>`, `<still_locked>`) e il **`<task>` in fondo** (dati lunghi
+  sopra, query sotto → +qualità); output curati (comandi sempre, output troncato,
+  più spazio ai run del percorso flag). Nel tab **Logs** il riquadro sotto ha ora
+  due viste: **runs** e **full logs** (eventi + tutti i run con output) con
+  **copia in un click**.
+- **P12 GUI: transcript per agente + copia log**: bottone **transcript** nella
+  barra azioni → modale con **copy/.md** di un transcript completo (findings,
+  route ASCII, timeline, albero file con hash, **tutti i run con comandi+output**,
+  event log), pensato per essere incollato in un'AI se il tool non chiude la
+  challenge; nel tab **Logs** un bottone **copia log**.
+- **P11 GUI: graph interattiva (force-graph) + crack con log + click sincronizzato**:
+  la tab **graph** usa ora **`force-graph`** (MIT): simulazione a forze con
+  **zoom/pan/scroll**, **drag dei nodi**, label scalate e `fit`; i nodi del
+  percorso flag e le flag sono verdi, i bloccati/craccati ambra. **Cliccare un
+  nodo (o uno step della timeline) seleziona quel file a sinistra**, così i
+  dettagli restano in un solo posto (niente pannello duplicato). Il **crack ora
+  registra un `ToolRun`** (`tool=crack`) con i comandi reali (hashcat/zip2hashcat,
+  `7z`, stegseek…) e l'esito, quindi compare in overview/logs/graph (prima non
+  lasciava traccia). Un solo crack-run per file, aggiornato tra i round.
+- **P10 GUI: tab Graph + crack visibile in overview**: nuova tab **graph** nel
+  pannello destro con l'**albero dei tool** che hanno prodotto ogni file (nodi
+  colorati: verde = percorso flag), la **timeline** ordinata di come è stata
+  trovata la flag e, cliccando un nodo, i **dettagli**: comando/output del run che
+  l'ha prodotto, esito del crack e **file risultanti**. In overview/extracted un
+  file craccato non mostra più `[pw]`: la run diventa **`cracked`** con il
+  risultato (`🔑 robot (via 10k-most-common.txt)`), nell'albero un `🔑`.
+- **P9 GUI: layout a 3 colonne rifatto + resizer affidabili + log con storico**:
+  pannello destro **ancorato a destra** (tree a larghezza fissa a sinistra, centro
+  `flex-1 min-w-0`, pannello destro `shrink-0`); **separator** unificati (`.sep`,
+  5px, hover accento) con drag **delta-based** (niente più salti/combattimenti) e
+  clamp sul centro; **accessibili** (`role="separator"`, `aria-orientation`,
+  frecce da tastiera); **dimensioni persistite** in `localStorage`. La tab
+  **Logs** ora pre-carica gli **eventi storici** da `/events` (con timestamp), non
+  solo lo stream live; xterm si riadatta via **ResizeObserver** quando la tab
+  diventa visibile. E2E su `challenge.png`: auto-crack `robot` su `46.zip` →
+  flag `ITS{stego_z1p_appended}`; `/locked` mostra solo il file non craccato;
+  crack manuale 409 sul già craccato, ammesso sull'ancora bloccato.
+- **P8 GUI: pannello destro a tab + stato crack + timestamp**: findings, terminale
+  e logs spostati in una **colonna destra a tab** (rimossa la barra in basso); i
+  **logs** sono splittati in verticale (live sopra, run/comandi sotto, handle
+  draggabile); un file **già craccato non è più "locked"** — `/locked` e la
+  dashboard escludono i file con un Finding `password`, e `mark_unlocked` azzera
+  `needs_password` dopo un crack auto o manuale; il **crack manuale resta
+  possibile solo sui file ancora bloccati** (409 su file già craccato);
+  **timestamp** sui run (`started_at`/`finished_at` ora esposti dall'API e
+  mostrati nei log) e sugli eventi live (`ts` del bus).
 - **P7 GUI: palette neutra + pannelli resizable + log comandi + dashboard utile**:
   superfici **neutre dark** (`ink/panel/edge`) con verdi solo come accent;
   terminale con **palette ANSI Linux-console/Debian** (nero, 16 colori classici)

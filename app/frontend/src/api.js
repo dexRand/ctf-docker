@@ -34,6 +34,15 @@ export function fmtDate(s) {
   try { return new Date(s).toLocaleString() } catch { return s }
 }
 
+// Accepts either an ISO string (DB timestamps) or epoch seconds (bus events).
+export function fmtTime(s) {
+  if (s == null || s === '') return ''
+  const d = (typeof s === 'number' || /^\d+(\.\d+)?$/.test(String(s)))
+    ? new Date(parseFloat(s) * 1000)
+    : new Date(s)
+  return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
 export const STATUS_COLOR = {
   created: 'text-dim', queued: 'text-warn', running: 'text-warn',
   paused: 'text-info', done: 'text-acc', error: 'text-danger', cancelled: 'text-dim',

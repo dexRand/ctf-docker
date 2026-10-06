@@ -22,10 +22,15 @@ def wordlists() -> list[dict]:
 
 @router.get("/api/v1/projects/{pid}/locked")
 def locked_files(pid: str, session: Session = Depends(get_session)) -> list[dict]:
+    cracked = {f.file_id for f in session.exec(
+        select(Finding).where(Finding.project_id == pid)
+        .where(Finding.kind == "password")).all()}
     runs = session.exec(select(ToolRun).where(ToolRun.project_id == pid)
                         .where(ToolRun.needs_password == True)).all()  # noqa: E712
     seen: dict[int, str] = {}
     for r in runs:
+        if r.file_id in cracked:
+            continue
         seen.setdefault(r.file_id, r.tool)
     out = []
     for fid, tool in seen.items():
@@ -42,9 +47,12 @@ def _crack_worker(pid: str, fid: int, names) -> None:
             if not node or node.project_id != pid:
                 return
             path = storage.project_dir(pid) / node.rel_path
+            work = storage.project_dir(pid)
             bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid,
                                            "name": node.name, "status": "running"})
-            res = cracking.crack_file(path, names)
+            lines: list[str] = []
+            res = cracking.crack_file(path, names, log=lines.append)
+            orchestrator.record_crack_run(s, pid, fid, work, res, lines)
             if res["password"]:
                 wl_hit = res.get("wordlist_hit") or ""
                 bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid,
@@ -53,6 +61,7 @@ def _crack_worker(pid: str, fid: int, names) -> None:
                 s.add(Finding(project_id=pid, file_id=fid, kind="password",
                               value=res["password"], source=f"crack:{res['kind']}",
                               context=wl_hit))
+                orchestrator.mark_unlocked(s, pid, fid)
                 s.add(Event(project_id=pid, level="info",
                             message=f"password found for {node.name}: {res['password']}"
                                     + (f" via {wl_hit}" if wl_hit else "")))
@@ -79,6 +88,11 @@ def crack(pid: str, payload: dict = Body(...), session: Session = Depends(get_se
     node = session.get(FileNode, fid) if fid is not None else None
     if not node or node.project_id != pid:
         raise HTTPException(404, "file not found")
+    already = session.exec(select(Finding).where(Finding.project_id == pid)
+                           .where(Finding.file_id == fid)
+                           .where(Finding.kind == "password")).first()
+    if already:
+        raise HTTPException(409, "file already cracked")
     if pid in CRACK_JOBS:
         raise HTTPException(409, "cracking already running")
     CRACK_JOBS[pid] = node.name

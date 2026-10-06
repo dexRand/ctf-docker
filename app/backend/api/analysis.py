@@ -16,6 +16,7 @@ def _run_dict(r: ToolRun, artifacts: list[dict] | None = None) -> dict:
     return {"id": r.id, "file_id": r.file_id, "tool": r.tool, "status": r.status,
             "needs_password": r.needs_password, "exit_code": r.exit_code,
             "summary": r.summary, "output_path": r.output_path,
+            "started_at": r.started_at, "finished_at": r.finished_at,
             "artifacts": artifacts or []}
 
 

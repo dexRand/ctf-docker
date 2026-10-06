@@ -7,7 +7,7 @@ import { wsUrl } from '../api'
 
 const props = defineProps({ pid: { type: String, required: true } })
 const el = ref(null)
-let term, fit, ws, onResize
+let term, fit, ws, onResize, ro
 
 onMounted(() => {
   term = new Terminal({
@@ -35,8 +35,12 @@ onMounted(() => {
   ws.onopen = () => { resize(); term.focus() }
   ws.onmessage = (e) => term.write(typeof e.data === 'string' ? e.data : '')
   term.onData((d) => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'i', d })) })
-  onResize = () => { fit.fit(); resize() }
+  onResize = () => { try { fit.fit() } catch {} ; resize() }
   window.addEventListener('resize', onResize)
+  // the panel is kept mounted with v-show, so when its tab becomes visible the
+  // container goes from 0x0 to a real size: ResizeObserver refits the terminal.
+  ro = new ResizeObserver(onResize)
+  ro.observe(el.value)
 })
 
 function resize() {
@@ -45,6 +49,7 @@ function resize() {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
+  try { ro && ro.disconnect() } catch {}
   try { ws && ws.close() } catch {}
   try { term && term.dispose() } catch {}
 })

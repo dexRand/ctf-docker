@@ -73,6 +73,12 @@ pre.out {
 .row { padding: .25rem .5rem; font-size: 12px; line-height: 1.5; }
 .row:hover { background: rgba(69, 224, 140, .06); }
 
+/* --- resizable separators ------------------------------------------- */
+.sep { flex: 0 0 auto; background: #262b31; transition: background .12s ease; }
+.sep:hover, .sep:focus-visible, .sep:active { background: #45e08c; outline: none; }
+.sep-v { width: 5px; cursor: col-resize; }
+.sep-h { height: 5px; cursor: row-resize; }
+
 /* --- markdown rendering (report) ------------------------------------ */
 .md { font-size: 13px; line-height: 1.55; color: #d7dde3; }
 .md h1, .md h2 { color: #45e08c; font-weight: 700; }

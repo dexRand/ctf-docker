@@ -86,7 +86,8 @@ async function loadStats() {
       ])
     } catch { /* keep zeros for this project */ }
     const flagsN = (fd || []).filter((f) => f.kind === 'flag').length
-    const lockedN = new Set((rs || []).filter((r) => r.needs_password).map((r) => r.file_id)).size
+    const cracked = new Set((fd || []).filter((f) => f.kind === 'password').map((f) => f.file_id))
+    const lockedN = new Set((rs || []).filter((r) => r.needs_password && !cracked.has(r.file_id)).map((r) => r.file_id)).size
     flags += flagsN
     passwords += (fd || []).filter((f) => f.kind === 'password').length
     runs += (rs || []).length

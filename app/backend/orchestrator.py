@@ -474,6 +474,58 @@ def _run(pid: str, job: Job) -> None:
         JOBS.pop(pid, None)
 
 
+def mark_unlocked(session: Session, pid: str, file_id: int) -> None:
+    """After a successful crack, a file no longer needs a password.
+
+    Clears ``needs_password`` on every run that asked for one, so the file
+    stops being reported as locked/locked while keeping the failed run history.
+    """
+    for r in session.exec(select(ToolRun).where(ToolRun.project_id == pid)
+                          .where(ToolRun.file_id == file_id)
+                          .where(ToolRun.needs_password == True)).all():  # noqa: E712
+        r.needs_password = False
+
+
+def record_crack_run(session: Session, pid: str, file_id: int, work: Path,
+                     res: dict, lines: list[str]) -> None:
+    """Persist a ToolRun for a crack attempt.
+
+    Cracking used to leave only a Finding/Event, so the crack step had no run,
+    no command log and did not appear in the runs list / graph. This stores the
+    executed commands and the outcome like any other analyzer run.
+    """
+    out_dir = work / "work" / str(file_id)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    body = ""
+    if lines:
+        body += "# commands:\n# " + "\n# ".join(lines) + "\n\n"
+    if res.get("password"):
+        hit = res.get("wordlist_hit") or ""
+        body += "password: " + res["password"] + (f"  (via {hit})" if hit else "")
+        summary = "password: " + res["password"] + (f" (via {hit})" if hit else "")
+        status, code = "done", 0
+    else:
+        body += "password not found"
+        summary, status, code = "password not found", "skipped", 1
+    op = out_dir / "crack.out"
+    op.write_text(body, errors="replace")
+    # one crack run per file: update it across auto-crack rounds / manual retries
+    run = session.exec(select(ToolRun).where(ToolRun.project_id == pid)
+                       .where(ToolRun.file_id == file_id)
+                       .where(ToolRun.tool == "crack")).first()
+    if run is None:
+        run = ToolRun(project_id=pid, file_id=file_id, tool="crack")
+        session.add(run)
+    run.status = status
+    run.exit_code = code
+    run.summary = summary[:500]
+    run.output_path = str(op.relative_to(work))
+    run.needs_password = False
+    run.finished_at = _now()
+    if run.started_at is None:
+        run.started_at = _now()
+
+
 def _auto_crack(session: Session, pid: str, work: Path, job: Job) -> list[FileNode]:
     """Auto mode: try every wordlist on the locked files; return unlocked nodes."""
     from . import cracking
@@ -494,12 +546,15 @@ def _auto_crack(session: Session, pid: str, work: Path, job: Job) -> list[FileNo
         if not node:
             continue
         _emit(pid, {"type": "crack", "file_id": fid, "name": node.name, "status": "running"})
-        res = cracking.crack_file(work / node.rel_path, None)
+        lines: list[str] = []
+        res = cracking.crack_file(work / node.rel_path, None, log=lines.append)
+        record_crack_run(session, pid, fid, work, res, lines)
         if res["password"]:
             wl_hit = res.get("wordlist_hit") or ""
             session.add(Finding(project_id=pid, file_id=fid, kind="password",
                                 value=res["password"], source=f"crack:{res['kind']}",
                                 context=wl_hit))
+            mark_unlocked(session, pid, fid)
             session.add(Event(project_id=pid, level="info",
                               message=f"password found for {node.name}: {res['password']}"
                                       + (f" via {wl_hit}" if wl_hit else "")))
