@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, wsUrl, fmtSize, fmtDate, STATUS_COLOR } from '../api'
 import { toolLabel } from '../labels'
+import { t, tt, lang } from '../i18n'
 import { mdToHtml } from '../md'
 import Terminal from '../components/Terminal.vue'
 import Icon from '../components/Icon.vue'
@@ -24,6 +25,7 @@ const expanded = ref({})
 const lightbox = ref(null)
 const previewErr = ref(false)
 const report = ref({ open: false, text: '', busy: false })
+const reportLang = ref('en')
 const err = ref('')
 let ws = null
 let refreshTimer = null
@@ -176,17 +178,36 @@ const nearIdSet = computed(() => {
 })
 function nodeColor(n) {
   if (!flags.value.length) return ''
-  if (routeIdSet.value.has(n.id)) return 'text-emerald-400'
+  if (routeIdSet.value.has(n.id)) return 'text-acc'
   if (nearIdSet.value.has(n.id)) return 'text-slate-100'
-  return 'text-slate-500'
+  return 'text-dim'
 }
 function groupColor(n) {
-  if (!flags.value.length) return 'text-slate-400'
+  if (!flags.value.length) return 'text-dim'
   const kids = childrenByParent.value[n._pid] || []
   const mine = kids.filter((c) => originTool(c) === n._tool)
-  if (mine.some((c) => routeIdSet.value.has(c.id))) return 'text-emerald-400'
+  if (mine.some((c) => routeIdSet.value.has(c.id))) return 'text-acc'
   if (mine.some((c) => nearIdSet.value.has(c.id))) return 'text-slate-100'
-  return 'text-slate-500'
+  return 'text-dim'
+}
+
+function statusChip(status) {
+  const map = {
+    done: 'border-acc/50 bg-acc/5 text-acc',
+    running: 'border-warn/50 bg-warn/5 text-warn',
+    queued: 'border-warn/50 bg-warn/5 text-warn',
+    paused: 'border-info/50 bg-info/5 text-info',
+    error: 'border-danger/50 bg-danger/5 text-danger',
+  }
+  return map[status] || 'border-edge text-dim'
+}
+function runStatusChip(status) {
+  const map = {
+    done: 'border-acc/40 bg-acc/5 text-acc',
+    needs_password: 'border-warn/40 bg-warn/5 text-warn',
+    skipped: 'border-edge text-dim',
+  }
+  return map[status] || 'border-danger/40 bg-danger/5 text-danger'
 }
 
 async function load() {
@@ -225,7 +246,7 @@ async function action(kind) {
   try { await api(`/projects/${props.id}/${kind}`, { method: 'POST' }) } catch (e) { err.value = String(e) }
 }
 async function del() {
-  if (!confirm('Eliminare il progetto e tutti i file?')) return
+  if (!confirm(t('proj.del_confirm'))) return
   await api(`/projects/${props.id}`, { method: 'DELETE' })
   router.push('/')
 }
@@ -284,7 +305,7 @@ function evidenceFor(f) {
   return null
 }
 
-// --- ASCII tree (box-drawing) ---
+// --- ASCII tree (box drawing) ---
 function childrenMap(nodes) {
   const m = {}
   for (const n of nodes) { (m[n.parent_id ?? 0] ||= []).push(n) }
@@ -301,9 +322,9 @@ function sourceParts(src) {
   return { tool, dec }
 }
 function sourceTool(src) { return sourceParts(src).tool }
-function sourceHow(src) {
+function sourceHow(src, lng) {
   const { tool, dec } = sourceParts(src)
-  const name = toolLabel(tool)
+  const name = toolLabel(tool, lng)
   return dec.length ? name + ' + ' + dec.map((d) => SRC_DECODER[d] || d).join(' + ') : name
 }
 function chainOf(fileId) {
@@ -312,18 +333,20 @@ function chainOf(fileId) {
   while (cur && treeById.value[cur]) { chain.unshift(treeById.value[cur]); cur = treeById.value[cur].parent_id }
   return chain
 }
-function chainText(f) {
+function pwdVia(p) { return p && p.context ? ` (via ${p.context})` : '' }
+function chainText(f, lng) {
   const parts = []
   const ev = evidenceFor(f)
+  const via = lng ? tr(lng, 'proj.via') : t('proj.via')
   chainOf(f.file_id).forEach((n, i) => {
-    const t = originTool(n)
+    const ot = originTool(n)
     if (i === 0) parts.push(n.name)
     else {
       const pw = passwords.value.find((p) => p.file_id === n.id)
-      parts.push(`${n.name} (via ${toolLabel(t)}${pw ? ', pwd ' + pw.value : ''})`)
+      parts.push(`${n.name} (${via} ${toolLabel(ot, lng)}${pw ? ', pwd ' + pw.value + pwdVia(pw) : ''})`)
     }
   })
-  parts.push(`[${ev && ev.run ? toolLabel(ev.tool) : sourceHow(f.source)}]`)
+  parts.push(`[${ev && ev.run ? toolLabel(ev.tool, lng) : sourceHow(f.source, lng)}]`)
   return parts.join('  ->  ')
 }
 function flagTools() {
@@ -374,29 +397,36 @@ function routeNodes() {
 }
 
 async function openReport() {
-  report.value = { open: true, text: 'Building report…', busy: true }
+  reportLang.value = lang.value
+  report.value = { open: true, text: '…', busy: true }
+  await buildReport(reportLang.value)
+}
+async function buildReport(lng) {
+  const g = (k, p) => tt(lng, k, p)
   const P = project.value
   const L = []
-  L.push(`# StegSuite report — ${P.name}`)
+  L.push(`# ${g('report.title_line', { name: P.name })}`)
   L.push('')
-  L.push(`- **Stato:** ${P.status}  ·  **Modalità:** ${P.mode}  ·  **File:** ${P.files}  ·  **Data:** ${fmtDate(P.created_at)}`)
+  L.push(g('report.status_line', { status: P.status, mode: P.mode, files: P.files, date: fmtDate(P.created_at) }))
   L.push('')
   if (passwords.value.length) {
-    L.push('## Password'); L.push('| Password | Origine |'); L.push('|---|---|')
-    for (const p of passwords.value) L.push(`| \`${p.value}\` | ${p.source} |`)
+    L.push('## ' + g('report.passwords'))
+    L.push(g('report.passwords_head'))
+    L.push('|---|---|---|')
+    for (const p of passwords.value) L.push(`| \`${p.value}\` | ${p.source} | ${p.context ? `\`${p.context}\`` : '—'} |`)
   }
   if (notes.value.length) {
-    L.push(''); L.push('## Note / bloccati'); L.push('| Nota | Tool |'); L.push('|---|---|')
+    L.push(''); L.push('## ' + g('report.notes')); L.push(g('report.notes_head')); L.push('|---|---|')
     for (const n of notes.value) L.push(`| ${n.value} | ${n.source} |`)
   }
-  L.push(''); L.push('## Come è stata trovata la flag')
+  L.push(''); L.push('## ' + g('report.how_header'))
   if (flagCards.value.length) {
     for (const { f, ev } of flagCards.value) {
       const fn = treeById.value[f.file_id]
       L.push(`### \`${f.value}\``)
-      L.push(`- **Dove:** ${fn ? fn.name : '?'}${fn ? `  ·  [apri](${fileUrl(fn)})` : ''}`)
-      L.push(`- **Come:** ${ev && ev.run ? toolLabel(ev.tool) : sourceHow(f.source)}`)
-      L.push(`- **Catena:** \`${chainText(f)}\``)
+      L.push(`- ${g('report.where')} ${fn ? fn.name : '?'}${fn ? `  ·  [${g('report.open_link')}](${fileUrl(fn)})` : ''}`)
+      L.push(`- ${g('report.how')} ${ev && ev.run ? toolLabel(ev.tool, lng) : sourceHow(f.source, lng)}`)
+      L.push(`- ${g('report.chain')} \`${chainText(f, lng)}\``)
       if (ev && ev.lines) {
         L.push('```')
         L.push(`# ${ev.tool}${ev.command ? '  —  ' + ev.command : ''}`)
@@ -409,17 +439,17 @@ async function openReport() {
       }
       L.push('')
     }
-  } else L.push('_Nessuna flag._')
-  L.push(`## Tool usati per la flag (${flagTools().length})`)
-  L.push(flagTools().map((t) => `\`${t}\`${solverTools.value.has(t) ? ' **(risolto)**' : ''}`).join(', ') || '_nessuno_')
-  L.push(''); L.push('## Percorso della flag')
+  } else L.push(g('report.no_flag_how'))
+  L.push(`## ${g('report.tools_header_prefix')} (${flagTools().length})`)
+  L.push(flagTools().map((t) => `\`${t}\`${solverTools.value.has(t) ? ' ' + g('report.solved_tag') : ''}`).join(', ') || '_—_')
+  L.push(''); L.push('## ' + g('report.path_header'))
   L.push('```')
-  L.push(routeNodes().length ? asciiRouteTree() : '(nessuna flag trovata)')
+  L.push(routeNodes().length ? asciiRouteTree() : g('report.no_path'))
   L.push('```')
   const rel = relevantRuns.value
   if (rel.length) {
-    L.push(''); L.push(`## Tool sul percorso (${rel.length})`)
-    L.push('| File | Tool | Stato | Sintesi |')
+    L.push(''); L.push(`## ${g('report.route_runs', { n: rel.length })}`)
+    L.push(g('report.run_head'))
     L.push('|---|---|---|---|')
     for (const r of rel) {
       const f = treeById.value[r.file_id]
@@ -433,18 +463,18 @@ async function openReport() {
         blocks.push('```\n# ' + (treeById.value[r.file_id] || {}).name + ' — ' + r.tool + '\n' + cmds.join('\n') + '\n```')
       }
     }
-    if (blocks.length) { L.push(''); L.push('## Comandi'); L.push(...blocks) }
+    if (blocks.length) { L.push(''); L.push('## ' + g('report.commands')); L.push(...blocks) }
   }
   const routeFiles = routeNodes().filter((n) => n.parent_id != null)
   if (routeFiles.length) {
-    L.push(''); L.push(`## File sul percorso (${routeFiles.length})`)
-    L.push('| File | Dim | Prodotto da | Scarica |')
+    L.push(''); L.push(`## ${g('report.route_files', { n: routeFiles.length })}`)
+    L.push(g('report.route_files_head'))
     L.push('|---|---|---|---|')
-    for (const n of routeFiles) L.push(`| ${n.name} | ${fmtSize(n.size)} | ${originTool(n)} | [apri](${fileUrl(n)}) |`)
+    for (const n of routeFiles) L.push(`| ${n.name} | ${fmtSize(n.size)} | ${originTool(n)} | [${g('report.open_link')}](${fileUrl(n)}) |`)
   }
   const noise = tree.value.length - routeNodes().length
   L.push('')
-  L.push(`> Analizzati ${tree.value.length} file e ${runs.value.length} tool; qui solo ciò che porta alla flag. Gli altri ${noise} file sono nella GUI.`)
+  L.push(g('report.footer', { files: tree.value.length, runs: runs.value.length, noise }))
   report.value = { open: true, text: L.join('\n'), busy: false }
 }
 function copyReport() { navigator.clipboard?.writeText(report.value.text) }
@@ -496,6 +526,7 @@ function ansiToHtml(s) {
 }
 
 watch(selected, (id) => { previewErr.value = false; if (id != null) loadPreview(id) })
+watch(reportLang, (l) => { if (report.value.open) buildReport(l) })
 watch(showTerm, async () => { await nextTick(); window.dispatchEvent(new Event('resize')) })
 watch(() => props.id, () => { selected.value = null; outputs.value = {}; expanded.value = {}; log.value = []; load() })
 onMounted(() => { load(); connect() })
@@ -503,187 +534,223 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
+  <div class="flex h-full flex-col font-mono">
     <!-- action bar -->
-    <div class="flex flex-wrap items-center gap-3 border-b border-edge px-4 py-2">
-      <button @click="router.push('/')" class="text-slate-400 hover:text-slate-200"><Icon name="chevronR" class="rotate-180" /></button>
-      <span class="font-semibold">{{ project?.name }}</span>
-      <span class="rounded px-2 py-0.5 text-xs" :class="STATUS_COLOR[project?.status]">{{ project?.status }}</span>
-      <span class="text-xs text-slate-500">mode {{ project?.mode }} · {{ project?.files }} file · {{ fmtDate(project?.created_at) }}</span>
-      <div class="ml-auto flex items-center gap-2">
-        <button @click="action('start')" class="flex items-center gap-1 rounded bg-acc px-3 py-1 text-xs font-semibold text-white"><Icon name="play" :size="13" />Start</button>
-        <button @click="action('pause')" class="rounded border border-edge px-3 py-1 text-xs"><Icon name="pause" :size="13" /></button>
-        <button @click="action('resume')" class="rounded border border-edge px-3 py-1 text-xs"><Icon name="play" :size="13" /></button>
-        <button @click="action('cancel')" class="rounded border border-edge px-3 py-1 text-xs"><Icon name="close" :size="13" /></button>
-        <button @click="load" class="rounded border border-edge px-3 py-1 text-xs"><Icon name="refresh" :size="13" /></button>
-        <button @click="openReport" class="flex items-center gap-1 rounded border border-edge px-3 py-1 text-xs hover:bg-panel"><Icon name="report" :size="13" />Report</button>
-        <button @click="del" class="rounded border border-edge px-3 py-1 text-xs hover:bg-red-500/20"><Icon name="trash" :size="13" /></button>
+    <div class="flex flex-wrap items-center gap-2 border-b border-edge bg-panel px-3 py-1.5 text-xs">
+      <button @click="router.push('/')" class="kb px-2" :aria-label="t('proj.back_home')"><Icon name="chevronR" class="rotate-180" :size="12" /></button>
+      <span class="font-bold text-slate-100">{{ project?.name }}</span>
+      <span class="rounded border px-2 py-0.5 text-[10px]" :class="statusChip">
+        {{ project?.status }}
+      </span>
+      <span class="hidden text-[10px] text-dim lg:inline">
+        --{{ project?.mode }} · {{ project?.files }} {{ t('proj.files') }} · {{ fmtDate(project?.created_at) }}
+      </span>
+      <div class="ml-auto flex flex-wrap items-center gap-1.5">
+        <button @click="action('start')" class="kb kb-acc text-[10px]"><Icon name="play" :size="11" />start</button>
+        <button @click="action('pause')" class="kb text-[10px]" :aria-label="t('proj.pause')"><Icon name="pause" :size="11" /></button>
+        <button @click="action('resume')" class="kb text-[10px]" :aria-label="t('proj.resume')"><Icon name="play" :size="11" /></button>
+        <button @click="action('cancel')" class="kb kb-danger text-[10px]" :aria-label="t('proj.cancel')"><Icon name="close" :size="11" /></button>
+        <button @click="load" class="kb text-[10px]" :aria-label="t('proj.reload')"><Icon name="refresh" :size="11" /></button>
+        <button @click="openReport" class="kb text-[10px]"><Icon name="report" :size="11" />{{ t('report.title') }}</button>
+        <button @click="del" class="kb kb-danger text-[10px]" :aria-label="t('proj.delete')"><Icon name="trash" :size="11" /></button>
       </div>
     </div>
-    <p v-if="err" class="bg-red-500/10 px-4 py-1 text-xs text-red-300">{{ err }}</p>
+    <p v-if="err" class="border-b border-edge bg-danger/10 px-3 py-1 text-[11px] text-danger">[!] {{ err }}</p>
 
-    <div class="grid min-h-0 flex-1 grid-cols-[260px_1fr_340px] gap-0">
+    <div class="grid min-h-0 flex-1 grid-cols-[250px_minmax(0,1fr)_350px]">
       <!-- file tree -->
-      <div class="min-h-0 overflow-auto border-r border-edge p-2">
-        <div class="mb-1 px-1 text-xs font-semibold uppercase text-slate-500">File ({{ tree.length }})</div>
-        <input v-model="search" type="search" placeholder="filtra file…" aria-label="Filtra i file"
-               class="mb-2 w-full rounded border border-edge bg-ink px-2 py-1 text-xs outline-none placeholder:text-slate-600 focus:border-acc" />
-        <div v-if="flags.length" class="mb-1 flex flex-wrap items-center gap-x-2 px-1 text-[10px]">
-          <span class="text-emerald-400">● percorso flag</span>
-          <span class="text-slate-100">● adiacente</span>
-          <span class="text-slate-500">● via morta</span>
+      <div class="flex min-h-0 flex-col border-r border-edge">
+        <div class="flex items-center gap-2 border-b border-edge/60 bg-panel2 px-2 py-1 text-[10px] uppercase tracking-widest text-dim">
+          <Icon name="folder" :size="12" /> files <span class="normal-case text-acc">({{ tree.length }})</span>
+          <input v-model="search" type="search" :placeholder="t('proj.filter_placeholder')" :aria-label="t('proj.filter_placeholder')"
+                 class="ml-auto max-w-[96px] rounded border border-edge bg-ink px-1.5 py-0.5 text-[10px] uppercase placeholder:text-dim focus:border-acc" />
         </div>
-        <div v-for="n in visibleTree" :key="n._gid || n.id"
-             @click="n._group ? toggleNode(n) : (selected = n.id)"
-             class="flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-xs hover:bg-panel"
-             :class="!n._group && selected === n.id ? 'bg-acc/20' : ''">
-          <span :style="{ paddingLeft: (n._depth * 12) + 'px' }" class="flex min-w-0 items-center gap-1">
-            <button v-if="n._kids" class="shrink-0 text-slate-500 hover:text-slate-200" @click.stop="toggleNode(n)">
-              <Icon :name="collapsed.has(n._gid || n.id) ? 'chevronR' : 'chevronD'" :size="13" />
-            </button>
-            <span v-else class="w-[13px] shrink-0"></span>
-            <Icon :name="n._group ? 'folder' : (lockedIds.has(n.id) ? 'lock' : 'file')" :size="13" class="shrink-0 text-slate-500" />
-            <span class="truncate" :class="n._group ? groupColor(n) : nodeColor(n)" :title="n._group ? n.name : n.origin">{{ n._group ? n.label + ' (' + n._kids + ')' : n.name }}</span>
-            <span v-if="!n._group" class="shrink-0 text-slate-600">{{ fmtSize(n.size) }}</span>
-            <Icon v-if="!n._group && flags.some((f) => f.file_id === n.id)" name="flag" :size="12" class="shrink-0 text-emerald-400" />
-          </span>
+        <div v-if="flags.length" class="flex items-center gap-3 border-b border-edge/60 px-2 py-1 text-[10px]">
+          <span class="text-acc">● {{ t('proj.legend_route') }}</span><span class="text-slate-200">● {{ t('proj.legend_adjacent') }}</span><span class="text-dim">● {{ t('proj.legend_dead') }}</span>
+        </div>
+        <div class="min-h-0 flex-1 overflow-auto p-1.5">
+          <div v-for="n in visibleTree" :key="n._gid || n.id"
+               @click="n._group ? toggleNode(n) : (selected = n.id)"
+               class="row flex cursor-pointer items-center gap-1 rounded"
+               :class="!n._group && selected === n.id ? 'bg-acc/15 text-slate-100' : ''">
+            <span :style="{ paddingLeft: (n._depth * 12) + 'px' }" class="flex min-w-0 items-center gap-1">
+              <button v-if="n._kids" class="shrink-0 text-dim hover:text-acc" @click.stop="toggleNode(n)">
+                <Icon :name="collapsed.has(n._gid || n.id) ? 'chevronR' : 'chevronD'" :size="12" />
+              </button>
+              <span v-else class="w-3 shrink-0"></span>
+              <Icon :name="n._group ? 'folder' : (lockedIds.has(n.id) ? 'lock' : 'file')" :size="12" class="shrink-0 text-dim" />
+              <span class="truncate" :class="n._group ? groupColor(n) : nodeColor(n)" :title="n._group ? n.name : n.origin">
+                {{ n._group ? n.label + ' (' + n._kids + ')' : n.name }}
+              </span>
+              <span v-if="!n._group" class="shrink-0 text-[10px] text-dim">{{ fmtSize(n.size) }}</span>
+              <span v-if="!n._group && flags.some((f) => f.file_id === n.id)" class="shrink-0 text-acc" :title="t('proj.flag_here')">●</span>
+              <span v-else-if="!n._group && lockedIds.has(n.id)" class="shrink-0 text-warn" :title="t('proj.pw_needed')">[pw]</span>
+            </span>
+          </div>
         </div>
       </div>
 
       <!-- detail -->
       <div class="flex min-h-0 flex-col">
-        <div class="flex items-center gap-1 border-b border-edge px-2 py-1 text-xs">
-          <button v-for="t in ['overview','estratti','preview']" :key="t" @click="tab = t"
-                  class="rounded px-3 py-1" :class="tab === t ? 'bg-panel text-slate-100' : 'text-slate-400'">{{ t }}</button>
-          <span class="ml-2 truncate text-slate-500">{{ selectedNode?.name }}</span>
+        <div class="flex items-center gap-1 border-b border-edge bg-panel2 px-2 py-1 text-[11px]">
+          <button v-for="tb in ['overview','extracted','preview']" :key="tb" @click="tab = tb"
+                  class="rounded px-2.5 py-0.5" :class="tab === tb ? 'bg-acc text-[#06120b] font-bold' : 'text-dim hover:text-slate-200'">
+            {{ t('proj.tab_' + tb) }}
+          </button>
+          <span class="ml-2 min-w-0 truncate text-[11px] text-dim">{{ selectedNode?.name }}</span>
         </div>
-        <div class="min-h-0 flex-1 overflow-auto p-3">
+        <div class="min-h-0 flex-1 overflow-auto p-2.5">
           <template v-if="tab === 'overview'">
-            <div v-if="!selectedRuns.length" class="text-sm text-slate-500">Nessun tool eseguito su questo file (ancora).</div>
-            <div v-for="r in selectedRuns" :key="r.id" class="mb-2 rounded border bg-panel/40"
-                 :class="solverRuns.has(r.id) ? 'border-emerald-500 ring-1 ring-emerald-500/40 bg-emerald-500/5' : 'border-edge'">
-              <div class="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-panel" @click="toggle(r.id)">
-                <Icon :name="expanded[r.id] ? 'chevronD' : 'chevronR'" :size="14" class="text-slate-500" />
-                <b class="text-sm" :class="solverRuns.has(r.id) ? 'text-emerald-300' : ''" :title="r.tool">{{ toolLabel(r.tool) }}</b>
-                <span v-if="solverRuns.has(r.id)" class="inline-flex shrink-0 items-center gap-0.5 rounded bg-emerald-500/15 px-1.5 text-[10px] text-emerald-300">
-                  <Icon name="flag" :size="10" />risolto
+            <div v-if="!selectedRuns.length" class="text-xs text-dim">
+              <span class="text-acc">$</span> {{ t('proj.no_runs') }}
+            </div>
+            <div v-for="r in selectedRuns" :key="r.id" class="mb-2 rounded border bg-panel/50"
+                 :class="solverRuns.has(r.id) ? 'border-acc/70' : 'border-edge'">
+              <div class="row flex cursor-pointer items-center gap-2 hover:bg-acc/5" @click="toggle(r.id)">
+                <Icon :name="expanded[r.id] ? 'chevronD' : 'chevronR'" :size="13" class="shrink-0 text-dim" />
+                <b class="text-xs" :class="solverRuns.has(r.id) ? 'text-acc' : 'text-slate-200'" :title="r.tool">{{ toolLabel(r.tool) }}</b>
+                <span v-if="solverRuns.has(r.id)" class="inline-flex shrink-0 items-center gap-1 rounded bg-acc/15 px-1.5 py-0.5 text-[9px] font-bold text-acc">
+                  <Icon name="flag" :size="10" />{{ t('proj.solved') }}
                 </span>
-                <span class="rounded bg-ink px-1.5 text-[10px]" :class="r.status==='done'?'text-emerald-400':r.status==='needs_password'?'text-amber-400':r.status==='skipped'?'text-slate-400':'text-red-400'">{{ r.status }}</span>
-                <span v-if="r.needs_password" class="text-[10px] text-amber-400">password</span>
-                <span class="truncate text-xs text-slate-500">{{ r.summary }}</span>
-                <span class="ml-auto text-[10px] text-slate-600">{{ (r.artifacts||[]).length }} artefatti</span>
+                <span class="rounded bg-ink px-1.5 py-0.5 text-[9px]" :class="runStatusChip(r.status)">{{ r.status }}</span>
+                <span v-if="r.needs_password" class="text-[9px] text-warn" :title="t('proj.pw_needed')">[pw]</span>
+                <span class="truncate text-[11px] text-dim">{{ r.summary }}</span>
+                <span class="ml-auto shrink-0 text-[9px] text-dim">{{ (r.artifacts||[]).length }} {{ t('proj.artifacts') }}</span>
               </div>
               <div v-if="(r.artifacts||[]).length" class="flex flex-wrap gap-2 border-t border-edge p-2">
                 <template v-for="a in r.artifacts" :key="a.id">
-                  <img v-if="IMG.test(a.name)" :src="artUrl(a)" class="h-24 cursor-zoom-in rounded border border-edge bg-ink" :title="a.name" @click="lightbox = artUrl(a)" @error="(e) => (e.target.style.display = 'none')" />
-                  <a v-else :href="artUrl(a)" class="flex items-center gap-1 rounded border border-edge px-2 py-1 text-[11px] hover:bg-ink" download><Icon name="download" :size="12" />{{ a.name }}</a>
+                  <img v-if="IMG.test(a.name)" :src="artUrl(a)" class="h-20 cursor-zoom-in rounded border border-edge bg-ink" :title="a.name" @click="lightbox = artUrl(a)" @error="(e) => (e.target.style.display = 'none')" />
+                  <a v-else :href="artUrl(a)" class="flex items-center gap-1 rounded border border-edge px-2 py-1 text-[10px] text-slate-300 hover:border-acc hover:text-acc" download>
+                    <Icon name="download" :size="11" />{{ a.name }}
+                  </a>
                 </template>
               </div>
-              <pre v-if="expanded[r.id] && outputs[r.id] != null" class="ansi max-h-80 overflow-auto border-t border-edge bg-ink p-2" v-html="ansiToHtml(outputs[r.id])"></pre>
+              <pre v-if="expanded[r.id] && outputs[r.id] != null" class="ansi max-h-72 overflow-auto border-t border-edge bg-ink p-2 leading-relaxed" v-html="ansiToHtml(outputs[r.id])"></pre>
             </div>
           </template>
 
-          <template v-else-if="tab === 'estratti'">
-            <div v-if="!childrenOf(selected).length" class="text-sm text-slate-500">Nessun file estratto da questo nodo.</div>
+          <template v-else-if="tab === 'extracted'">
+            <div v-if="!childrenOf(selected).length" class="text-xs text-dim">{{ t('proj.no_extracted') }}</div>
             <div v-for="c in childrenOf(selected)" :key="c.id" @click="selected = c.id"
-                 class="flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-xs hover:bg-panel">
-              <Icon name="file" :size="13" class="text-slate-500" /> {{ c.name }}
-              <span class="text-slate-500">{{ fmtSize(c.size) }} · {{ toolLabel(originTool(c)) }}</span>
+                 class="row cursor-pointer rounded hover:bg-acc/5">
+              <span class="text-acc">[+]</span> {{ c.name }}
+              <span class="text-dim">{{ fmtSize(c.size) }} · {{ toolLabel(originTool(c)) }}</span>
             </div>
           </template>
 
           <template v-else>
-            <div v-if="!selectedNode" class="text-slate-500">Seleziona un file.</div>
+            <div v-if="!selectedNode" class="text-xs text-dim">{{ t('proj.select_file') }}</div>
             <div v-else>
               <div v-if="IMG.test(selectedNode.name) && !previewErr">
-                <img :src="fileUrl(selectedNode)" class="max-h-[60vh] cursor-zoom-in rounded border border-edge" @click="lightbox = fileUrl(selectedNode)" @error="previewErr = true" />
+                <img :src="fileUrl(selectedNode)" class="max-h-[55vh] cursor-zoom-in rounded border border-edge bg-ink" @click="lightbox = fileUrl(selectedNode)" @error="previewErr = true" />
               </div>
               <audio v-else-if="AUD.test(selectedNode.name)" :src="fileUrl(selectedNode)" controls class="w-full" />
-              <video v-else-if="VID.test(selectedNode.name)" :src="fileUrl(selectedNode)" controls class="max-h-[60vh] w-full rounded" />
-              <pre v-else-if="TXT.test(selectedNode.name)" class="out max-h-[60vh] overflow-auto rounded border border-edge p-2">{{ outputs['file'+selectedNode.id] }}</pre>
-              <div v-else class="text-sm text-slate-400">
-                <a :href="fileUrl(selectedNode)" class="inline-flex items-center gap-1 text-indigo-300" download><Icon name="download" :size="14" />{{ selectedNode.name }}</a>
-                <div class="mt-2 text-xs text-slate-500">{{ selectedNode.mime }} · {{ fmtSize(selectedNode.size) }}</div>
+              <video v-else-if="VID.test(selectedNode.name)" :src="fileUrl(selectedNode)" controls class="max-h-[55vh] w-full rounded" />
+              <pre v-else-if="TXT.test(selectedNode.name)" class="out max-h-[55vh] overflow-auto rounded border border-edge bg-ink p-2 text-slate-200">{{ outputs['file'+selectedNode.id] }}</pre>
+              <div v-else class="text-xs text-dim">
+                <a :href="fileUrl(selectedNode)" class="flex items-center gap-1 text-info hover:underline" download>
+                  <Icon name="download" :size="13" />{{ selectedNode.name }}
+                </a>
+                <div class="mt-2 text-[11px] text-dim">{{ selectedNode.mime }} · {{ fmtSize(selectedNode.size) }}</div>
               </div>
             </div>
           </template>
         </div>
       </div>
 
-      <!-- right -->
+      <!-- right: findings -->
       <div class="flex min-h-0 flex-col border-l border-edge">
-        <div class="min-h-0 flex-1 overflow-auto p-3">
-          <!-- Overview: dove è la flag + solo i tool usati per trovarla -->
+        <div class="min-h-0 flex-1 overflow-auto p-2">
           <template v-if="flags.length">
-            <div class="mb-2 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="flag" :size="13" />Overview — dove è la flag</div>
-            <div v-for="c in flagCards" :key="c.f.id" class="mb-2 rounded border border-emerald-500/30 bg-emerald-500/5 p-2">
+            <div class="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-acc">
+              <Icon name="flag" :size="12" /> {{ t('proj.flags_found', { n: flags.length }) }}
+            </div>
+            <div v-for="c in flagCards" :key="c.f.id" class="mb-2 rounded border border-acc/40 bg-acc/5 p-2">
               <div class="flex items-start gap-1">
-                <div class="min-w-0 flex-1 break-all text-xs font-semibold text-emerald-300">{{ c.f.value }}</div>
-                <button type="button" @click="copyText(c.f.value)" :aria-label="'Copia flag ' + c.f.value"
-                        class="shrink-0 rounded border border-edge p-0.5 text-slate-400 hover:bg-ink hover:text-slate-100">
-                  <Icon :name="copied === c.f.value ? 'check' : 'copy'" :size="12" />
+                <span class="text-acc">>_</span>
+                <div class="min-w-0 flex-1 break-all text-xs font-bold text-acc">{{ c.f.value }}</div>
+                <button type="button" @click="copyText(c.f.value)" :aria-label="t('proj.copy_flag', { v: c.f.value })"
+                        class="shrink-0 rounded border border-edge p-0.5 text-dim hover:border-acc hover:text-acc">
+                  <Icon :name="copied === c.f.value ? 'check' : 'copy'" :size="11" />
                 </button>
               </div>
               <div class="mt-1 text-[11px] text-slate-400">
-                in
-                <button class="text-slate-100 hover:underline" @click="c.f.file_id && (selected = c.f.file_id)">{{ (treeById[c.f.file_id] || {}).name || '?' }}</button>
+                {{ t('proj.in') }}
+                <button class="text-slate-100 hover:text-acc hover:underline" @click="c.f.file_id && (selected = c.f.file_id)">{{ (treeById[c.f.file_id] || {}).name || '?' }}</button>
                 · <b class="text-slate-200">{{ c.ev && c.ev.run ? toolLabel(c.ev.tool) : sourceHow(c.f.source) }}</b>
               </div>
-              <div class="mt-1 break-all text-[10px] text-slate-500">{{ chainText(c.f) }}</div>
-              <pre v-if="c.ev" class="mt-1 max-h-32 overflow-auto whitespace-pre rounded bg-ink p-1.5 text-[10px] text-slate-300"># {{ c.ev.tool }}{{ c.ev.command ? '  —  ' + c.ev.command : '' }}
+              <div class="mt-1 break-all text-[10px] text-dim">{{ chainText(c.f) }}</div>
+              <pre v-if="c.ev" class="mt-1 max-h-28 overflow-auto whitespace-pre rounded border border-edge bg-ink p-1.5 text-[10px] text-slate-300"># {{ c.ev.tool }}{{ c.ev.command ? '  —  ' + c.ev.command : '' }}
 {{ c.ev.lines }}</pre>
-              <pre v-else-if="c.f.context" class="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded bg-ink p-1.5 text-[10px] text-slate-400">{{ c.f.context }}</pre>
+              <pre v-else-if="c.f.context" class="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded border border-edge bg-ink p-1.5 text-[10px] text-dim">{{ c.f.context }}</pre>
             </div>
-            <div class="mb-1 mt-3 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="terminal" :size="13" />Tool usati per la flag ({{ flagTools().length }})</div>
+            <div class="mb-1 mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-acc">
+              <Icon name="term" :size="12" /> {{ t('proj.solver_chain', { n: flagTools().length }) }}
+            </div>
             <div class="flex flex-wrap gap-1">
               <span v-for="t in flagTools()" :key="t" :title="t" class="rounded px-1.5 py-0.5 text-[10px]"
-                    :class="solverTools.has(t) ? 'border border-emerald-500 bg-emerald-500/10 text-emerald-300' : 'bg-panel text-slate-300'">{{ toolLabel(t) }}</span>
+                    :class="solverTools.has(t) ? 'border border-acc bg-acc/10 text-acc' : 'bg-panel2 text-slate-300'">{{ toolLabel(t) }}</span>
             </div>
           </template>
-          <div v-else class="mb-1 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="flag" :size="13" />Flag (0)</div>
-          <div class="mb-1 mt-3 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="key" :size="13" />Password ({{ passwords.length }})</div>
-          <div v-for="p in passwords" :key="p.id" class="text-xs text-red-300">{{ p.value }}
-            <span class="text-slate-500">— {{ p.source }}</span></div>
-          <div class="mb-1 mt-3 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="lock" :size="13" />Bloccati ({{ locked.length }})</div>
+          <div v-else class="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-dim">
+            <Icon name="flag" :size="12" /> {{ t('proj.flag') }} (0)
+          </div>
+
+          <div class="mb-1 mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-warn">
+            <Icon name="key" :size="12" /> {{ t('proj.password', { n: passwords.length }) }}
+          </div>
+          <div v-for="p in passwords" :key="p.id" class="row rounded text-xs text-warn">
+            {{ p.value }}<span class="text-dim"> — {{ t('proj.via') }} </span><b class="text-amber-300">{{ p.context || '?' }}</b>
+            <span class="text-dim"> ({{ p.source }})</span>
+          </div>
+
+          <div class="mb-1 mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-info">
+            <Icon name="lock" :size="12" /> {{ t('proj.locked', { n: locked.length }) }}
+          </div>
           <div v-for="l in locked" :key="l.file_id" class="mb-2 rounded border border-edge p-2">
-            <div class="truncate text-xs">{{ l.name }} <span class="text-slate-500">({{ l.kind }})</span></div>
+            <div class="truncate text-xs text-slate-200">{{ l.name }} <span class="text-dim">({{ l.kind }})</span></div>
             <div class="mt-1 flex gap-1">
-              <select v-model="l._wl" class="w-full rounded border border-edge bg-ink px-1 py-0.5 text-[11px]">
-                <option value="">tutte</option>
+              <select v-model="l._wl" class="w-full rounded border border-edge bg-ink px-1 py-0.5 text-[10px] text-slate-300 focus:border-acc">
+                <option value="">{{ t('proj.all') }}</option>
                 <option v-for="w in wordlists" :key="w.name" :value="w.name">{{ w.name }}</option>
               </select>
-              <button @click="crack(l, l._wl)" class="rounded bg-acc px-2 text-[11px] font-semibold text-white">Crack</button>
+              <button @click="crack(l, l._wl)" class="kb kb-acc shrink-0 text-[10px]"><Icon name="key" :size="11" />{{ t('proj.crack') }}</button>
             </div>
           </div>
-        </div>
-        <div class="border-t border-edge p-3">
-          <div class="mb-1 flex items-center gap-1 text-xs font-semibold uppercase text-slate-500"><Icon name="link" :size="13" />Percorso flag</div>
-          <pre class="max-h-44 overflow-auto whitespace-pre text-[11px] leading-5 text-slate-300">{{ routeTreeText || '(nessuna flag)' }}</pre>
+
+          <div class="mb-1 mt-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-acc">
+            <Icon name="link" :size="12" /> {{ t('proj.flag_route') }}
+          </div>
+          <pre class="max-h-44 overflow-auto whitespace-pre text-[10px] leading-5 text-slate-300">{{ routeTreeText || t('proj.no_flag') }}</pre>
         </div>
       </div>
     </div>
 
-    <!-- bottom: terminal (left) + live log (right) -->
-    <div class="flex h-56 border-t border-edge">
-      <section class="flex min-w-0 flex-1 flex-col" aria-label="Terminale">
-        <button type="button" class="flex items-center gap-1 bg-panel px-3 py-1 text-left text-xs hover:bg-panel/70"
+    <!-- bottom: terminal + live log -->
+    <div class="flex h-52 shrink-0 border-t border-edge">
+      <section class="flex min-w-0 flex-1 flex-col" aria-label="terminal">
+        <button type="button" class="flex items-center gap-1.5 bg-panel2 px-3 py-1 text-left text-[10px] text-dim hover:text-acc"
                 :aria-expanded="showTerm" aria-controls="term-panel" @click="showTerm = !showTerm">
-          <Icon :name="showTerm ? 'chevronD' : 'chevronR'" :size="13" />Terminale (bash, cwd = progetto)
+          <Icon :name="showTerm ? 'chevronD' : 'chevronR'" :size="12" />{{ t('proj.terminal_label') }}
         </button>
         <div v-show="showTerm" id="term-panel" class="min-h-0 flex-1"><Terminal :pid="props.id" /></div>
       </section>
-      <section class="flex w-[360px] shrink-0 flex-col border-l border-edge" aria-label="Live log">
-        <div class="flex items-center gap-1 bg-panel px-3 py-1 text-xs font-semibold uppercase text-slate-500">
-          <Icon name="terminal" :size="13" />Live log ({{ log.length }})
+      <section class="flex w-[340px] shrink-0 flex-col border-l border-edge" aria-label="live-log">
+        <div class="flex items-center gap-1.5 bg-panel2 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-dim">
+          <Icon name="term" :size="12" /> {{ t('proj.live_log', { n: log.length }) }}
         </div>
         <div class="min-h-0 flex-1 overflow-auto bg-ink p-2" role="log" aria-live="polite" aria-relevant="additions">
-          <p v-if="!log.length" class="text-[11px] text-slate-600">Nessun evento (ancora).</p>
-          <div v-for="(m, i) in log" :key="i" class="text-[11px]" :class="m.level === 'warn' ? 'text-amber-400' : 'text-slate-400'">
-            <span class="text-slate-600">{{ m.type }}</span>
-            <span v-if="m.message"> {{ m.message }}</span>
+          <p v-if="!log.length" class="text-[11px] text-dim">{{ t('proj.no_events') }}</p>
+          <div v-for="(m, i) in log" :key="i" class="text-[11px] leading-5"
+               :class="m.level === 'warn' ? 'text-warn' : 'text-dim'">
+            <span class="text-[10px]">{{ m.type }}</span>
+            <span v-if="m.message">{{ m.message }}</span>
             <span v-else-if="m.type === 'file'"> · {{ m.name }}</span>
             <span v-else-if="m.type === 'tool'"> · {{ m.name }} → {{ toolLabel(m.tool) }} ({{ m.status }})</span>
-            <span v-else-if="m.type === 'crack'"> · {{ m.status }} <span v-if="m.password">→ {{ m.password }}</span></span>
+            <span v-else-if="m.type === 'crack'">
+              · {{ m.status }}
+              <span v-if="m.password">→ {{ m.password }} <span v-if="m.wordlist" class="text-amber-300">(via {{ m.wordlist }})</span></span>
+            </span>
           </div>
         </div>
       </section>
@@ -696,12 +763,19 @@ onBeforeUnmount(() => { try { ws && ws.close() } catch {} })
 
     <!-- report modal -->
     <div v-if="report.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6" @click.self="report.open = false">
-      <div class="flex max-h-[88vh] w-[980px] flex-col rounded-xl border border-edge bg-panel">
-        <div class="flex items-center gap-2 border-b border-edge px-4 py-2">
-          <Icon name="report" :size="16" /><b>Report</b>
-          <button @click="copyReport" class="ml-auto flex items-center gap-1 rounded border border-edge px-2 py-0.5 text-xs"><Icon name="copy" :size="12" />Copia</button>
-          <button @click="downloadReport" class="flex items-center gap-1 rounded border border-edge px-2 py-0.5 text-xs"><Icon name="download" :size="12" />.md</button>
-          <button @click="report.open = false" class="rounded border border-edge px-2 py-0.5 text-xs"><Icon name="close" :size="12" /></button>
+      <div class="flex max-h-[88vh] w-[980px] flex-col rounded border border-edge bg-panel">
+        <div class="flex items-center gap-2 border-b border-edge bg-panel2 px-4 py-2 text-xs">
+          <Icon name="report" :size="14" class="text-acc" /><b>{{ t('report.title') }}</b>
+          <label class="flex items-center gap-1.5 text-[10px] text-dim">
+            {{ t('report.lang') }}
+            <select v-model="reportLang" class="rounded border border-edge bg-ink px-1 py-0.5 text-[10px] uppercase focus:border-acc">
+              <option value="en">English</option>
+              <option value="it">Italiano</option>
+            </select>
+          </label>
+          <button @click="copyReport" class="kb ml-auto text-[10px]"><Icon name="copy" :size="11" />{{ t('report.copy') }}</button>
+          <button @click="downloadReport" class="kb text-[10px]"><Icon name="download" :size="11" />.md</button>
+          <button @click="report.open = false" class="kb text-[10px]" :aria-label="t('report.close')"><Icon name="close" :size="11" /></button>
         </div>
         <div class="md min-h-0 flex-1 overflow-auto p-5" v-html="mdToHtml(report.text)"></div>
       </div>
