@@ -140,23 +140,7 @@ services:
       - "${ITTOOLS_PORT:-19011}:80"
     networks: [ctfnet]
 
-  # ---------------------------------------------------------------- DEEP TRIAGE
-  # Runs the recursive steg/forensic pipeline. Driven by `./ctf triage <file>`.
-  triage:
-    build: ./triage
-    image: ctf-triage
-    restart: unless-stopped
-    mem_limit: 4g
-    cpus: 3
-    logging: *default-logging
-    volumes:
-      - ./data:/data
-      - ./wordlists:/wordlists:ro
-    ports:
-      - "127.0.0.1:${TRIAGE_WEB_PORT:-19013}:19013"
-    networks: [ctfnet]
-
-  # FileBrowser: browse triage reports and extracted files. Localhost only.
+  # FileBrowser: browse ./data (progetti StegSuite, estratti, wordlist). Solo localhost.
   # FileBrowser Quantum (fork attivo di filebrowser, che è archiviato).
   # Configurato in noauth: accesso libero, nessun login.
   filebrowser:

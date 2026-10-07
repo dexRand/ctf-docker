@@ -52,7 +52,6 @@ tool pesanti stanno dietro **profili** Compose opzionali.
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashing, JWT e molto altro | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercetta e modifica HTTP(S) · proxy su `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoder, converter, hash, regex e simili | core |
-| Deep triage | **CTF Triage** | http://localhost:19013 | Estrazione ricorsiva + cracking wordlist + flag hunt · GUI Auto/Check, report in FileBrowser Quantum (`./ctf triage <file>`) | core |
 | Stego workbench | **StegSuite** | http://localhost:19014 | Analisi ricorsiva auto su 40 tool (stego, forensics, vision/OCR, audio/SSTV/network), albero file, log live, terminale, API REST | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Scanner di sicurezza web con GUI nel browser · proxy su `:19006` · add-on extra (regole alpha/beta, accessControl, fuzzdb, ptk…) | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domini, IP, email, leak | `recon` |
@@ -95,58 +94,20 @@ Il piccolo wrapper `ctf` è un livello leggibile sopra Compose:
 ./ctf up-all              # tutto (pesante: diversi GB di immagini)
 ./ctf status              # stato container
 ./ctf logs wireshark      # segui i log di un servizio
-./ctf triage <file>       # triage profondo ricorsivo (vedi sotto)
-./ctf reports             # URL e credenziali del browser dei report
+./ctf reports             # sfoglia ./data (progetti, estratti, wordlist)
 ./ctf down                # ferma e rimuove i container
 ```
 
-## 🔬 Triage profondo
+## 🧪 Analisi
 
-`./ctf triage <file|cartella>` esegue una pipeline steg/forense completa in un
-container basato sull'immagine AperiSolve e scrive un report consultabile in
-**FileBrowser Quantum** (http://localhost:19012, nessun login).
-
-C'è anche una **GUI web** su **http://localhost:19013** (linkata dalla dashboard)
-con due modalità:
-
-- **Auto** — fa tutto da sé e prova tutte le wordlist;
-- **Check** — prima scansiona, poi mostra l'albero dei file e gli elementi
-  bloccati e ti fa scegliere, per ognuno, quale wordlist usare (o saltare).
-
-Automaticamente:
-
-1. **ricorre**: `7z`, `binwalk -e`, `foremost` su ogni file estratto, finché
-   l'albero non è esaurito (profondità limitata);
-2. **analizza** ogni file: `strings`, `exiftool`, `zsteg`, `steghide`, `pdfinfo`…;
-3. **caccia le flag** con pattern sensati (`ITS{}`, `flag{}`, `CTF{}`, `HTB{}`,
-   `picoCTF{}` + uno generico sul testo stampabile);
-4. quando incontra qualcosa **protetto da password** (zip/7z/PDF cifrati, o
-   un'immagine che può nascondere un payload steghide) **si ferma e ti chiede
-   quale wordlist usare**.
-
-Gli attacchi usano il tool giusto per formato — `stegseek` (steghide),
-`fcrackzip` + **`hashcat`** (ZIP, anche **AES-256** via il vendored
-`zip2hashcat`), `pdfcrack` (PDF) — e le wordlist sono provate
-**dalla più piccola alla più grande**, così le liste veloci partono per prime.
-Una password trovata viene riusata automaticamente sugli altri file.
-
-```bash
-./ctf triage ./challenge.png            # interattivo: chiede la wordlist
-./ctf triage ./challenge.png -w wordlists/rockyou.txt
-./ctf triage ./challenge.png --yes      # nessun prompt: prova tutte, piccola→grande
-./ctf triage ./dir --no-crack --depth 4 # nessun attacco password
-```
-
-Le wordlist più usate sono già incluse, ordinate dalla più piccola alla più
-grande: `passwords.txt`, `500-worst-passwords`, `probable-v2_top-1575`,
-`10k-most-common`, `darkweb2017_top-10000`, `rockyou-75` (nel repo) e la
-**rockyou.txt** completa (14M voci, inclusa nell'immagine). Metti altri dizionari
-in `./wordlists/` (montata read-only su `/wordlists`): compaiono nel menu
-automaticamente, ordinati per dimensione.
+Usa **StegSuite** (sotto) per la pipeline steg/forense ricorsiva, la caccia alle
+flag e il cracking — sostituisce il vecchio `triage` (CLI/GUI). Le wordlist in
+`./wordlists/` (montate su `/wordlists`) sono provate dalla più piccola alla più
+grande; la `rockyou.txt` completa è inclusa nell'immagine.
 
 | Profilo | Aggiunge |
 | --- | --- |
-| *(core)* | Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, Triage, FileBrowser |
+| *(core)* | Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser |
 | `web` | OWASP ZAP |
 | `recon` | SpiderFoot |
 | `crypto` | SageMath |
@@ -168,8 +129,7 @@ Tutte le porte host stanno nella **fascia 19000+** e sono configurabili in `.env
 | 19008 / 19009 | Wireshark HTTP / HTTPS |
 | 19010 | SageMath (Jupyter) |
 | 19011 | IT-Tools |
-| 19012 | FileBrowser Quantum (report triage, senza login, solo localhost) |
-| 19013 | GUI web triage (Auto/Check, solo localhost) |
+| 19012 | FileBrowser Quantum (sfoglia ./data, senza login, solo localhost) |
 | 19014 | StegSuite workbench + API (solo localhost) |
 | 19015 / 19016 | Hashtopolis backend / frontend (profilo `crack`) |
 
@@ -242,7 +202,6 @@ Tutto è guidato da `.env` (creato da `.env.example`):
 | `*_PORT` | Porta host di ogni servizio (tutte in 19000+) |
 | `HOMEPAGE_ALLOWED_HOSTS` | Host ammessi verso la dashboard (aggiungi l'IP LAN per accesso remoto) |
 | `MITMWEB_PASSWORD` | Password per la GUI di mitmweb (l'utente è ignorato) |
-| `WORDLIST` | Wordlist di default usata dal triage |
 | `PUID` / `PGID` / `TZ` | Mappatura utente e timezone per Wireshark |
 | `HASHTOPOLIS_*` | Credenziali admin/DB di Hashtopolis (profilo `crack`) |
 
@@ -256,8 +215,7 @@ Tutto è guidato da `.env` (creato da `.env.example`):
   (default `mitm`). Lo stato in dashboard controlla un endpoint senza auth.
 - **I tool con profilo** risultano *down* in dashboard finché non avvii il
   profilo — è normale.
-- L'immagine **triage** è l'unica costruita interamente in locale; parte da una
-  base stego pinnata e aggiunge `stegseek`, `john`, `fcrackzip`, `pdfcrack`; il
+- L'immagine **StegSuite** è costruita in locale da una base stego pinnata; il
   primo `./ctf up` la compila una volta.
 - **FileBrowser Quantum** (il fork mantenuto del FileBrowser archiviato) è
   esposto solo su `127.0.0.1` e gira **senza login** (`auth.methods.noauth`).

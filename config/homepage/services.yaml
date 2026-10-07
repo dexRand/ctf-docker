@@ -15,15 +15,10 @@
         href: http://localhost:19014
         description: Analisi ricorsiva Auto/Check con GUI (albero file, tool, vision/OCR, terminale, grafo) e API REST
         container: ctf-stegsuite-1
-    - Triage (GUI):
-        icon: mdi-magnify-scan
-        href: http://localhost:19013
-        description: Analisi ricorsiva + cracking wordlist + flag hunt — modalità Auto o Check
-        container: ctf-triage-1
-    - Triage reports (FileBrowser):
+    - Data & reports (FileBrowser):
         icon: mdi-file-tree
         href: http://localhost:19012
-        description: Report e albero dei file estratti di tutte le analisi
+        description: Browser dei file in ./data — progetti StegSuite, estratti, report, wordlist
         container: ctf-filebrowser-1
     - Wireshark:
         icon: mdi-lan-connect

@@ -55,7 +55,6 @@ It is designed to live next to other self-hosted apps: every service runs on the
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashing, JWT and much more | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercept and rewrite HTTP(S) · proxy on `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoders, converters, hashes, regex and friends | core |
-| Deep triage | **CTF Triage** | http://localhost:19013 | Recursive extract + wordlist cracking + flag hunt · Auto/Check GUI, reports in FileBrowser Quantum (`./ctf triage <file>`) | core |
 | Stego workbench | **StegSuite** | http://localhost:19014 | Recursive auto/triage over 40 tools (stego, forensics, vision/OCR, audio/SSTV/network), file tree, live log, embedded terminal, REST API | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Web security scanner with an in-browser GUI · proxy on `:19006` · extra marketplace add-ons (alpha/beta rules, accessControl, fuzzdb, ptk…) | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domains, IPs, e-mails, leaks | `recon` |
@@ -98,58 +97,20 @@ The small `ctf` wrapper is a thin, readable layer over Compose:
 ./ctf up-all              # everything (heavy: several GB of images)
 ./ctf status              # container status
 ./ctf logs wireshark      # follow logs of one service
-./ctf triage <file>       # deep recursive triage (see below)
-./ctf reports             # URL + credentials of the report browser
+./ctf reports             # browse ./data (projects, extracts, wordlists)
 ./ctf down                # stop and remove containers
 ```
 
-## 🔬 Deep triage
+## 🧪 Analysis
 
-`./ctf triage <file|directory>` runs a full steg/forensic pipeline in a
-container built on top of the AperiSolve image, and writes a report you can
-browse in **FileBrowser Quantum** (http://localhost:19012, no login).
-
-There is also a **web GUI** at **http://localhost:19013** (linked from the
-dashboard) with two modes:
-
-- **Auto** — runs everything and tries every wordlist on its own;
-- **Check** — scans first, then shows the file tree and the locked items and
-  lets you choose, per item, which wordlist to use (or skip).
-
-It automatically:
-
-1. **recurses**: `7z`, `binwalk -e`, `foremost` on every extracted file, until
-   the tree is exhausted (bounded depth);
-2. **analyses** each file: `strings`, `exiftool`, `zsteg`, `steghide`, `pdfinfo`…;
-3. **hunts flags** with sensible patterns (`ITS{}`, `flag{}`, `CTF{}`, `HTB{}`,
-   `picoCTF{}` + a generic one on printable text);
-4. when it hits something **password-locked** (encrypted zip/7z/PDF, or an image
-   that may hide a steghide payload) it **stops and asks you which wordlist to
-   use**.
-
-Password attacks use the right tool per format — `stegseek` (steghide),
-`fcrackzip` + **`hashcat`** (ZIP, including **AES-256** via the vendored
-`zip2hashcat`), `pdfcrack` (PDF) — and wordlists are tried
-**smallest → largest** so the fast dictionaries run first. Any password found is
-reused automatically for the remaining files.
-
-```bash
-./ctf triage ./challenge.png            # interactive: asks which wordlist
-./ctf triage ./challenge.png -w wordlists/rockyou.txt
-./ctf triage ./challenge.png --yes      # no prompt: try all lists, small→large
-./ctf triage ./dir --no-crack --depth 4 # no password attacks
-```
-
-The most-used wordlists are already included, ordered smallest → largest:
-`passwords.txt`, `500-worst-passwords`, `probable-v2_top-1575`,
-`10k-most-common`, `darkweb2017_top-10000`, `rockyou-75` (in the repo) and the
-full **rockyou.txt** (14M entries, baked into the image). Put extra dictionaries
-in `./wordlists/` (mounted read-only at `/wordlists`); they show up in the menu
-automatically, sorted by size.
+Use **StegSuite** (below) for the recursive steg/forensics pipeline, the flag
+hunt and the cracking — it replaces the old `triage` CLI/GUI. Wordlists in
+`./wordlists/` (mounted at `/wordlists`) are tried smallest → largest; the full
+`rockyou.txt` is baked into the image.
 
 | Profile | Adds |
 | --- | --- |
-| *(core)* | Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, Triage, FileBrowser |
+| *(core)* | Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser |
 | `web` | OWASP ZAP |
 | `recon` | SpiderFoot |
 | `crypto` | SageMath |
@@ -171,8 +132,7 @@ All host ports live in the **19000+ range** and are configurable in `.env`:
 | 19008 / 19009 | Wireshark HTTP / HTTPS |
 | 19010 | SageMath (Jupyter) |
 | 19011 | IT-Tools |
-| 19012 | FileBrowser Quantum (triage reports, no login, localhost only) |
-| 19013 | Triage web GUI (Auto/Check, localhost only) |
+| 19012 | FileBrowser Quantum (browse ./data, no login, localhost only) |
 | 19014 | StegSuite workbench + API (localhost only) |
 | 19015 / 19016 | Hashtopolis backend / frontend (profile `crack`) |
 
@@ -247,7 +207,6 @@ Everything is driven by `.env` (created from `.env.example`):
 | `*_PORT` | Host port of each service (all in 19000+) |
 | `HOMEPAGE_ALLOWED_HOSTS` | Hosts allowed to reach the dashboard (add your LAN IP for remote access) |
 | `MITMWEB_PASSWORD` | Password for the mitmweb GUI (user is ignored) |
-| `WORDLIST` | Default wordlist used by the triage pipeline |
 | `PUID` / `PGID` / `TZ` | User mapping and timezone for Wireshark |
 | `HASHTOPOLIS_*` | Hashtopolis admin/DB credentials (profile `crack`) |
 
@@ -261,9 +220,8 @@ Everything is driven by `.env` (created from `.env.example`):
   (default `mitm`). Its dashboard status checks an unauthenticated endpoint.
 - **Profiled tools** show up as *down* on the dashboard until you start that
   profile — that is expected.
-- The **triage** image is the only one fully built locally; it starts from a
-  pinned stego toolset base and adds `stegseek`, `john`, `fcrackzip`,
-  `pdfcrack`; the first `./ctf up` builds it once.
+- The **StegSuite** image is built locally from a pinned stego toolset base; the
+  first `./ctf up` builds it once.
 - **FileBrowser Quantum** (the maintained fork of the archived FileBrowser) is
   bound to `127.0.0.1` only and runs with **no login** (`auth.methods.noauth`).
 - The **dashboard** mounts the Docker socket **read-only** to show live container
