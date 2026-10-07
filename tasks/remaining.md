@@ -1,21 +1,20 @@
 # Remaining work — StegSuite
 
-> Documento di ripresa. Aggiornato dopo P1 (pulizia/GUI), P2 (analyzer),
-> P3 (sicurezza/ops), P4 (packaging). Metti `[x]` quando fatto.
+> Documento di ripresa. **Stato (2026-10-07): sezioni A–G e P15–P25 chiusi**;
+> resta fuori scope solo OSINT (delegato). Qui sotto la storia e i limiti noti.
 
 ## Come riprendere
 ```bash
-cd "/home/romeo/Progetti/ctf-docker"
-docker compose up -d stegsuite          # GUI/API su http://localhost:19014
-./ctf test                              # 18/18 + 7/7 + verifica risposte
-# oppure i singoli passi:
-#   regressione (nel container): copia app/tests/ctf_regression.py in /tmp e lancia
-#   challenge reali (host):      python3 app/tests/real_challenges.py
-#   verifica per-istanza:        python3 app/tests/verify_flags.py
+cd <repo>                               # es. /home/r/__Github/CTF
+./ctf up                                # core (Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser)
+./ctf up web                            # + ZAP (con add-on extra)   [recon|crypto|forensics|crack]
+./ctf urls                              # URL di tutti i servizi
+./ctf test                              # regressione 22/22 + reali 10/10 + verify ALL CORRECT
+./ctf ui-smoke                          # smoke test della SPA (Chromium headless in Docker)
 docker compose config -q                # valida il compose
 ```
-CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytest,
-frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
+CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2e`
+on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
 - **P25 challenge difficili (sezione G) chiusa**: aggiunta **St3g0** ai test reali
