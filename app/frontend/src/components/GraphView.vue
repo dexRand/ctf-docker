@@ -60,16 +60,21 @@ onMounted(() => {
     .backgroundColor('#0c0e10')
     .nodeId('id')
     .nodeCanvasObject(painter)
-    .nodePointerAreaPaint((n, color, ctx) => {
+    .nodePointerAreaPaint((n, color, ctx, scale) => {
       ctx.fillStyle = color
-      ctx.beginPath(); ctx.arc(n.x, n.y, n.__r + 3, 0, 2 * Math.PI); ctx.fill()
+      // the dot
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.__r + 5, 0, 2 * Math.PI); ctx.fill()
+      // and the label text below it, so clicking the name selects the node too
+      const fs = 11 / (scale || 1)
+      ctx.font = `${fs}px ui-monospace, Menlo, Consolas, monospace`
+      const w = ctx.measureText(n.name).width
+      ctx.fillRect(n.x - w / 2 - 2, n.y + n.__r, w + 4, fs + 4)
     })
     .linkColor((l) => (l.__route ? C_ROUTE : '#2b3238'))
     .linkWidth((l) => (l.__route ? 1.6 : 0.7))
     .linkDirectionalArrowLength(2.4)
     .linkDirectionalArrowRelPos(1)
     .linkDirectionalArrowColor((l) => (l.__route ? C_ROUTE : '#2b3238'))
-    .onNodeClick((n) => emit('select', n.id))
     .nodeLabel((n) => `${n.name} — ${n.tool || ''}`)
     .warmupTicks(20)
     .cooldownTicks(200)
@@ -79,6 +84,28 @@ onMounted(() => {
     .maxZoom(12)
 
   graph.graphData(buildData())
+
+  // force-graph's canvas hit-test proved unreliable here (a click near a node
+  // fired onNodeClick for a different, far node), so we pick the nearest node
+  // ourselves from the pointer position.
+  let down = null
+  el.value.addEventListener('pointerdown', (ev) => { down = { x: ev.clientX, y: ev.clientY } })
+  el.value.addEventListener('pointerup', (ev) => {
+    const start = down
+    down = null
+    if (!start || Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > 5) return // pan/drag
+    const rect = el.value.getBoundingClientRect()
+    const px = ev.clientX - rect.left
+    const py = ev.clientY - rect.top
+    let best = null
+    let bestD = Infinity
+    for (const n of graph.graphData().nodes) {
+      const p = graph.graph2ScreenCoords(n.x, n.y)
+      const d = Math.hypot(p.x - px, p.y - py)
+      if (d < bestD) { bestD = d; best = n }
+    }
+    if (best && bestD <= (best.__r || 3) + 14) emit('select', best.id)
+  })
 
   ro = new ResizeObserver(() => {
     const w = el.value.clientWidth

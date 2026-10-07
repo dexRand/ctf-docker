@@ -77,7 +77,8 @@
 - [x] Bugfix: `openstego` non estraeva mai (`-p ""` → help); progetto interrotto
       con flag già trovata ora `done` (non `error`) all'avvio
 - [x] Bugfix UI: click su grafo/timeline ora seleziona e **rivela** il file
-      (espande, scroll, su mobile passa al pannello `files`)
+      (espande, scroll, su mobile passa al pannello `files`); click sul grafo
+      gestito da noi (nodo più vicino) perché l'hit-test di force-graph sbagliava
 
 ## Copertura challenge italiane (ITSCyberGame / Olicyber / StarHackademin) ✅
 - [x] `png-chunks`: dump tEXt/iTXt/zTXt/eXIf + dati dopo IEND (IsThatA)

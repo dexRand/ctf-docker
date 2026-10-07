@@ -18,11 +18,14 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
-- **P23 fix UI grafo**: cliccando un nodo/timeline del grafo il file a sinistra non
-  veniva "rivelato" (nessuno scroll/espansione; su mobile non cambiava pannello).
-  Ora `selectFile` **espande antenati e gruppi**, **azzera il filtro**, fa
-  **scrollIntoView** e su mobile passa al pannello `files`. Verificato con
-  Chromium headless (desktop: file selezionato; mobile: pannello `files`).
+- **P23 fix UI grafo**: due problemi. (1) l'**hit-test del canvas di force-graph**
+  sbagliava nodo (un click vicino a un nodo ne attivava uno lontano) → molti nodi
+  "non cliccabili": ora il click è gestito da noi e seleziona il **nodo più vicino**
+  (dot+etichetta, ignorando i drag). (2) `selectFile` non "rivelava" il file a
+  sinistra (niente scroll/espansione; su mobile non cambiava pannello): ora
+  **espande antenati e gruppi**, **azzera il filtro**, fa **scrollIntoView** e su
+  mobile passa al pannello `files`. Verificato con Chromium headless (12/12 nodi
+  cliccabili, timeline→sinistra ok, mobile→`files`, 0 errori console).
 - **P22 cracking + bugfix**: sezione **F** completata — **upload wordlist**
   (persistite in `/data/wordlists`) con scelta per-item **persistente** in GUI;
   **hashcat rules/mask + budget CPU** (`HASHCAT_RULES`, `CRACK_BUDGET_S`, opzioni
