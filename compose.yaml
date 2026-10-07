@@ -318,6 +318,9 @@ services:
       - RETENTION_DAYS=${RETENTION_DAYS:-0}
       - OCR_LANGS=${OCR_LANGS:-eng}
       - OCR_EXTRA_LANGS=${OCR_EXTRA_LANGS:-ita}
+      - MAX_WORDLIST_MB=${MAX_WORDLIST_MB:-512}
+      - HASHCAT_RULES=${HASHCAT_RULES:-best64}
+      - CRACK_BUDGET_S=${CRACK_BUDGET_S:-0}
     volumes:
       - ./data:/data
       - ./wordlists:/wordlists:ro

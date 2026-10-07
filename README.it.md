@@ -208,7 +208,9 @@ http://localhost:19014 (solo localhost).
   log live via WebSocket, **terminale** integrato (xterm.js) e **report**
   Markdown con selettore lingua dedicato; **responsive** su mobile (un pannello
   alla volta).
-- **Flag hunt + cracking**: ZIP (anche AES via hashcat), steghide, PDF.
+- **Flag hunt + cracking**: ZIP (anche AES via hashcat) con **rules/mask + budget
+  CPU** di hashcat, **known-plaintext ZipCrypto (`bkcrack`)**, steghide, PDF;
+  upload di nuove **wordlist** (persistite in `/data/wordlists`).
 - **Ops/sicurezza**: migrazioni di schema con **Alembic**, **rate limiting**
   per IP opt-in (`RATE_LIMIT_RPM`) e **retention** dei progetti
   (`RETENTION_DAYS`), `X-API-Key` opzionale.

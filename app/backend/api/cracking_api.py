@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import threading
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session, select
 
 from .. import cracking, orchestrator, storage
@@ -18,6 +18,15 @@ CRACK_JOBS: dict[str, str] = {}
 @router.get("/api/v1/wordlists")
 def wordlists() -> list[dict]:
     return cracking.list_wordlists()
+
+
+@router.post("/api/v1/wordlists")
+def upload_wordlist(file: UploadFile = File(...)) -> dict:
+    """Upload a new wordlist; it is stored under /data (persisted)."""
+    try:
+        return cracking.save_wordlist(file.filename or "wordlist.txt", file.file)
+    except ValueError as exc:
+        raise HTTPException(413, str(exc))
 
 
 @router.get("/api/v1/projects/{pid}/locked")
@@ -40,7 +49,7 @@ def locked_files(pid: str, session: Session = Depends(get_session)) -> list[dict
     return out
 
 
-def _crack_worker(pid: str, fid: int, names) -> None:
+def _crack_worker(pid: str, fid: int, names, opts: dict) -> None:
     try:
         with Session(engine) as s:
             node = s.get(FileNode, fid)
@@ -51,7 +60,13 @@ def _crack_worker(pid: str, fid: int, names) -> None:
             bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid,
                                            "name": node.name, "status": "running"})
             lines: list[str] = []
-            res = cracking.crack_file(path, names, log=lines.append)
+            bk = opts.get("bkcrack")
+            if bk:
+                res = cracking.bkcrack_attack(path, bk.get("name", ""),
+                                              bk.get("plaintext", ""), log=lines.append)
+            else:
+                res = cracking.crack_file(path, names, log=lines.append,
+                                          **{k: v for k, v in opts.items() if k != "bkcrack"})
             orchestrator.record_crack_run(s, pid, fid, work, res, lines)
             if res["password"]:
                 wl_hit = res.get("wordlist_hit") or ""
@@ -95,8 +110,18 @@ def crack(pid: str, payload: dict = Body(...), session: Session = Depends(get_se
         raise HTTPException(409, "file already cracked")
     if pid in CRACK_JOBS:
         raise HTTPException(409, "cracking already running")
+    opts: dict = {}
+    if "rules" in payload:
+        opts["rules"] = payload.get("rules")
+    if payload.get("mask"):
+        opts["mask"] = str(payload["mask"])
+    if payload.get("budget_s") is not None:
+        opts["budget_s"] = int(payload["budget_s"])
+    bk = payload.get("bkcrack")
+    if isinstance(bk, dict):
+        opts["bkcrack"] = {"name": bk.get("name", ""), "plaintext": bk.get("plaintext", "")}
     CRACK_JOBS[pid] = node.name
-    threading.Thread(target=_crack_worker, args=(pid, fid, names), daemon=True).start()
+    threading.Thread(target=_crack_worker, args=(pid, fid, names, opts), daemon=True).start()
     return {"started": pid, "file_id": fid}
 
 

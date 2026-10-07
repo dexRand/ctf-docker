@@ -354,6 +354,9 @@ async function load() {
       api(`/projects/${props.id}/locked`),
       api('/wordlists'),
     ])
+    for (const l of locked.value) {
+      try { l._wl = localStorage.getItem(`steg.wl.${props.id}.${l.file_id}`) || '' } catch { l._wl = '' }
+    }
     runs.value = await api(`/projects/${props.id}/runs`)
     // seed the live log from persisted events so the Logs tab is not empty on
     // projects that were analysed in a previous session (only once, and only if
@@ -418,6 +421,26 @@ async function crack(item, wl) {
       body: JSON.stringify({ file_id: item.file_id, wordlists: wl ? [wl] : null }),
     })
   } catch (e) { notify(String(e), 'error') }
+}
+// remember the wordlist chosen for a locked file (per project + file)
+function persistWl(l) {
+  try { l._wl ? localStorage.setItem(`steg.wl.${props.id}.${l.file_id}`, l._wl) : localStorage.removeItem(`steg.wl.${props.id}.${l.file_id}`) } catch { /* private mode */ }
+}
+const wlUploading = ref(false)
+async function uploadWordlist(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  wlUploading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const info = await api('/wordlists', { method: 'POST', body: fd })
+    wordlists.value = await api('/wordlists')
+    notify(t('toast.wordlist_added', { name: info.name }), 'ok')
+  } catch (err2) { notify(String(err2), 'error') } finally {
+    wlUploading.value = false
+    e.target.value = ''
+  }
 }
 async function out(rid) {
   if (outputs.value[rid] != null) return outputs.value[rid]
@@ -1167,11 +1190,15 @@ onBeforeUnmount(() => {
 
           <div class="mb-1 mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-info">
             <Icon name="lock" :size="12" /> {{ t('proj.locked', { n: locked.length }) }}
+            <label class="ml-auto cursor-pointer rounded border border-edge px-1.5 py-0.5 font-normal normal-case tracking-normal text-dim hover:border-acc hover:text-acc">
+              <Icon name="upload" :size="10" /> {{ wlUploading ? '…' : t('proj.wl_add') }}
+              <input type="file" class="hidden" accept=".txt,.lst,.gz" :disabled="wlUploading" @change="uploadWordlist" />
+            </label>
           </div>
           <div v-for="l in locked" :key="l.file_id" class="mb-2 rounded border border-edge p-2">
             <div class="truncate text-xs text-fglite">{{ l.name }} <span class="text-dim">({{ l.kind }})</span></div>
             <div class="mt-1 flex gap-1">
-              <select v-model="l._wl" class="w-full rounded border border-edge bg-ink px-1 py-0.5 text-[10px] text-fglite focus:border-acc">
+              <select v-model="l._wl" @change="persistWl(l)" class="w-full rounded border border-edge bg-ink px-1 py-0.5 text-[10px] text-fglite focus:border-acc">
                 <option value="">{{ t('proj.all') }}</option>
                 <option v-for="w in wordlists" :key="w.name" :value="w.name">{{ w.name }}</option>
               </select>

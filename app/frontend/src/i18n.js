@@ -136,6 +136,7 @@ const en = {
   'proj.locked': 'locked ({n})',
   'proj.all': 'all',
   'proj.crack': 'crack',
+  'proj.wl_add': 'add wordlist',
   'proj.flag_route': 'flag route',
   'proj.no_flag': '(no flag)',
   'proj.terminal_label': 'terminal — bash (cwd = project)',
@@ -176,6 +177,7 @@ const en = {
   'toast.deleted': 'project deleted',
   'toast.cleared': 'history cleared',
   'toast.uploaded': 'uploaded {n} file(s)',
+  'toast.wordlist_added': 'wordlist added: {name}',
 
   // ---- report ----
   'report.title': 'report',
@@ -347,6 +349,7 @@ const it = {
   'proj.locked': 'bloccati ({n})',
   'proj.all': 'tutte',
   'proj.crack': 'crack',
+  'proj.wl_add': 'aggiungi wordlist',
   'proj.flag_route': 'percorso flag',
   'proj.no_flag': '(nessuna flag)',
   'proj.terminal_label': 'terminal — bash (cwd = progetto)',
@@ -368,6 +371,7 @@ const it = {
   'toast.deleted': 'progetto eliminato',
   'toast.cleared': 'history svuotata',
   'toast.uploaded': 'caricati {n} file',
+  'toast.wordlist_added': 'wordlist aggiunta: {name}',
 
   'report.title': 'report',
   'report.copy': 'copia',

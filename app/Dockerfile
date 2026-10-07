@@ -34,6 +34,19 @@ RUN apt-get update \
  && apt-get -f install -y \
  && rm -rf /var/lib/apt/lists/*
 
+# bkcrack (ZipCrypto known-plaintext attacks), pinned prebuilt binary
+RUN mkdir -p /tmp/bk && cd /tmp/bk \
+ && case "$(uname -m)" in \
+      x86_64) url="https://github.com/kimci86/bkcrack/releases/download/v1.8.1/bkcrack-1.8.1-Linux-x86_64.tar.gz" ;; \
+      aarch64|arm64) url="https://github.com/kimci86/bkcrack/releases/download/v1.8.1/bkcrack-1.8.1-Linux-aarch64.tar.gz" ;; \
+      *) url="" ;; \
+    esac \
+ && if [ -n "$url" ]; then \
+      curl -fsSL -o bk.tgz "$url" && tar -xzf bk.tgz \
+      && install -m 0755 "$(find . -name bkcrack -type f | head -1)" /usr/local/bin/bkcrack; \
+    fi \
+ && rm -rf /tmp/bk
+
 # most-used big wordlist (small lists are mounted at /wordlists)
 RUN mkdir -p /opt/wordlists \
  && ( curl -fsSL -o /tmp/rockyou.tar.gz \
