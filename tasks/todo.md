@@ -47,7 +47,9 @@
 - [x] ZIP AES: `fcrackzip` (ZipCrypto) + `hashcat` via `zip2hashcat` vendored (MIT) → testato su zip AES-256
 
 ## Backlog
-- [ ] Profilo `crack`: Hashtopolis (frontend + backend + agent + DB)
+- [x] Profilo `crack`: **Hashtopolis** (frontend + backend + MySQL) in compose
+      (porte 19015/19016, profilo `crack`); avvio `./ctf up crack`. Gli **agent**
+      si registrano dalla UI (voucher) — non ne avviamo uno di default.
 - [ ] (Opz.) Docker integration di Homepage via socket read-only per stats container
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅

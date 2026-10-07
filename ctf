@@ -25,12 +25,12 @@ Uso: ./ctf <comando>
   test              Regressione + challenge reali + verifica risposte
   ui-smoke          Smoke test della SPA con un browser headless (Docker)
 
-Profili: web  recon  crypto  forensics
+Profili: web  recon  crypto  forensics  crack
 Dashboard: http://localhost:19001
 EOF
 }
 
-all_profiles=(web recon crypto forensics)
+all_profiles=(web recon crypto forensics crack)
 
 # port VARNAME default  ->  value from .env (or the default)
 port() {

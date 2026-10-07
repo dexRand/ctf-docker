@@ -33,6 +33,13 @@
         description: OSINT automation — domini, IP, email, leak (profilo recon)
         siteMonitor: http://spiderfoot:8080/spiderfoot/
 
+- Cracking:
+    - Hashtopolis:
+        icon: mdi-key-chain-variant
+        href: http://localhost:19016
+        description: Cracking hashcat distribuito (frontend + backend + MySQL) — login admin/hashtopolis, agent via voucher (profilo crack)
+        siteMonitor: http://hashtopolis-frontend:80
+
 - Web:
     - mitmproxy:
         icon: mdi-swap-horizontal

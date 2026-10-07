@@ -333,6 +333,64 @@ services:
       - ./wordlists:/wordlists:ro
     networks: [ctfnet]
 
+  # ------------------------------------------------------------------- CRACK
+  # Hashtopolis: distributed hashcat cracking (frontend + backend + MySQL).
+  # Gli agent si registrano dalla UI (voucher); non ne avviamo uno di default.
+  hashtopolis-db:
+    image: mysql:9.7
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1
+    logging: *default-logging
+    environment:
+      MYSQL_ROOT_PASSWORD: ${HASHTOPOLIS_DB_ROOT_PASS:-hashtopolis}
+      MYSQL_DATABASE: ${HASHTOPOLIS_DB_NAME:-hashtopolis}
+      MYSQL_USER: ${HASHTOPOLIS_DB_USER:-hashtopolis}
+      MYSQL_PASSWORD: ${HASHTOPOLIS_DB_PASS:-hashtopolis}
+    volumes:
+      - hashtopolis-db:/var/lib/mysql
+    profiles: [crack]
+    networks: [ctfnet]
+
+  hashtopolis-backend:
+    image: hashtopolis/backend:latest
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1
+    logging: *default-logging
+    depends_on: [hashtopolis-db]
+    environment:
+      HASHTOPOLIS_DB_TYPE: mysql
+      HASHTOPOLIS_DB_USER: ${HASHTOPOLIS_DB_USER:-hashtopolis}
+      HASHTOPOLIS_DB_PASS: ${HASHTOPOLIS_DB_PASS:-hashtopolis}
+      HASHTOPOLIS_DB_HOST: hashtopolis-db
+      HASHTOPOLIS_DB_DATABASE: ${HASHTOPOLIS_DB_NAME:-hashtopolis}
+      HASHTOPOLIS_ADMIN_USER: ${HASHTOPOLIS_ADMIN_USER:-admin}
+      HASHTOPOLIS_ADMIN_PASSWORD: ${HASHTOPOLIS_ADMIN_PASSWORD:-hashtopolis}
+      HASHTOPOLIS_BACKEND_URL: ${HASHTOPOLIS_BACKEND_URL:-http://localhost:19015}
+      HASHTOPOLIS_FRONTEND_URLS: ${HASHTOPOLIS_FRONTEND_URLS:-http://localhost:19016}
+      HASHTOPOLIS_FRONTEND_PORT: ${HASHTOPOLIS_FRONTEND_PORT:-19016}
+    volumes:
+      - hashtopolis-backend:/usr/local/share/hashtopolis
+    ports:
+      - "127.0.0.1:${HASHTOPOLIS_BACKEND_PORT:-19015}:80"
+    profiles: [crack]
+    networks: [ctfnet]
+
+  hashtopolis-frontend:
+    image: hashtopolis/frontend:latest
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1
+    logging: *default-logging
+    depends_on: [hashtopolis-backend]
+    environment:
+      HASHTOPOLIS_BACKEND_URL: ${HASHTOPOLIS_BACKEND_URL:-http://localhost:19015}
+    ports:
+      - "127.0.0.1:${HASHTOPOLIS_FRONTEND_PORT:-19016}:80"
+    profiles: [crack]
+    networks: [ctfnet]
+
 networks:
   ctfnet:
     driver: bridge
@@ -346,3 +404,5 @@ volumes:
   spiderfoot-data:
   wireshark-config:
   filebrowser-data:
+  hashtopolis-db:
+  hashtopolis-backend:

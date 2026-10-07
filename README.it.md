@@ -81,6 +81,7 @@ Poi apri la dashboard: **http://localhost:19001**
 docker compose up -d                              # tool core
 docker compose --profile web up -d                # core + OWASP ZAP
 docker compose --profile web --profile recon up -d
+docker compose --profile crack up -d              # core + Hashtopolis (hashcat)
 docker compose down                               # ferma tutto
 ```
 
@@ -151,6 +152,7 @@ automaticamente, ordinati per dimensione.
 | `recon` | SpiderFoot |
 | `crypto` | SageMath |
 | `forensics` | Wireshark |
+| `crack` | Hashtopolis (hashcat distribuito) |
 
 ## 🔌 Porte
 
