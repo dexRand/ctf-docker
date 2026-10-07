@@ -721,6 +721,17 @@ def reconcile_orphans() -> list[str]:
         for r in runs:
             r.status = "error"
             session.add(r)
+        # a project that ended up in `error` but already holds a flag is really
+        # solved (typically an old restart orphan): surface it as `done`
+        for p in session.exec(select(Project).where(Project.status == "error")).all():
+            flag = session.exec(select(Finding).where(Finding.project_id == p.id)
+                                .where(Finding.kind == "flag")).first()
+            if flag:
+                p.status = "done"
+                session.add(Event(project_id=p.id, level="warn",
+                                  message="marked done (flag already found)"))
+                session.add(p)
+                ids.append(p.id)
         session.commit()
         return ids
 

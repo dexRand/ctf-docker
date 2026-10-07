@@ -27,3 +27,15 @@ def test_reconcile_marks_a_solved_orphan_as_done():
     with Session(engine) as s:
         assert s.get(Project, "rec-solved").status == "done"
         assert s.get(Project, "rec-unsolved").status == "error"
+
+
+def test_reconcile_repairs_a_solved_project_stuck_in_error():
+    init_db()
+    _mk("rec-error-flag", "error", with_flag=True)
+    _mk("rec-error-plain", "error", with_flag=False)
+
+    reconcile_orphans()
+
+    with Session(engine) as s:
+        assert s.get(Project, "rec-error-flag").status == "done"
+        assert s.get(Project, "rec-error-plain").status == "error"

@@ -27,7 +27,8 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
   mai** (ora `-p` solo se c'è una password, output conciso; regressione
   `openstego` → **22/22**); `bkcrack -k` richiede le 3 chiavi come argomenti
   separati. **Fix stato**: un progetto interrotto da un riavvio **con una flag
-  già trovata** ora è `done` (non più `error`) — `reconcile_orphans`.
+  già trovata** ora è `done` (non più `error`); i progetti **storici** in
+  `error` con una flag vengono riparati a `done` all'avvio — `reconcile_orphans`.
 - **P21 packaging (sezione E)**: **screenshot** reali nel README EN/IT
   (`docs/screenshots/`: home, progetto risolto, mobile) catturati con Chromium
   headless. Nuovi comandi **`./ctf urls`** (URL di tutti i servizi, porte da
