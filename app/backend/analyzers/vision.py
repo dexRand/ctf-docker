@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult
-from ..config import OCR_EXTRA_LANGS, OCR_LANGS
+from ..config import OCR_EXTRA_LANGS, OCR_LANGS, OCR_MAX_DIM
 from .registry import register
 
 IMG_EXT = (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff", ".tif", ".webp", ".ppm")
@@ -65,6 +65,13 @@ def ocr_image(path: Path, timeout: int = 90) -> str:
         base.load()  # decode now so a truncated image degrades to "" instead of raising later
     except Exception:
         return ""
+    # downscale huge images: tesseract on multi-MP photos is very slow and the
+    # flags in them are large text anyway
+    if OCR_MAX_DIM:
+        w0, h0 = base.size
+        if max(w0, h0) > OCR_MAX_DIM:
+            f = OCR_MAX_DIM / max(w0, h0)
+            base = base.resize((max(1, round(w0 * f)), max(1, round(h0 * f))), Image.LANCZOS)
     texts: list[str] = []
     gray = base.convert("L")
     w, h = gray.size

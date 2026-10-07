@@ -210,7 +210,8 @@ http://localhost:19014 (solo localhost).
   alla volta).
 - **Flag hunt + cracking**: ZIP (anche AES via hashcat) con **rules/mask + budget
   CPU** di hashcat, **known-plaintext ZipCrypto (`bkcrack`)**, steghide, PDF;
-  upload di nuove **wordlist** (persistite in `/data/wordlists`).
+  upload di nuove **wordlist** (persistite). Formati flag custom via regex
+  **`FLAG_PATTERN`** (applicata a tutte le sorgenti, anche senza graffe).
 - **Ops/sicurezza**: migrazioni di schema con **Alembic**, **rate limiting**
   per IP opt-in (`RATE_LIMIT_RPM`) e **retention** dei progetti
   (`RETENTION_DAYS`), `X-API-Key` opzionale.

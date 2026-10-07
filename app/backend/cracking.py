@@ -30,6 +30,10 @@ MAX_WORDLIST_BYTES = int(float(os.environ.get("MAX_WORDLIST_MB", "512")) * 1024 
 RULES_DIR = Path("/usr/share/hashcat/rules")
 HASHCAT_RULES = os.environ.get("HASHCAT_RULES", "best64").strip()   # "" disables the rules pass
 CRACK_BUDGET_S = int(float(os.environ.get("CRACK_BUDGET_S", "0") or 0))  # 0 = no limit
+# Auto mode must not churn through huge lists (e.g. rockyou, 140 MB): it only
+# tries wordlists up to this size, under a per-project time budget.
+AUTO_CRACK_MAX_BYTES = int(float(os.environ.get("AUTO_CRACK_MAX_MB", "1")) * 1024 * 1024)
+AUTO_CRACK_BUDGET_S = int(float(os.environ.get("AUTO_CRACK_BUDGET_S", "120") or 0))
 Z2H = "/opt/third_party/zip2hashcat.py"
 ARCHIVE_EXT = (".zip", ".7z", ".rar", ".gz", ".tgz", ".tar", ".bz2", ".xz", ".cab")
 PDF_EXT = (".pdf",)
@@ -72,7 +76,8 @@ def list_wordlists() -> list[dict]:
             for p in sorted(found.values(), key=lambda x: x.stat().st_size)]
 
 
-def resolve_wordlists(names: Optional[list[str]] = None) -> list[Path]:
+def resolve_wordlists(names: Optional[list[str]] = None,
+                      max_bytes: Optional[int] = None) -> list[Path]:
     found: dict[str, Path] = {}
     wanted = set(names) if names else None
     for d in WORDLIST_DIRS:
@@ -82,6 +87,8 @@ def resolve_wordlists(names: Optional[list[str]] = None) -> list[Path]:
             if not p.is_file() or p.suffix not in (".txt", ".lst", ".gz"):
                 continue
             if wanted and p.name not in wanted:
+                continue
+            if max_bytes is not None and p.stat().st_size > max_bytes:
                 continue
             found.setdefault(p.name, p)
     return [_expand(p) for p in sorted(found.values(), key=lambda x: x.stat().st_size)]
@@ -305,10 +312,13 @@ def bkcrack_attack(path: Path, known_name: str, plaintext, log=None) -> dict:
             "wordlist_hit": "bkcrack", "wordlists": []}
 
 
-def _crack_pdf(path: Path, wls: list[Path], log) -> tuple[Optional[str], Optional[str]]:
+def _crack_pdf(path: Path, wls: list[Path], log,
+               deadline: Optional[float] = None) -> tuple[Optional[str], Optional[str]]:
     if not shutil.which("pdfcrack"):
         return None, None
     for wl in wls:
+        if deadline and time.time() > deadline:
+            break
         r = _run(["pdfcrack", "-f", str(path), "-w", str(wl)], timeout=3600, log=log)
         m = re.search(r"found (?:user|owner)-password:\s*'([^']+)'", r.stdout)
         if m:
@@ -316,11 +326,14 @@ def _crack_pdf(path: Path, wls: list[Path], log) -> tuple[Optional[str], Optiona
     return None, None
 
 
-def _crack_image(path: Path, wls: list[Path], log) -> tuple[Optional[str], Optional[str]]:
+def _crack_image(path: Path, wls: list[Path], log,
+                 deadline: Optional[float] = None) -> tuple[Optional[str], Optional[str]]:
     if not shutil.which("stegseek"):
         return None, None
     outfile = Path("/tmp") / (path.name + ".stegseek.out")
     for wl in wls:
+        if deadline and time.time() > deadline:
+            break
         r = _run(["stegseek", "-sf", str(path), "-wl", str(wl), "-xf", str(outfile), "-f"],
                  timeout=3600, log=log)
         m = re.search(r'passphrase:\s*"?([^"\n]+?)"?\s*$', r.stdout + r.stderr, re.I | re.M)
@@ -364,9 +377,9 @@ def crack_file(path: Path, wordlist_names: Optional[list[str]] = None,
         pw, wl_hit = _crack_zip(path, wls, log, rules_file=rules_file, mask=mask,
                                 deadline=deadline)
     elif kind == "pdf":
-        pw, wl_hit = _crack_pdf(path, wls, log)
+        pw, wl_hit = _crack_pdf(path, wls, log, deadline=deadline)
     else:
-        pw, wl_hit = _crack_image(path, wls, log)
+        pw, wl_hit = _crack_image(path, wls, log, deadline=deadline)
     if not pw:
         return no_hit
     outdir = Path("/tmp") / f"cracked-{int(time.time())}"

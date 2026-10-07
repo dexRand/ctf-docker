@@ -94,6 +94,33 @@ def test_rot13_candidates_ignore_unrelated_text() -> None:
     assert _rot13_candidates(b"nothing to see here") == []
 
 
+def test_custom_flag_pattern_with_braces(monkeypatch):
+    import re
+
+    from backend import orchestrator
+
+    monkeypatch.setattr(orchestrator, "_CUSTOM_FLAG_RE", re.compile(rb"DUCTF\{[^}]+\}"))
+    out = [v for v, _, _ in orchestrator.custom_flag_matches(b"xx DUCTF{custom_1} yy")]
+    assert out == ["DUCTF{custom_1}"]
+
+
+def test_custom_flag_pattern_without_braces(monkeypatch):
+    import re
+
+    from backend import orchestrator
+
+    monkeypatch.setattr(orchestrator, "_CUSTOM_FLAG_RE", re.compile(rb"FLAG-[0-9a-f]{8}"))
+    out = [v for v, _, _ in orchestrator.custom_flag_matches(b"here FLAG-deadbeef end")]
+    assert out == ["FLAG-deadbeef"]
+
+
+def test_no_custom_pattern_matches_nothing(monkeypatch):
+    from backend import orchestrator
+
+    monkeypatch.setattr(orchestrator, "_CUSTOM_FLAG_RE", None)
+    assert orchestrator.custom_flag_matches(b"anything") == []
+
+
 def test_wav_lsb_bits_roundtrip() -> None:
     from backend.analyzers.audio import _bits_to_text
 

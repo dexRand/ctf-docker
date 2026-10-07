@@ -38,3 +38,13 @@ def test_save_wordlist_rejects_oversized_and_cleans_up(tmp_path, monkeypatch):
     with pytest.raises(ValueError):
         cracking.save_wordlist("big.txt", io.BytesIO(b"1234567890"))
     assert not list(d.iterdir())
+
+
+def test_resolve_wordlists_respects_max_bytes(tmp_path, monkeypatch):
+    d = tmp_path / "wl"
+    d.mkdir()
+    (d / "small.txt").write_text("a\nb\n")
+    (d / "big.txt").write_text("x" * 5000)
+    monkeypatch.setattr(cracking, "WORDLIST_DIRS", [d])
+    assert [p.name for p in cracking.resolve_wordlists(max_bytes=100)] == ["small.txt"]
+    assert {p.name for p in cracking.resolve_wordlists()} == {"small.txt", "big.txt"}

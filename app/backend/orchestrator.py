@@ -13,6 +13,7 @@ import os
 import re
 import shutil
 import threading
+import time
 import traceback
 import urllib.parse
 import uuid
@@ -45,6 +46,10 @@ VISION_SOURCES = ("ocr", "bit-planes", "channel-remap", "image-enhance",
 # (strings/hex viewers) and pcap text it mostly matches binary noise
 GENERIC_NOISY = ("strings", "hexyl", "xxd", "hexdump", "pcap",
                  "binwalk-scan", "binwalk-extract", "foremost", "nested-archive")
+# a user-provided flag format (e.g. FLAG_PATTERN='DUCTF\{[^}]+\}' or even a
+# pattern without braces). Applied to EVERY source, including the noisy ones.
+_FLAG_PATTERN = os.environ.get("FLAG_PATTERN", "").strip()
+_CUSTOM_FLAG_RE = re.compile(_FLAG_PATTERN.encode()) if _FLAG_PATTERN else None
 # the fuzzy (OCR-confusion) matcher only makes sense on visual/audio output,
 # not on raw file bytes where it matches markup/entities
 FUZZY_SOURCES = tuple(s for s in VISION_SOURCES if s != "raw")
@@ -104,6 +109,18 @@ def _rot13_candidates(view: bytes) -> list[tuple[str, int, int]]:
     for pat in _ROT13_RE:
         for m in pat.finditer(view):
             val = codecs.decode(m.group(0).decode("latin-1", "replace"), "rot13")
+            out.append((val, m.start(), m.end()))
+    return out
+
+
+def custom_flag_matches(view: bytes) -> list[tuple[str, int, int]]:
+    """Matches of the user-provided ``FLAG_PATTERN`` (braces not required)."""
+    if _CUSTOM_FLAG_RE is None:
+        return []
+    out: list[tuple[str, int, int]] = []
+    for m in _CUSTOM_FLAG_RE.finditer(view):
+        val = m.group(0).decode("latin-1", "replace")
+        if val and all(32 <= ord(c) < 127 or c in "\n\t" for c in val):
             out.append((val, m.start(), m.end()))
     return out
 
@@ -279,7 +296,22 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         session.add(Finding(project_id=project_id, file_id=file_id, kind="flag",
                             value=value, source=src, context=ctx))
 
+    def add_raw(value: str, src: str, ctx: str = "") -> None:
+        # for a user-provided FLAG_PATTERN: no brace heuristics, just dedupe
+        if not value or value in existing:
+            return
+        norm = value.replace(" ", "")
+        if norm in existing_norm or any(value != ex and value in ex for ex in existing):
+            return
+        existing.add(value)
+        existing_norm.add(norm)
+        canon_index[_canon_flag(value)] = value
+        session.add(Finding(project_id=project_id, file_id=file_id, kind="flag",
+                            value=value, source=src, context=ctx))
+
     for view in views:
+        for val, s, e in custom_flag_matches(view):
+            add_raw(val, f"custom:{source}", _snippet(view, s, e))
         for pat in pats:
             for m in pat.finditer(view):
                 add(m.group(0).decode("latin-1", "replace"), source,
@@ -590,7 +622,10 @@ def record_crack_run(session: Session, pid: str, file_id: int, work: Path,
 
 
 def _auto_crack(session: Session, pid: str, work: Path, job: Job) -> list[FileNode]:
-    """Auto mode: try every wordlist on the locked files; return unlocked nodes."""
+    """Auto mode: try the *small* wordlists on the locked files; return unlocked
+    nodes. Bounded by ``AUTO_CRACK_MAX_MB`` (per list) and ``AUTO_CRACK_BUDGET_S``
+    (per project) so a false "locked" (e.g. a JPEG with no steghide payload)
+    cannot stall the analysis for hours."""
     from . import cracking
     already = {f.file_id for f in session.exec(
         select(Finding).where(Finding.project_id == pid).where(Finding.kind == "password")).all()}
@@ -600,17 +635,31 @@ def _auto_crack(session: Session, pid: str, work: Path, job: Job) -> list[FileNo
     for r in runs:
         if r.file_id not in already and r.file_id not in fids:
             fids.append(r.file_id)
+    if not fids:
+        return []
+
+    names = [p.name for p in cracking.resolve_wordlists(max_bytes=cracking.AUTO_CRACK_MAX_BYTES)]
+    deadline = (time.time() + cracking.AUTO_CRACK_BUDGET_S) if cracking.AUTO_CRACK_BUDGET_S > 0 else None
+    _event(session, pid, f"auto-crack: {len(names)} wordlists (≤ "
+                         f"{cracking.AUTO_CRACK_MAX_BYTES // (1024 * 1024)} MB)"
+                         + (f", budget {cracking.AUTO_CRACK_BUDGET_S}s" if deadline else ""))
+    session.commit()
 
     new_nodes: list[FileNode] = []
     for fid in fids:
         if job.cancelled:
+            break
+        if deadline and time.time() > deadline:
+            _event(session, pid, "auto-crack time budget reached", "warn")
+            session.commit()
             break
         node = session.get(FileNode, fid)
         if not node:
             continue
         _emit(pid, {"type": "crack", "file_id": fid, "name": node.name, "status": "running"})
         lines: list[str] = []
-        res = cracking.crack_file(work / node.rel_path, None, log=lines.append)
+        budget = max(1, int(deadline - time.time())) if deadline else None
+        res = cracking.crack_file(work / node.rel_path, names, log=lines.append, budget_s=budget)
         record_crack_run(session, pid, fid, work, res, lines)
         if res["password"]:
             wl_hit = res.get("wordlist_hit") or ""

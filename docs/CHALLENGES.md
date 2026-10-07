@@ -216,6 +216,29 @@ del tutto. Restano qui come riferimento e come TODO per nuovi analyzer.
 | Very very very Hidden | 2021 | `picoCTF{n1c3_job_f1nd1ng_th3_s3cr3t_in_the_im@g3}` | pcap + tool dedicato |
 | m00nwalk | 2019 | `picoCTF{beep_boop_im_in_space}` | **decodificata** da `sstv` (Scottie S1, frame verificato contro QSSTV); il testo è trasmesso capovolto in un frame 320×256 rumoroso → OCR near-miss |
 
+## Formati di flag non standard
+
+Non tutte le challenge hanno `flag{...}`. La flag hunt riconosce i prefissi noti
+(`ITS`, `flag`, `CTF`, `HTB`, `picoCTF`…), il pattern generico `<parola>{...}` e,
+per OCR/decodifiche inline, base64/hex/rot13/url. Il pattern generico è però
+**disattivato sulle sorgenti rumorose** (`strings`, hex, pcap) per non generare
+falsi positivi, e i flag **senza graffe** non vengono riconosciuti.
+
+Per questi casi imposta una **regex** in `FLAG_PATTERN` (env): viene applicata a
+**tutte** le sorgenti, anche senza graffe.
+
+```bash
+# prefisso custom
+FLAG_PATTERN='DUCTF\{[^}]+\}'
+# formato senza graffe (es. token esadecimale)
+FLAG_PATTERN='FLAG-[0-9a-f]{8}'
+```
+
+Se una challenge non ha proprio una flag (la risposta è una password, un messaggio
+decodificato o un artefatto), guarda **Report**/**Transcript**: elencano password,
+findings, catena solver e output dei tool — la risposta è lì, anche quando nessun
+pattern la riconosce come "flag".
+
 ## Aggiungere una challenge
 
 1. Aggiungi la tupla `(nome, url, flag_attesa)` in `CASES` di

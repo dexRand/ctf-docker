@@ -18,6 +18,15 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P24 performance + formati flag custom**: **auto-crack** in Auto ora usa solo le
+  wordlist ≤ `AUTO_CRACK_MAX_MB` (default 1 MB, quindi **esclude rockyou da
+  140 MB**) con budget per progetto `AUTO_CRACK_BUDGET_S` (default 120s, applicato
+  anche a pdf/stegseek) → un falso "locked" (JPEG senza payload steghide) non
+  blocca più l'analisi (garden.jpg: auto-crack **3s**). **OCR**: le immagini più
+  grandi di `OCR_MAX_DIM` (default 2200) vengono ridimensionate prima di tesseract
+  (garden.jpg auto 122s → **92s**). **Flag**: regex opzionale **`FLAG_PATTERN`**
+  (es. `DUCTF\{[^}]+\}`, anche senza graffe) applicata a **tutte** le sorgenti,
+  incluse quelle rumorose dove il pattern generico è disattivato.
 - **P23 fix UI grafo**: due problemi. (1) l'**hit-test del canvas di force-graph**
   sbagliava nodo (un click vicino a un nodo ne attivava uno lontano) → molti nodi
   "non cliccabili": ora il click è gestito da noi e seleziona il **nodo più vicino**

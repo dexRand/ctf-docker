@@ -31,6 +31,9 @@ def retention_days() -> int:
 # no flag (so Italian text is covered without adding noise on English challenges).
 OCR_LANGS = os.environ.get("OCR_LANGS", "eng").strip() or "eng"
 OCR_EXTRA_LANGS = os.environ.get("OCR_EXTRA_LANGS", "").strip()
+# downscale very large images before OCR (tesseract is slow on multi-MP images;
+# flags in big images are usually large text). 0 = no cap.
+OCR_MAX_DIM = int(os.environ.get("OCR_MAX_DIM", "2200") or 0)
 
 
 def rate_limit() -> tuple[int, float]:

@@ -79,6 +79,8 @@
 - [x] Bugfix UI: click su grafo/timeline ora seleziona e **rivela** il file
       (espande, scroll, su mobile passa al pannello `files`); click sul grafo
       gestito da noi (nodo più vicino) perché l'hit-test di force-graph sbagliava
+- [x] Perf: auto-crack bounded (solo wordlist piccole + budget), OCR con cap
+      dimensione; **`FLAG_PATTERN`** per formati flag custom (anche senza graffe)
 
 ## Copertura challenge italiane (ITSCyberGame / Olicyber / StarHackademin) ✅
 - [x] `png-chunks`: dump tEXt/iTXt/zTXt/eXIf + dati dopo IEND (IsThatA)
