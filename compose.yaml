@@ -195,7 +195,10 @@ services:
     networks: [ctfnet]
 
   zap:
-    image: ghcr.io/zaproxy/zaproxy:stable
+    build:
+      context: ./zap
+      dockerfile: Dockerfile
+    image: ctf-zap
     restart: unless-stopped
     user: zap
     mem_limit: 2g

@@ -50,28 +50,16 @@
 - [ ] Profilo `crack`: Hashtopolis (frontend + backend + agent + DB)
 - [ ] (Opz.) Docker integration di Homepage via socket read-only per stats container
 
-### Backlog — ZAP: add-on "potenti" (profilo `web`)
-Installare in un'unica passata i marketplace add-on con più peso per il pentesting
-(dockervesti l'immagine `ghcr.io/zaproxy/zaproxy` con un `Dockerfile` che esegue
-`zap.sh -cmd -addoninstall <id>` per la lista sotto; ids verificati sul marketplace 2026):
-- [ ] `ascanrules` (release rules) + `ascanrulesBeta` + `ascanrulesAlpha` (regole
-      attive extra: SQLi time-based multi-DBMS, XSS persistente, LDAP/NoSQLi, etc.)
-- [ ] `pscanrulesBeta` + `pscanrulesAlpha` (regole passive extra)
-- [ ] `domxss` — active scan rule per XSS/DOM nel browser
-- [ ] `accessControl` — test di autorizzazione/role-based (IDOR)
-- [ ] `sequence` — attacco CSRF su sequenze di richieste correlate
-- [ ] `authhelper` — automazione login (Microsoft/forme di autenticazione)
-- [ ] `fuzz` + `fuzzdb` — fuzzing con un payload DB aggiornato
-- [ ] `graphql`, `openapi`, `soap`, `grpc`, `sse` — supporto API moderne
-- [ ] `exim` (Import/Export) + `requester` + `database` — export/replay/DB delle sessioni
-- [ ] `retire` — rilevamento componenti JS obsoleti/vulnerabili
-- [ ] `custompayloads` + `directorylistv2_3`/`lc` — wordlist per brute-force dirs
-- [ ] `httpsInfo` + `tech` (Technology Detection) — fingerprinting TLS/stack
-- [ ] `insights` + `scanpolicies` — vista avanzata e policy di scan riusabili
-- [ ] PyIrc?/`jython` (scripting) + community scripts — hook automatici
-- [ ] Valutare integrazione **OWASP PTK** (estensione browser-side, 2026:
-      import findings PTK come alert ZAP) — `ptk`
-- Verifica: add-on elencati in Help/About dopo il primo boot + un active scan di prova su DVWA.
+### ZAP: add-on "potenti" (profilo `web`) ✅
+Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`
+pinnata per digest, poi `zap.sh -cmd -addoninstall …`): **ascanrulesAlpha/Beta**,
+**pscanrulesAlpha/Beta**, **accessControl**, **custompayloads**, **directorylistv2_3**,
+**fuzzdb**, **grpc**, **httpsInfo**, **jython**, **sse**, **ptk**. Altri add-on della
+lista (`domxss`, `sequence`, `authhelper`, `fuzz`, `graphql`, `soap`, `exim`,
+`requester`, `database`, `insights`, `scanpolicies`) sono **già inclusi** nella
+stable. Verificato: 13/13 presenti (`-addonlist`) + webswing risponde su
+`http://localhost:19005/zap` (HTTP 302). `tech` non è un ID del marketplace
+(fingerprint coperto da `httpsInfo`/wappalyzer).
 
 ### OSINT — delegato (fuori scope di questa repo)
 > OSINT è gestito da un collega con una **webapp separata**: qui **non** aggiungiamo

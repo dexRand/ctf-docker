@@ -55,7 +55,7 @@ tool pesanti stanno dietro **profili** Compose opzionali.
 | Utility | IT-Tools | http://localhost:19011 | Encoder, converter, hash, regex e simili | core |
 | Deep triage | **CTF Triage** | http://localhost:19013 | Estrazione ricorsiva + cracking wordlist + flag hunt · GUI Auto/Check, report in FileBrowser Quantum (`./ctf triage <file>`) | core |
 | Stego workbench | **StegSuite** | http://localhost:19014 | Analisi ricorsiva auto su 40 tool (stego, forensics, vision/OCR, audio/SSTV/network), albero file, log live, terminale, API REST | core |
-| Web | **OWASP ZAP** | http://localhost:19005/zap | Scanner di sicurezza web con GUI nel browser · proxy su `:19006` | `web` |
+| Web | **OWASP ZAP** | http://localhost:19005/zap | Scanner di sicurezza web con GUI nel browser · proxy su `:19006` · add-on extra (regole alpha/beta, accessControl, fuzzdb, ptk…) | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domini, IP, email, leak | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Notebook Python/Sage per crypto e matematica | `crypto` |
 | Forensics | Wireshark | http://localhost:19008 | Analisi pacchetti/pcap con GUI web | `forensics` |
