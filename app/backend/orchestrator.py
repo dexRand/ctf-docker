@@ -699,10 +699,21 @@ def reconcile_orphans() -> list[str]:
         ).all()
         ids: list[str] = []
         for p in projects:
-            p.status = "error"
+            # a project that already found a flag counts as solved, not failed:
+            # the restart only cut the remaining (often slow) auto-crack short
+            solved = session.exec(
+                select(Finding).where(Finding.project_id == p.id)
+                .where(Finding.kind == "flag")).first()
+            if solved:
+                p.status = "done"
+                session.add(Event(project_id=p.id, level="warn",
+                                  message="analysis interrupted by a restart "
+                                          "(flag already found)"))
+            else:
+                p.status = "error"
+                session.add(Event(project_id=p.id, level="warn",
+                                  message="analysis interrupted by a restart"))
             session.add(p)
-            session.add(Event(project_id=p.id, level="warn",
-                              message="analysis interrupted by a restart"))
             ids.append(p.id)
         runs = session.exec(
             select(ToolRun).where(ToolRun.status.in_(("running", "queued")))  # type: ignore[attr-defined]

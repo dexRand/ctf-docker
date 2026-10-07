@@ -87,28 +87,48 @@ class JstegAnalyzer(Analyzer):
                           summary="no data")
 
 
+def _openstego_cmd(input_path, out_path, password: str | None = None) -> list:
+    """OpenStego extract args.
+
+    NOTE: passing an *empty* ``-p ""`` makes OpenStego print its help and never
+    extract, so the flag is added only when a password is actually known.
+    """
+    cmd = ["openstego", "extract", "-sf", str(input_path), "-xf", str(out_path)]
+    if password:
+        cmd += ["-p", password]
+    return cmd
+
+
 class OpenStegoAnalyzer(Analyzer):
     name = "openstego"
     category = "steg"
-    description = "Extract data embedded with OpenStego (needs password)."
+    description = "Extract data embedded with OpenStego (unencrypted or with a known password)."
     needs_password = True
-    accepts = (".png", ".bmp", ".gif", ".jpg", ".jpeg", ".tiff", ".tif", ".webp")
+    accepts = (".png", ".bmp", ".gif", ".jpg", ".jpeg", ".tiff", ".tif")
     display_order = 340
 
     def run(self, ctx: ToolContext) -> ToolResult:
         if not which("openstego"):
             return ToolResult(self.name, status="skipped", summary="openstego not installed")
         out = ctx.sub(self.name) / (ctx.input.name + ".openstego")
-        proc = ctx.run(["openstego", "extract", "-sf", str(ctx.input),
-                        "-xf", str(out), "-p", ctx.password or ""], timeout=120)
+        proc = ctx.run(_openstego_cmd(ctx.input, out, ctx.password), timeout=120)
         blob = out_of(proc)
-        if proc.returncode == 0 and out.exists():
+        if proc.returncode == 0 and out.exists() and out.stat().st_size:
             return ToolResult(self.name, status="done", output=blob[-8000:],
                               summary="data extracted", extracted=[str(out)],
                               artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
-        # no OpenStego payload (or unsupported): not an error
-        return ToolResult(self.name, status="skipped", output=blob[-4000:],
-                          exit_code=proc.returncode, summary="no OpenStego data")
+        # no payload, wrong/absent password, or an unsupported image: not an error.
+        # Collapse OpenStego's output/usage into a single concise summary line.
+        if "corrupt OR invalid password" in blob:
+            summary = "no OpenStego data (or password required)"
+        elif "OpenStego is a steganography" in blob or "command line interface" in blob:
+            summary = "unsupported image or invalid arguments"
+        else:
+            lines = [ln for ln in blob.splitlines() if ln.strip() and "Enter Password" not in ln]
+            summary = (lines[0] if lines else "no OpenStego data")[:160]
+        tail = "" if summary.startswith("unsupported") else blob[-600:]
+        return ToolResult(self.name, status="skipped", output=tail,
+                          exit_code=proc.returncode, summary=summary)
 
 
 register(SteghideAnalyzer())

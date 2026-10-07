@@ -161,6 +161,7 @@ script, quindi il test verifica che l'analizzatore le ritrovi).
 | nested-archive | 30 tar annidati (stile *like1000*) + `filler.txt` | `ITS{nested_archive_19}` |
 | sstv | trasmissione SSTV Scottie S1 di un frame con la flag | `ITS{sstv20}` |
 | tls-pcap | pcap TLS + chiave privata (WebNet0), header decifrato | `picoCTF{nongshim.shrimp.crackers}` |
+| openstego | payload OpenStego non cifrato (`openstego embed` → `extract`) | `ITS{openstego22}` |
 
 ## Come verificare
 
@@ -172,7 +173,7 @@ docker compose up -d stegsuite
 docker cp app/tests/ctf_regression.py ctf-stegsuite-1:/tmp/ctf_regression.py
 docker cp app/tests/fixtures ctf-stegsuite-1:/tmp/fixtures
 docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
-  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 21/21
+  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 22/22
 
 # challenge reali (host: scaricano i file da sole)
 python3 app/tests/real_challenges.py                        # → 9/9

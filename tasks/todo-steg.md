@@ -72,6 +72,10 @@
 - [x] Test: fixture reale WebNet0 (pcap+chiave) + regressione `tls-pcap`;
       **OCR italiano** (`tesseract-ocr-ita`, `OCR_LANGS`); smoke test UI con
       Chromium headless (`./ctf ui-smoke`)
+- [x] Cracking: upload wordlist (persistite) + scelta per-item persistente;
+      hashcat rules/mask + budget CPU; `bkcrack` ZipCrypto known-plaintext
+- [x] Bugfix: `openstego` non estraeva mai (`-p ""` → help); progetto interrotto
+      con flag già trovata ora `done` (non `error`) all'avvio
 
 ## Copertura challenge italiane (ITSCyberGame / Olicyber / StarHackademin) ✅
 - [x] `png-chunks`: dump tEXt/iTXt/zTXt/eXIf + dati dopo IEND (IsThatA)

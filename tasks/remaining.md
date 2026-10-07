@@ -18,6 +18,16 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P22 cracking + bugfix**: sezione **F** completata — **upload wordlist**
+  (persistite in `/data/wordlists`) con scelta per-item **persistente** in GUI;
+  **hashcat rules/mask + budget CPU** (`HASHCAT_RULES`, `CRACK_BUDGET_S`, opzioni
+  per-richiesta) e **bkcrack** (ZipCrypto known-plaintext, binario precompilato
+  v1.8.1; verificato end-to-end: crack → decifra → estrae). **Bugfix**:
+  `openstego` passava sempre `-p ""`, che lo mandava in *help* e **non estraeva
+  mai** (ora `-p` solo se c'è una password, output conciso; regressione
+  `openstego` → **22/22**); `bkcrack -k` richiede le 3 chiavi come argomenti
+  separati. **Fix stato**: un progetto interrotto da un riavvio **con una flag
+  già trovata** ora è `done` (non più `error`) — `reconcile_orphans`.
 - **P21 packaging (sezione E)**: **screenshot** reali nel README EN/IT
   (`docs/screenshots/`: home, progetto risolto, mobile) catturati con Chromium
   headless. Nuovi comandi **`./ctf urls`** (URL di tutti i servizi, porte da
@@ -179,8 +189,8 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 - **Robustezza**: tipo da `file` per il piano (estensione che mente), SQLite
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
-- **Test/Docs**: regressione **21/21**, reali **9/9**, `verify_flags` **ALL
-  CORRECT**, `pytest` **90**, UI smoke (`./ctf ui-smoke`), `docs/CHALLENGES.md`.
+- **Test/Docs**: regressione **22/22**, reali **9/9**, `verify_flags` **ALL
+  CORRECT**, `pytest` **102**, UI smoke (`./ctf ui-smoke`), `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
 
@@ -252,10 +262,14 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
     non aggiunge valore oggi (manutenzione in più); si rivaluta solo se cambia il
     toolset. Nessun cambio.
 
-### F. Cracking
-19. [ ] Upload di nuove wordlist (scelta per-item **già**: select in GUI `proj`)
-    e salvataggio persistente per item.
-20. [ ] `bkcrack` (ZipCrypto known-plaintext); rules/mask + budget CPU.
+### F. Cracking — ✅ completata
+19. [x] **Upload wordlist** (`POST /api/v1/wordlists`, salvata in `/data/wordlists`
+    persistente) + bottone in GUI; **scelta per-item persistente** del file
+    bloccato (localStorage per progetto+file).
+20. [x] **`bkcrack`** (ZipCrypto known-plaintext, binario precompilato v1.8.1
+    nell'immagine; attacco via payload `bkcrack` della crack API → decifra ed
+    estrae) + **rules/mask + budget CPU** per hashcat (`HASHCAT_RULES`,
+    `CRACK_BUDGET_S`, e per-richiesta `rules`/`mask`/`budget_s`).
 
 ### G. Challenge difficili (verifica con soluzione) — IN CORSO
 Runner non committato (in `/tmp/opencode/hard_challenges.py`); esiti osservati:
@@ -300,12 +314,12 @@ app/backend/analyzers/*.py     # 40 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/frontend/src/toast.js      # store toast globale
 app/frontend/src/components/Toasts.vue  # rendering toast
-app/tests/ctf_regression.py    # 21/21 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap)
+app/tests/ctf_regression.py    # 22/22 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap, openstego)
 app/tests/real_challenges.py   # 9/9 picoCTF (incl. WebNet0/1: pcap+TLS key)
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
 app/tests/ui_smoke.mjs         # smoke test UI (Playwright/Chromium) + ui_smoke.sh
-app/tests/fixtures/            # challenge.png + webnet0/{capture.pcap,picopico.key}
-app/tests/*.py                 # unit pytest (90)
+app/tests/fixtures/            # challenge.png + webnet0/{capture.pcap, picopico.key}
+app/tests/*.py                 # unit pytest (102)
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 .github/workflows/ci.yml       # CI
 compose.yaml                   # servizio stegsuite (19014)

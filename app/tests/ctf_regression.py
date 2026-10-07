@@ -339,6 +339,20 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     if cap.is_file() and key.is_file():
         cases.append(("tls-pcap", [cap, key], "picoCTF{nongshim.shrimp.crackers}"))
 
+    # 22) OpenStego (unencrypted) payload -> openstego extract
+    from PIL import Image as _Image
+    cover = TMP / "os_cover.png"
+    _Image.new("RGB", (200, 200), (235, 235, 235)).save(cover)
+    msg = TMP / "os_msg.txt"
+    msg.write_text("ITS{openstego22}")
+    stego = TMP / "os_stego.png"
+    try:
+        sh(f"openstego embed -mf {msg} -cf {cover} -sf {stego}")
+        if stego.is_file():
+            cases.append(("openstego", stego, "ITS{openstego22}"))
+    except subprocess.CalledProcessError:
+        pass
+
     return cases
 
 
