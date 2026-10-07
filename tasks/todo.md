@@ -72,19 +72,13 @@ Installare in un'unica passata i marketplace add-on con più peso per il pentest
       import findings PTK come alert ZAP) — `ptk`
 - Verifica: add-on elencati in Help/About dopo il primo boot + un active scan di prova su DVWA.
 
-### Backlog — OSINT: piattaforme e "plugin" (nuovo profilo `osint`)
-- [ ] **Prism-platform** (MIT, self-hosted): un target (dominio/IP/email/telefono/
-      username) → 22+ moduli in parallelo (WHOIS, DNS/CT/wayback, GeoIP, SMTP verify,
-      breach, Blackbird + **Maigret** username search, exposure score, entity graph,
-      report HTML/PDF). Candidato principale come "tool OSINT che risolve osint difficili".
-      Da verificare: build via docker-compose, validare immagine/affidabilità prima del pin.
-- [ ] **Web-Check** (`lissy93/web-check`, `ghcr.io/lissy93/web-check`) — OSINT "one-shot"
-      su un sito (headers, DNS, certs, tech, screenshot, metadata…) con GUI, self-hosted.
-- [ ] **GeoSpy / Pim Su** (geolocalizzazione foto con AI/EXIF) — riservare la parte
-      geolocation "difficile": candidati `pimwashere/pim-su` (GUI web) e geospy (AI).
-- [ ] Estendere l'esistente **SpiderFoot** (profilo `recon`) con più moduli/sources.
-- [ ] Se profilo `osint` confermato: porte `19015+` in `.env.example`, service in
-      Homepage con descrizione italiana, README, `mem_limit`/`cpus`, restart policy.
+### OSINT — delegato (fuori scope di questa repo)
+> OSINT è gestito da un collega con una **webapp separata**: qui **non** aggiungiamo
+> un profilo `osint`, né Prism-platform / Web-Check / GeoSpy. **SpiderFoot**
+> (profilo `recon`) resta com'è, senza espansioni OSINT.
+>
+> Riferimenti, solo per memoria (non da implementare qui): Prism-platform,
+> `lissy93/web-check` (`ghcr.io/lissy93/web-check`), GeoSpy / Pim Su.
 
 ### Checkpoint: Complete ✅
 - [x] Ogni servizio risponde a runtime (9/9 → HTTP 200)
