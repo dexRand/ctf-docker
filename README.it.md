@@ -215,6 +215,20 @@ http://localhost:19014 (solo localhost).
 - **API REST** (OpenAPI su `/api/docs`), incluso il singolo tool stateless:
   `POST /api/v1/tools/{tool}`.
 
+## 📸 Screenshot
+
+**Home — trascina una challenge e lancia l'analisi:**
+
+![StegSuite home](docs/screenshots/stegsuite-home.png)
+
+**Un progetto risolto — flag, catena solver, password craccata e percorso flag:**
+
+![Progetto risolto](docs/screenshots/stegsuite-project.png)
+
+**Responsive — un pannello alla volta su mobile:**
+
+<img src="docs/screenshots/stegsuite-mobile.png" alt="Layout mobile" width="300">
+
 ## ⚙️ Configurazione
 
 Tutto è guidato da `.env` (creato da `.env.example`):

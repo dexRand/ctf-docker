@@ -18,14 +18,19 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P21 packaging (sezione E)**: **screenshot** reali nel README EN/IT
+  (`docs/screenshots/`: home, progetto risolto, mobile) catturati con Chromium
+  headless. Nuovi comandi **`./ctf urls`** (URL di tutti i servizi, porte da
+  `.env`) e **`./ctf open <servizio>`**. Decisione registrata sulla **base
+  image** (si tiene AperiSolve pinnata per digest).
 - **P20 test/qualità (sezione D)**: **OCR italiano** (`tesseract-ocr-ita` +
   `OCR_LANGS`, default `eng` sugli host senza il pack, `eng+ita` nel container,
   fallback automatico). **Fixture reali** committate (`app/tests/fixtures/webnet0/`,
   pcap+chiave ~15 KB) con nuovo caso di regressione **`tls-pcap`** → **21/21**.
   **Smoke test della UI** con Chromium headless in Docker (`app/tests/ui_smoke.mjs`
   + `./ctf ui-smoke`: home, vista progetto, switcher mobile a 375px, zero errori
-  in console). Nuovo test unit per le lingue OCR. **Da riconfermare domani**:
-  `real_challenges`/`verify_flags` dopo la modifica OCR (fallback ita).
+  in console). Nuovo test unit per le lingue OCR. **Riconfermato**: `real_challenges`
+  9/9 e `verify_flags` ALL CORRECT dopo l'OCR (fallback ita).
 - **P19 GUI: progress + toast + upload + copy-all + responsive**: l'orchestratore
   emette `total` negli eventi `file`/`progress`, così la vista progetto mostra
   una **barra di progresso** live (file corrente + percentuale). Nuovo store
@@ -174,9 +179,8 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 - **Robustezza**: tipo da `file` per il piano (estensione che mente), SQLite
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
-- **Test/Docs**: regressione **21/21**, reali **9/9** (da riconfermare dopo l'OCR
-  ita), `verify_flags` **ALL CORRECT**, `pytest` **90**, UI smoke
-  (`./ctf ui-smoke`), `docs/CHALLENGES.md`.
+- **Test/Docs**: regressione **21/21**, reali **9/9**, `verify_flags` **ALL
+  CORRECT**, `pytest` **90**, UI smoke (`./ctf ui-smoke`), `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
 
@@ -238,10 +242,15 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 15. [x] **OCR italiano**: `tesseract-ocr-ita` nell'immagine; `OCR_LANGS`
     (`eng+ita` nel container, fallback `eng` se il pack manca).
 
-### E. Packaging (P4)
-16. [ ] **Screenshot** + esempi nel README.
-17. [ ] Comando `./ctf` per aprire StegSuite/docs (URL rapidi).
-18. [ ] Valutare base image propria (ora pinnata per digest a AperiSolve, MIT).
+### E. Packaging (P4) — ✅ completata
+16. [x] **Screenshot** nel README (EN/IT): `docs/screenshots/` (home, progetto
+    risolto, mobile) catturati con Chromium headless.
+17. [x] **`./ctf`**: comandi `urls` (URL di tutti i servizi, porte da `.env`) e
+    `open <servizio>` (apre dashboard/StegSuite/docs/triage/reports nel browser).
+18. [x] **Base image**: si mantiene l'immagine **AperiSolve pinnata per digest**
+    (MIT): ci dà tutto il toolset stego e resta riproducibile. Una base propria
+    non aggiunge valore oggi (manutenzione in più); si rivaluta solo se cambia il
+    toolset. Nessun cambio.
 
 ### F. Cracking
 19. [ ] Upload di nuove wordlist (scelta per-item **già**: select in GUI `proj`)

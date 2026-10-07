@@ -20,6 +20,8 @@ Uso: ./ctf <comando>
   list              Elenca i profili disponibili
   triage <file>     Deep triage: estrazione ricorsiva + cracking wordlist + flag hunt
   reports           URL dei report (FileBrowser)
+  urls              Stampa gli URL dei servizi (porte da .env)
+  open <servizio>   Apre un servizio nel browser (stegsuite|docs|dash|triage|reports|…)
   test              Regressione + challenge reali + verifica risposte
   ui-smoke          Smoke test della SPA con un browser headless (Docker)
 
@@ -29,6 +31,13 @@ EOF
 }
 
 all_profiles=(web recon crypto forensics)
+
+# port VARNAME default  ->  value from .env (or the default)
+port() {
+  local v=""
+  [ -f .env ] && v="$(grep -E "^$1=" .env 2>/dev/null | tail -1 | cut -d= -f2 || true)"
+  echo "${v:-$2}"
+}
 
 case "${1:-up}" in
   up)
@@ -90,9 +99,40 @@ case "${1:-up}" in
     echo "[*] Report: ./data/latest/report.md  (oppure http://localhost:${profile_filebrowser})"
     ;;
   reports)
-    port="$(grep -q '^FILEBROWSER_PORT=' .env 2>/dev/null && grep '^FILEBROWSER_PORT=' .env | cut -d= -f2 || echo 19012)"
+    fb="$(port FILEBROWSER_PORT 19012)"
     docker compose up -d filebrowser >/dev/null
-    echo "Report e file estratti: http://localhost:${port}   (accesso libero, nessun login)"
+    echo "Report e file estratti: http://localhost:${fb}   (accesso libero, nessun login)"
+    ;;
+  urls|url)
+    cat <<EOF
+  Dashboard        http://localhost:$(port HOMEPAGE_PORT 19001)
+  StegSuite        http://localhost:$(port STEGSUITE_PORT 19014)
+  StegSuite API    http://localhost:$(port STEGSUITE_PORT 19014)/api/docs
+  Triage           http://localhost:$(port TRIAGE_WEB_PORT 19013)
+  Reports          http://localhost:$(port FILEBROWSER_PORT 19012)
+  AperiSolve       http://localhost:$(port APERISOLVE_PORT 19000)
+  CyberChef        http://localhost:$(port CYBERCHEF_PORT 19002)
+  mitmweb          http://localhost:$(port MITMWEB_UI_PORT 19003)
+  IT-Tools         http://localhost:$(port ITTOOLS_PORT 19011)
+  ZAP              http://localhost:$(port ZAP_UI_PORT 19005)/zap   (profilo web)
+  SpiderFoot       http://localhost:$(port SPIDERFOOT_PORT 19007)/spiderfoot/   (profilo recon)
+  Wireshark        http://localhost:$(port WIRESHARK_HTTP_PORT 19008)   (profilo forensics)
+  SageMath         http://localhost:$(port SAGEMATH_PORT 19010)   (profilo crypto)
+EOF
+    ;;
+  open)
+    shift || true
+    case "${1:-stegsuite}" in
+      dash|dashboard|home|homepage) url="http://localhost:$(port HOMEPAGE_PORT 19001)" ;;
+      steg|stegsuite)               url="http://localhost:$(port STEGSUITE_PORT 19014)" ;;
+      docs|api)                     url="http://localhost:$(port STEGSUITE_PORT 19014)/api/docs" ;;
+      triage)                       url="http://localhost:$(port TRIAGE_WEB_PORT 19013)" ;;
+      reports|files)                url="http://localhost:$(port FILEBROWSER_PORT 19012)" ;;
+      *)                            url="$1" ;;  # consenti un URL esplicito
+    esac
+    echo "[*] ${url}"
+    opener="$(command -v xdg-open || command -v open || true)"
+    [ -n "$opener" ] && "$opener" "$url" >/dev/null 2>&1 || true
     ;;
   test)
     echo "[*] Avvio StegSuite..."

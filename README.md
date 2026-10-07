@@ -220,6 +220,20 @@ http://localhost:19014 (localhost only).
   API from other projects), `docs/CHALLENGES.md` (reference challenges + flags
   used to verify the suite, with manual solve commands).
 
+## 📸 Screenshots
+
+**Home — drop a challenge and run:**
+
+![StegSuite home](docs/screenshots/stegsuite-home.png)
+
+**A solved project — flag, solver chain, cracked password and flag route:**
+
+![Solved project](docs/screenshots/stegsuite-project.png)
+
+**Responsive — one pane at a time on mobile:**
+
+<img src="docs/screenshots/stegsuite-mobile.png" alt="Mobile layout" width="300">
+
 ## ⚙️ Configuration
 
 Everything is driven by `.env` (created from `.env.example`):

@@ -22,6 +22,7 @@
 
 ## Phase 4 — UX + doc ✅
 - [x] Task 10: wrapper `./ctf`
+- [x] Task 10b: `./ctf urls` (URL dei servizi, porte da `.env`) e `./ctf open <servizio>`
 - [x] Task 11: `README.md` (EN, principale) + `README.it.md` (IT) + `LICENSE`
 
 ## Phase 5 — Deep triage ✅
