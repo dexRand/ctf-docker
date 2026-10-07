@@ -35,12 +35,14 @@ Test: `app/tests/real_challenges.py` (scarica i file dai mirror GitHub, perché
 | Weird File | 2021 | `weird.docm` | `picoCTF{m4cr0s_r_d4ng3r0us}` |
 | WebNet0 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{nongshim.shrimp.crackers}` (TLS decifrato) |
 | WebNet1 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{honey.roasted.peanuts}` (TLS → metadata JPEG) |
+| St3g0 | 2022 | `pico.flag.png` | `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}` (LSB → `zsteg`) |
 
 Mirror usati:
 
 ```
 B19 = https://raw.githubusercontent.com/HHousen/PicoCTF-2019/master/Forensics
 B21 = https://raw.githubusercontent.com/HHousen/PicoCTF-2021/master/Forensics
+B22 = https://raw.githubusercontent.com/HHousen/PicoCTF-2022/master/Forensics
 ```
 
 ### So Meta — EXIF `Artist`
@@ -114,6 +116,15 @@ strings weird/word/vbaProject.bin | grep -oE '[A-Za-z0-9+/=]{24,}' \
 # picoCTF{m4cr0s_r_d4ng3r0us}
 ```
 
+### St3g0 — steganografia LSB
+
+La flag è nascosta nei bit LSB dei canali RGB.
+
+```bash
+zsteg -a pico.flag.png | grep -i pico
+# picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}
+```
+
 ### WebNet0 / WebNet1 — TLS con chiave privata
 
 Il pcap è una sessione TLS; la chiave privata fornita accanto permette a
@@ -176,7 +187,7 @@ docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
   /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 22/22
 
 # challenge reali (host: scaricano i file da sole)
-python3 app/tests/real_challenges.py                        # → 9/9
+python3 app/tests/real_challenges.py                        # → 10/10
 
 # verifica INDIPENDENTE: per ogni (artifact, writeup) confronta la flag trovata
 # con quella dichiarata dal writeup per QUELL'artifact; include una seconda

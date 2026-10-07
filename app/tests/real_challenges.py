@@ -21,6 +21,7 @@ DEST = Path("/tmp/realch")
 
 B19 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2019/master/Forensics"
 B21 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2021/master/Forensics"
+B22 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2022/master/Forensics"
 
 CASES = [
     ("pico_img.png", f"{B19}/So Meta/pico_img.png", "picoCTF{s0_m3ta_43f253bb}"),
@@ -32,6 +33,8 @@ CASES = [
     ("flag.txt", f"{B19}/extensions/flag.txt", "picoCTF{now_you_know_about_extensions}"),
     # macro-based: base64 inside the vbaProject of a .docm
     ("weird.docm", f"{B21}/Weird File/weird.docm", "picoCTF{m4cr0s_r_d4ng3r0us}"),
+    # LSB stego in the RGB channels -> zsteg
+    ("pico.flag.png", f"{B22}/St3g0/pico.flag.png", "picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}"),
 ]
 
 # multi-file challenges: (label, [(filename, url), ...], expected flag)

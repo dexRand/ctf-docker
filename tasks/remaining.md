@@ -292,7 +292,7 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 ### G. Challenge difficili (verifica con soluzione) — IN CORSO
 Runner non committato (in `/tmp/opencode/hard_challenges.py`); esiti osservati:
 - [x] **St3g0** (2022, `pico.flag.png`) → **PASS** `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}`.
-  → da aggiungere a `CASES` di `app/tests/real_challenges.py` (B22) e a `docs/CHALLENGES.md`.
+  Aggiunta a `CASES` di `app/tests/real_challenges.py` (B22) e a `docs/CHALLENGES.md`.
 - [ ] **tunn3l v1s10n** (2021, `tunn3l_v1s10n`) → `image-repair` OK (1134×850);
   OCR canale R legge `picoCTF{quit3_a_v13w_2020}` (near-miss: tesseract 1→i).
   **Da riconfermare** dopo la fix bande e aggiornare docs.
