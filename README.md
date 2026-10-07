@@ -266,6 +266,9 @@ Everything is driven by `.env` (created from `.env.example`):
   `pdfcrack`; the first `./ctf up` builds it once.
 - **FileBrowser Quantum** (the maintained fork of the archived FileBrowser) is
   bound to `127.0.0.1` only and runs with **no login** (`auth.methods.noauth`).
+- The **dashboard** mounts the Docker socket **read-only** to show live container
+  status and host CPU/RAM/disk. Homepage is bound to `127.0.0.1`; if you expose it,
+  drop that mount (a socket mount is privileged).
 
 ## 🤖 Agent Skills
 

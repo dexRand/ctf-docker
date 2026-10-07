@@ -56,7 +56,8 @@
 - [x] **Homepage**: grafica sistemata — tema **emerald** + `statusStyle: dot`,
       icone **mdi** (niente più PNG/logo rotti), gruppi a colonne, bookmark CTF
       utili (via Reddit/YouTube), gruppo AperiSolve rimosso.
-- [ ] (Opz.) Docker integration di Homepage via socket read-only per stats container
+- [x] **Docker integration di Homepage** (socket read-only): widget *Sistema*
+      (CPU/RAM/disk/uptime) + stato/CPU-RAM per container; documentato nei README.
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

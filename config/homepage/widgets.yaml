@@ -5,6 +5,13 @@
     provider: google
     target: _blank
 
+- resources:
+    label: Sistema
+    cpu: true
+    memory: true
+    disk: /
+    uptime: true
+
 - datetime:
     text_size: xl
     format:

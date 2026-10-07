@@ -25,6 +25,8 @@ services:
       - "${HOMEPAGE_PORT:-19001}:3000"
     volumes:
       - ./config/homepage:/app/config
+      # read-only: Homepage mostra stato/CPU/RAM dei container (integrazione Docker)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       HOMEPAGE_ALLOWED_HOSTS: ${HOMEPAGE_ALLOWED_HOSTS:-localhost:19001,127.0.0.1:19001}
     networks: [ctfnet]

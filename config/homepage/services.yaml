@@ -1,76 +1,77 @@
 # Tool ordinati per fase di lavoro CTF.
-# `siteMonitor` mostra lo stato (HTTP HEAD). I tool con profilo risultano
-# "down" finché non avvii quel profilo: è normale.
+# `container` usa l'integrazione Docker (socket read-only in compose): stato e
+# CPU/RAM dei container. I tool con profilo non avviati risultano "down": è normale.
 
 - Dashboard:
     - Homepage:
         icon: mdi-view-dashboard
         href: http://localhost:19001
         description: Questa dashboard — panoramica e stato di tutti i tool
+        container: ctf-homepage-1
 
 - Analisi & Forensics:
     - StegSuite (stego workbench):
         icon: mdi-image-search
         href: http://localhost:19014
         description: Analisi ricorsiva Auto/Check con GUI (albero file, tool, vision/OCR, terminale, grafo) e API REST
-        siteMonitor: http://stegsuite:19014/api/v1/health
+        container: ctf-stegsuite-1
     - Triage (GUI):
         icon: mdi-magnify-scan
         href: http://localhost:19013
         description: Analisi ricorsiva + cracking wordlist + flag hunt — modalità Auto o Check
-        siteMonitor: http://triage:19013
+        container: ctf-triage-1
     - Triage reports (FileBrowser):
         icon: mdi-file-tree
         href: http://localhost:19012
         description: Report e albero dei file estratti di tutte le analisi
-        siteMonitor: http://filebrowser:80
+        container: ctf-filebrowser-1
     - Wireshark:
         icon: mdi-lan-connect
         href: http://localhost:19008
         description: Analisi pacchetti e file pcap con GUI web (profilo forensics)
-        siteMonitor: http://wireshark:3000
+        container: ctf-wireshark-1
 
 - Recon (OSINT):
     - SpiderFoot:
         icon: mdi-spider
         href: http://localhost:19007/spiderfoot/
         description: OSINT automation — domini, IP, email, leak (profilo recon)
-        siteMonitor: http://spiderfoot:8080/spiderfoot/
+        container: ctf-spiderfoot-1
 
 - Cracking:
     - Hashtopolis:
         icon: mdi-key-chain-variant
         href: http://localhost:19016
         description: Cracking hashcat distribuito (frontend + backend + MySQL) — login admin/hashtopolis, agent via voucher (profilo crack)
-        siteMonitor: http://hashtopolis-frontend:80
+        container: ctf-hashtopolis-frontend-1
 
 - Web:
     - mitmproxy:
         icon: mdi-swap-horizontal
         href: http://localhost:19003
         description: Intercetta e modifica traffico HTTP(S) — proxy su localhost:19004 · password in .env (MITMWEB_PASSWORD)
-        siteMonitor: http://mitmproxy:8081/favicon.ico
+        container: ctf-mitmproxy-1
     - OWASP ZAP:
         icon: mdi-shield-search
         href: http://localhost:19005/zap
         description: Scanner di sicurezza web con GUI nel browser — proxy su localhost:19006 · add-on extra (profilo web)
-        siteMonitor: http://zap:8080
+        container: ctf-zap-1
 
 - Crypto & Encoding:
     - CyberChef:
         icon: mdi-chef-hat
         href: http://localhost:19002
         description: "Coltellino svizzero per encoding e crypto — base64, XOR, RSA, hash, JWT..."
-        siteMonitor: http://cyberchef:8080
+        container: ctf-cyberchef-1
     - SageMath (Jupyter):
         icon: mdi-math-integral-box
         href: http://localhost:19010
         description: Notebook Python/Sage per crypto e matematica — token nei log (profilo crypto)
-        siteMonitor: http://sagemath:8888
+        container: ctf-sagemath-1
 
 - Utility:
     - IT-Tools:
         icon: mdi-tools
         href: http://localhost:19011
         description: Utility per CTF e sviluppo — encoder, converter, hash, regex
-        siteMonitor: http://it-tools:80
+        container: ctf-it-tools-1

@@ -261,6 +261,9 @@ Tutto è guidato da `.env` (creato da `.env.example`):
   primo `./ctf up` la compila una volta.
 - **FileBrowser Quantum** (il fork mantenuto del FileBrowser archiviato) è
   esposto solo su `127.0.0.1` e gira **senza login** (`auth.methods.noauth`).
+- La **dashboard** monta il socket Docker **read-only** per mostrare stato dei
+  container e CPU/RAM/disk host. Homepage è su `127.0.0.1`; se la esponi, togli
+  quel mount (il socket è privilegiato).
 
 ## 🤖 Agent Skills
 
