@@ -48,7 +48,7 @@ def _tess(img, psm: int, timeout: int, langs: str | None = None) -> str:
             pass
 
 
-def ocr_image(path: Path, timeout: int = 90) -> str:
+def ocr_image(path: Path, timeout: int = 90, thorough: bool = True) -> str:
     """Run tesseract on a file and return recognized text ('' if unavailable).
 
     Small images are upscaled first (OCR on tiny text is otherwise poor). When
@@ -56,6 +56,11 @@ def ocr_image(path: Path, timeout: int = 90) -> str:
     channel is tried too: a flag drawn in a colour close to the background
     (e.g. light blue on sky) is invisible in grayscale but stands out in one
     channel.
+
+    ``thorough=False`` skips those extra channel/band passes (and the fallback
+    language): used for the dozens of *derived* images (bit planes, enhancement
+    variants) where a flag, if present, is large text — this keeps the analysis
+    from running hundreds of tesseract calls.
     """
     if not shutil.which("tesseract"):
         return ""
@@ -82,7 +87,7 @@ def ocr_image(path: Path, timeout: int = 90) -> str:
         t = _tess(gray, psm, timeout)
         if t and t not in texts:
             texts.append(t)
-    if not any(_KNOWN_FLAG.search(t) for t in texts):
+    if thorough and not any(_KNOWN_FLAG.search(t) for t in texts):
         # a flag drawn in a colour close to the background is invisible in
         # grayscale but stands out in one channel; OCR each channel on the top
         # and bottom bands, where such flags are usually placed
@@ -99,7 +104,7 @@ def ocr_image(path: Path, timeout: int = 90) -> str:
                 txt = _tess(c, 6, timeout)
                 if txt and txt not in texts:
                     texts.append(txt)
-    if OCR_EXTRA_LANGS and not any(_KNOWN_FLAG.search(t) for t in texts):
+    if thorough and OCR_EXTRA_LANGS and not any(_KNOWN_FLAG.search(t) for t in texts):
         # no flag in English: one more pass with the extra language(s) (e.g. ita)
         extra = _combined_langs(OCR_LANGS, OCR_EXTRA_LANGS)
         for psm in (6, 7):

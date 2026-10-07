@@ -40,16 +40,16 @@ class BitPlanesAnalyzer(Analyzer):
                 fn = outdir / f"{ctx.input.stem}_{ch}{bit}.png"
                 Image.fromarray(plane, mode="L").save(fn)
                 files.append(fn)
-        # OCR only the LSB planes (bit 0/1): a flag drawn in the LSB is captured
-        # without OCR-ing all 32 planes (slow on big images).
+        # OCR only the LSB (bit 0) of R/G/B: a flag drawn in the LSB is captured
+        # with a light OCR pass, without scanning all 32 planes (slow).
         lines: list[str] = []
         try:
             from .vision import ocr_image
             for f in files:
                 m = re.search(r"_([RGBA])(\d)\.png$", f.name)
-                if not m or int(m.group(2)) > 1:
+                if not m or m.group(1) not in "RGB" or int(m.group(2)) != 0:
                     continue
-                t = ocr_image(f)
+                t = ocr_image(f, thorough=False)
                 if t:
                     lines.append(f"{f.name}: {t}")
         except Exception:
@@ -135,7 +135,7 @@ class ImageEnhanceAnalyzer(Analyzer):
             fn = outdir / f"{ctx.input.stem}_{name}.png"
             v.save(fn)
             files.append(fn)
-            t = ocr_image(fn)
+            t = ocr_image(fn, thorough=False)
             if t:
                 texts.append(f"{name}: {t}")
         return ToolResult(

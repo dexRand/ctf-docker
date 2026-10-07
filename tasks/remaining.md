@@ -18,6 +18,17 @@ CI: `gh`/Actions → workflow `.github/workflows/ci.yml` (compose, backend+pytes
 frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P25 challenge difficili (sezione G) chiusa**: aggiunta **St3g0** ai test reali
+  (→ reali **10/10**). Verificati *tunn3l*, *c0rrupt*, *Very very very Hidden*:
+  - **perf**: l'analisi di immagini grandi era dominata da centinaia di OCR
+    (bit-planes/image-enhance chiamavano `ocr_image` "thorough" su decine di
+    varianti) → ora le immagini derivate usano un OCR **leggero** e i bit-plane
+    scansionano solo l'LSB. `tunn3l` in auto: **>440s → 81s** (regressione 22/22
+    invariata). *(era il "collateral" del follow-up auto-crack.)*
+  - **decisioni/limiti**: *tunn3l* near-miss OCR (`1`→`i`), *c0rrupt* flag visiva
+    non OCR-abile, *Very very very Hidden* il `pcap` esporta le immagini HTTP ma
+    la flag non è nei LSB/metadati → gap noto. Correzione OCR `1↔i/l` **accettata
+    come limite** (rischiosa).
 - **P24 performance + formati flag custom**: **auto-crack** in Auto ora usa solo le
   wordlist ≤ `AUTO_CRACK_MAX_MB` (default 1 MB, quindi **esclude rockyou da
   140 MB**) con budget per progetto `AUTO_CRACK_BUDGET_S` (default 120s, applicato
@@ -207,8 +218,8 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
 - **Robustezza**: tipo da `file` per il piano (estensione che mente), SQLite
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
-- **Test/Docs**: regressione **22/22**, reali **9/9**, `verify_flags` **ALL
-  CORRECT**, `pytest` **102**, UI smoke (`./ctf ui-smoke`), `docs/CHALLENGES.md`.
+- **Test/Docs**: regressione **22/22**, reali **10/10**, `verify_flags` **ALL
+  CORRECT**, `pytest` **107**, UI smoke (`./ctf ui-smoke`), `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
 
@@ -289,22 +300,26 @@ frontend build; job `e2e` on-demand). Il token serve con scope **`workflow`**.
     estrae) + **rules/mask + budget CPU** per hashcat (`HASHCAT_RULES`,
     `CRACK_BUDGET_S`, e per-richiesta `rules`/`mask`/`budget_s`).
 
-### G. Challenge difficili (verifica con soluzione) — IN CORSO
-Runner non committato (in `/tmp/opencode/hard_challenges.py`); esiti osservati:
+### G. Challenge difficili (verifica con soluzione) — chiusa (limiti documentati)
 - [x] **St3g0** (2022, `pico.flag.png`) → **PASS** `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}`.
   Aggiunta a `CASES` di `app/tests/real_challenges.py` (B22) e a `docs/CHALLENGES.md`.
-- [ ] **tunn3l v1s10n** (2021, `tunn3l_v1s10n`) → `image-repair` OK (1134×850);
-  OCR canale R legge `picoCTF{quit3_a_v13w_2020}` (near-miss: tesseract 1→i).
-  **Da riconfermare** dopo la fix bande e aggiornare docs.
+- [x] **tunn3l v1s10n** (2021, `tunn3l_v1s10n`) → `image-repair` OK; `ocr` legge
+  `picoCTF{quit3_a_v13w_2020}` (near-miss `1`→`i`, il vero è `...qu1t3...`).
+  Decodifica corretta, solo un char OCR. **Decisione: accettato come limite**
+  (niente sostituzioni `1↔i` rischiose). Bonus perf: analisi da >440s a **~81s**.
 - [x] **like1000** (2019, `1000.tar`) → **PASS strutturale**: `nested-archive`
-  apre i 1000 tar in un colpo e raggiunge `flag.png` (1642×1095). L'OCR legge
-  `picoCTF{l0t5_0f_TAR5}` come `lOtS Of TAR5S` (near-miss `0/O`, `5/S`).
+  apre i 1000 tar in un colpo e raggiunge `flag.png`; OCR near-miss `0/O`, `5/S`.
 - [x] **m00nwalk** (2019, `message.wav`) → **decodifica OK** (`sstv`, Scottie S1,
   frame identico a QSSTV); OCR near-miss: testo capovolto in un frame rumoroso.
-- [ ] **c0rrupt** (2019, `mystery`) → FAIL (PNG repair OK, flag visiva non letta).
-- [ ] **Very very very Hidden** (2021, `try_me.pcap`) → FAIL (serve pcap+immagine).
-- [ ] Valutare correzione OCR `1↔i/l`, `0↔o`, `5↔s` **solo per prefissi noti**
-  (rischiosa: può corrompere flag reali con lettere) o accettarla come limite.
+- [x] **c0rrupt** (2019, `mystery`) → PNG riparato (visibile a un umano:
+  `picoCTF{c0rrupt10n_1847995}`) ma l'OCR non lo legge (rumore rosso). **Limite
+  accettato.**
+- [x] **Very very very Hidden** (2021, `try_me.pcap`) → il `pcap` **esporta le
+  immagini HTTP** (`duck.png`, `evil_duck.png`) come figli, ma la flag non è nei
+  LSB/metadati standard → **gap noto** (tecnica da approfondire).
+- [x] Correzione OCR `1↔i/l`, `0↔o`, `5↔s`: **decisione = accettarla come limite**
+  (troppo rischiosa: corromperebbe flag reali). Chi si trova vicino al flag lo
+  legge dal contesto/report.
 
 ## Gap challenge noti
 Vedi `docs/CHALLENGES.md` → "Altri casi provati": **c0rrupt** (PNG repair
