@@ -76,6 +76,8 @@
       hashcat rules/mask + budget CPU; `bkcrack` ZipCrypto known-plaintext
 - [x] Bugfix: `openstego` non estraeva mai (`-p ""` → help); progetto interrotto
       con flag già trovata ora `done` (non `error`) all'avvio
+- [x] Bugfix UI: click su grafo/timeline ora seleziona e **rivela** il file
+      (espande, scroll, su mobile passa al pannello `files`)
 
 ## Copertura challenge italiane (ITSCyberGame / Olicyber / StarHackademin) ✅
 - [x] `png-chunks`: dump tEXt/iTXt/zTXt/eXIf + dati dopo IEND (IsThatA)

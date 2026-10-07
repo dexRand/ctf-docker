@@ -50,6 +50,7 @@ function loadW(key, def) {
 const leftW = ref(loadW('left', 250))
 const rightW = ref(loadW('right', 380))
 const gridRef = ref(null)
+const treeScrollRef = ref(null)
 const logsRef = ref(null)
 const graphRef = ref(null)
 const logSplit = ref(loadW('logsplit', 300))
@@ -233,7 +234,25 @@ const routeSteps = computed(() => {
 })
 // clicking a graph node (or a timeline step) selects that file on the left,
 // so the details stay in one place (tree + overview/extracted)
-function selectFile(id) { selected.value = id }
+function selectFile(id) {
+  if (id == null) return
+  selected.value = id
+  if (narrow.value) mobilePane.value = 'files'   // show the left menu on mobile
+  if (search.value) search.value = ''            // a filter could hide it
+  // expand the ancestors and their tool groups so the file is actually visible
+  const s = new Set(collapsed.value)
+  let node = treeById.value[id]
+  while (node) {
+    s.delete(node.id)
+    s.delete(`g:${node.parent_id ?? 0}:${originTool(node)}`)
+    node = treeById.value[node.parent_id]
+  }
+  collapsed.value = s
+  nextTick(() => {
+    const row = treeScrollRef.value && treeScrollRef.value.querySelector(`[data-fid="${id}"]`)
+    if (row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' })
+  })
+}
 function shortName(s) { s = String(s); return s.length > 18 ? s.slice(0, 17) + '…' : s }
 const notes = computed(() => findings.value.filter((f) => f.kind === 'note'))
 const routeTreeText = computed(() => (routeNodes().length ? asciiRouteTree() : ''))
@@ -1016,9 +1035,10 @@ onBeforeUnmount(() => {
           <span class="text-fglite">● {{ t('proj.legend_adjacent') }}</span>
           <span class="text-dim">● {{ t('proj.legend_dead') }}</span>
         </div>
-        <div class="min-h-0 flex-1 overflow-auto p-1.5">
+        <div ref="treeScrollRef" class="min-h-0 flex-1 overflow-auto p-1.5">
           <div v-for="n in visibleTree" :key="n._gid || n.id"
-               @click="n._group ? toggleNode(n) : (selected = n.id)"
+               :data-fid="n._group ? null : n.id"
+               @click="n._group ? toggleNode(n) : selectFile(n.id)"
                class="row flex cursor-pointer items-center gap-1 rounded"
                :class="!n._group && selected === n.id ? 'bg-acc/15 text-fgx' : ''">
             <span :style="{ paddingLeft: (n._depth * 12) + 'px' }" class="flex min-w-0 items-center gap-1">
