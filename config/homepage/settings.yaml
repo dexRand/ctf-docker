@@ -2,25 +2,28 @@ title: CTF Toolbox
 description: Tool per risolvere CTF — ordinati per fase di lavoro
 language: it
 theme: dark
-color: slate
+color: emerald
 headerStyle: clean
+statusStyle: dot
+cardBlur: sm
+hideVersion: true
 layout:
   Dashboard:
     style: row
-    columns: 1
-  Deep triage:
+    columns: 2
+  Analisi & Forensics:
     style: row
-    columns: 1
+    columns: 4
   Recon (OSINT):
+    style: row
+    columns: 2
+  Cracking:
     style: row
     columns: 2
   Web:
     style: row
     columns: 2
   Crypto & Encoding:
-    style: row
-    columns: 2
-  Stego & Forensics:
     style: row
     columns: 2
   Utility:

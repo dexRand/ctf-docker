@@ -4,27 +4,31 @@
 
 - Dashboard:
     - Homepage:
-        icon: homepage.png
+        icon: mdi-view-dashboard
         href: http://localhost:19001
         description: Questa dashboard — panoramica e stato di tutti i tool
-        siteMonitor: http://localhost:3000
 
-- Deep triage:
+- Analisi & Forensics:
     - StegSuite (stego workbench):
         icon: mdi-image-search
         href: http://localhost:19014
-        description: Analisi ricorsiva Auto/Check con GUI (albero file, tool, vision/OCR, terminale) e API REST
+        description: Analisi ricorsiva Auto/Check con GUI (albero file, tool, vision/OCR, terminale, grafo) e API REST
         siteMonitor: http://stegsuite:19014/api/v1/health
     - Triage (GUI):
         icon: mdi-magnify-scan
         href: http://localhost:19013
-        description: Analisi ricorsiva + cracking wordlist + flag hunt — modalità Auto o Check (scelta sui file bloccati)
+        description: Analisi ricorsiva + cracking wordlist + flag hunt — modalità Auto o Check
         siteMonitor: http://triage:19013
     - Triage reports (FileBrowser):
-        icon: mdi-magnify-expand
+        icon: mdi-file-tree
         href: http://localhost:19012
         description: Report e albero dei file estratti di tutte le analisi
         siteMonitor: http://filebrowser:80
+    - Wireshark:
+        icon: mdi-lan-connect
+        href: http://localhost:19008
+        description: Analisi pacchetti e file pcap con GUI web (profilo forensics)
+        siteMonitor: http://wireshark:3000
 
 - Recon (OSINT):
     - SpiderFoot:
@@ -49,12 +53,12 @@
     - OWASP ZAP:
         icon: mdi-shield-search
         href: http://localhost:19005/zap
-        description: Scanner di sicurezza web con GUI nel browser — proxy su localhost:19006 (profilo web)
+        description: Scanner di sicurezza web con GUI nel browser — proxy su localhost:19006 · add-on extra (profilo web)
         siteMonitor: http://zap:8080
 
 - Crypto & Encoding:
     - CyberChef:
-        icon: cyberchef.png
+        icon: mdi-chef-hat
         href: http://localhost:19002
         description: "Coltellino svizzero per encoding e crypto — base64, XOR, RSA, hash, JWT..."
         siteMonitor: http://cyberchef:8080
@@ -64,21 +68,9 @@
         description: Notebook Python/Sage per crypto e matematica — token nei log (profilo crypto)
         siteMonitor: http://sagemath:8888
 
-- Stego & Forensics:
-    - AperiSolve:
-        icon: mdi-image-search-outline
-        href: http://localhost:19000
-        description: Stego e analisi immagini — binwalk, zsteg, steghide, exiftool, foremost...
-        siteMonitor: http://web:5000
-    - Wireshark:
-        icon: wireshark.png
-        href: http://localhost:19008
-        description: Analisi pacchetti e file pcap con GUI web (profilo forensics)
-        siteMonitor: http://wireshark:3000
-
 - Utility:
     - IT-Tools:
-        icon: it-tools.png
+        icon: mdi-tools
         href: http://localhost:19011
-        description: Raccolta di utility per CTF e sviluppo — encoder, converter, hash, regex
+        description: Utility per CTF e sviluppo — encoder, converter, hash, regex
         siteMonitor: http://it-tools:80

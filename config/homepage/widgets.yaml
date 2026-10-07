@@ -1,5 +1,5 @@
 - logo:
-    icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/homepage.svg
+    icon: mdi-flag-variant
 
 - search:
     provider: google

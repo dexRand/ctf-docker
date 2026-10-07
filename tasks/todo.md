@@ -50,6 +50,12 @@
 - [x] Profilo `crack`: **Hashtopolis** (frontend + backend + MySQL) in compose
       (porte 19015/19016, profilo `crack`); avvio `./ctf up crack`. Gli **agent**
       si registrano dalla UI (voucher) — non ne avviamo uno di default.
+- [x] **Rimosso AperiSolve** (sostituito da StegSuite): tolti i servizi
+      `web`/`worker`/`cron`/`initdb`/`postgres`/`redis`/`rqdashboard`, i volumi e
+      le env. La base immagine di StegSuite/triage resta pinnata (toolset).
+- [x] **Homepage**: grafica sistemata — tema **emerald** + `statusStyle: dot`,
+      icone **mdi** (niente più PNG/logo rotti), gruppi a colonne, bookmark CTF
+      utili (via Reddit/YouTube), gruppo AperiSolve rimosso.
 - [ ] (Opz.) Docker integration di Homepage via socket read-only per stats container
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅

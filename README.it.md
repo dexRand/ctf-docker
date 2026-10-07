@@ -42,14 +42,13 @@ tool pesanti stanno dietro **profili** Compose opzionali.
   profili Compose, così `./ctf up` resta leggero.
 - **Nessuna collisione di porte** — tutto su 19000+, modificabile da `.env`.
 - **Stack isolato** — project name `ctf`, nessun `container_name` fisso; il
-  `postgres`/`redis` interni ad AperiSolve non pubblicano porte.
+  MySQL di Hashtopolis (profilo `crack`) è interno e non pubblica porte.
 
 ## 🧰 Tool
 
 | Fase | Tool | URL | A cosa serve | Profilo |
 | --- | --- | --- | --- | --- |
 | Dashboard | Homepage | http://localhost:19001 | Panoramica e stato di tutti i tool | core |
-| Stego | **AperiSolve** | http://localhost:19000 | Steganalisi immagini: binwalk, zsteg, steghide, exiftool, foremost… | core |
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashing, JWT e molto altro | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercetta e modifica HTTP(S) · proxy su `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoder, converter, hash, regex e simili | core |
@@ -147,7 +146,7 @@ automaticamente, ordinati per dimensione.
 
 | Profilo | Aggiunge |
 | --- | --- |
-| *(core)* | Homepage, AperiSolve, CyberChef, mitmproxy, IT-Tools |
+| *(core)* | Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, Triage, FileBrowser |
 | `web` | OWASP ZAP |
 | `recon` | SpiderFoot |
 | `crypto` | SageMath |
@@ -160,7 +159,7 @@ Tutte le porte host stanno nella **fascia 19000+** e sono configurabili in `.env
 
 | Porta | Servizio |
 | ---: | --- |
-| 19000 | AperiSolve |
+| 19000 | *(libero — AperiSolve rimosso)* |
 | 19001 | Homepage (dashboard) |
 | 19002 | CyberChef |
 | 19003 / 19004 | mitmweb UI / mitmproxy |
@@ -172,7 +171,7 @@ Tutte le porte host stanno nella **fascia 19000+** e sono configurabili in `.env
 | 19012 | FileBrowser Quantum (report triage, senza login, solo localhost) |
 | 19013 | GUI web triage (Auto/Check, solo localhost) |
 | 19014 | StegSuite workbench + API (solo localhost) |
-| 19181 | RQ Dashboard (AperiSolve, solo localhost) |
+| 19015 / 19016 | Hashtopolis backend / frontend (profilo `crack`) |
 
 ## 📂 Struttura
 
@@ -245,7 +244,7 @@ Tutto è guidato da `.env` (creato da `.env.example`):
 | `MITMWEB_PASSWORD` | Password per la GUI di mitmweb (l'utente è ignorato) |
 | `WORDLIST` | Wordlist di default usata dal triage |
 | `PUID` / `PGID` / `TZ` | Mappatura utente e timezone per Wireshark |
-| `POSTGRES_*`, `DB_URI`, `REDIS_URL` | Database/broker interni ad AperiSolve (non esposti) |
+| `HASHTOPOLIS_*` | Credenziali admin/DB di Hashtopolis (profilo `crack`) |
 
 ## 📝 Note
 
@@ -257,13 +256,11 @@ Tutto è guidato da `.env` (creato da `.env.example`):
   (default `mitm`). Lo stato in dashboard controlla un endpoint senza auth.
 - **I tool con profilo** risultano *down* in dashboard finché non avvii il
   profilo — è normale.
-- L'immagine **triage** è l'unica costruita in locale (dall'immagine AperiSolve,
-  con l'aggiunta di `stegseek`, `john`, `fcrackzip`, `pdfcrack`); il primo
-  `./ctf up` la compila una volta.
+- L'immagine **triage** è l'unica costruita interamente in locale; parte da una
+  base stego pinnata e aggiunge `stegseek`, `john`, `fcrackzip`, `pdfcrack`; il
+  primo `./ctf up` la compila una volta.
 - **FileBrowser Quantum** (il fork mantenuto del FileBrowser archiviato) è
   esposto solo su `127.0.0.1` e gira **senza login** (`auth.methods.noauth`).
-- AperiSolve usa `postgres` e `redis` interni; **non** sono pubblicati sull'host e
-  non toccano altri database.
 
 ## 🤖 Agent Skills
 
