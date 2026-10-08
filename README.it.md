@@ -52,7 +52,7 @@ tool pesanti stanno dietro **profili** Compose opzionali.
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashing, JWT e molto altro | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercetta e modifica HTTP(S) · proxy su `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoder, converter, hash, regex e simili | core |
-| Stego workbench | **StegSuite** | http://localhost:19014 | Analisi ricorsiva auto su 40 tool (stego, forensics, vision/OCR, audio/SSTV/network), albero file, log live, terminale, API REST | core |
+| Stego workbench | **StegSuite** | http://localhost:19014 | Analisi ricorsiva auto su 41 tool (stego, forensics, vision/OCR, audio/SSTV/network), albero file, log live, terminale, API REST | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Scanner di sicurezza web con GUI nel browser · proxy su `:19006` · add-on extra (regole alpha/beta, accessControl, fuzzdb, ptk…) | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domini, IP, email, leak | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Notebook Python/Sage per crypto e matematica | `crypto` |
@@ -153,12 +153,13 @@ http://localhost:19014 (solo localhost).
 
 - Modalità **Auto / Check**: Auto fa tutto e prova tutte le wordlist; Check
   scansiona e poi ti fa scegliere cosa attaccare.
-- Analisi **ricorsiva e ordinata** su **40 tool**: `file`, `exiftool`,
+- Analisi **ricorsiva e ordinata** su **41 tool**: `file`, `exiftool`,
   `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
   `nested-archive` (catene di archivi annidati), `7z`, `pngcheck`, `png-repair`,
   `image-repair` (JPEG/BMP header/altezza),
-  `qr`, `pcap` (con decifratura TLS se fornita la chiave), `zsteg`, `steghide`,
+  `qr`, `pcap` (con decifratura TLS se fornita la chiave), `zsteg`,
+  `psimage` (Invoke-PSImage LSB di B/G), `steghide`,
   `outguess`, `jsteg`, `png-chunks`, `openstego`, `bit-planes`,
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff +
   decodifica delay + OCR per frame), `ocr` (tesseract), `morse`,

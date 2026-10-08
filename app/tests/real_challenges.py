@@ -35,6 +35,10 @@ CASES = [
     ("weird.docm", f"{B21}/Weird File/weird.docm", "picoCTF{m4cr0s_r_d4ng3r0us}"),
     # LSB stego in the RGB channels -> zsteg
     ("pico.flag.png", f"{B22}/St3g0/pico.flag.png", "picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}"),
+    # pcap -> HTTP export -> evil_duck.png -> Invoke-PSImage payload (B/G low
+    # nibbles) holding a PowerShell "map" whose two strings XOR to the flag
+    ("try_me.pcap", f"{B21}/Very very very Hidden/try_me.pcap",
+     "picoCTF{n1c3_job_f1nd1ng_th3_s3cr3t_in_the_im@g3}"),
 ]
 
 # multi-file challenges: (label, [(filename, url), ...], expected flag)

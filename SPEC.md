@@ -54,7 +54,7 @@ Repo infrastrutturale: la "suite" è la verifica a runtime.
 ## Porte (fascia 19000+, scelta anti-collisione)
 | Porta | Servizio | Uso |
 |------:|----------|-----|
-| 19000 | AperiSolve | stego/analisi immagini |
+| 19000 | *(libero — AperiSolve rimosso)* | — |
 | 19001 | Homepage | dashboard |
 | 19002 | CyberChef | encoding/crypto |
 | 19003 | mitmweb UI | GUI proxy HTTP(S) |
@@ -66,27 +66,19 @@ Repo infrastrutturale: la "suite" è la verifica a runtime.
 | 19009 | Wireshark https | pcap (TLS) |
 | 19010 | SageMath Jupyter | crypto/math |
 | 19011 | IT-Tools | utility varie |
-| 19012 | FileBrowser Quantum | report del deep triage (senza login, solo localhost) |
-| 19013 | Triage web GUI | Auto/Check (solo localhost) |
+| 19012 | FileBrowser Quantum | browse `./data` (senza login, solo localhost) |
 | 19014 | StegSuite | workbench stego + GUI + API (solo localhost) |
-| 19181 | RQ Dashboard | coda AperiSolve (solo localhost) |
+| 19015 / 19016 | Hashtopolis | backend / frontend crack distribuito (profilo `crack`) |
 
-## Deep triage (feature)
-GUI web dedicata (porta 19013, solo localhost) con due modalità:
-**Auto** (fa tutto e prova tutte le wordlist) e **Check** (scansiona, poi mostra
-albero dei file + elementi bloccati e fa scegliere per ognuno la wordlist).
-Wordlist più usate incluse nel repo (piccole) e rockyou completa nell'immagine,
-ordinate piccola → grande.
-
-CLI `./ctf triage <file>` sullo stesso motore (immagine custom basata su AperiSolve):
-estrazione ricorsiva (7z/binwalk/foremost) + analisi per file
-(strings/exiftool/zsteg/steghide) + flag hunt (pattern configurabili) +
-attacchi password con wordlist (stegseek, fcrackzip, hashcat+zip2hashcat per
-gli ZIP AES, pdfcrack). Quando incontra un elemento bloccato
-(archivio/PDF cifrato, immagine potenzialmente steghide) si ferma e chiede
-all'utente quale wordlist usare; le wordlist sono ordinate piccola → grande e
-la password trovata viene riusata. I report finiscono in `./data/` e si
-consultano via FileBrowser Quantum (noauth).
+## StegSuite (workbench stego/forensics)
+App tutto-in-uno (porta 19014, solo localhost) che ha **sostituito** il vecchio
+deep triage (CLI + GUI su 19013) e AperiSolve. Due modalità: **Auto** (fa tutto e
+prova le wordlist) e **Check** (scansiona, poi scegli cosa attaccare). Analisi
+ricorsiva e ordinata su **41 tool** (metadati, testo, stego, immagini/OCR,
+audio/SSTV, pcap, estrazione archivi) + flag hunt configurabile (`FLAG_PATTERN`)
++ estrazione ricorsiva (7z/binwalk/foremost) + cracking (stegseek, fcrackzip,
+hashcat+zip2hashcat, pdfcrack, bkcrack). Risultati via GUI/API; i report stanno
+in `./data/` e si consultano con FileBrowser Quantum (noauth).
 
 ## Boundaries
 - **Always:** verificare che la porta sia libera prima di aggiungere un servizio;
@@ -100,15 +92,16 @@ consultano via FileBrowser Quantum (noauth).
 - [ ] `docker compose config -q` passa senza errori.
 - [ ] `./ctf up` avvia dashboard + tool core, tutte le porte sono `9000+`.
 - [ ] La dashboard elenca **tutti** i tool ordinati per fase, con descrizione e stato.
-- [ ] Ogni tool incluso è un'immagine upstream reale e verificata (nessun build custom).
+- [ ] Ogni tool incluso è un'immagine upstream reale e verificata (le sole
+      eccezioni documentate sono i build `app/Dockerfile` per StegSuite e `zap/Dockerfile`).
 - [ ] README spiega avvio, profili e a cosa serve ogni tool.
-- [ ] `./ctf triage <file>` estrae ricorsivamente, caccia le flag e, sui file
-      bloccati, chiede quale wordlist usare; report consultabile in FileBrowser Quantum.
+- [ ] StegSuite (`./ctf up`, porta 19014) analizza ricorsivamente, caccia le flag
+      e, sui file bloccati, fa scegliere la wordlist; report in FileBrowser Quantum.
 
 ## Decisions
 1. Set completo di tool confermato (tutti quelli elencati).
 2. Porte spostate sulla fascia **19000+** per ridurre al minimo le collisioni.
-3. Tool pesanti come profili opzionali: `web`, `recon`, `crypto`, `forensics`.
-4. Hashtopolis (cracking distribuito) rimandato: profilo `crack` in backlog.
+3. Tool pesanti come profili opzionali: `web`, `recon`, `crypto`, `forensics`, `crack`.
+4. Hashtopolis (cracking distribuito) implementato nel profilo `crack` (frontend + backend + MySQL).
 5. Push di fine lavoro su `https://github.com/dexRand/ctf-docker.git`.
 6. README principale in **inglese** (`README.md`), versione italiana in `README.it.md`.

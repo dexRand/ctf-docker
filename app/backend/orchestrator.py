@@ -144,7 +144,7 @@ DEFAULT_PLAN = [
     "strings", "hexyl", "xxd", "pdftotext", "pdfid", "binwalk-scan",
     "decode", "morse-text",
     "ocr", "qr",
-    "zsteg", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
+    "zsteg", "psimage", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "sstv",
     "pcap",
@@ -340,6 +340,28 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
                 if b"{" in dec and _printable(dec):
                     _hunt(session, project_id, file_id, dec.decode("latin-1", "replace"),
                           f"{name}:{source}", depth + 1)
+    # Two equal-length quoted strings XORed together: a common script
+    # obfuscation (e.g. the PowerShell "map" left behind by Invoke-PSImage).
+    # This only *adds* a candidate, so existing findings are untouched.
+    if len(data) <= 200_000:
+        lits: list[bytes] = []
+        for q in (rb'"([^"]{8,4096})"', rb"'([^']{8,4096})'"):
+            for m in re.finditer(q, data):
+                s = m.group(1)
+                if s not in lits:
+                    lits.append(s)
+                if len(lits) >= 32:
+                    break
+        by_len: dict[int, list[bytes]] = {}
+        for s in lits:
+            by_len.setdefault(len(s), []).append(s)
+        for group in by_len.values():
+            for i in range(len(group)):
+                for j in range(i + 1, len(group)):
+                    x = bytes(a ^ b for a, b in zip(group[i], group[j]))
+                    if b"{" in x and _printable(x):
+                        _hunt(session, project_id, file_id, x.decode("latin-1", "replace"),
+                              f"xor:{source}", depth + 1)
 
 
 def _detect_ext(ftype: str) -> str:

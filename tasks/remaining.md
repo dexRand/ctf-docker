@@ -1,6 +1,6 @@
 # Remaining work — StegSuite
 
-> Documento di ripresa. **Stato (2026-10-07): sezioni A–G e P15–P25 chiusi**;
+> Documento di ripresa. **Stato (2026-10-08): sezioni A–G e P15–P26 chiusi**;
 > resta fuori scope solo OSINT (delegato). Qui sotto la storia e i limiti noti.
 
 ## Come riprendere
@@ -9,7 +9,7 @@ cd <repo>                               # es. /home/r/__Github/CTF
 ./ctf up                                # core (Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser)
 ./ctf up web                            # + ZAP (con add-on extra)   [recon|crypto|forensics|crack]
 ./ctf urls                              # URL di tutti i servizi
-./ctf test                              # regressione 22/22 + reali 10/10 + verify ALL CORRECT
+./ctf test                              # regressione 23/23 + reali 11/11 + verify ALL CORRECT
 ./ctf ui-smoke                          # smoke test della SPA (Chromium headless in Docker)
 docker compose config -q                # valida il compose
 ```
@@ -17,17 +17,24 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
-- **P25 challenge difficili (sezione G) chiusa**: aggiunta **St3g0** ai test reali
-  (→ reali **10/10**). Verificati *tunn3l*, *c0rrupt*, *Very very very Hidden*:
+- **P26 Very very very Hidden risolta (Invoke-PSImage)**: nuovo analyzer
+  **`psimage`** — estrae il payload a **1 byte per pixel dai 4 bit bassi dei canali
+  B/G** (`(B&0x0F)<<4 | G&0x0F`), la tecnica di **Invoke-PSImage**. Il flag hunt ora
+  prova anche lo **XOR di due stringhe** di pari lunghezza nel testo: la "mappa"
+  PowerShell diventa la flag. Verificato end-to-end su `evil_duck.png` e sull'intero
+  `try_me.pcap` → `picoCTF{n1c3_job_f1nd1ng_th3_s3cr3t_in_the_im@g3}`. Aggiunta ai
+  test reali (→ **11/11**) + caso fixture `psimage` (→ regressione **23/23**);
+  tool totali **41**.
+- **P25 challenge difficili (sezione G) chiusa**: aggiunta **St3g0** ai test reali.
+  Verificati *tunn3l*, *c0rrupt* e *Very very very Hidden* (quest'ultima poi chiusa
+  in P26):
   - **perf**: l'analisi di immagini grandi era dominata da centinaia di OCR
     (bit-planes/image-enhance chiamavano `ocr_image` "thorough" su decine di
     varianti) → ora le immagini derivate usano un OCR **leggero** e i bit-plane
-    scansionano solo l'LSB. `tunn3l` in auto: **>440s → 81s** (regressione 22/22
+    scansionano solo l'LSB. `tunn3l` in auto: **>440s → 81s** (regressione 23/23
     invariata). *(era il "collateral" del follow-up auto-crack.)*
-  - **decisioni/limiti**: *tunn3l* near-miss OCR (`1`→`i`), *c0rrupt* flag visiva
-    non OCR-abile, *Very very very Hidden* il `pcap` esporta le immagini HTTP ma
-    la flag non è nei LSB/metadati → gap noto. Correzione OCR `1↔i/l` **accettata
-    come limite** (rischiosa).
+  - **decisioni/limiti**: *tunn3l* near-miss OCR (`1`→`i`) e *c0rrupt* flag visiva
+    non OCR-abile. Correzione OCR `1↔i/l` **accettata come limite** (rischiosa).
 - **P24 performance + formati flag custom**: **auto-crack** in Auto ora usa solo le
   wordlist ≤ `AUTO_CRACK_MAX_MB` (default 1 MB, quindi **esclude rockyou da
   140 MB**) con budget per progetto `AUTO_CRACK_BUDGET_S` (default 120s, applicato
@@ -217,7 +224,7 @@ on-demand). Il token serve con scope **`workflow`**.
 - **Robustezza**: tipo da `file` per il piano (estensione che mente), SQLite
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
-- **Test/Docs**: regressione **22/22**, reali **10/10**, `verify_flags` **ALL
+- **Test/Docs**: regressione **23/23**, reali **11/11**, `verify_flags` **ALL
   CORRECT**, `pytest` **107**, UI smoke (`./ctf ui-smoke`), `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
@@ -284,7 +291,7 @@ on-demand). Il token serve con scope **`workflow`**.
 16. [x] **Screenshot** nel README (EN/IT): `docs/screenshots/` (home, progetto
     risolto, mobile) catturati con Chromium headless.
 17. [x] **`./ctf`**: comandi `urls` (URL di tutti i servizi, porte da `.env`) e
-    `open <servizio>` (apre dashboard/StegSuite/docs/triage/reports nel browser).
+    `open <servizio>` (apre dashboard/StegSuite/docs/reports nel browser).
 18. [x] **Base image**: si mantiene l'immagine **AperiSolve pinnata per digest**
     (MIT): ci dà tutto il toolset stego e resta riproducibile. Una base propria
     non aggiunge valore oggi (manutenzione in più); si rivaluta solo se cambia il
@@ -313,9 +320,10 @@ on-demand). Il token serve con scope **`workflow`**.
 - [x] **c0rrupt** (2019, `mystery`) → PNG riparato (visibile a un umano:
   `picoCTF{c0rrupt10n_1847995}`) ma l'OCR non lo legge (rumore rosso). **Limite
   accettato.**
-- [x] **Very very very Hidden** (2021, `try_me.pcap`) → il `pcap` **esporta le
-  immagini HTTP** (`duck.png`, `evil_duck.png`) come figli, ma la flag non è nei
-  LSB/metadati standard → **gap noto** (tecnica da approfondire).
+- [x] **Very very very Hidden** (2021, `try_me.pcap`) → **RISOLTA**: il `pcap`
+  esporta `evil_duck.png`, che usa **Invoke-PSImage** (1 byte/pixel nei 4 LSB di
+  B/G); l'analyzer `psimage` estrae la "mappa" PowerShell e lo **XOR delle due
+  stringhe** produce la flag → test reale.
 - [x] Correzione OCR `1↔i/l`, `0↔o`, `5↔s`: **decisione = accettarla come limite**
   (troppo rischiosa: corromperebbe flag reali). Chi si trova vicino al flag lo
   legge dal contesto/report.
@@ -323,8 +331,8 @@ on-demand). Il token serve con scope **`workflow`**.
 ## Gap challenge noti
 Vedi `docs/CHALLENGES.md` → "Altri casi provati": **c0rrupt** (PNG repair
 presente, flag visiva non OCR-abile), **MacroHard WeakEdge**,
-**Surfing the Waves** (WAV: mapping custom), **Very very very Hidden** (pcap+tool),
-**tunn3l v1s10n** e **like1000** (risolte strutturalmente, resta il near-miss OCR).
+**Surfing the Waves** (WAV: mapping custom), **tunn3l v1s10n** e **like1000**
+(risolte strutturalmente, resta il near-miss OCR).
 
 ## Limiti noti
 - Flag **visive** via OCR (buono, non perfetto; alcune immagini rumorose non
@@ -342,16 +350,16 @@ app/backend/retention.py       # cancellazione progetti oltre RETENTION_DAYS
 app/backend/api/*.py           # router: system, projects, analysis, tools, cracking, ws
 app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
-app/backend/analyzers/*.py     # 40 tool (un file, auto-registered)
+app/backend/analyzers/*.py     # 41 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/frontend/src/toast.js      # store toast globale
 app/frontend/src/components/Toasts.vue  # rendering toast
-app/tests/ctf_regression.py    # 22/22 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap, openstego)
-app/tests/real_challenges.py   # 9/9 picoCTF (incl. WebNet0/1: pcap+TLS key)
+app/tests/ctf_regression.py    # 23/23 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap, openstego, psimage)
+app/tests/real_challenges.py   # 11/11 picoCTF (incl. WebNet0/1: pcap+TLS key; Very very very Hidden)
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
 app/tests/ui_smoke.mjs         # smoke test UI (Playwright/Chromium) + ui_smoke.sh
 app/tests/fixtures/            # challenge.png + webnet0/{capture.pcap, picopico.key}
-app/tests/*.py                 # unit pytest (102)
+app/tests/*.py                 # unit pytest (107)
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 .github/workflows/ci.yml       # CI
 compose.yaml                   # servizio stegsuite (19014)

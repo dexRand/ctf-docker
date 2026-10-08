@@ -353,6 +353,29 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     except subprocess.CalledProcessError:
         pass
 
+    # 23) Invoke-PSImage: one payload byte per pixel from the low nibbles of the
+    #     B and G channels. Here the payload is a PS1 "map" whose two strings
+    #     XOR to the flag (the hidden map leads to the treasure)
+    import numpy as _np3
+    flag23 = "ITS{psimageTeXt}"
+    key23 = " " * len(flag23)                          # printable key (spaces)
+    enc23 = bytes(f ^ 0x20 for f in flag23.encode())   # printable ciphertext
+    script23 = (b'$out = "flag.txt"\r\n'
+                b'$enc = [system.Text.Encoding]::UTF8\r\n'
+                b'$string1 = "' + key23.encode() + b'"\r\n'
+                b'$string2 = "' + enc23 + b'"\r\n')
+    _W = _H = 128
+    _rng23 = _np3.random.default_rng(23)
+    _canvas = _rng23.integers(0, 256, size=(_H, _W, 3), dtype="uint8")
+    _payload23 = (script23 + b"\x00"
+                  + bytes(_rng23.integers(0, 256, size=_W * _H - len(script23) - 1, dtype="uint8")))
+    _b23 = _np3.frombuffer(_payload23[:_W * _H], dtype="uint8")
+    _canvas[:, :, 2] = (_canvas[:, :, 2] & 0xF0) | (_b23 >> 4).reshape(_H, _W)
+    _canvas[:, :, 1] = (_canvas[:, :, 1] & 0xF0) | (_b23 & 0x0F).reshape(_H, _W)
+    p = TMP / "psimage.png"
+    Image.fromarray(_canvas, "RGB").save(p)
+    cases.append(("psimage", p, flag23))
+
     return cases
 
 
