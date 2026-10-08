@@ -10,9 +10,9 @@ più una dashboard **Homepage** che li elenca ordinati per fase di lavoro.
   Le skill stanno in `.opencode/skills/` (vedi `.opencode/ATTRIBUTION.md`, MIT).
 - **Porte sempre `19000+`** e modificabili da `.env`. Mai porte < 9000: la
   macchina ospita altri stack (es. `veronabusapp` su 8080/5173).
-- Immagini upstream reali e verificate. Unica eccezione: il tool **triage** ha
-  un `Dockerfile` in `triage/` che estende l'immagine AperiSolve (aggiunge
-  stegseek/john/fcrackzip/pdfcrack). Per il resto niente build custom.
+- Immagini upstream reali e verificate. Uniche eccezioni (build custom documentati):
+  **StegSuite** (`app/Dockerfile`) e **ZAP** (`zap/Dockerfile`, add-on extra).
+  Per il resto niente build custom.
 - Aggiorna insieme queste cose quando cambi un servizio:
   `compose.yaml`, `.env.example`, `config/homepage/services.yaml`, `README.md`.
 
@@ -32,7 +32,7 @@ docker compose config -q  # valida il compose
 
 - Niente `container_name` fissi: si usa il prefisso del progetto (`ctf-*`).
 - Tool pesanti dietro profili Compose: `web`, `recon`, `crypto`, `forensics`,
-  (in backlog) `crack`.
+  `crack`, `audio`.
 - Nomi dei tool in inglese; descrizioni e documentazione in italiano.
 - `restart: unless-stopped`, `mem_limit`/`cpus` e logging `json-file` con rotazione.
 

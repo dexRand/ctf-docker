@@ -42,6 +42,11 @@ Compose opzionali.
 Esclusi di proposito (nessuna immagine GUI upstream affidabile): Burp Suite, Ghidra,
 Autopsy, Volatility, RsaCtfTool, hashcat/john (CLI, già sull'host Kali).
 
+> **Aggiornamenti successivi** (stato vivo in `tasks/todo.md`): **AperiSolve** e il
+> vecchio **Triage** sono **rimossi** (sostituiti da **StegSuite**, 19014, + FileBrowser
+> 19012); aggiunti **Hashtopolis** (profilo `crack`, 19015/19016) e **Whisper-WebUI**
+> (profilo `audio`, 19017, trascrizione audio con timestamp).
+
 ## Task List
 
 ### Phase 1: Scaffolding repo

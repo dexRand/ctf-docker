@@ -61,6 +61,11 @@
       `third_party/` (zip2hashcat) resta in root perché la usa StegSuite.
 - [x] **Docker integration di Homepage** (socket read-only): widget *Sistema*
       (CPU/RAM/disk/uptime) + stato/CPU-RAM per container; documentato nei README.
+- [x] **Profilo `audio`: Whisper-WebUI** (Gradio) per la **trascrizione audio con
+      timestamp** (SRT/VTT) — utile quando la flag è **detta a voce**. Immagine
+      upstream `jhj0517/whisper-webui` (porta **19017**), default CPU-friendly
+      (`small`, `float32`) via `config/whisper/`, output in `./data/whisper/outputs`
+      (visibili in FileBrowser).
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

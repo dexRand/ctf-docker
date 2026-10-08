@@ -25,6 +25,11 @@
         href: http://localhost:19008
         description: Analisi pacchetti e file pcap con GUI web (profilo forensics)
         container: ctf-wireshark-1
+    - Whisper-WebUI (trascrizione audio):
+        icon: mdi-microphone-message
+        href: http://localhost:19017
+        description: Trascrizione audio/video → testo e sottotitoli con timestamp (Whisper, SRT/VTT) — profilo audio · output in ./data/whisper/outputs
+        container: ctf-whisper-1
 
 - Recon (OSINT):
     - SpiderFoot:

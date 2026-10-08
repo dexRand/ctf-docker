@@ -130,6 +130,29 @@ services:
     profiles: [forensics]
     networks: [ctfnet]
 
+  # ----------------------------------------------------------------------------- AUDIO
+  # Whisper-WebUI (Gradio): trascrizione audio/video -> testo/SRT con timestamp.
+  # Immagine upstream (jhj0517/whisper-webui). Su CPU il default e' `small` e il
+  # compute `float32` (config in config/whisper/, copiata all'avvio); i modelli
+  # scaricati e gli output restano in ./data/whisper/ (visibili in FileBrowser).
+  # NB: serve un tag >= v1.0.8 (torch <= 2.8): `latest` ha torch 2.9 e rompe
+  # l'import di pyannote/torchaudio (`AudioMetaData`).
+  whisper:
+    image: jhj0517/whisper-webui:v1.0.8-4def223
+    restart: unless-stopped
+    mem_limit: 6g
+    cpus: 3
+    logging: *default-logging
+    entrypoint: ["sh", "-c", "cp -f /opt/whisper/default_parameters.yaml /Whisper-WebUI/configs/default_parameters.yaml && exec python app.py --server_name 0.0.0.0 --server_port 7860 --inbrowser false"]
+    ports:
+      - "127.0.0.1:${WHISPER_PORT:-19017}:7860"
+    volumes:
+      - ./config/whisper/default_parameters.yaml:/opt/whisper/default_parameters.yaml:ro
+      - ./data/whisper/models:/Whisper-WebUI/models
+      - ./data/whisper/outputs:/Whisper-WebUI/outputs
+    profiles: [audio]
+    networks: [ctfnet]
+
   # --------------------------------------------------------------------------- UTILITY
   it-tools:
     image: corentinth/it-tools:latest

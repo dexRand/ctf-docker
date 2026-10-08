@@ -57,10 +57,11 @@ tool pesanti stanno dietro **profili** Compose opzionali.
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domini, IP, email, leak | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Notebook Python/Sage per crypto e matematica | `crypto` |
 | Forensics | Wireshark | http://localhost:19008 | Analisi pacchetti/pcap con GUI web | `forensics` |
+| Audio | **Whisper-WebUI** | http://localhost:19017 | Trascrizione audio→testo con timestamp (SRT/VTT/…) via Whisper · output in `./data/whisper/outputs` | `audio` |
 
 > Esclusi di proposito perché senza immagine GUI upstream affidabile:
 > Burp Suite, Ghidra, Autopsy, Volatility, hashcat/john (tool CLI, già su Kali).
-> Il cracking distribuito (Hashtopolis) è in roadmap.
+> Il cracking distribuito (Hashtopolis) è nel profilo `crack`.
 
 ## 🚀 Avvio rapido
 
@@ -80,6 +81,7 @@ docker compose up -d                              # tool core
 docker compose --profile web up -d                # core + OWASP ZAP
 docker compose --profile web --profile recon up -d
 docker compose --profile crack up -d              # core + Hashtopolis (hashcat)
+docker compose --profile audio up -d              # core + Whisper-WebUI (trascrizione audio)
 docker compose down                               # ferma tutto
 ```
 
@@ -113,6 +115,13 @@ grande; la `rockyou.txt` completa è inclusa nell'immagine.
 | `crypto` | SageMath |
 | `forensics` | Wireshark |
 | `crack` | Hashtopolis (hashcat distribuito) |
+| `audio` | Whisper-WebUI (trascrizione audio con timestamp) |
+
+Per le challenge audio attiva il profilo `audio` e apri **Whisper-WebUI**
+(http://localhost:19017): carica un file audio/video (o usa un link YouTube / il
+microfono) e ottieni una trascrizione con timestamp in SRT/VTT/…. Su CPU il
+modello default è `small` (cambialo dal menu Model); modelli scaricati e output
+restano in `./data/whisper/` e si vedono in FileBrowser.
 
 ## 🔌 Porte
 
@@ -132,6 +141,7 @@ Tutte le porte host stanno nella **fascia 19000+** e sono configurabili in `.env
 | 19012 | FileBrowser Quantum (sfoglia ./data, senza login, solo localhost) |
 | 19014 | StegSuite workbench + API (solo localhost) |
 | 19015 / 19016 | Hashtopolis backend / frontend (profilo `crack`) |
+| 19017 | Whisper-WebUI trascrizione audio (profilo `audio`) |
 
 ## 📂 Struttura
 
@@ -141,6 +151,7 @@ ctf                     wrapper CLI (up / up-all / down / status / logs)
 .env.example            porte e configurazione
 config/homepage/        configurazione dashboard (services / settings / widgets)
 config/zap/             working dir ZAP (certificati)
+config/whisper/         config default Whisper-WebUI (profilo `audio`)
 SPEC.md                 specifica
 tasks/                  plan.md + todo.md
 .opencode/              Agent Skills (MIT — vedi ATTRIBUTION.md)

@@ -43,7 +43,7 @@ README.md               → guida utente rapida
 - Nomi tool **in inglese** nelle config, spiegazioni **in italiano**.
 - Nessun `container_name` fisso: si usa il prefisso del progetto (`ctf-*`) per non
   collidere con gli altri stack (es. `veronabusapp-*`).
-- Profili Compose per i tool pesanti: `web`, `recon`, `forensics`, `crypto`, `crack`.
+- Profili Compose per i tool pesanti: `web`, `recon`, `crypto`, `forensics`, `crack`, `audio`.
 
 ## Testing Strategy
 Repo infrastrutturale: la "suite" è la verifica a runtime.
@@ -69,6 +69,7 @@ Repo infrastrutturale: la "suite" è la verifica a runtime.
 | 19012 | FileBrowser Quantum | browse `./data` (senza login, solo localhost) |
 | 19014 | StegSuite | workbench stego + GUI + API (solo localhost) |
 | 19015 / 19016 | Hashtopolis | backend / frontend crack distribuito (profilo `crack`) |
+| 19017 | Whisper-WebUI | trascrizione audio → testo/SRT con timestamp (profilo `audio`) |
 
 ## StegSuite (workbench stego/forensics)
 App tutto-in-uno (porta 19014, solo localhost) che ha **sostituito** il vecchio
@@ -101,7 +102,7 @@ in `./data/` e si consultano con FileBrowser Quantum (noauth).
 ## Decisions
 1. Set completo di tool confermato (tutti quelli elencati).
 2. Porte spostate sulla fascia **19000+** per ridurre al minimo le collisioni.
-3. Tool pesanti come profili opzionali: `web`, `recon`, `crypto`, `forensics`, `crack`.
+3. Tool pesanti come profili opzionali: `web`, `recon`, `crypto`, `forensics`, `crack`, `audio`.
 4. Hashtopolis (cracking distribuito) implementato nel profilo `crack` (frontend + backend + MySQL).
 5. Push di fine lavoro su `https://github.com/dexRand/ctf-docker.git`.
 6. README principale in **inglese** (`README.md`), versione italiana in `README.it.md`.

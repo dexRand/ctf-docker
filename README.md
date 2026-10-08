@@ -60,10 +60,11 @@ It is designed to live next to other self-hosted apps: every service runs on the
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domains, IPs, e-mails, leaks | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Python/Sage notebook for crypto and math | `crypto` |
 | Forensics | Wireshark | http://localhost:19008 | Packet / pcap analysis with a web GUI | `forensics` |
+| Audio | **Whisper-WebUI** | http://localhost:19017 | Speech-to-text with timestamps (SRT/VTT/…) via Whisper · outputs in `./data/whisper/outputs` | `audio` |
 
 > Deliberately excluded because they have no reliable upstream GUI image:
 > Burp Suite, Ghidra, Autopsy, Volatility, hashcat/john (CLI tools, already on Kali).
-> Distributed hash cracking (Hashtopolis) is on the roadmap.
+> Distributed hash cracking (Hashtopolis) lives behind the `crack` profile.
 
 ## 🚀 Quick start
 
@@ -83,6 +84,7 @@ docker compose up -d                              # core tools
 docker compose --profile web up -d                # core + OWASP ZAP
 docker compose --profile web --profile recon up -d
 docker compose --profile crack up -d              # core + Hashtopolis (hashcat)
+docker compose --profile audio up -d              # core + Whisper-WebUI (speech-to-text)
 docker compose down                               # stop everything
 ```
 
@@ -116,6 +118,13 @@ hunt and the cracking — it replaces the old `triage` CLI/GUI. Wordlists in
 | `crypto` | SageMath |
 | `forensics` | Wireshark |
 | `crack` | Hashtopolis (distributed hashcat) |
+| `audio` | Whisper-WebUI (speech-to-text with timestamps) |
+
+For audio challenges, activate the `audio` profile and open **Whisper-WebUI**
+(http://localhost:19017): upload an audio/video file (or use a YouTube link /
+the mic) and get a transcript with timestamps as SRT/VTT/…. On CPU the default
+model is `small` (change it from the Model dropdown); downloaded models and
+outputs stay in `./data/whisper/` and show up in FileBrowser.
 
 ## 🔌 Ports
 
@@ -135,6 +144,7 @@ All host ports live in the **19000+ range** and are configurable in `.env`:
 | 19012 | FileBrowser Quantum (browse ./data, no login, localhost only) |
 | 19014 | StegSuite workbench + API (localhost only) |
 | 19015 / 19016 | Hashtopolis backend / frontend (profile `crack`) |
+| 19017 | Whisper-WebUI speech-to-text (profile `audio`) |
 
 ## 📂 Project structure
 
@@ -144,6 +154,7 @@ ctf                     CLI wrapper (up / up-all / down / status / logs)
 .env.example            ports and configuration
 config/homepage/        dashboard config (services / settings / widgets)
 config/zap/             ZAP working dir (certificates)
+config/whisper/         Whisper-WebUI default config (profile `audio`)
 SPEC.md                 specification
 tasks/                  plan.md + todo.md
 .opencode/              Agent Skills (MIT — see ATTRIBUTION.md)
