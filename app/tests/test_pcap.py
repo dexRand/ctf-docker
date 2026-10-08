@@ -8,6 +8,7 @@ from backend.analyzers.base import ToolContext
 from backend.analyzers.pcap import (
     _key_files,
     _tls_options,
+    _expand_http_response,
     dns_tunnel_candidates,
     _try_decodes,
 )
@@ -93,3 +94,31 @@ def test_tls_options_for_rsa_and_keylog(tmp_path: Path) -> None:
     opts = _tls_options(_key_files(_project(tmp_path)))
     assert any(o.startswith("tls.keys_list:0.0.0.0,0,http,") for o in opts)
     assert any(o.startswith("tls.keylog_file:") for o in opts)
+
+
+def test_expand_http_response_splits_headers_on_one_line_each() -> None:
+    # tshark joins response header lines with ',' inside the field value
+    row = ("https://host/\tDate: Fri, 23 Aug 2019 15:56:36 GMT\\r\\n,Server: Apache\\r\\n,"
+           "Pico-Flag: picoCTF{nongshim.shrimp.crackers}\\r\\n,Content-Length: 821\\r\\n,")
+    lines = _expand_http_response(row).split("\n")
+    assert lines[0] == "https://host/"
+    assert "  Pico-Flag: picoCTF{nongshim.shrimp.crackers}" in lines
+    assert any(line.strip().startswith("Server:") for line in lines)
+    assert "\r\n" not in "\n".join(lines) and "\\r\\n" not in "\n".join(lines)
+
+
+def test_expand_http_response_handles_real_crlf() -> None:
+    out = _expand_http_response("https://h/\tA: 1\r\n,B: 2\r\n,Pico-Flag: ITS{x}\r\n,")
+    assert out.startswith("https://h/")
+    assert "  Pico-Flag: ITS{x}" in out.split("\n")
+
+
+def test_expand_http_response_without_tab_is_unchanged() -> None:
+    assert _expand_http_response("no tab here") == "no tab here"
+    assert _expand_http_response("") == ""
+
+
+def test_expand_http_response_request_only_row_is_dropped() -> None:
+    # a request packet row carries the URI but no response headers
+    assert _expand_http_response("https://host/\t") == ""
+    assert _expand_http_response("https://host/\t   ") == ""

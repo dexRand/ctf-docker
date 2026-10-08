@@ -141,6 +141,29 @@ def dns_tunnel_candidates(queries: list[str]) -> list[str]:
     return out
 
 
+def _expand_http_response(line: str) -> str:
+    """Pretty-print one ``http.request.full_uri<TAB>http.response.line`` row.
+
+    tshark joins the response's header lines with ``,`` inside a single field, so
+    a header like ``Pico-Flag:`` ends up buried in a very long line. Split it back
+    into one header per line, with the request URL on its own line. Rows that only
+    carry the request URL (no response headers) collapse to ``""``.
+    """
+    if not line:
+        return ""
+    if "\t" not in line:
+        return line.strip()
+    url, _, rest = line.partition("\t")
+    for sep in ("\\r\\n,", "\r\n,", "\\n,", "\n,"):   # header separators
+        rest = rest.replace(sep, "\n")
+    for sep in ("\\r\\n", "\r\n", "\\n", "\n"):        # trailing line breaks
+        rest = rest.replace(sep, "\n")
+    headers = [h.strip() for h in rest.split("\n") if h.strip()]
+    if not headers:
+        return ""
+    return "\n".join([url.strip()] + [f"  {h}" for h in headers])
+
+
 class PcapAnalyzer(Analyzer):
     name = "pcap"
     category = "network"
@@ -157,7 +180,21 @@ class PcapAnalyzer(Analyzer):
         proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-q", "-z", "io,phs"], timeout=180)
         if proc.returncode == 0 and (proc.stdout or "").strip():
             parts.append("== protocols ==\n" + proc.stdout.strip())
-        # flags are often in request URIs, DNS queries or raw HTTP bodies
+        # TLS with a provided key: decrypted HTTP request/response rows. This is the
+        # highest-signal section (flags often live in headers, e.g. Pico-Flag), so it
+        # is kept right after the protocols and *before* the bulky request-body hex:
+        # that way it survives the report/transcript truncation.
+        if tls:
+            proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-Y", "http",
+                            "-T", "fields", "-e", "http.request.full_uri",
+                            "-e", "http.response.line"], timeout=180)
+            rows = [l for l in (proc.stdout or "").splitlines() if l.strip()]
+            if rows:
+                plain = "\n".join(
+                    x for x in (_expand_http_response(l) for l in rows) if x)
+                if plain:
+                    parts.append("== TLS decrypted (key) ==\n" + plain[:20000])
+        # flags are often in request URIs or raw HTTP bodies
         proc = ctx.run([
             "tshark", "-r", str(ctx.input), *tls, "-T", "fields",
             "-e", "http.request.full_uri", "-e", "http.host", "-e", "http.file_data",
@@ -166,14 +203,6 @@ class PcapAnalyzer(Analyzer):
         fields = " ".join(line for line in (proc.stdout or "").splitlines() if line.strip())
         if fields:
             parts.append("== fields ==\n" + fields[:20000])
-        # TLS with a provided key: decrypted HTTP headers (e.g. Pico-Flag)
-        if tls:
-            proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-Y", "http",
-                            "-T", "fields", "-e", "http.request.full_uri",
-                            "-e", "http.response.line"], timeout=180)
-            plain = "\n".join(l for l in (proc.stdout or "").splitlines() if l.strip())
-            if plain:
-                parts.append("== TLS decrypted (key) ==\n" + plain[:20000])
         # DNS tunneling: chunk-per-query exfiltration (ExtractionD'ADNs style)
         proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields",
                         "-e", "dns.qry.name"], timeout=180)
