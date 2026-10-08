@@ -1,0 +1,16 @@
+---
+# Risorse utili per le CTF (la dashboard è per i tool locali; qui solo link).
+
+- Risorse:
+    - CTFtime:
+        - abbr: CT
+          href: https://ctftime.org/
+    - HackTricks:
+        - abbr: HT
+          href: https://book.hacktricks.xyz/
+    - picoCTF:
+        - abbr: pC
+          href: https://picoctf.org/
+    - RevShells:
+        - abbr: RS
+          href: https://www.revshells.com/

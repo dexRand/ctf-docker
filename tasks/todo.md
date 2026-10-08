@@ -58,7 +58,7 @@
       utili (via Reddit/YouTube), gruppo AperiSolve rimosso.
 - [x] **Rimosso anche il vecchio Triage** (CLI + GUI su 19013; StegSuite lo
       sostituisce). FileBrowser resta come browser di `./data`; la cartella
-      `triage/third_party` (zip2hashcat) resta perché la usa StegSuite.
+      `third_party/` (zip2hashcat) resta in root perché la usa StegSuite.
 - [x] **Docker integration di Homepage** (socket read-only): widget *Sistema*
       (CPU/RAM/disk/uptime) + stato/CPU-RAM per container; documentato nei README.
 

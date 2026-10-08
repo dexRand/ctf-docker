@@ -1,0 +1,5 @@
+---
+# Integrazione Docker (socket montato read-only in compose): stato e CPU/RAM dei
+# container + widget "resources" (host). Vedi https://gethomepage.dev/configs/docker/
+my-docker:
+  socket: /var/run/docker.sock

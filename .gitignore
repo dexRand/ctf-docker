@@ -5,11 +5,10 @@
 config/zap/*
 !config/zap/.gitkeep
 
-# File generati a runtime da Homepage
+# File generati a runtime da Homepage (config personalizzate come docker.yaml
+# e bookmarks.yaml sono invece versionate)
 config/homepage/logs/
 config/homepage/kubernetes.yaml
-config/homepage/docker.yaml
-config/homepage/bookmarks.yaml
 
 # StegSuite app data (SQLite + progetti)
 appdata/
