@@ -148,7 +148,7 @@ DEFAULT_PLAN = [
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "sstv",
     "pcap",
-    "nested-archive", "7z", "binwalk-extract", "foremost", "pngcheck",
+    "nested-archive", "7z", "office", "binwalk-extract", "foremost", "pngcheck",
     "png-repair", "image-repair",
 ]
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}

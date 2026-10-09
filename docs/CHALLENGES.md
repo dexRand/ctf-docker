@@ -37,6 +37,7 @@ Test: `app/tests/real_challenges.py` (scarica i file dai mirror GitHub, perché
 | WebNet1 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{honey.roasted.peanuts}` (TLS → metadata JPEG) |
 | St3g0 | 2022 | `pico.flag.png` | `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}` (LSB → `zsteg`) |
 | Very very very Hidden | 2021 | `try_me.pcap` | `picoCTF{n1c3_job_f1nd1ng_th3_s3cr3t_in_the_im@g3}` (pcap → HTTP export → Invoke-PSImage → XOR) |
+| MacroHard WeakEdge | 2021 | `Forensics is fun.pptm` | `picoCTF{D1d_u_kn0w_ppts_r_z1p5}` (base64 separato da spazi in `ppt/slideMasters/hidden` → `office`) |
 
 Mirror usati:
 
@@ -175,12 +176,17 @@ script, quindi il test verifica che l'analizzatore le ritrovi).
 | tls-pcap | pcap TLS + chiave privata (WebNet0), header decifrato | `picoCTF{nongshim.shrimp.crackers}` |
 | openstego | payload OpenStego non cifrato (`openstego embed` → `extract`) | `ITS{openstego22}` |
 | psimage | payload Invoke-PSImage (4 LSB di B/G) con due stringhe XORate | `ITS{psimageTeXt}` |
+| office | `.pptm` con base64 separato da spazi in `ppt/slideMasters/hidden` | `ITS{office_24}` |
 
 L'ultima riga usa il nuovo analyzer **`psimage`**: risolve *Invoke-PSImage*, che
 nasconde **un byte per pixel nei 4 bit bassi dei canali Blu e Verde**
 (`byte = (B & 0x0F) << 4 | G & 0x0F`). Il payload è spesso uno script PowerShell
 che fa da "mappa": il flag hunt ora prova anche lo **XOR di due stringhe** di pari
 lunghezza presenti nel testo, quindi la mappa diventa la flag.
+
+La riga **`office`** copre i documenti Office/OpenDocument (`.pptm/.docm/.docx/…`):
+li scompatta e decodifica il base64 anche quando è **separato da spazi** (o da un
+carattere per riga) — è il caso di *MacroHard WeakEdge*.
 
 ## Come verificare
 
@@ -192,10 +198,10 @@ docker compose up -d stegsuite
 docker cp app/tests/ctf_regression.py ctf-stegsuite-1:/tmp/ctf_regression.py
 docker cp app/tests/fixtures ctf-stegsuite-1:/tmp/fixtures
 docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
-  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 23/23
+  /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 24/24
 
 # challenge reali (host: scaricano i file da sole)
-python3 app/tests/real_challenges.py                        # → 11/11
+python3 app/tests/real_challenges.py                        # → 12/12
 
 # verifica INDIPENDENTE: per ogni (artifact, writeup) confronta la flag trovata
 # con quella dichiarata dal writeup per QUELL'artifact; include una seconda
@@ -230,7 +236,6 @@ del tutto. Restano qui come riferimento e come TODO per nuovi analyzer.
 | c0rrupt | 2019 | `picoCTF{c0rrupt10n_1847995}` | **PNG repair** produce l'immagine valida (la flag è visiva, OCR non affidabile) |
 | like1000 | 2019 | `picoCTF{l0t5_0f_TAR5}` | **risolta strutturalmente** da `nested-archive`: apre i 1000 tar annidati in un colpo solo e arriva a `flag.png`; l'OCR legge `l0t5_0f_TAR5` come `lOtS Of TAR5S` (confusione `0/O`, `5/S` del font) |
 | tunn3l v1s10n | 2021 | `picoCTF{qu1t3_a_v13w_2020}` | **risolta strutturalmente** da `image-repair` (header BMP standard + altezza ricalcolata); resta il near-miss OCR (`1→i`, spazi) |
-| MacroHard WeakEdge | 2021 | `picoCTF{D1d_u_kn0w_ppts_r_z1p5}` | base64 multi-step nel `pptm` |
 | Surfing the Waves | 2021 | `picoCTF{mU21C_1s_1337_115155af}` | decodifica custom dei campioni WAV |
 | m00nwalk | 2019 | `picoCTF{beep_boop_im_in_space}` | **decodificata** da `sstv` (Scottie S1, frame verificato contro QSSTV); il testo è trasmesso capovolto in un frame 320×256 rumoroso → OCR near-miss |
 

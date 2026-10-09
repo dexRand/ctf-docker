@@ -376,6 +376,18 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     Image.fromarray(_canvas, "RGB").save(p)
     cases.append(("psimage", p, flag23))
 
+    # 24) Office (.pptm) whose ppt/slideMasters/hidden holds base64 split by a
+    #     space between every character -> office analyzer (unzip + decode)
+    import base64 as _b640
+    import zipfile as _zip0
+    flag24 = "ITS{office_24}"
+    spaced = " ".join(_b640.b64encode(f"flag: {flag24}".encode()).decode())
+    p = TMP / "office.pptm"
+    with _zip0.ZipFile(p, "w", _zip0.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", "<?xml version='1.0'?><Types/>")
+        z.writestr("ppt/slideMasters/hidden", spaced)
+    cases.append(("office", p, flag24))
+
     return cases
 
 

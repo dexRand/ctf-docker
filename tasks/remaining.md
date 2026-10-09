@@ -1,6 +1,6 @@
 # Remaining work — StegSuite
 
-> Documento di ripresa. **Stato (2026-10-08): sezioni A–G e P15–P26 chiusi**;
+> Documento di ripresa. **Stato (2026-10-09): sezioni A–G e P15–P27 chiusi**;
 > resta fuori scope solo OSINT (delegato). Qui sotto la storia e i limiti noti.
 
 ## Come riprendere
@@ -9,7 +9,7 @@ cd <repo>                               # es. /home/r/__Github/CTF
 ./ctf up                                # core (Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser)
 ./ctf up web                            # + ZAP (con add-on extra)   [recon|crypto|forensics|crack]
 ./ctf urls                              # URL di tutti i servizi
-./ctf test                              # regressione 23/23 + reali 11/11 + verify ALL CORRECT
+./ctf test                              # regressione 24/24 + reali 12/12 + verify ALL CORRECT
 ./ctf ui-smoke                          # smoke test della SPA (Chromium headless in Docker)
 docker compose config -q                # valida il compose
 ```
@@ -17,6 +17,12 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P27 MacroHard WeakEdge risolta (analyzer `office`)**: nuovo tool **`office`**
+  che scompatta i documenti **Office/OpenDocument** (`.pptm/.docm/.docx/.xlsx/.odt…`)
+  e decodifica il **base64 anche separato da spazi** (o un carattere per riga) — è
+  il caso di *MacroHard WeakEdge* (`ppt/slideMasters/hidden`). Aggiunta ai test
+  reali (→ **12/12**) + caso fixture `office` (→ regressione **24/24**); tool
+  totali **42**.
 - **P26 Very very very Hidden risolta (Invoke-PSImage)**: nuovo analyzer
   **`psimage`** — estrae il payload a **1 byte per pixel dai 4 bit bassi dei canali
   B/G** (`(B&0x0F)<<4 | G&0x0F`), la tecnica di **Invoke-PSImage**. Il flag hunt ora
@@ -224,7 +230,7 @@ on-demand). Il token serve con scope **`workflow`**.
 - **Robustezza**: tipo da `file` per il piano (estensione che mente), SQLite
   **WAL + busy_timeout** + commit per-tool (niente `database is locked`), orfani
   `running` → `error` al restart, fuzzy solo su OCR/vision, body flag validato.
-- **Test/Docs**: regressione **23/23**, reali **11/11**, `verify_flags` **ALL
+- **Test/Docs**: regressione **24/24**, reali **12/12**, `verify_flags` **ALL
   CORRECT**, `pytest` **107**, UI smoke (`./ctf ui-smoke`), `docs/CHALLENGES.md`.
 
 ## Prossima sessione (in ordine)
@@ -330,9 +336,9 @@ on-demand). Il token serve con scope **`workflow`**.
 
 ## Gap challenge noti
 Vedi `docs/CHALLENGES.md` → "Altri casi provati": **c0rrupt** (PNG repair
-presente, flag visiva non OCR-abile), **MacroHard WeakEdge**,
-**Surfing the Waves** (WAV: mapping custom), **tunn3l v1s10n** e **like1000**
-(risolte strutturalmente, resta il near-miss OCR).
+presente, flag visiva non OCR-abile), **Surfing the Waves** (WAV: mapping
+custom), **tunn3l v1s10n** e **like1000** (risolte strutturalmente, resta il
+near-miss OCR).
 
 ## Limiti noti
 - Flag **visive** via OCR (buono, non perfetto; alcune immagini rumorose non
@@ -350,12 +356,12 @@ app/backend/retention.py       # cancellazione progetti oltre RETENTION_DAYS
 app/backend/api/*.py           # router: system, projects, analysis, tools, cracking, ws
 app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
-app/backend/analyzers/*.py     # 41 tool (un file, auto-registered)
+app/backend/analyzers/*.py     # 42 tool (un file, auto-registered)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/frontend/src/toast.js      # store toast globale
 app/frontend/src/components/Toasts.vue  # rendering toast
-app/tests/ctf_regression.py    # 23/23 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap, openstego, psimage)
-app/tests/real_challenges.py   # 11/11 picoCTF (incl. WebNet0/1: pcap+TLS key; Very very very Hidden)
+app/tests/ctf_regression.py    # 24/24 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap, openstego, psimage, office)
+app/tests/real_challenges.py   # 12/12 picoCTF (incl. WebNet0/1: pcap+TLS key; Very very very Hidden, MacroHard WeakEdge)
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
 app/tests/ui_smoke.mjs         # smoke test UI (Playwright/Chromium) + ui_smoke.sh
 app/tests/fixtures/            # challenge.png + webnet0/{capture.pcap, picopico.key}

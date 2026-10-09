@@ -39,6 +39,10 @@ CASES = [
     # nibbles) holding a PowerShell "map" whose two strings XOR to the flag
     ("try_me.pcap", f"{B21}/Very very very Hidden/try_me.pcap",
      "picoCTF{n1c3_job_f1nd1ng_th3_s3cr3t_in_the_im@g3}"),
+    # pptm: base64 split by a space between every char in ppt/slideMasters/hidden
+    # -> the `office` analyzer unzips the parts and decodes whitespace-split base64
+    ("mmwe.pptm", f"{B21}/MacroHard WeakEdge/Forensics is fun.pptm",
+     "picoCTF{D1d_u_kn0w_ppts_r_z1p5}"),
 ]
 
 # multi-file challenges: (label, [(filename, url), ...], expected flag)

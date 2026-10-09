@@ -67,6 +67,14 @@
       upstream `jhj0517/whisper-webui` (porta **19017**), default CPU-friendly
       (`small`, `float32`) via `config/whisper/`, output in `./data/whisper/outputs`
       (visibili in FileBrowser).
+- [x] **Analyzer `office`**: scompatta documenti Office/OpenDocument
+      (`.pptm/.docm/.docx/.xlsx/odt…`) e decodifica il **base64 separato da
+      spazi** → risolve *MacroHard WeakEdge* (reali **12/12**, regressione
+      **24/24**, tool totali **42**).
+- [x] **Dashboard**: tema **hacker** (verde neon su nero, monospace, scanline CRT),
+      icone uniformi monocromatiche, card di pari altezza e **favicon `>_`**
+      (sovrascritti i default di Homepage). Immagini aggiornate (`filebrowser`,
+      `wireshark`).
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

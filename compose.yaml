@@ -25,6 +25,12 @@ services:
       - "${HOMEPAGE_PORT:-19001}:3000"
     volumes:
       - ./config/homepage:/app/config
+      # favicon "hacker": impostato in settings.yaml e sovrascrivendo i default di Homepage
+      - ./config/homepage/public:/app/public/ctf:ro
+      - ./config/homepage/public/favicon.ico:/app/public/homepage.ico:ro
+      - ./config/homepage/public/favicon-32.png:/app/public/favicon-32x32.png:ro
+      - ./config/homepage/public/favicon-16.png:/app/public/favicon-16x16.png:ro
+      - ./config/homepage/public/favicon-180.png:/app/public/apple-touch-icon.png:ro
       # read-only: Homepage mostra stato/CPU/RAM dei container (integrazione Docker)
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:

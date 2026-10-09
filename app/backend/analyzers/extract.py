@@ -1,7 +1,10 @@
 """Extraction / carving analyzers."""
 from __future__ import annotations
 
+import base64
+import re
 import shutil
+import zipfile
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, list_files, which, out_of
@@ -105,6 +108,71 @@ subprocess_analyzer(
     "Validate PNG chunks and integrity.", order=230, accepts=(".png",), soft=True,
 )
 
+
+# Zip-based Office / OpenDocument containers. Their XML parts often hide
+# base64 (or macros), sometimes split by whitespace between every character
+# (picoCTF "MacroHard WeakEdge": ppt/slideMasters/hidden). We unzip the parts
+# and also decode whitespace-separated base64 directly.
+OFFICE_EXT = (".pptm", ".pptx", ".potm", ".ppsx", ".docm", ".docx", ".dotm",
+              ".xlsm", ".xlsx", ".xltm", ".odt", ".ods", ".odp", ".odg", ".epub")
+_B64_JOINED = re.compile(rb"[A-Za-z0-9+/]{16,}={0,2}")
+_MAX_PART = 8_000_000
+_MAX_PARTS = 300
+
+
+class OfficeAnalyzer(Analyzer):
+    name = "office"
+    category = "extract"
+    description = "Unzip Office/OpenDocument parts and decode whitespace-split base64."
+    accepts = OFFICE_EXT
+    display_order = 218
+
+    def run(self, ctx: ToolContext) -> ToolResult:
+        if not zipfile.is_zipfile(ctx.input):
+            return ToolResult(self.name, status="skipped", summary="not a Zip-based Office file")
+        outdir = ctx.sub(self.name)
+        extracted: list[Path] = []
+        hits: list[str] = []
+        try:
+            with zipfile.ZipFile(ctx.input) as z:
+                for info in z.infolist()[: _MAX_PARTS * 4]:
+                    if info.is_dir() or info.file_size == 0 or info.file_size > _MAX_PART:
+                        continue
+                    if ".." in info.filename or info.filename.startswith("/"):
+                        continue
+                    if len(extracted) >= _MAX_PARTS:
+                        break
+                    dest = outdir / info.filename
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    try:
+                        dest.write_bytes(z.read(info))
+                    except (OSError, zipfile.BadZipFile):
+                        continue
+                    extracted.append(dest)
+                    text = dest.read_bytes().decode("latin-1", "replace")
+                    # collapse whitespace so "Z m x h Z z" becomes one base64 token
+                    joined = re.sub(r"\s+", "", text).encode("latin-1", "replace")
+                    for m in _B64_JOINED.finditer(joined):
+                        tok = m.group(0) + b"=" * ((4 - len(m.group(0)) % 4) % 4)
+                        try:
+                            dec = base64.b64decode(tok, validate=False)
+                        except Exception:
+                            continue
+                        if b"{" in dec and all(32 <= c < 127 or c in (9, 10, 13) for c in dec):
+                            hits.append(f"{info.filename}: {dec.decode('latin-1', 'replace')[:200]}")
+        except (OSError, zipfile.BadZipFile) as exc:
+            return ToolResult(self.name, status="error", summary=f"cannot read: {exc}")
+        summary = f"{len(extracted)} part(s)"
+        if hits:
+            summary += f", {len(hits)} base64"
+        return ToolResult(
+            self.name, status="done", summary=summary,
+            output="\n".join(dict.fromkeys(hits))[:20000],
+            extracted=[str(f) for f in extracted], artifacts=_arts(extracted, ctx.workdir),
+        )
+
+
 register(BinwalkExtractAnalyzer())
 register(ForemostAnalyzer())
 register(SevenZipAnalyzer())
+register(OfficeAnalyzer())

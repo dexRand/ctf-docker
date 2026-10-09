@@ -164,10 +164,11 @@ http://localhost:19014 (solo localhost).
 
 - Modalità **Auto / Check**: Auto fa tutto e prova tutte le wordlist; Check
   scansiona e poi ti fa scegliere cosa attaccare.
-- Analisi **ricorsiva e ordinata** su **41 tool**: `file`, `exiftool`,
+- Analisi **ricorsiva e ordinata** su **42 tool**: `file`, `exiftool`,
   `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
-  `nested-archive` (catene di archivi annidati), `7z`, `pngcheck`, `png-repair`,
+  `nested-archive` (catene di archivi annidati), `7z`, `office` (unzip parti
+  Office/OpenDocument + base64 separato da spazi), `pngcheck`, `png-repair`,
   `image-repair` (JPEG/BMP header/altezza),
   `qr`, `pcap` (con decifratura TLS se fornita la chiave), `zsteg`,
   `psimage` (Invoke-PSImage LSB di B/G), `steghide`,
