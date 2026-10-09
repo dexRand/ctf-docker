@@ -77,10 +77,10 @@
       `wireshark`).
 - [x] **Analyzer `wav-levels`**: rileva WAV con campioni **quantizzati a pochi
       livelli** e li mappa a cifre **hex** → decodifica i byte. Risolve *Surfing the
-      Waves* (reali **19/19**, regressione **25/25**, tool **46**).
-- [x] **Challenge OliCyber/ITS**: 6 reali *Network* da `training.olicyber.it`
-      (mirror pubblico) → reali **19/19**; `pcap` ora legge **keylog TLS 1.3**,
-      **header HTTP/2** e **commenti pcapng**.
+      Waves* (reali **23/23**, regressione **25/25**, tool **46**).
+- [x] **Challenge OliCyber/ITS + Olimpiadi**: 10 reali da mirror pubblico
+      (`training.olicyber.it` richiede login) → reali **23/23**; `pcap` ora legge
+      **keylog TLS 1.3**, **header HTTP/2** e **commenti pcapng**.
 - [x] **Analisi ELF**: **passiva** in StegSuite (analyzer `elf`/`readelf`/`objdump`:
       struttura, **checksec** RELRO/Canary/NX/PIE/Fortify, disassemblaggio) +
       **attiva** nel container **`rev`** (profilo `rev`, :19018): sandbox isolato

@@ -25,6 +25,7 @@ B22 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2022/master/Forensics"
 # OliCyber / ITS training (https://training.olicyber.it) require a login; these
 # challenge artifacts come from a public write-up mirror instead.
 OLI = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/NETWORK"
+OLIM = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/Olimpiadi Italiane di Cybersecurity"
 
 CASES = [
     ("pico_img.png", f"{B19}/So Meta/pico_img.png", "picoCTF{s0_m3ta_43f253bb}"),
@@ -55,6 +56,11 @@ CASES = [
     ("nw04-dns.pcapng", f"{OLI}/NW_4/nw-intro03.pcapng", "flag{L3aRn1N9_4b0uT_F1lter5_1P_DN5_f1lt3r}"),
     ("nw05-comments.pcapng", f"{OLI}/NW_5/nw-intro03.pcapng", "flag{L3aRn1N9_4b0uT_F1lter5_C0mm3Nt5_4R3_H4rd_t0_f1nD}"),
     ("nw-intro08.pcap", f"{OLI}/NW_8/nw-intro08.pcap", "flag{Byt35_Ex7rAct10n_1s_3a5y!}"),
+    # --- Olimpiadi Italiane di Cybersecurity (public write-up mirror) ---
+    ("hex.png", f"{OLIM}/MISCELLANEOUS/Byte-flag/flag.png", "flag{Hex1sntFunn1}"),
+    ("dashed.txt", f"{OLIM}/MISCELLANEOUS/Dashed/dashed.txt", "flag{PNRFNE_ZR!-y0u_G07_iT_r1ghT!}"),
+    ("flag0.zip", f"{OLIM}/MISCELLANEOUS/Zipception/flag0.zip", "flag{Un0_z1p_d3n7r0_un0_z1p_1mp0551b1l3!}"),
+    ("easy_stream.pcapng", f"{OLIM}/NETWORK/easy stream/easy_stream.pcapng", "flag{1sto3asy}"),
 ]
 
 # multi-file challenges: (label, [(filename, url), ...], expected flag)

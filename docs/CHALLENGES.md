@@ -47,6 +47,7 @@ B19 = https://raw.githubusercontent.com/HHousen/PicoCTF-2019/master/Forensics
 B21 = https://raw.githubusercontent.com/HHousen/PicoCTF-2021/master/Forensics
 B22 = https://raw.githubusercontent.com/HHousen/PicoCTF-2022/master/Forensics
 OLI = https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/NETWORK
+OLIM = https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/Olimpiadi Italiane di Cybersecurity
 ```
 
 ### OliCyber / ITS (training) — mirror pubblico
@@ -68,6 +69,20 @@ Le NW_6/NW_7/NW_10 (stringhe mirate, follow del flusso TCP, PNG esadecimale nel
 POST) restano non automatiche. Due migliorie al `pcap` sono nate da qui: keylog
 **TLS 1.3** riconosciuto (label `*_TRAFFIC_SECRET*`, non solo `CLIENT_RANDOM`),
 **header HTTP/2** decifrati e **commenti pcapng** estratti.
+
+### Olimpiadi Italiane di Cybersecurity — mirror pubblico
+
+Dallo stesso mirror, sezione "Olimpiadi" (artifact reali + `flags.txt`).
+
+| Challenge | File | Flag | Tecnica |
+|---|---|---|---|
+| Byte-flag | `flag.png` | `flag{Hex1sntFunn1}` | immagine/hex |
+| Dashed | `dashed.txt` | `flag{PNRFNE_ZR!-y0u_G07_iT_r1ghT!}` | Morse + rot13 |
+| Zipception | `flag0.zip` | `flag{Un0_z1p_d3n7r0_un0_z1p_1mp0551b1l3!}` | archivi annidati |
+| easy stream | `easy_stream.pcapng` | `flag{1sto3asy}` | follow stream |
+
+*(Altre Olimpiadi — Zipception 2.0, Suoni misteriosi, C-H-A-O-S, Gab-Chan,
+Corrupted flag — restano non automatiche.)*
 
 ### So Meta — EXIF `Artist`
 
@@ -224,7 +239,7 @@ docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
   /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 25/25
 
 # challenge reali (host: scaricano i file da sole)
-python3 app/tests/real_challenges.py                        # → 19/19
+python3 app/tests/real_challenges.py                        # → 23/23
 
 # verifica INDIPENDENTE: per ogni (artifact, writeup) confronta la flag trovata
 # con quella dichiarata dal writeup per QUELL'artifact; include una seconda
