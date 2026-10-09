@@ -141,7 +141,8 @@ _FUZZY_RE = re.compile(
 # ordered analysis plan (order matters: metadata -> text -> steg -> extract)
 DEFAULT_PLAN = [
     "file", "exiftool", "identify", "ffprobe", "pdfinfo",
-    "strings", "hexyl", "xxd", "pdftotext", "pdfid", "binwalk-scan",
+    "strings", "hexyl", "xxd", "pdftotext", "pdfid", "elf", "readelf", "objdump",
+    "binwalk-scan",
     "decode", "morse-text",
     "ocr", "qr",
     "zsteg", "psimage", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
@@ -369,6 +370,7 @@ def _detect_ext(ftype: str) -> str:
     when the name lies (e.g. a PNG uploaded as flag.txt)."""
     low = (ftype or "").lower()
     for key, ext in (
+        ("elf 64-bit", ".elf"), ("elf 32-bit", ".elf"),
         ("png image", ".png"), ("jpeg image", ".jpg"), ("gif image", ".gif"),
         ("bmp image", ".bmp"), ("tiff image", ".tiff"), ("web/p image", ".webp"),
         ("webp", ".webp"), ("pdf document", ".pdf"), ("zip archive", ".zip"),

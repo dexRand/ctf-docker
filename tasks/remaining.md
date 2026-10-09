@@ -1,13 +1,13 @@
 # Remaining work — StegSuite
 
-> Documento di ripresa. **Stato (2026-10-09): sezioni A–G e P15–P27 chiusi**;
+> Documento di ripresa. **Stato (2026-10-09): sezioni A–G e P15–P28 chiusi**;
 > resta fuori scope solo OSINT (delegato). Qui sotto la storia e i limiti noti.
 
 ## Come riprendere
 ```bash
 cd <repo>                               # es. /home/r/__Github/CTF
 ./ctf up                                # core (Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser)
-./ctf up web                            # + ZAP (con add-on extra)   [recon|crypto|forensics|crack]
+./ctf up web                            # + ZAP (con add-on extra)   [recon|crypto|forensics|crack|audio|rev]
 ./ctf urls                              # URL di tutti i servizi
 ./ctf test                              # regressione 24/24 + reali 12/12 + verify ALL CORRECT
 ./ctf ui-smoke                          # smoke test della SPA (Chromium headless in Docker)
@@ -17,6 +17,13 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P28 Analisi ELF (passiva + attiva)**: analyzer **`elf`** (struttura + **checksec**
+  RELRO/Canary/NX/PIE/Fortify, parsing pure-python di header/program headers),
+  **`readelf`** e **`objdump`** (disassemblaggio) dentro StegSuite → tool **45**.
+  Container **`rev`** (profilo `rev`, porta **19018**) per l'analisi **attiva**:
+  sandbox isolato (`pwntools` + gdb/strace/ltrace + qemu-user) con **terminale web**
+  (ttyd), rete interna **senza internet**, `cap_drop: ALL` + `SYS_PTRACE`,
+  no-new-privileges, limiti mem/cpu/pids.
 - **P27 MacroHard WeakEdge risolta (analyzer `office`)**: nuovo tool **`office`**
   che scompatta i documenti **Office/OpenDocument** (`.pptm/.docm/.docx/.xlsx/.odt…`)
   e decodifica il **base64 anche separato da spazi** (o un carattere per riga) — è
@@ -356,7 +363,9 @@ app/backend/retention.py       # cancellazione progetti oltre RETENTION_DAYS
 app/backend/api/*.py           # router: system, projects, analysis, tools, cracking, ws
 app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
-app/backend/analyzers/*.py     # 42 tool (un file, auto-registered)
+app/backend/analyzers/*.py     # 45 tool (un file, auto-registered)
+app/backend/analyzers/elf.py   # analyzer ELF passivi (elf/readelf/objdump)
+rev/Dockerfile                 # sandbox ELF attivo (pwntools + ttyd + qemu)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/frontend/src/toast.js      # store toast globale
 app/frontend/src/components/Toasts.vue  # rendering toast

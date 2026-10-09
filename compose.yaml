@@ -279,9 +279,54 @@ services:
     profiles: [crack]
     networks: [ctfnet]
 
+  # ------------------------------------------------------------- REV (analisi ELF attiva)
+  # Sandbox per eseguire/debuggiare binari ELF sconosciuti (gdb, strace, ltrace,
+  # pwntools, qemu-user) da un terminale web. Rete INTERNA (nessun accesso a
+  # internet), cap_drop ALL, no-new-privileges. Solo localhost. Avvio: ./ctf up rev
+  rev:
+    build:
+      context: ./rev
+      dockerfile: Dockerfile
+    image: ctf-rev
+    restart: unless-stopped
+    mem_limit: 4g
+    cpus: 2
+    pids_limit: 512
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SYS_PTRACE        # gdb/debug di processi figli
+    logging: *default-logging
+    volumes:
+      - ./data/rev:/work
+    working_dir: /work
+    profiles: [rev]
+    networks: [revnet]
+
+  # Unico punto d'accesso al sandbox: inoltra la porta 19018 (localhost) a
+  # `rev` sulla rete interna. `rev` NON è pubblicato, quindi non ha egress.
+  rev-proxy:
+    image: alpine/socat:latest
+    restart: unless-stopped
+    mem_limit: 64m
+    cpus: 0.5
+    logging: *default-logging
+    depends_on: [rev]
+    command: ["TCP-LISTEN:7681,fork,reuseaddr", "TCP:rev:7681"]
+    ports:
+      - "127.0.0.1:${REV_PORT:-19018}:7681"
+    profiles: [rev]
+    networks: [ctfnet, revnet]
+
 networks:
   ctfnet:
     driver: bridge
+  # rete del sandbox `rev`: isolata, senza egress verso internet
+  revnet:
+    driver: bridge
+    internal: true
 
 volumes:
   sagemath-home:

@@ -75,6 +75,11 @@
       icone uniformi monocromatiche, card di pari altezza e **favicon `>_`**
       (sovrascritti i default di Homepage). Immagini aggiornate (`filebrowser`,
       `wireshark`).
+- [x] **Analisi ELF**: **passiva** in StegSuite (analyzer `elf`/`readelf`/`objdump`:
+      struttura, **checksec** RELRO/Canary/NX/PIE/Fortify, disassemblaggio) +
+      **attiva** nel container **`rev`** (profilo `rev`, :19018): sandbox isolato
+      (rete interna senza internet, `cap_drop: ALL`) con gdb/strace/ltrace/pwntools/
+      qemu-user da **terminale web** (ttyd). Tool StegSuite **45**.
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

@@ -31,6 +31,13 @@
         description: Trascrizione audio/video → testo e sottotitoli con timestamp (Whisper, SRT/VTT) — profilo audio · output in ./data/whisper/outputs
         container: ctf-whisper-1
 
+- Reversing & Pwn:
+    - ELF sandbox (rev):
+        icon: mdi-bug-check
+        href: http://localhost:19018
+        description: Analisi attiva di ELF in sandbox (gdb, strace, ltrace, pwntools, qemu-user) da terminale web — rete isolata (profilo rev)
+        container: ctf-rev-1
+
 - Recon (OSINT):
     - SpiderFoot:
         icon: mdi-spider

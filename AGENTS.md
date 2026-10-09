@@ -11,7 +11,8 @@ più una dashboard **Homepage** che li elenca ordinati per fase di lavoro.
 - **Porte sempre `19000+`** e modificabili da `.env`. Mai porte < 9000: la
   macchina ospita altri stack (es. `veronabusapp` su 8080/5173).
 - Immagini upstream reali e verificate. Uniche eccezioni (build custom documentati):
-  **StegSuite** (`app/Dockerfile`) e **ZAP** (`zap/Dockerfile`, add-on extra).
+  **StegSuite** (`app/Dockerfile`), **ZAP** (`zap/Dockerfile`, add-on extra) e
+  **rev** (`rev/Dockerfile`, sandbox ELF: pwntools + ttyd + qemu).
   Per il resto niente build custom.
 - Aggiorna insieme queste cose quando cambi un servizio:
   `compose.yaml`, `.env.example`, `config/homepage/services.yaml`, `README.md`.
@@ -32,7 +33,7 @@ docker compose config -q  # valida il compose
 
 - Niente `container_name` fissi: si usa il prefisso del progetto (`ctf-*`).
 - Tool pesanti dietro profili Compose: `web`, `recon`, `crypto`, `forensics`,
-  `crack`, `audio`.
+  `crack`, `audio`, `rev`.
 - Nomi dei tool in inglese; descrizioni e documentazione in italiano.
 - `restart: unless-stopped`, `mem_limit`/`cpus` e logging `json-file` con rotazione.
 

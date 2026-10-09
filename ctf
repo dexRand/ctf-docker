@@ -24,12 +24,12 @@ Uso: ./ctf <comando>
   test              Regressione + challenge reali + verifica risposte
   ui-smoke          Smoke test della SPA con un browser headless (Docker)
 
-Profili: web  recon  crypto  forensics  crack  audio
+Profili: web  recon  crypto  forensics  crack  audio  rev
 Dashboard: http://localhost:19001
 EOF
 }
 
-all_profiles=(web recon crypto forensics crack audio)
+all_profiles=(web recon crypto forensics crack audio rev)
 
 # port VARNAME default  ->  value from .env (or the default)
 port() {
@@ -91,6 +91,7 @@ case "${1:-up}" in
   Wireshark        http://localhost:$(port WIRESHARK_HTTP_PORT 19008)   (profilo forensics)
   SageMath         http://localhost:$(port SAGEMATH_PORT 19010)   (profilo crypto)
   Whisper-WebUI    http://localhost:$(port WHISPER_PORT 19017)   (profilo audio)
+  ELF sandbox      http://localhost:$(port REV_PORT 19018)   (profilo rev)
 EOF
     ;;
   open)
@@ -101,6 +102,7 @@ EOF
       docs|api)                     url="http://localhost:$(port STEGSUITE_PORT 19014)/api/docs" ;;
       reports|files)                url="http://localhost:$(port FILEBROWSER_PORT 19012)" ;;
       whisper|audio|stt)            url="http://localhost:$(port WHISPER_PORT 19017)" ;;
+      rev|elf)                      url="http://localhost:$(port REV_PORT 19018)" ;;
       *)                            url="$1" ;;  # consenti un URL esplicito
     esac
     echo "[*] ${url}"

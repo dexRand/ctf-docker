@@ -61,6 +61,7 @@ It is designed to live next to other self-hosted apps: every service runs on the
 | Crypto | SageMath | http://localhost:19010 | Python/Sage notebook for crypto and math | `crypto` |
 | Forensics | Wireshark | http://localhost:19008 | Packet / pcap analysis with a web GUI | `forensics` |
 | Audio | **Whisper-WebUI** | http://localhost:19017 | Speech-to-text with timestamps (SRT/VTT/…) via Whisper · outputs in `./data/whisper/outputs` | `audio` |
+| Pwn/Rev | **ELF sandbox** | http://localhost:19018 | Run/debug untrusted ELF from a web terminal (gdb, strace, ltrace, pwntools, qemu-user) · isolated network | `rev` |
 
 > Deliberately excluded because they have no reliable upstream GUI image:
 > Burp Suite, Ghidra, Autopsy, Volatility, hashcat/john (CLI tools, already on Kali).
@@ -85,6 +86,7 @@ docker compose --profile web up -d                # core + OWASP ZAP
 docker compose --profile web --profile recon up -d
 docker compose --profile crack up -d              # core + Hashtopolis (hashcat)
 docker compose --profile audio up -d              # core + Whisper-WebUI (speech-to-text)
+docker compose --profile rev up -d                # core + ELF sandbox (active reversing)
 docker compose down                               # stop everything
 ```
 
@@ -119,6 +121,7 @@ hunt and the cracking — it replaces the old `triage` CLI/GUI. Wordlists in
 | `forensics` | Wireshark |
 | `crack` | Hashtopolis (distributed hashcat) |
 | `audio` | Whisper-WebUI (speech-to-text with timestamps) |
+| `rev` | ELF sandbox (active reversing: gdb/strace/pwntools/qemu) |
 
 For audio challenges, activate the `audio` profile and open **Whisper-WebUI**
 (http://localhost:19017): upload an audio/video file (or use a YouTube link /
@@ -145,6 +148,7 @@ All host ports live in the **19000+ range** and are configurable in `.env`:
 | 19014 | StegSuite workbench + API (localhost only) |
 | 19015 / 19016 | Hashtopolis backend / frontend (profile `crack`) |
 | 19017 | Whisper-WebUI speech-to-text (profile `audio`) |
+| 19018 | ELF sandbox (active reversing, profile `rev`) |
 
 ## 📂 Project structure
 
@@ -155,6 +159,7 @@ ctf                     CLI wrapper (up / up-all / down / status / logs)
 config/homepage/        dashboard config (services / settings / widgets)
 config/zap/             ZAP working dir (certificates)
 config/whisper/         Whisper-WebUI default config (profile `audio`)
+rev/                    ELF active-analysis sandbox (ttyd + gdb/qemu, profile `rev`)
 SPEC.md                 specification
 tasks/                  plan.md + todo.md
 .opencode/              Agent Skills (MIT — see ATTRIBUTION.md)
@@ -167,14 +172,15 @@ http://localhost:19014 (localhost only).
 
 - **Auto / Check** modes: Auto runs everything and tries every wordlist; Check
   first scans, then lets you choose what to attack.
-- **Recursive, ordered** analysis over **42 tools**: `file`, `exiftool`,
+- **Recursive, ordered** analysis over **45 tools**: `file`, `exiftool`,
   `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
   `nested-archive` (deep archive chains), `7z`, `office` (unzip Office/OpenDocument
   parts + whitespace-split base64), `pngcheck`, `png-repair`,
   `image-repair` (JPEG/BMP header/height),
   `qr` (zbarimg), `pcap` (tshark; + TLS decryption with a provided key), `zsteg`,
-  `psimage` (Invoke-PSImage B/G LSB), `steghide`, `outguess`, `jsteg`,
+  `psimage` (Invoke-PSImage B/G LSB), `elf`/`readelf`/`objdump` (ELF structure,
+  checksec, disassembly), `steghide`, `outguess`, `jsteg`,
   `png-chunks`, `openstego`, `bit-planes`,
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff + delay
   decode + per-frame OCR), `ocr` (tesseract), `spectrogram`, `waveform`,

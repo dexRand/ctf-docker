@@ -16,6 +16,9 @@ layout:
   Analisi & Forensics:
     style: row
     columns: 4
+  Reversing & Pwn:
+    style: row
+    columns: 2
   Recon (OSINT):
     style: row
     columns: 2

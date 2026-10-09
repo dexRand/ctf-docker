@@ -58,6 +58,7 @@ tool pesanti stanno dietro **profili** Compose opzionali.
 | Crypto | SageMath | http://localhost:19010 | Notebook Python/Sage per crypto e matematica | `crypto` |
 | Forensics | Wireshark | http://localhost:19008 | Analisi pacchetti/pcap con GUI web | `forensics` |
 | Audio | **Whisper-WebUI** | http://localhost:19017 | Trascrizione audio→testo con timestamp (SRT/VTT/…) via Whisper · output in `./data/whisper/outputs` | `audio` |
+| Pwn/Rev | **ELF sandbox** | http://localhost:19018 | Esegui/debugga binari ELF sconosciuti da terminale web (gdb, strace, ltrace, pwntools, qemu-user) · rete isolata | `rev` |
 
 > Esclusi di proposito perché senza immagine GUI upstream affidabile:
 > Burp Suite, Ghidra, Autopsy, Volatility, hashcat/john (tool CLI, già su Kali).
@@ -82,6 +83,7 @@ docker compose --profile web up -d                # core + OWASP ZAP
 docker compose --profile web --profile recon up -d
 docker compose --profile crack up -d              # core + Hashtopolis (hashcat)
 docker compose --profile audio up -d              # core + Whisper-WebUI (trascrizione audio)
+docker compose --profile rev up -d                # core + sandbox ELF (reversing attivo)
 docker compose down                               # ferma tutto
 ```
 
@@ -116,6 +118,7 @@ grande; la `rockyou.txt` completa è inclusa nell'immagine.
 | `forensics` | Wireshark |
 | `crack` | Hashtopolis (hashcat distribuito) |
 | `audio` | Whisper-WebUI (trascrizione audio con timestamp) |
+| `rev` | Sandbox ELF (reversing attivo: gdb/strace/pwntools/qemu) |
 
 Per le challenge audio attiva il profilo `audio` e apri **Whisper-WebUI**
 (http://localhost:19017): carica un file audio/video (o usa un link YouTube / il
@@ -142,6 +145,7 @@ Tutte le porte host stanno nella **fascia 19000+** e sono configurabili in `.env
 | 19014 | StegSuite workbench + API (solo localhost) |
 | 19015 / 19016 | Hashtopolis backend / frontend (profilo `crack`) |
 | 19017 | Whisper-WebUI trascrizione audio (profilo `audio`) |
+| 19018 | Sandbox ELF (reversing attivo, profilo `rev`) |
 
 ## 📂 Struttura
 
@@ -152,6 +156,7 @@ ctf                     wrapper CLI (up / up-all / down / status / logs)
 config/homepage/        configurazione dashboard (services / settings / widgets)
 config/zap/             working dir ZAP (certificati)
 config/whisper/         config default Whisper-WebUI (profilo `audio`)
+rev/                    sandbox analisi attiva ELF (ttyd + gdb/qemu, profilo `rev`)
 SPEC.md                 specifica
 tasks/                  plan.md + todo.md
 .opencode/              Agent Skills (MIT — vedi ATTRIBUTION.md)
@@ -164,14 +169,15 @@ http://localhost:19014 (solo localhost).
 
 - Modalità **Auto / Check**: Auto fa tutto e prova tutte le wordlist; Check
   scansiona e poi ti fa scegliere cosa attaccare.
-- Analisi **ricorsiva e ordinata** su **42 tool**: `file`, `exiftool`,
+- Analisi **ricorsiva e ordinata** su **45 tool**: `file`, `exiftool`,
   `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
   `nested-archive` (catene di archivi annidati), `7z`, `office` (unzip parti
   Office/OpenDocument + base64 separato da spazi), `pngcheck`, `png-repair`,
   `image-repair` (JPEG/BMP header/altezza),
   `qr`, `pcap` (con decifratura TLS se fornita la chiave), `zsteg`,
-  `psimage` (Invoke-PSImage LSB di B/G), `steghide`,
+  `psimage` (Invoke-PSImage LSB di B/G), `elf`/`readelf`/`objdump` (struttura ELF,
+  checksec, disassemblaggio), `steghide`,
   `outguess`, `jsteg`, `png-chunks`, `openstego`, `bit-planes`,
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff +
   decodifica delay + OCR per frame), `ocr` (tesseract), `morse`,
