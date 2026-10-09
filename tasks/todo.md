@@ -79,7 +79,7 @@
       struttura, **checksec** RELRO/Canary/NX/PIE/Fortify, disassemblaggio) +
       **attiva** nel container **`rev`** (profilo `rev`, :19018): sandbox isolato
       (rete interna senza internet, `cap_drop: ALL`) con gdb/strace/ltrace/pwntools/
-      qemu-user da **terminale web** (ttyd). Tool StegSuite **45**.
+      qemu-user + **Ghidra headless** da **terminale web** (ttyd). Tool StegSuite **45**.
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

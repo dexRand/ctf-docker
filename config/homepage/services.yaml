@@ -35,7 +35,7 @@
     - ELF sandbox (rev):
         icon: mdi-bug-check
         href: http://localhost:19018
-        description: Analisi attiva di ELF in sandbox (gdb, strace, ltrace, pwntools, qemu-user) da terminale web — rete isolata (profilo rev)
+        description: Analisi attiva di ELF in sandbox (Ghidra headless, gdb, strace, ltrace, pwntools, qemu-user) da terminale web — rete isolata (profilo rev)
         container: ctf-rev-1
 
 - Recon (OSINT):

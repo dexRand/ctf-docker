@@ -21,8 +21,8 @@ on-demand). Il token serve con scope **`workflow`**.
   RELRO/Canary/NX/PIE/Fortify, parsing pure-python di header/program headers),
   **`readelf`** e **`objdump`** (disassemblaggio) dentro StegSuite → tool **45**.
   Container **`rev`** (profilo `rev`, porta **19018**) per l'analisi **attiva**:
-  sandbox isolato (`pwntools` + gdb/strace/ltrace + qemu-user) con **terminale web**
-  (ttyd), rete interna **senza internet**, `cap_drop: ALL` + `SYS_PTRACE`,
+  sandbox isolato (`pwntools` + gdb/strace/ltrace + qemu-user + **Ghidra headless**) con
+  **terminale web** (ttyd; `ghidra-decompile` per decompilare), rete interna **senza internet**, `cap_drop: ALL` + `SYS_PTRACE`,
   no-new-privileges, limiti mem/cpu/pids.
 - **P27 MacroHard WeakEdge risolta (analyzer `office`)**: nuovo tool **`office`**
   che scompatta i documenti **Office/OpenDocument** (`.pptm/.docm/.docx/.xlsx/.odt…`)

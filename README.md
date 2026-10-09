@@ -61,7 +61,7 @@ It is designed to live next to other self-hosted apps: every service runs on the
 | Crypto | SageMath | http://localhost:19010 | Python/Sage notebook for crypto and math | `crypto` |
 | Forensics | Wireshark | http://localhost:19008 | Packet / pcap analysis with a web GUI | `forensics` |
 | Audio | **Whisper-WebUI** | http://localhost:19017 | Speech-to-text with timestamps (SRT/VTT/…) via Whisper · outputs in `./data/whisper/outputs` | `audio` |
-| Pwn/Rev | **ELF sandbox** | http://localhost:19018 | Run/debug untrusted ELF from a web terminal (gdb, strace, ltrace, pwntools, qemu-user) · isolated network | `rev` |
+| Pwn/Rev | **ELF sandbox** | http://localhost:19018 | Run/debug/decompile untrusted ELF from a web terminal (Ghidra headless, gdb, strace, ltrace, pwntools, qemu-user) · isolated network | `rev` |
 
 > Deliberately excluded because they have no reliable upstream GUI image:
 > Burp Suite, Ghidra, Autopsy, Volatility, hashcat/john (CLI tools, already on Kali).
@@ -159,7 +159,7 @@ ctf                     CLI wrapper (up / up-all / down / status / logs)
 config/homepage/        dashboard config (services / settings / widgets)
 config/zap/             ZAP working dir (certificates)
 config/whisper/         Whisper-WebUI default config (profile `audio`)
-rev/                    ELF active-analysis sandbox (ttyd + gdb/qemu, profile `rev`)
+rev/                    ELF active-analysis sandbox (ttyd + Ghidra headless + gdb/qemu, profile `rev`)
 SPEC.md                 specification
 tasks/                  plan.md + todo.md
 .opencode/              Agent Skills (MIT — see ATTRIBUTION.md)
