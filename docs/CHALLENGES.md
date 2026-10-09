@@ -48,6 +48,7 @@ B21 = https://raw.githubusercontent.com/HHousen/PicoCTF-2021/master/Forensics
 B22 = https://raw.githubusercontent.com/HHousen/PicoCTF-2022/master/Forensics
 OLI = https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/NETWORK
 OLIM = https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/Olimpiadi Italiane di Cybersecurity
+SW = https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/SOFTWARE
 ```
 
 ### OliCyber / ITS (training) — mirror pubblico
@@ -80,9 +81,24 @@ Dallo stesso mirror, sezione "Olimpiadi" (artifact reali + `flags.txt`).
 | Dashed | `dashed.txt` | `flag{PNRFNE_ZR!-y0u_G07_iT_r1ghT!}` | Morse + rot13 |
 | Zipception | `flag0.zip` | `flag{Un0_z1p_d3n7r0_un0_z1p_1mp0551b1l3!}` | archivi annidati |
 | easy stream | `easy_stream.pcapng` | `flag{1sto3asy}` | follow stream |
+| Useless | `capture.pcapng` | `flag{4lw4y5_ch3ck_th3_c0mm3nt5}` | commenti pcapng |
+| Sicurezza dei trasporti | `capture.pcapng` + `keys.log` | `flag{tls_is_really_hard}` | TLS keylog |
 
-*(Altre Olimpiadi — Zipception 2.0, Suoni misteriosi, C-H-A-O-S, Gab-Chan,
-Corrupted flag — restano non automatiche.)*
+*(Altre Olimpiadi — Zipception 2.0, Suoni misteriosi, Bel paesaggio, Bright sun,
+C-H-A-O-S, G4tto, Gab-Chan, Corrupted flag, wordwang — restano non automatiche.)*
+
+### OliCyber SOFTWARE (reversing) — mirror pubblico
+
+Binari reali; in 5 la flag è una **stringa nel binario** (la analizza anche il
+sandbox `rev`).
+
+| Challenge | File | Flag | Tecnica |
+|---|---|---|---|
+| SW_4 | `sw-04` | `flag{0cca06f6}` | stringa nel binario |
+| SW_8 | `sw-08` | `flag{e25b8bdf}` | stringa nel binario |
+| SW_9 | `sw-09` | `flag{01b81d48}` | stringa nel binario |
+| SW_10 | `sw-10` | `flag{0f32826c}` | stringa nel binario (esca `THisIsNotYourFlag`) |
+| SW_11 | `sw-11` | `flag{5a11b5a6}` | stringa nel binario |
 
 ### So Meta — EXIF `Artist`
 
@@ -239,7 +255,7 @@ docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
   /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 25/25
 
 # challenge reali (host: scaricano i file da sole)
-python3 app/tests/real_challenges.py                        # → 23/23
+python3 app/tests/real_challenges.py                        # → 30/30
 
 # verifica INDIPENDENTE: per ogni (artifact, writeup) confronta la flag trovata
 # con quella dichiarata dal writeup per QUELL'artifact; include una seconda

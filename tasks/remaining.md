@@ -9,7 +9,7 @@ cd <repo>                               # es. /home/r/__Github/CTF
 ./ctf up                                # core (Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser)
 ./ctf up web                            # + ZAP (con add-on extra)   [recon|crypto|forensics|crack|audio|rev]
 ./ctf urls                              # URL di tutti i servizi
-./ctf test                              # regressione 25/25 + reali 23/23 + verify ALL CORRECT
+./ctf test                              # regressione 25/25 + reali 30/30 + verify ALL CORRECT
 ./ctf ui-smoke                          # smoke test della SPA (Chromium headless in Docker)
 docker compose config -q                # valida il compose
 ```
@@ -24,7 +24,8 @@ on-demand). Il token serve con scope **`workflow`**.
   non solo `CLIENT_RANDOM`), **header HTTP/2** decifrati, **commenti pcapng**
   estratti. *NW_6/NW_7/NW_10 restano manuali.* In più **4 challenge Olimpiadi
   Italiane di Cybersecurity** (mirror pubblico): Byte-flag, Dashed, Zipception,
-  easy stream → **reali 23/23**.
+  easy stream → **reali 30/30** (incl. 5 binari SOFTWARE con flag in chiaro e
+  "Sicurezza dei trasporti" con keylog TLS).
 - **P29 Surfing the Waves risolta (analyzer `wav-levels`)**: nuovo tool che rileva
   **campioni WAV quantizzati a livelli discreti** (trova il numero di livelli dallo
   span) e li mappa a **cifre hex** → decodifica i byte. Aggiunta ai test reali
@@ -382,7 +383,7 @@ app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/frontend/src/toast.js      # store toast globale
 app/frontend/src/components/Toasts.vue  # rendering toast
 app/tests/ctf_regression.py    # 25/25 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap, openstego, psimage, office, wav-levels)
-app/tests/real_challenges.py   # 23/23 (picoCTF 13 + OliCyber/Olimpiadi 10; incl. TLS1.3 keylog, pcapng comments)
+app/tests/real_challenges.py   # 30/30 (picoCTF 13 + OliCyber/Olimpiadi 17; incl. TLS keylog, pcapng comments, ELF binaries)
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
 app/tests/ui_smoke.mjs         # smoke test UI (Playwright/Chromium) + ui_smoke.sh
 app/tests/fixtures/            # challenge.png + webnet0/{capture.pcap, picopico.key}

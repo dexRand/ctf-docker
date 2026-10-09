@@ -26,6 +26,7 @@ B22 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2022/master/Forensics"
 # challenge artifacts come from a public write-up mirror instead.
 OLI = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/NETWORK"
 OLIM = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/Olimpiadi Italiane di Cybersecurity"
+SW = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/SOFTWARE"
 
 CASES = [
     ("pico_img.png", f"{B19}/So Meta/pico_img.png", "picoCTF{s0_m3ta_43f253bb}"),
@@ -61,6 +62,13 @@ CASES = [
     ("dashed.txt", f"{OLIM}/MISCELLANEOUS/Dashed/dashed.txt", "flag{PNRFNE_ZR!-y0u_G07_iT_r1ghT!}"),
     ("flag0.zip", f"{OLIM}/MISCELLANEOUS/Zipception/flag0.zip", "flag{Un0_z1p_d3n7r0_un0_z1p_1mp0551b1l3!}"),
     ("easy_stream.pcapng", f"{OLIM}/NETWORK/easy stream/easy_stream.pcapng", "flag{1sto3asy}"),
+    ("useless.pcapng", f"{OLIM}/NETWORK/Useless/capture.pcapng", "flag{4lw4y5_ch3ck_th3_c0mm3nt5}"),
+    # --- OliCyber SOFTWARE (reversing binaries, flag embedded as a string) ---
+    ("sw-04", f"{SW}/SW_4/sw-04", "flag{0cca06f6}"),
+    ("sw-08", f"{SW}/SW_8/sw-08", "flag{e25b8bdf}"),
+    ("sw-09", f"{SW}/SW_9/sw-09", "flag{01b81d48}"),
+    ("sw-10", f"{SW}/SW_10/sw-10", "flag{0f32826c}"),
+    ("sw-11", f"{SW}/SW_11/sw-11", "flag{5a11b5a6}"),
 ]
 
 # multi-file challenges: (label, [(filename, url), ...], expected flag)
@@ -77,6 +85,10 @@ MULTI = [
     ("nw09-tls", [("nw-intro09.pcapng", f"{OLI}/NW_9/nw-intro09.pcapng"),
                   ("tls-keys.log", f"{OLI}/NW_9/tls-keys.log")],
      "flag{S3cr3t_K3y5_4re_n0_J0k3}"),
+    # Olimpiadi NETWORK: TLS with a keylog -> decrypted request
+    ("trasporti-tls", [("capture.pcapng", f"{OLIM}/NETWORK/Sicurezza dei trasporti/capture.pcapng"),
+                       ("keys.log", f"{OLIM}/NETWORK/Sicurezza dei trasporti/keys.log")],
+     "flag{tls_is_really_hard}"),
 ]
 
 
