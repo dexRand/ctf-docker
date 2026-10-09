@@ -147,7 +147,7 @@ DEFAULT_PLAN = [
     "ocr", "qr",
     "zsteg", "psimage", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
-    "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "sstv",
+    "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
     "pcap",
     "nested-archive", "7z", "office", "binwalk-extract", "foremost", "pngcheck",
     "png-repair", "image-repair",

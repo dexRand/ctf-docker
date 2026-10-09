@@ -1,6 +1,6 @@
 # Remaining work — StegSuite
 
-> Documento di ripresa. **Stato (2026-10-09): sezioni A–G e P15–P28 chiusi**;
+> Documento di ripresa. **Stato (2026-10-09): sezioni A–G e P15–P29 chiusi**;
 > resta fuori scope solo OSINT (delegato). Qui sotto la storia e i limiti noti.
 
 ## Come riprendere
@@ -9,7 +9,7 @@ cd <repo>                               # es. /home/r/__Github/CTF
 ./ctf up                                # core (Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser)
 ./ctf up web                            # + ZAP (con add-on extra)   [recon|crypto|forensics|crack|audio|rev]
 ./ctf urls                              # URL di tutti i servizi
-./ctf test                              # regressione 24/24 + reali 12/12 + verify ALL CORRECT
+./ctf test                              # regressione 25/25 + reali 13/13 + verify ALL CORRECT
 ./ctf ui-smoke                          # smoke test della SPA (Chromium headless in Docker)
 docker compose config -q                # valida il compose
 ```
@@ -17,6 +17,10 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P29 Surfing the Waves risolta (analyzer `wav-levels`)**: nuovo tool che rileva
+  **campioni WAV quantizzati a livelli discreti** (trova il numero di livelli dallo
+  span) e li mappa a **cifre hex** → decodifica i byte. Aggiunta ai test reali
+  (→ **13/13**) + caso fixture `wav-levels` (→ regressione **25/25**); tool **46**.
 - **P28 Analisi ELF (passiva + attiva)**: analyzer **`elf`** (struttura + **checksec**
   RELRO/Canary/NX/PIE/Fortify, parsing pure-python di header/program headers),
   **`readelf`** e **`objdump`** (disassemblaggio) dentro StegSuite → tool **45**.
@@ -363,14 +367,14 @@ app/backend/retention.py       # cancellazione progetti oltre RETENTION_DAYS
 app/backend/api/*.py           # router: system, projects, analysis, tools, cracking, ws
 app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
-app/backend/analyzers/*.py     # 45 tool (un file, auto-registered)
+app/backend/analyzers/*.py     # 46 tool (un file, auto-registered)
 app/backend/analyzers/elf.py   # analyzer ELF passivi (elf/readelf/objdump)
 rev/Dockerfile                 # sandbox ELF attivo (pwntools + ttyd + qemu)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/frontend/src/toast.js      # store toast globale
 app/frontend/src/components/Toasts.vue  # rendering toast
-app/tests/ctf_regression.py    # 24/24 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap, openstego, psimage, office)
-app/tests/real_challenges.py   # 12/12 picoCTF (incl. WebNet0/1: pcap+TLS key; Very very very Hidden, MacroHard WeakEdge)
+app/tests/ctf_regression.py    # 25/25 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap, openstego, psimage, office, wav-levels)
+app/tests/real_challenges.py   # 13/13 picoCTF (incl. WebNet0/1: pcap+TLS key; Very very very Hidden, MacroHard WeakEdge, Surfing the Waves)
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
 app/tests/ui_smoke.mjs         # smoke test UI (Playwright/Chromium) + ui_smoke.sh
 app/tests/fixtures/            # challenge.png + webnet0/{capture.pcap, picopico.key}

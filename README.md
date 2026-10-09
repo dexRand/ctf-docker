@@ -172,7 +172,7 @@ http://localhost:19014 (localhost only).
 
 - **Auto / Check** modes: Auto runs everything and tries every wordlist; Check
   first scans, then lets you choose what to attack.
-- **Recursive, ordered** analysis over **45 tools**: `file`, `exiftool`,
+- **Recursive, ordered** analysis over **46 tools**: `file`, `exiftool`,
   `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
   `nested-archive` (deep archive chains), `7z`, `office` (unzip Office/OpenDocument
@@ -184,7 +184,7 @@ http://localhost:19014 (localhost only).
   `png-chunks`, `openstego`, `bit-planes`,
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff + delay
   decode + per-frame OCR), `ocr` (tesseract), `spectrogram`, `waveform`,
-  `wav-lsb`, `morse`, `morse-text`, `dtmf`, `sstv` (Scottie S1/S2).
+  `wav-lsb`, `wav-levels` (quantised samples → hex), `morse`, `morse-text`, `dtmf`, `sstv` (Scottie S1/S2).
 - **GUI**: terminal-themed, defaults to **English** with an any-time **EN/IT**
   switch (choice persisted), file tree, per-tool output, extracted children,
   image/audio previews, live per-file **progress**, **toasts**, live log over

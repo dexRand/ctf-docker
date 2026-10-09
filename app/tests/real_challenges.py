@@ -43,6 +43,9 @@ CASES = [
     # -> the `office` analyzer unzips the parts and decodes whitespace-split base64
     ("mmwe.pptm", f"{B21}/MacroHard WeakEdge/Forensics is fun.pptm",
      "picoCTF{D1d_u_kn0w_ppts_r_z1p5}"),
+    # WAV: samples quantised into 16 levels encode a hex string -> wav-levels
+    ("main.wav", f"{B21}/Surfing the Waves/main.wav",
+     "picoCTF{mU21C_1s_1337_115155af}"),
 ]
 
 # multi-file challenges: (label, [(filename, url), ...], expected flag)

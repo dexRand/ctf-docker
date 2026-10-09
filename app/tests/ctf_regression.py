@@ -388,6 +388,21 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
         z.writestr("ppt/slideMasters/hidden", spaced)
     cases.append(("office", p, flag24))
 
+    # 25) WAV whose samples are quantised levels encoding a hex string -> wav-levels
+    import struct as _struct2
+    import wave as _wave3
+    flag25 = "ITS{wav_levels_25}"
+    hexs = f"flag: {flag25}".encode().hex()
+    rng25 = np.random.default_rng(7)
+    samps = [1000 + int(c, 16) * 500 + int(rng25.integers(-12, 13)) for c in hexs]
+    p = TMP / "levels.wav"
+    with _wave3.open(str(p), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(8000)
+        w.writeframes(_struct2.pack("<" + "h" * len(samps), *samps))
+    cases.append(("wav-levels", p, flag25))
+
     return cases
 
 

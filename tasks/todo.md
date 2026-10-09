@@ -75,6 +75,9 @@
       icone uniformi monocromatiche, card di pari altezza e **favicon `>_`**
       (sovrascritti i default di Homepage). Immagini aggiornate (`filebrowser`,
       `wireshark`).
+- [x] **Analyzer `wav-levels`**: rileva WAV con campioni **quantizzati a pochi
+      livelli** e li mappa a cifre **hex** → decodifica i byte. Risolve *Surfing the
+      Waves* (reali **13/13**, regressione **25/25**, tool **46**).
 - [x] **Analisi ELF**: **passiva** in StegSuite (analyzer `elf`/`readelf`/`objdump`:
       struttura, **checksec** RELRO/Canary/NX/PIE/Fortify, disassemblaggio) +
       **attiva** nel container **`rev`** (profilo `rev`, :19018): sandbox isolato
