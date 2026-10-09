@@ -75,10 +75,35 @@ def repair_jpeg(data: bytes, log: list[str]) -> bytes | None:
     return data + _JPEG_EOI
 
 
+_IMG_MAGICS = (b"\x89PNG\r\n\x1a\n", b"GIF87a", b"GIF89a", b"BM", b"\xff\xd8")
+_EMBED_MAGICS = ((b"GIF89a", ".gif"), (b"GIF87a", ".gif"),
+                 (b"\x89PNG\r\n\x1a\n", ".png"), (b"\xff\xd8\xff", ".jpg"))
+
+
+def carve_embedded(data: bytes, log: list[str], max_off: int = 64) -> tuple[bytes, str]:
+    """If an image magic appears just after some leading garbage, slice from it.
+
+    Covers the "corrupted file" trick: a valid GIF/PNG/JPEG preceded by a short
+    junk prefix, so the file no longer starts with its magic.
+    """
+    if data.startswith(_IMG_MAGICS):
+        return data, ""
+    best: tuple[int, bytes, str] | None = None
+    for magic, ext in _EMBED_MAGICS:
+        i = data.find(magic, 1, max_off + len(magic))
+        if i > 0 and (best is None or i < best[0]):
+            best = (i, data[i:], ext)
+    if best is None:
+        return data, ""
+    off, sliced, ext = best
+    log.append(f"{ext} data found at offset {off}: sliced off {off} byte(s)")
+    return sliced, ext
+
+
 class ImageRepairAnalyzer(Analyzer):
     name = "image-repair"
     category = "extract"
-    description = "Repair corrupted JPEG/BMP images (BMP header, height, JPEG EOI)."
+    description = "Repair corrupted JPEG/BMP/PNG/GIF images (header, height, EOI, junk prefix)."
     # accepts everything: a corrupted image may have a wrong/absent extension
     # and `file` may not recognise it. We gate internally on signatures.
     accepts = ()
@@ -98,9 +123,13 @@ class ImageRepairAnalyzer(Analyzer):
             jpg = repair_jpeg(data, log)
             if jpg is not None:
                 fixed, ext = jpg, ".jpg"
+            else:
+                carved, cext = carve_embedded(data, log)
+                if cext:
+                    fixed, ext = carved, cext
         if fixed is None:
             return ToolResult(self.name, status="skipped",
-                              summary="not a repairable JPEG/BMP")
+                              summary="not a repairable JPEG/BMP/PNG/GIF")
         if fixed == data:
             return ToolResult(self.name, status="done", summary="image already valid",
                               output="\n".join(log))

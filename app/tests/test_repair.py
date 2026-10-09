@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import struct
 
-from backend.analyzers.repair import repair_bmp, repair_jpeg
+from backend.analyzers.repair import carve_embedded, repair_bmp, repair_jpeg
 
 
 def make_bmp(width: int, height: int, bpp: int = 24) -> bytearray:
@@ -81,3 +81,24 @@ def test_jpeg_missing_eoi_is_appended() -> None:
 def test_valid_jpeg_stays_unchanged() -> None:
     data = b"\xff\xd8" + b"\x00" * 40 + b"\xff\xd9"
     assert repair_jpeg(data, []) == data
+
+
+def test_carve_embedded_gif_after_junk_prefix() -> None:
+    # picoCTF/Olimpiadi "corrupted file": 8 junk bytes before a valid GIF
+    gif = b"GIF89a" + b"\x00" * 64
+    log: list[str] = []
+    sliced, ext = carve_embedded(b"GHIF_O_G" + gif, log)
+    assert ext == ".gif"
+    assert sliced == gif
+    assert any("offset 8" in l for l in log)
+
+
+def test_carve_leaves_valid_images_alone() -> None:
+    png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+    data, ext = carve_embedded(png, [])
+    assert ext == "" and data == png
+
+
+def test_carve_finds_nothing_in_random_data() -> None:
+    data, ext = carve_embedded(b"\x00\x01\x02" + b"random bytes" * 10, [])
+    assert ext == "" and data == b"\x00\x01\x02" + b"random bytes" * 10
