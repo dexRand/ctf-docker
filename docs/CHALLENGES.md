@@ -46,7 +46,28 @@ Mirror usati:
 B19 = https://raw.githubusercontent.com/HHousen/PicoCTF-2019/master/Forensics
 B21 = https://raw.githubusercontent.com/HHousen/PicoCTF-2021/master/Forensics
 B22 = https://raw.githubusercontent.com/HHousen/PicoCTF-2022/master/Forensics
+OLI = https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/NETWORK
 ```
+
+### OliCyber / ITS (training) — mirror pubblico
+
+Le piattaforme `training.olicyber.it` e `training.itscybergame.it` richiedono il
+**login**, quindi i file vengono da un **mirror pubblico di write-up**
+(`00xFE/Olicyber`). Sono le challenge "Network" introduttive.
+
+| Challenge | File | Flag | Tecnica |
+|---|---|---|---|
+| OLI NW_1 | `nw-intro01.pcap` | `flag{Y0u_kn0w_Wh4t_a_Pc4p_1s}` | stringhe nel pcap |
+| OLI NW_3 | `nw-intro03.pcapng` | `flag{L3aRn1N9_4b0uT_F1lter5_p1}` | filtro HTTP |
+| OLI NW_4 | `nw-intro03.pcapng` | `flag{L3aRn1N9_4b0uT_F1lter5_1P_DN5_f1lt3r}` | filtro DNS |
+| OLI NW_5 | `nw-intro03.pcapng` | `flag{L3aRn1N9_4b0uT_F1lter5_C0mm3Nt5_4R3_H4rd_t0_f1nD}` | commenti pcapng |
+| OLI NW_8 | `nw-intro08.pcap` | `flag{Byt35_Ex7rAct10n_1s_3a5y!}` | estrazione byte |
+| OLI NW_9 | `nw-intro09.pcapng` + `tls-keys.log` | `flag{S3cr3t_K3y5_4re_n0_J0k3}` | keylog **TLS 1.3** → header **HTTP/2** |
+
+Le NW_6/NW_7/NW_10 (stringhe mirate, follow del flusso TCP, PNG esadecimale nel
+POST) restano non automatiche. Due migliorie al `pcap` sono nate da qui: keylog
+**TLS 1.3** riconosciuto (label `*_TRAFFIC_SECRET*`, non solo `CLIENT_RANDOM`),
+**header HTTP/2** decifrati e **commenti pcapng** estratti.
 
 ### So Meta — EXIF `Artist`
 
@@ -203,7 +224,7 @@ docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
   /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 25/25
 
 # challenge reali (host: scaricano i file da sole)
-python3 app/tests/real_challenges.py                        # → 13/13
+python3 app/tests/real_challenges.py                        # → 19/19
 
 # verifica INDIPENDENTE: per ogni (artifact, writeup) confronta la flag trovata
 # con quella dichiarata dal writeup per QUELL'artifact; include una seconda

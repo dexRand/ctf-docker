@@ -38,7 +38,8 @@ def _key_files(ctx: ToolContext) -> list[Path]:
             except OSError:
                 continue
             if (b"PRIVATE KEY-----" in head or b"CLIENT_RANDOM" in head
-                    or b"sslkeylog" in head.lower()):
+                    or b"TRAFFIC_SECRET" in head or b"EXPORTER_SECRET" in head
+                    or b"SSLKEYLOGFILE" in head or b"sslkeylog" in head.lower()):
                 found.append(p)
     seen: set[tuple] = set()
     uniq: list[Path] = []
@@ -58,7 +59,9 @@ def _tls_options(keys: list[Path]) -> list[str]:
             head = k.read_bytes()[:4096]
         except OSError:
             continue
-        if b"CLIENT_RANDOM" in head:
+        # a keylog file has CLIENT_RANDOM (TLS1.2) or the TLS1.3 *_SECRET labels
+        if (b"CLIENT_RANDOM" in head or b"TRAFFIC_SECRET" in head
+                or b"EXPORTER_SECRET" in head or b"SSLKEYLOGFILE" in head):
             opts += ["-o", f"tls.keylog_file:{k}"]
         else:
             opts += ["-o", f"tls.keys_list:0.0.0.0,0,http,{k}"]
@@ -194,6 +197,21 @@ class PcapAnalyzer(Analyzer):
                     x for x in (_expand_http_response(l) for l in rows) if x)
                 if plain:
                     parts.append("== TLS decrypted (key) ==\n" + plain[:20000])
+        # HTTP/2 sits behind TLS; tshark decodes its headers (custom headers such
+        # as `flag-header` carry the flag). Only meaningful with a key.
+        if tls:
+            proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-Y", "http2",
+                            "-T", "fields", "-e", "http2.header.name",
+                            "-e", "http2.header.value"], timeout=180)
+            rows = [l for l in (proc.stdout or "").splitlines() if l.strip()]
+            if rows:
+                parts.append("== TLS decrypted (HTTP/2) ==\n" + "\n".join(rows)[:20000])
+        # pcapng per-packet comments often hide a flag ("comments are hard to find")
+        proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields",
+                        "-e", "frame.comment"], timeout=180)
+        comments = [l.strip() for l in (proc.stdout or "").splitlines() if l.strip()]
+        if comments:
+            parts.append("== comments ==\n" + "\n".join(dict.fromkeys(comments))[:12000])
         # flags are often in request URIs or raw HTTP bodies
         proc = ctx.run([
             "tshark", "-r", str(ctx.input), *tls, "-T", "fields",

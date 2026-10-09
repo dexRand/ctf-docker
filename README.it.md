@@ -175,7 +175,8 @@ http://localhost:19014 (solo localhost).
   `nested-archive` (catene di archivi annidati), `7z`, `office` (unzip parti
   Office/OpenDocument + base64 separato da spazi), `pngcheck`, `png-repair`,
   `image-repair` (JPEG/BMP header/altezza),
-  `qr`, `pcap` (con decifratura TLS se fornita la chiave), `zsteg`,
+  `qr`, `pcap` (con decifratura TLS se fornita la chiave **o un keylog TLS 1.3**,
+  header HTTP/2, commenti pcapng), `zsteg`,
   `psimage` (Invoke-PSImage LSB di B/G), `elf`/`readelf`/`objdump` (struttura ELF,
   checksec, disassemblaggio), `steghide`,
   `outguess`, `jsteg`, `png-chunks`, `openstego`, `bit-planes`,

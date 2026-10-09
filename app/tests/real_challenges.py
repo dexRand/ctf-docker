@@ -22,6 +22,9 @@ DEST = Path("/tmp/realch")
 B19 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2019/master/Forensics"
 B21 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2021/master/Forensics"
 B22 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2022/master/Forensics"
+# OliCyber / ITS training (https://training.olicyber.it) require a login; these
+# challenge artifacts come from a public write-up mirror instead.
+OLI = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/NETWORK"
 
 CASES = [
     ("pico_img.png", f"{B19}/So Meta/pico_img.png", "picoCTF{s0_m3ta_43f253bb}"),
@@ -46,6 +49,12 @@ CASES = [
     # WAV: samples quantised into 16 levels encode a hex string -> wav-levels
     ("main.wav", f"{B21}/Surfing the Waves/main.wav",
      "picoCTF{mU21C_1s_1337_115155af}"),
+    # --- OliCyber / ITS training (public write-up mirror) ---
+    ("nw-intro01.pcap", f"{OLI}/NW_1/nw-intro01.pcap", "flag{Y0u_kn0w_Wh4t_a_Pc4p_1s}"),
+    ("nw03-http.pcapng", f"{OLI}/NW_3/nw-intro03.pcapng", "flag{L3aRn1N9_4b0uT_F1lter5_p1}"),
+    ("nw04-dns.pcapng", f"{OLI}/NW_4/nw-intro03.pcapng", "flag{L3aRn1N9_4b0uT_F1lter5_1P_DN5_f1lt3r}"),
+    ("nw05-comments.pcapng", f"{OLI}/NW_5/nw-intro03.pcapng", "flag{L3aRn1N9_4b0uT_F1lter5_C0mm3Nt5_4R3_H4rd_t0_f1nD}"),
+    ("nw-intro08.pcap", f"{OLI}/NW_8/nw-intro08.pcap", "flag{Byt35_Ex7rAct10n_1s_3a5y!}"),
 ]
 
 # multi-file challenges: (label, [(filename, url), ...], expected flag)
@@ -58,6 +67,10 @@ MULTI = [
     ("webnet1", [("capture.pcap", f"{B19}/WebNet1/capture.pcap"),
                  ("picopico.key", f"{B19}/WebNet1/picopico.key")],
      "picoCTF{honey.roasted.peanuts}"),
+    # TLS1.3 keylog (not CLIENT_RANDOM): the flag is in a decrypted HTTP/2 header
+    ("nw09-tls", [("nw-intro09.pcapng", f"{OLI}/NW_9/nw-intro09.pcapng"),
+                  ("tls-keys.log", f"{OLI}/NW_9/tls-keys.log")],
+     "flag{S3cr3t_K3y5_4re_n0_J0k3}"),
 ]
 
 

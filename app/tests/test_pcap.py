@@ -96,6 +96,25 @@ def test_tls_options_for_rsa_and_keylog(tmp_path: Path) -> None:
     assert any(o.startswith("tls.keylog_file:") for o in opts)
 
 
+def test_tls13_keylog_without_client_random_is_detected(tmp_path: Path) -> None:
+    # TLS 1.3 keylog files have no CLIENT_RANDOM line, only *_TRAFFIC_SECRET*
+    proj = tmp_path / "p13"
+    (proj / "uploads").mkdir(parents=True)
+    (proj / "files").mkdir()
+    work = proj / "work" / "1"
+    work.mkdir(parents=True)
+    cap = proj / "files" / "0001__capture.pcapng"
+    cap.write_bytes(b"\x0a\x0d\x0d\x0a")
+    (proj / "uploads" / "tls-keys.log").write_bytes(
+        b"CLIENT_TRAFFIC_SECRET_0 aa bb\n"
+        b"SERVER_HANDSHAKE_TRAFFIC_SECRET cc dd\nEXPORTER_SECRET ee ff\n")
+    ctx = ToolContext(input=cap, workdir=work)
+    keys = _key_files(ctx)
+    assert any(k.name == "tls-keys.log" for k in keys)
+    opts = _tls_options(keys)
+    assert any(o.startswith("tls.keylog_file:") for o in opts)
+
+
 def test_expand_http_response_splits_headers_on_one_line_each() -> None:
     # tshark joins response header lines with ',' inside the field value
     row = ("https://host/\tDate: Fri, 23 Aug 2019 15:56:36 GMT\\r\\n,Server: Apache\\r\\n,"
