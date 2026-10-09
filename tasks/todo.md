@@ -77,7 +77,9 @@
       `wireshark`).
 - [x] **Analyzer `wav-levels`**: rileva WAV con campioni **quantizzati a pochi
       livelli** e li mappa a cifre **hex** → decodifica i byte. Risolve *Surfing the
-      Waves* (reali **31/31**, regressione **25/25**, tool **47**).
+      Waves* (reali **32/32**, regressione **25/25**, tool **48**).
+- [x] **Analyzer `lsb-carve`**: file nascosto nei piani LSB + password da file
+      "fratello" → risolve *Gab-Chan* (tool **48**).
 - [x] **Challenge OliCyber/ITS + Olimpiadi + SOFTWARE**: 18 reali da mirror
       pubblico (`training.olicyber.it` richiede login) → reali **31/31**.
 - [x] **Analyzer `git`**: repo git dentro uno zip → storia/refs/reflog/oggetti →
@@ -87,6 +89,15 @@
       **attiva** nel container **`rev`** (profilo `rev`, :19018): sandbox isolato
       (rete interna senza internet, `cap_drop: ALL`) con gdb/strace/ltrace/pwntools/
       qemu-user + **Ghidra headless** da **terminale web** (ttyd). Tool StegSuite **45**.
+
+### Da fare (prossima sessione)
+- [ ] **Frame GIF → analizzarli come figli**: `gif-frames` oggi salva i frame come
+      *artifact* e fa una sola passata OCR; per *Corrupted flag* la flag sta in un
+      frame estratto ma non viene letta. Far girare su ogni frame il pipeline vero
+      (`bit-planes`, `zsteg`, `channel-remap`, `image-enhance`) — con un tetto ai
+      frame per non appesantire.
+- [ ] **`./ctf dork`** / tool **dorking** (richiesta utente): generatore di query
+      Google/GitHub/Shodan da un target. *(valutare scope OSINT.)*
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

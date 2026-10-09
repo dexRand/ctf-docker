@@ -169,7 +169,7 @@ http://localhost:19014 (solo localhost).
 
 - Modalità **Auto / Check**: Auto fa tutto e prova tutte le wordlist; Check
   scansiona e poi ti fa scegliere cosa attaccare.
-- Analisi **ricorsiva e ordinata** su **47 tool**: `file`, `exiftool`,
+- Analisi **ricorsiva e ordinata** su **48 tool**: `file`, `exiftool`,
   `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
   `nested-archive` (catene di archivi annidati), `7z`, `git` (storia/reflog/oggetti
@@ -178,7 +178,8 @@ http://localhost:19014 (solo localhost).
   `image-repair` (JPEG/BMP header/altezza),
   `qr`, `pcap` (con decifratura TLS se fornita la chiave **o un keylog TLS 1.3**,
   header HTTP/2, commenti pcapng), `zsteg`,
-  `psimage` (Invoke-PSImage LSB di B/G), `elf`/`readelf`/`objdump` (struttura ELF,
+  `psimage` (Invoke-PSImage LSB di B/G), `lsb-carve` (estrae un file nascosto dai
+  piani LSB), `elf`/`readelf`/`objdump` (struttura ELF,
   checksec, disassemblaggio), `steghide`,
   `outguess`, `jsteg`, `png-chunks`, `openstego`, `bit-planes`,
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff +

@@ -172,7 +172,7 @@ http://localhost:19014 (localhost only).
 
 - **Auto / Check** modes: Auto runs everything and tries every wordlist; Check
   first scans, then lets you choose what to attack.
-- **Recursive, ordered** analysis over **47 tools**: `file`, `exiftool`,
+- **Recursive, ordered** analysis over **48 tools**: `file`, `exiftool`,
   `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
   `nested-archive` (deep archive chains), `7z`, `git` (repo history/reflog/objects),
@@ -181,7 +181,8 @@ http://localhost:19014 (localhost only).
   `image-repair` (JPEG/BMP header/height),
   `qr` (zbarimg), `pcap` (tshark; TLS with a provided key **or a TLS 1.3 keylog**,
   HTTP/2 headers, pcapng comments), `zsteg`,
-  `psimage` (Invoke-PSImage B/G LSB), `elf`/`readelf`/`objdump` (ELF structure,
+  `psimage` (Invoke-PSImage B/G LSB), `lsb-carve` (carve a hidden file out of the
+  LSB planes), `elf`/`readelf`/`objdump` (ELF structure,
   checksec, disassembly), `steghide`, `outguess`, `jsteg`,
   `png-chunks`, `openstego`, `bit-planes`,
   `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff + delay

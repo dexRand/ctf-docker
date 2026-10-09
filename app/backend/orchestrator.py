@@ -145,7 +145,7 @@ DEFAULT_PLAN = [
     "binwalk-scan",
     "decode", "morse-text",
     "ocr", "qr",
-    "zsteg", "psimage", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
+    "zsteg", "lsb-carve", "psimage", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
     "pcap",

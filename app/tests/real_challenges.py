@@ -27,6 +27,7 @@ B22 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2022/master/Forensics"
 OLI = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/NETWORK"
 OLIM = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/Olimpiadi Italiane di Cybersecurity"
 SW = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/SOFTWARE"
+OLI23 = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/Olicyber 2023/Training camp 3"
 
 CASES = [
     ("pico_img.png", f"{B19}/So Meta/pico_img.png", "picoCTF{s0_m3ta_43f253bb}"),
@@ -90,6 +91,11 @@ MULTI = [
     ("trasporti-tls", [("capture.pcapng", f"{OLIM}/NETWORK/Sicurezza dei trasporti/capture.pcapng"),
                        ("keys.log", f"{OLIM}/NETWORK/Sicurezza dei trasporti/keys.log")],
      "flag{tls_is_really_hard}"),
+    # PNG with a password-protected zip hidden in the RGBA LSB (password in a
+    # sibling text file): lsb-carve extracts it, 7z uses the sibling password
+    ("gabchan", [("Gab-chan.png", f"{OLI23}/Gab-Chan/Gab-chan.png"),
+                 ("gabchan.txt", f"{OLI23}/Gab-Chan/gabchan.txt")],
+     "flag{n0n_3_m15c_s3nz4_s73g0}"),
 ]
 
 

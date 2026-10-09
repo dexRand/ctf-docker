@@ -70,6 +70,29 @@ class ForemostAnalyzer(Analyzer):
 ARCHIVE_EXT = (".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".cab", ".iso")
 
 
+def _sibling_passwords(ctx: ToolContext) -> list[str]:
+    """Passwords hinted by a small sibling *text* file (e.g. ``psw: ****``)."""
+    proj = ctx.workdir.parent.parent
+    out: list[str] = []
+    for sub in ("uploads", "files"):
+        d = proj / sub
+        if not d.is_dir():
+            continue
+        for p in sorted(d.iterdir()):
+            if not p.is_file() or p == ctx.input:
+                continue
+            try:
+                head = p.read_bytes()[:8192]
+            except OSError:
+                continue
+            if len(head) > 4096 or b"\x00" in head[:64]:
+                continue
+            m = re.search(rb"(?im)\b(?:psw|pass(?:word)?)\b\s*[:=]\s*(\S+)", head)
+            if m:
+                out.append(m.group(1).decode("latin-1", "replace").strip())
+    return out
+
+
 class SevenZipAnalyzer(Analyzer):
     name = "7z"
     category = "extract"
@@ -79,21 +102,16 @@ class SevenZipAnalyzer(Analyzer):
     accepts = ARCHIVE_EXT
     display_order = 220
 
-    def run(self, ctx: ToolContext) -> ToolResult:
-        if not which("7z"):
-            return ToolResult(self.name, status="skipped", summary="7z not installed")
+    def _try(self, ctx: ToolContext, password: str | None) -> ToolResult:
         d = ctx.sub(self.name)
-        proc = ctx.run(["7z", "x", "-y", f"-p{ctx.password or ''}", f"-o{d}", str(ctx.input)], timeout=600)
+        shutil.rmtree(d, ignore_errors=True)
+        proc = ctx.run(["7z", "x", "-y", f"-p{password or ''}", f"-o{d}", str(ctx.input)], timeout=600)
         blob = out_of(proc)
         low = blob.lower()
-        if proc.returncode != 0:
-            shutil.rmtree(d, ignore_errors=True)
-            files: list[Path] = []
-            if "can't open as archive" in low or "is not archive" in low:
-                return ToolResult(self.name, status="skipped", summary="not an archive", output=blob[-4000:])
-        else:
-            files = list_files(d)
-        needs = ("password" in low or "encrypted" in low or "wrong" in low) and proc.returncode != 0
+        if proc.returncode != 0 and ("can't open as archive" in low or "is not archive" in low):
+            return ToolResult(self.name, status="skipped", summary="not an archive", output=blob[-4000:])
+        files: list[Path] = list_files(d) if proc.returncode == 0 else []
+        needs = proc.returncode != 0 and ("password" in low or "encrypted" in low or "wrong" in low)
         return ToolResult(
             self.name,
             status="needs_password" if needs else ("done" if proc.returncode == 0 else "error"),
@@ -101,6 +119,19 @@ class SevenZipAnalyzer(Analyzer):
             summary="password required" if needs else f"{len(files)} file",
             extracted=[str(f) for f in files], artifacts=_arts(files, ctx.workdir),
         )
+
+    def run(self, ctx: ToolContext) -> ToolResult:
+        if not which("7z"):
+            return ToolResult(self.name, status="skipped", summary="7z not installed")
+        result = self._try(ctx, ctx.password)
+        if result.status == "done":
+            return result
+        # a password may be hinted by a small sibling text file (e.g. "psw: ...")
+        for pw in _sibling_passwords(ctx):
+            alt = self._try(ctx, pw)
+            if alt.status == "done":
+                return alt
+        return result
 
 
 subprocess_analyzer(
