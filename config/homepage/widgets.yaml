@@ -13,7 +13,7 @@
     uptime: true
 
 - datetime:
-    text_size: xl
+    text_size: md
     format:
       dateStyle: short
       timeStyle: short

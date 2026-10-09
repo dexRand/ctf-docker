@@ -53,9 +53,10 @@
 - [x] **Rimosso AperiSolve** (sostituito da StegSuite): tolti i servizi
       `web`/`worker`/`cron`/`initdb`/`postgres`/`redis`/`rqdashboard`, i volumi e
       le env. La base immagine di StegSuite/triage resta pinnata (toolset).
-- [x] **Homepage**: grafica sistemata — tema **emerald** + `statusStyle: dot`,
-      icone **mdi** (niente più PNG/logo rotti), gruppi a colonne, bookmark CTF
-      utili (via Reddit/YouTube), gruppo AperiSolve rimosso.
+- [x] **Homepage**: grafica sistemata — tema **hacker** (verde neon su nero,
+      monospace, scanline CRT) + `statusStyle: dot`, icone **mdi**
+      monocromatiche verdi, card uniformi (stessa altezza per riga), gruppi a
+      colonne, bookmark CTF utili (via Reddit/YouTube), gruppo AperiSolve rimosso.
 - [x] **Rimosso anche il vecchio Triage** (CLI + GUI su 19013; StegSuite lo
       sostituisce). FileBrowser resta come browser di `./data`; la cartella
       `third_party/` (zip2hashcat) resta in root perché la usa StegSuite.

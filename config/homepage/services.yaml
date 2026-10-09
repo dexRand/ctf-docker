@@ -10,12 +10,12 @@
         container: ctf-homepage-1
 
 - Analisi & Forensics:
-    - StegSuite (stego workbench):
+    - StegSuite:
         icon: mdi-image-search
         href: http://localhost:19014
         description: Analisi ricorsiva Auto/Check con GUI (albero file, tool, vision/OCR, terminale, grafo) e API REST
         container: ctf-stegsuite-1
-    - Data & reports (FileBrowser):
+    - FileBrowser:
         icon: mdi-file-tree
         href: http://localhost:19012
         description: Browser dei file in ./data — progetti StegSuite, estratti, report, wordlist
@@ -25,7 +25,7 @@
         href: http://localhost:19008
         description: Analisi pacchetti e file pcap con GUI web (profilo forensics)
         container: ctf-wireshark-1
-    - Whisper-WebUI (trascrizione audio):
+    - Whisper-WebUI:
         icon: mdi-microphone-message
         href: http://localhost:19017
         description: Trascrizione audio/video → testo e sottotitoli con timestamp (Whisper, SRT/VTT) — profilo audio · output in ./data/whisper/outputs
