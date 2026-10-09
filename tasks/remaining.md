@@ -378,7 +378,7 @@ app/tests/real_challenges.py   # 13/13 picoCTF (incl. WebNet0/1: pcap+TLS key; V
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
 app/tests/ui_smoke.mjs         # smoke test UI (Playwright/Chromium) + ui_smoke.sh
 app/tests/fixtures/            # challenge.png + webnet0/{capture.pcap, picopico.key}
-app/tests/*.py                 # unit pytest (107)
+app/tests/*.py                 # unit pytest (124)
 docs/ADDING-A-TOOL.md, docs/API.md, docs/CHALLENGES.md
 .github/workflows/ci.yml       # CI
 compose.yaml                   # servizio stegsuite (19014)

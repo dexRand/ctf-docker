@@ -235,7 +235,7 @@ del tutto. Restano qui come riferimento e come TODO per nuovi analyzer.
 
 | Challenge | Anno | Flag | Cosa manca |
 |---|---|---|---|
-| c0rrupt | 2019 | `picoCTF{c0rrupt10n_1847995}` | **PNG repair** produce l'immagine valida (la flag è visiva, OCR non affidabile) |
+| c0rrupt | 2019 | `picoCTF{c0rrupt10n_1847995}` | **PNG repair** produce l'immagine valida; la flag è visiva e l'OCR la legge **quasi** (`cOrrupt`: il font rende `0`=`O`) → limite accettato |
 | like1000 | 2019 | `picoCTF{l0t5_0f_TAR5}` | **risolta strutturalmente** da `nested-archive`: apre i 1000 tar annidati in un colpo solo e arriva a `flag.png`; l'OCR legge `l0t5_0f_TAR5` come `lOtS Of TAR5S` (confusione `0/O`, `5/S` del font) |
 | tunn3l v1s10n | 2021 | `picoCTF{qu1t3_a_v13w_2020}` | **risolta strutturalmente** da `image-repair` (header BMP standard + altezza ricalcolata); resta il near-miss OCR (`1→i`, spazi) |
 | m00nwalk | 2019 | `picoCTF{beep_boop_im_in_space}` | **decodificata** da `sstv` (Scottie S1, frame verificato contro QSSTV); il testo è trasmesso capovolto in un frame 320×256 rumoroso → OCR near-miss |
