@@ -24,7 +24,7 @@ USER root
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         curl ca-certificates \
-        xxd hexyl bsdmainutils binutils tree \
+        xxd hexyl bsdmainutils binutils git tree \
         tesseract-ocr tesseract-ocr-ita multimon-ng sox zbar-tools qrencode tshark \
         unzip zip fcrackzip pdfcrack hashcat pocl-opencl-icd libmhash2 \
  && curl -fsSL -o /tmp/stegseek.deb \

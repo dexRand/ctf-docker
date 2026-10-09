@@ -83,6 +83,7 @@ Dallo stesso mirror, sezione "Olimpiadi" (artifact reali + `flags.txt`).
 | easy stream | `easy_stream.pcapng` | `flag{1sto3asy}` | follow stream |
 | Useless | `capture.pcapng` | `flag{4lw4y5_ch3ck_th3_c0mm3nt5}` | commenti pcapng |
 | Sicurezza dei trasporti | `capture.pcapng` + `keys.log` | `flag{tls_is_really_hard}` | TLS keylog |
+| gitgud | `gitgud.zip` | `flag{0h_n0_my_4p1_k3y}` | stego in un **repo git** (`cat-file`, reflog, `pastebin` branch) |
 
 *(Altre Olimpiadi — Zipception 2.0, Suoni misteriosi, Bel paesaggio, Bright sun,
 C-H-A-O-S, G4tto, Gab-Chan, Corrupted flag, wordwang — restano non automatiche.)*
@@ -255,7 +256,7 @@ docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
   /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 25/25
 
 # challenge reali (host: scaricano i file da sole)
-python3 app/tests/real_challenges.py                        # → 30/30
+python3 app/tests/real_challenges.py                        # → 31/31
 
 # verifica INDIPENDENTE: per ogni (artifact, writeup) confronta la flag trovata
 # con quella dichiarata dal writeup per QUELL'artifact; include una seconda

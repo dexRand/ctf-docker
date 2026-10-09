@@ -63,6 +63,7 @@ CASES = [
     ("flag0.zip", f"{OLIM}/MISCELLANEOUS/Zipception/flag0.zip", "flag{Un0_z1p_d3n7r0_un0_z1p_1mp0551b1l3!}"),
     ("easy_stream.pcapng", f"{OLIM}/NETWORK/easy stream/easy_stream.pcapng", "flag{1sto3asy}"),
     ("useless.pcapng", f"{OLIM}/NETWORK/Useless/capture.pcapng", "flag{4lw4y5_ch3ck_th3_c0mm3nt5}"),
+    ("gitgud.zip", f"{OLIM}/MISCELLANEOUS/gitgud/gitgud.zip", "flag{0h_n0_my_4p1_k3y}"),
     # --- OliCyber SOFTWARE (reversing binaries, flag embedded as a string) ---
     ("sw-04", f"{SW}/SW_4/sw-04", "flag{0cca06f6}"),
     ("sw-08", f"{SW}/SW_8/sw-08", "flag{e25b8bdf}"),

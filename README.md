@@ -172,10 +172,11 @@ http://localhost:19014 (localhost only).
 
 - **Auto / Check** modes: Auto runs everything and tries every wordlist; Check
   first scans, then lets you choose what to attack.
-- **Recursive, ordered** analysis over **46 tools**: `file`, `exiftool`,
+- **Recursive, ordered** analysis over **47 tools**: `file`, `exiftool`,
   `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
   `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
-  `nested-archive` (deep archive chains), `7z`, `office` (unzip Office/OpenDocument
+  `nested-archive` (deep archive chains), `7z`, `git` (repo history/reflog/objects),
+  `office` (unzip Office/OpenDocument
   parts + whitespace-split base64), `pngcheck`, `png-repair`,
   `image-repair` (JPEG/BMP header/height),
   `qr` (zbarimg), `pcap` (tshark; TLS with a provided key **or a TLS 1.3 keylog**,

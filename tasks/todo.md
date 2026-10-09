@@ -77,9 +77,11 @@
       `wireshark`).
 - [x] **Analyzer `wav-levels`**: rileva WAV con campioni **quantizzati a pochi
       livelli** e li mappa a cifre **hex** → decodifica i byte. Risolve *Surfing the
-      Waves* (reali **30/30**, regressione **25/25**, tool **46**).
-- [x] **Challenge OliCyber/ITS + Olimpiadi + SOFTWARE**: 17 reali da mirror
-      pubblico (`training.olicyber.it` richiede login) → reali **30/30**.
+      Waves* (reali **31/31**, regressione **25/25**, tool **47**).
+- [x] **Challenge OliCyber/ITS + Olimpiadi + SOFTWARE**: 18 reali da mirror
+      pubblico (`training.olicyber.it` richiede login) → reali **31/31**.
+- [x] **Analyzer `git`**: repo git dentro uno zip → storia/refs/reflog/oggetti →
+      risolve *gitgud* (tool **47**).
 - [x] **Analisi ELF**: **passiva** in StegSuite (analyzer `elf`/`readelf`/`objdump`:
       struttura, **checksec** RELRO/Canary/NX/PIE/Fortify, disassemblaggio) +
       **attiva** nel container **`rev`** (profilo `rev`, :19018): sandbox isolato

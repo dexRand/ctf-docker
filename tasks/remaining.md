@@ -1,6 +1,6 @@
 # Remaining work — StegSuite
 
-> Documento di ripresa. **Stato (2026-10-09): sezioni A–G e P15–P30 chiusi**;
+> Documento di ripresa. **Stato (2026-10-09): sezioni A–G e P15–P31 chiusi**;
 > resta fuori scope solo OSINT (delegato). Qui sotto la storia e i limiti noti.
 
 ## Come riprendere
@@ -9,7 +9,7 @@ cd <repo>                               # es. /home/r/__Github/CTF
 ./ctf up                                # core (Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser)
 ./ctf up web                            # + ZAP (con add-on extra)   [recon|crypto|forensics|crack|audio|rev]
 ./ctf urls                              # URL di tutti i servizi
-./ctf test                              # regressione 25/25 + reali 30/30 + verify ALL CORRECT
+./ctf test                              # regressione 25/25 + reali 31/31 + verify ALL CORRECT
 ./ctf ui-smoke                          # smoke test della SPA (Chromium headless in Docker)
 docker compose config -q                # valida il compose
 ```
@@ -17,6 +17,10 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P31 Analyzer `git`**: scompatta un repo in uno `.zip` e ne estrae **storia con
+  patch, refs, reflog, stash e tutti gli oggetti** (`git cat-file
+  --batch-all-objects`, inclusi quelli irraggiungibili). Risolve *gitgud* (branch
+  `pastebin`) → reali **31/31**; tool **47**.
 - **P30 Challenge OliCyber/ITS (mirror pubblico)**: aggiunte **6 challenge reali**
   *Network* di `training.olicyber.it` (le piattaforme richiedono login; i file
   vengono dal mirror pubblico `00xFE/Olicyber`) → **reali 19/19**. Migliorie al
@@ -376,14 +380,14 @@ app/backend/retention.py       # cancellazione progetti oltre RETENTION_DAYS
 app/backend/api/*.py           # router: system, projects, analysis, tools, cracking, ws
 app/backend/orchestrator.py    # ricorsione + auto-crack + flag hunt + semaforo
 app/backend/cracking.py        # hashcat/stegseek/pdfcrack/fcrackzip
-app/backend/analyzers/*.py     # 46 tool (un file, auto-registered)
+app/backend/analyzers/*.py     # 47 tool (un file, auto-registered)
 app/backend/analyzers/elf.py   # analyzer ELF passivi (elf/readelf/objdump)
 rev/Dockerfile                 # sandbox ELF attivo (pwntools + ttyd + qemu)
 app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/frontend/src/toast.js      # store toast globale
 app/frontend/src/components/Toasts.vue  # rendering toast
 app/tests/ctf_regression.py    # 25/25 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap, openstego, psimage, office, wav-levels)
-app/tests/real_challenges.py   # 30/30 (picoCTF 13 + OliCyber/Olimpiadi 17; incl. TLS keylog, pcapng comments, ELF binaries)
+app/tests/real_challenges.py   # 31/31 (picoCTF 13 + OliCyber/Olimpiadi 18; incl. git repo, TLS keylog, pcapng comments, ELF)
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
 app/tests/ui_smoke.mjs         # smoke test UI (Playwright/Chromium) + ui_smoke.sh
 app/tests/fixtures/            # challenge.png + webnet0/{capture.pcap, picopico.key}
