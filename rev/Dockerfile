@@ -1,7 +1,8 @@
-# rev — sandbox per analisi ATTIVA di ELF (eseguire/debuggiare binari sconosciuti).
+# rev — sandbox per analisi ATTIVA di binari sconosciuti (ELF / PE / APK).
 #
 # Base upstream `pwntools/pwntools` (gdb, binutils, python, pwntools) + ttyd
-# (terminale web) + qemu-user (arch diverse) + strace/ltrace.
+# (terminale web) + qemu-user (arch diverse) + strace/ltrace + reversing
+# (radare2, upx, apktool, jadx per PE/APK).
 #
 # L'isolamento lo impone il compose: rete interna senza internet, cap_drop ALL
 # (+ SYS_PTRACE per gdb), no-new-privileges, limiti mem/cpu/pids. NON eseguire
@@ -10,9 +11,11 @@ FROM pwntools/pwntools:stable
 
 USER root
 
+# ELF/PE/APK reversing: binutils (objdump legge i PE), radare2, upx, apktool (DEX).
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         qemu-user qemu-user-static strace ltrace file socat gdb curl ca-certificates \
+        radare2 upx-ucl apktool unzip \
  && rm -rf /var/lib/apt/lists/*
 
 # ttyd from the distro, falling back to the upstream static release
@@ -47,6 +50,15 @@ RUN curl -fsSL -o /tmp/ghidra.zip "$GHIDRA_URL" \
 COPY ghidra/DecompileAll.java /opt/ghidra_scripts/DecompileAll.java
 COPY ghidra-decompile.sh /usr/local/bin/ghidra-decompile
 RUN chmod +x /usr/local/bin/ghidra-decompile
+
+# ---- jadx (DEX -> Java; not packaged by the distro) ----
+ARG JADX_VER=1.5.0
+RUN curl -fsSL -o /tmp/jadx.zip \
+      "https://github.com/skylot/jadx/releases/download/v${JADX_VER}/jadx-${JADX_VER}.zip" \
+ && unzip -q /tmp/jadx.zip -d /opt/jadx \
+ && rm -f /tmp/jadx.zip \
+ && chmod +x /opt/jadx/bin/jadx /opt/jadx/bin/jadx-gui \
+ && ln -sf /opt/jadx/bin/jadx /usr/local/bin/jadx
 
 # web terminal: writable shell on port 7681 (published on 127.0.0.1 only)
 # banner + scorciatoie (menu, dec, sec) ad ogni login shell

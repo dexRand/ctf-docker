@@ -59,7 +59,7 @@ tool pesanti stanno dietro **profili** Compose opzionali.
 | Crypto | SageMath | http://localhost:19010 | Notebook Python/Sage per crypto e matematica | `crypto` |
 | Forensics | Wireshark | http://localhost:19008 | Analisi pacchetti/pcap con GUI web | `forensics` |
 | Audio | **Whisper-WebUI** | http://localhost:19017 | Trascrizione audio→testo con timestamp (SRT/VTT/…) via Whisper · output in `./data/whisper/outputs` | `audio` |
-| Pwn/Rev | **ELF sandbox** | http://localhost:19018 | Esegui/debugga/decompila binari ELF sconosciuti da terminale web (Ghidra headless, gdb, strace, ltrace, pwntools, qemu-user) · rete isolata | `rev` |
+| Pwn/Rev | **ELF sandbox** | http://localhost:19018 | Esegui/debugga/decompila binari sconosciuti da terminale web — **ELF, PE e APK** (Ghidra headless, radare2, upx, apktool, jadx, gdb, strace, ltrace, pwntools, qemu-user) · rete isolata | `rev` |
 
 > Esclusi di proposito perché senza immagine GUI upstream affidabile:
 > Burp Suite, Ghidra, Autopsy, Volatility, hashcat/john (tool CLI, già su Kali).

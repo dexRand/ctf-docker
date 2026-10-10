@@ -471,8 +471,8 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
 
     # 32) homoglyph: the flag is written with Cyrillic look-alikes -> de-homoglyph
     p = TMP / "homoglyph.txt"
-    p.write_text("hello ІТЅ{hоm0glyph_32} world", encoding="utf-8")
-    cases.append(("homoglyph", p, "ITS{hom0glyph_32}"))
+    p.write_text("hello ІТЅ{нomоglурн_32} world", encoding="utf-8")
+    cases.append(("homoglyph", p, "ITS{homoglyph_32}"))
 
     # 33) low-bit-depth PNG: the 0/1 pixel values encode the flag
     from PIL import Image as _Image33

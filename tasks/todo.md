@@ -115,6 +115,13 @@
       (stack/aritmetica/heap/flow/IO) su programmi di soli spazi/tab/newline; emette
       l'output così il flag hunt lo legge. Regressione **30/30** (caso `whitespace`),
       `test_whitespace` 5/5, tool **52**.
+- [x] **rev suite — sandbox `rev` per dominio (PE/APK)**: aggiunti `radare2`, `upx`,
+      `apktool`, `jadx` (objdump/binutils legge i PE) + **menu** aggiornato
+      (`dec`, `r2`/`rabin2`, `apk`, `upx`). Verificato su *untitled-encore.exe* (PE) e
+      *ufo* (APK). Layout **"una suite per dominio"** documentato in `tasks/plan.md`.
+- [x] **StegSuite: `case-bits`, `homoglyph`, `png-pixels`**: case delle lettere
+      (binario+Bacon), de-homoglyph (Cyrillic/Greek), PNG a bassa profondità/palette.
+      Self-test **38/38**, regressione **33/33**, reali **35/35**, tool **55**.
 - [x] **Analyzer `git`**: repo git dentro uno zip → storia/refs/reflog/oggetti →
       risolve *gitgud* (tool **47**).
 - [x] **SPA StegSuite — fix audit `impeccable`** (commit `ca50ea8`/`c1daf6c`):

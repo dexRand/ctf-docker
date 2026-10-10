@@ -47,6 +47,26 @@ Autopsy, Volatility, RsaCtfTool, hashcat/john (CLI, già sull'host Kali).
 > 19012); aggiunti **Hashtopolis** (profilo `crack`, 19015/19016) e **Whisper-WebUI**
 > (profilo `audio`, 19017, trascrizione audio con timestamp).
 
+## Suites per dominio
+
+Il toolbox è organizzato come **una suite per dominio**: ogni categoria ha i suoi
+strumenti dedicati e la dashboard li raggruppa di conseguenza.
+
+| Dominio | Suite | Dove | Note |
+|---|---|---|---|
+| Stego / Forensics | **StegSuite** | `:19014` (core) | 55 analyzer, GUI + API REST, `./ctf scan` |
+| Rev / Pwn (attivo) | **`rev` sandbox** | `:19018` (profilo `rev`) | **ELF + PE + APK**: Ghidra, radare2, upx, apktool, jadx, gdb, qemu, pwntools |
+| Web | **ZAP** | `:19005` (profilo `web`) | scanner + proxy |
+| Crypto / Math | **SageMath** | `:19010` (profilo `crypto`) | notebook |
+| Cracking | **Hashtopolis** | `:19015/16` (profilo `crack`) | hashcat distribuito |
+| Audio | **Whisper-WebUI** | `:19017` (profilo `audio`) | trascrizione STT |
+| Recon / OSINT | **SpiderFoot** + **Dork generator** | `:19007` / `:19019` | dork generator core |
+| Network / Pcap | **Wireshark** | `:19008` (profilo `forensics`) | GUI web |
+| Dashboard | **Homepage** | `:19001` | vista d'insieme |
+
+Le challenge **stego/forensics** si verificano con `./ctf scan` (StegSuite); per la
+**rev** c'è il sandbox `rev` (terminale web, menu con `dec`/`r2`/`apk`/`upx`).
+
 ## Task List
 
 ### Phase 1: Scaffolding repo
