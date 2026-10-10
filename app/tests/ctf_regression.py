@@ -462,6 +462,13 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     p.write_text(prog)
     cases.append(("whitespace", p, flag30))
 
+    # 31) case-based stego: the flag is encoded in the letter case (upper=1)
+    flag31 = "ITS{case_bits_31}"
+    bits31 = [int(b) for c in flag31 for b in f"{ord(c):08b}"]
+    p = TMP / "case.txt"
+    p.write_text("".join("A" if b else "a" for b in bits31))
+    cases.append(("case-bits", p, flag31))
+
     return cases
 
 

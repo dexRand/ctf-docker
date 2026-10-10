@@ -143,7 +143,7 @@ DEFAULT_PLAN = [
     "file", "exiftool", "identify", "ffprobe", "pdfinfo",
     "strings", "hexyl", "xxd", "pdftotext", "pdfid", "elf", "readelf", "objdump",
     "binwalk-scan",
-    "decode", "blobs", "zero-width", "whitespace", "morse-text",
+    "decode", "blobs", "zero-width", "whitespace", "case-bits", "morse-text",
     "ocr", "qr",
     "zsteg", "lsb-carve", "psimage", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
