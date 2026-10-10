@@ -91,6 +91,9 @@
       qemu-user + **Ghidra headless** da **terminale web** (ttyd). Tool StegSuite **45**.
 
 ### Da fare (prossima sessione)
+- [ ] **Area OSINT condivisa** (`osint/`): fatta la base (override compose + README
+      contratto + `example_client.py` + `CODEOWNERS`); il collega aggiunge i suoi
+      servizi su `ctfnet` e chiama le API per nome servizio.
 - [ ] **Frame GIF → analizzarli come figli**: `gif-frames` oggi salva i frame come
       *artifact* e fa una sola passata OCR; per *Corrupted flag* la flag sta in un
       frame estratto ma non viene letta. Far girare su ogni frame il pipeline vero

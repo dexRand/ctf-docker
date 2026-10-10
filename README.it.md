@@ -157,6 +157,7 @@ config/homepage/        configurazione dashboard (services / settings / widgets)
 config/zap/             working dir ZAP (certificati)
 config/whisper/         config default Whisper-WebUI (profilo `audio`)
 rev/                    sandbox analisi attiva ELF (ttyd + Ghidra headless + gdb/qemu, profilo `rev`)
+osint/                  area OSINT del collega + override compose (vedi osint/README.md)
 SPEC.md                 specifica
 tasks/                  plan.md + todo.md
 .opencode/              Agent Skills (MIT — vedi ATTRIBUTION.md)

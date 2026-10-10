@@ -86,3 +86,29 @@ curl -X DELETE localhost:19014/api/v1/projects
 Bundled in the repo (`wordlists/*.txt`) plus full `rockyou.txt` baked into the
 image. They are tried **smallest → largest**, first match wins.
 `GET /api/v1/wordlists` lists them (name, size, lines).
+
+## Call the API from another container
+
+If your service runs on the same Compose network (`ctfnet`), reach StegSuite by
+**service name** — no host port, no conflicts:
+
+```
+http://stegsuite:19014/api/v1
+```
+
+Example (from the repo):
+
+```bash
+docker compose -f compose.yaml -f osint/compose.yaml up -d
+```
+
+Inside your container:
+
+```python
+import urllib.request
+urllib.request.urlopen("http://stegsuite:19014/api/v1/health")
+```
+
+A ready-made stdlib client is in [`../osint/example_client.py`](../osint/example_client.py);
+the `osint/` area (override compose + contract) is where a separate developer
+adds their own services without touching the core.

@@ -1,0 +1,3 @@
+# Code owners — chi è responsabile di cosa.
+# L'area OSINT è del collega: lui ci lavora senza toccare il core.
+/osint/   @osint-colleague

@@ -1,0 +1,25 @@
+# Override OSINT — aggiunge i TUOI servizi senza modificare il core.
+#
+# Avvio (dalla radice del repo):
+#   docker compose -f compose.yaml -f osint/compose.yaml up -d
+#
+# Questo è un segnaposto: sostituisci/aggiungi i tuoi servizi. Sono sulla rete
+# `ctfnet`, quindi raggiungono le API per nome servizio (es. http://stegsuite:19014).
+services:
+  osint:
+    image: python:3.12-slim
+    restart: unless-stopped
+    working_dir: /work
+    command: ["sleep", "infinity"]
+    mem_limit: 1g
+    cpus: 1
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "127.0.0.1:${OSINT_PORT:-19050}:8000"
+    volumes:
+      - ./osint:/work
+    networks: [ctfnet]
