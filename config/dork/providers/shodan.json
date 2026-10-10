@@ -1,0 +1,8 @@
+{
+  "id": "shodan",
+  "name": "Shodan",
+  "kind": "host",
+  "order": 120,
+  "url": "https://www.shodan.io/search?query={q}",
+  "default": true
+}

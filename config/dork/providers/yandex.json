@@ -1,0 +1,7 @@
+{
+  "id": "yandex",
+  "name": "Yandex",
+  "kind": "web",
+  "order": 60,
+  "url": "https://yandex.com/search/?text={q}"
+}

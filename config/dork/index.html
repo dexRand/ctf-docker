@@ -159,13 +159,17 @@
 <script>
 const $ = (s) => document.querySelector(s);
 const GLIMIT = 60;
-const state = { engines: new Set(), presets: new Set(), data: null, ghdb: null, glimit: GLIMIT };
+const state = { engines: new Set(), presets: new Set(), data: null, providers: [], ghdb: null, glimit: GLIMIT };
 
 async function boot() {
-  const r = await fetch('presets.json', { cache: 'no-cache' });
-  state.data = await r.json();
-  const def = new Set(state.data.meta.default_engines || []);
-  state.data.meta.engines.forEach((e) => { if (def.has(e.id)) state.engines.add(e.id); });
+  const [pres, prov] = await Promise.all([
+    fetch('presets.json', { cache: 'no-cache' }).then((r) => r.json()),
+    fetch('providers.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : { providers: [] })),
+  ]);
+  state.data = pres;
+  state.providers = prov.providers || [];
+  state.providers.forEach((p) => { if (p.default) state.engines.add(p.id); });
+  if (!state.engines.size) state.providers.filter((p) => p.kind === 'web').forEach((p) => state.engines.add(p.id));
   state.data.presets.forEach((p) => state.presets.add(p.id));
   renderChips(); renderPresets(); render();
   loadGhdb();
@@ -187,11 +191,11 @@ async function loadGhdb() {
   renderGhdb();
 }
 
-function webEngines() { return state.data.meta.engines.filter((e) => state.engines.has(e.id) && e.kind === 'web'); }
+function webEngines() { return state.providers.filter((e) => state.engines.has(e.id) && e.kind === 'web'); }
 
 function renderChips() {
   const box = $('#engines'); box.innerHTML = '';
-  state.data.meta.engines.forEach((e) => {
+  state.providers.forEach((e) => {
     const b = document.createElement('span');
     b.className = 'chip' + (state.engines.has(e.id) ? ' on' : '');
     b.textContent = e.name; b.title = e.kind;
@@ -239,7 +243,7 @@ function card(idText, groupText, nameText, query, links) {
 // ---- preset view ----
 function presetRows() {
   const t = normTarget($('#target').value);
-  const engs = state.data.meta.engines.filter((e) => state.engines.has(e.id));
+  const engs = state.providers.filter((e) => state.engines.has(e.id));
   const rows = [];
   state.data.presets.forEach((p) => {
     if (!state.presets.has(p.id)) return;

@@ -1,0 +1,7 @@
+{
+  "id": "censys",
+  "name": "Censys",
+  "kind": "host",
+  "order": 130,
+  "url": "https://search.censys.io/search?resource=hosts&q={q}"
+}

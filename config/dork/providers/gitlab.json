@@ -1,0 +1,7 @@
+{
+  "id": "gitlab",
+  "name": "GitLab",
+  "kind": "code",
+  "order": 100,
+  "url": "https://gitlab.com/search?scope=blobs&search={q}"
+}

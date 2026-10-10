@@ -32,9 +32,9 @@ sys.path.insert(0, str(HERE))
 
 import dork  # noqa: E402  (import dopo sys.path)
 
-DATA = dork.load_presets(dork.DEFAULT_PRESETS)
+DATA = dork.load_data(dork.DEFAULT_PRESETS, dork.DEFAULT_PROVIDERS)
 PRESETS = DATA["presets"]
-ENGINES = {e["id"]: e for e in DATA["meta"]["engines"]}
+ENGINES = {e["id"]: e for e in DATA["providers"]}
 
 # operatori riconosciuti (dalla letteratura sui Google dork) + i nostri (host)
 KNOWN_OPS = ("site:", "inurl:", "intitle:", "allinurl:", "allintitle:", "intext:",
@@ -73,7 +73,7 @@ REFERENCE_DORKS = {
 
 def gen(target="example.com", presets=None, engines=None):
     p = presets or [x["id"] for x in PRESETS]
-    e = engines or DATA["meta"]["default_engines"]
+    e = engines or dork.default_engine_ids(DATA["providers"])
     return json.loads(dork.render(DATA, target, p, e, True))
 
 
@@ -130,7 +130,7 @@ def test_every_preset_is_a_wellformed_query():
 
 def test_every_generated_url_is_valid_and_reversible():
     t = "sub.example.com"
-    engs = [e["id"] for e in DATA["meta"]["engines"]]
+    engs = [e["id"] for e in DATA["providers"]]
     for r in gen(target=t, engines=engs)["dorks"]:
         q = r["query"]
         for l in r["links"]:
@@ -167,7 +167,7 @@ def test_cli_list():
         rc = dork.main(["--list"])
     assert rc == 0
     out = buf.getvalue()
-    assert "PRESET:" in out and "MOTORI:" in out
+    assert "PRESET:" in out and "PROVIDER" in out
     for p in PRESETS:
         assert p["id"] in out
 
@@ -206,6 +206,34 @@ def test_cli_normalizes_url_target():
     with contextlib.redirect_stdout(buf):
         dork.main(["https://foo.example.com/x?y=1", "-p", "docs", "-e", "google", "--json"])
     assert json.loads(buf.getvalue())["target"] == "foo.example.com"
+
+
+# ----------------------------------------------------------- provider (plugin)
+def test_provider_plugins_are_valid():
+    files = sorted(dork.DEFAULT_PROVIDERS.glob("*.json"))
+    assert files, "nessun provider in config/dork/providers/"
+    for f in files:
+        p = json.loads(f.read_text(encoding="utf-8"))
+        for k in ("id", "name", "kind", "url"):
+            assert k in p, f"{f.name}: manca '{k}'"
+        assert p["kind"] in ("web", "code", "host"), f"{f.name}: kind non valido ({p['kind']})"
+        assert "{q}" in p["url"], f"{f.name}: l'url non contiene {{q}}"
+        assert f.stem == p["id"], f"{f.name}: id '{p['id']}' != nome file"
+
+
+def test_provider_bundle_matches_plugins():
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d) / "providers.json"
+        providers = dork.build_providers(dork.DEFAULT_PROVIDERS, out)
+        assert json.loads(out.read_text(encoding="utf-8"))["providers"] == providers
+    committed = json.loads(dork.PROVIDERS_BUNDLE.read_text(encoding="utf-8"))["providers"]
+    assert committed == providers, "config/dork/providers.json non allineato: esegui ./ctf dork --build"
+
+
+def test_default_engines_are_flagged():
+    defaults = dork.default_engine_ids(DATA["providers"])
+    assert defaults, "nessun provider marcato default"
+    assert all(ENGINES[i].get("default") for i in defaults)
 
 
 # ---------------------------------------------------------- GHDB (exploit-db)

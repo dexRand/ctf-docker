@@ -1,0 +1,8 @@
+{
+  "id": "github",
+  "name": "GitHub",
+  "kind": "code",
+  "order": 90,
+  "url": "https://github.com/search?type=code&q={q}",
+  "default": true
+}

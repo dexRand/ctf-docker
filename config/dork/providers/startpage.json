@@ -1,0 +1,7 @@
+{
+  "id": "startpage",
+  "name": "Startpage",
+  "kind": "web",
+  "order": 50,
+  "url": "https://www.startpage.com/sp/search?query={q}"
+}

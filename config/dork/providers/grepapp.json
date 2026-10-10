@@ -1,0 +1,7 @@
+{
+  "id": "grepapp",
+  "name": "grep.app",
+  "kind": "code",
+  "order": 110,
+  "url": "https://grep.app/search?q={q}"
+}

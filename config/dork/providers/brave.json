@@ -1,0 +1,7 @@
+{
+  "id": "brave",
+  "name": "Brave",
+  "kind": "web",
+  "order": 40,
+  "url": "https://search.brave.com/search?q={q}"
+}

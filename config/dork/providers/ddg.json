@@ -1,0 +1,8 @@
+{
+  "id": "ddg",
+  "name": "DuckDuckGo",
+  "kind": "web",
+  "order": 30,
+  "url": "https://duckduckgo.com/?q={q}",
+  "default": true
+}

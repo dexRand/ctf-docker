@@ -1,0 +1,7 @@
+{
+  "id": "scholar",
+  "name": "Scholar",
+  "kind": "web",
+  "order": 80,
+  "url": "https://scholar.google.com/scholar?q={q}"
+}

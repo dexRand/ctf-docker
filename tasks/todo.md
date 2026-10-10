@@ -131,6 +131,11 @@
       **Usabilità**: `./ctf dork` (senza argomenti) sincronizza la GHDB in automatico
       se assente/vecchia (>7gg) e apre la pagina; hint "come si usa", copia per-card,
       call-to-action se la GHDB non è sincronizzata; quick-start nei README.
+- [x] **Dork generator — provider come plugin**: un file JSON per motore in
+      `config/dork/providers/` (`id/name/kind/url/order/default`); la CLI li carica
+      dalla cartella e rigenera il bundle `config/dork/providers.json` (servito alla
+      web UI) a ogni run / `./ctf dork --build`. Aggiungere un motore = droppare un
+      file, zero modifiche al codice. Test: validazione plugin + bundle allineato.
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

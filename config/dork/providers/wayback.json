@@ -1,0 +1,7 @@
+{
+  "id": "wayback",
+  "name": "Wayback",
+  "kind": "web",
+  "order": 70,
+  "url": "https://web.archive.org/web/*/{q}"
+}

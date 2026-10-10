@@ -121,6 +121,10 @@ only builds the query and the ready-to-open link. The page at
 ./ctf dork-test                     # generator self-test
 ```
 
+New search providers are **plugins**: drop one JSON file per engine into
+`config/dork/providers/` (`id`, `name`, `kind` = `web|code|host`, `url` with
+`{q}`) and run `./ctf dork --build` — no code changes needed.
+
 ## 🧪 Analysis
 
 Use **StegSuite** (below) for the recursive steg/forensics pipeline, the flag

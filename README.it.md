@@ -118,6 +118,10 @@ sincronizzata da sola al primo uso.
 ./ctf dork-test                     # self-test del generator
 ```
 
+I motori di ricerca sono **plugin**: aggiungi un file JSON per motore in
+`config/dork/providers/` (`id`, `name`, `kind` = `web|code|host`, `url` con
+`{q}`) e lancia `./ctf dork --build` — senza toccare il codice.
+
 ## 🧪 Analisi
 
 Usa **StegSuite** (sotto) per la pipeline steg/forense ricorsiva, la caccia alle

@@ -22,14 +22,55 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import quote_plus
 
-DEFAULT_PRESETS = Path(__file__).resolve().parents[2] / "config" / "dork" / "presets.json"
-DEFAULT_GHDB = DEFAULT_PRESETS.with_name("ghdb.json")
+DORK_DIR = Path(__file__).resolve().parents[2] / "config" / "dork"
+DEFAULT_PRESETS = DORK_DIR / "presets.json"
+# Provider = plugin: un file JSON per motore in config/dork/providers/. Il bundle
+# `providers.json` (generato) e' quello che carica la web UI statica.
+DEFAULT_PROVIDERS = DORK_DIR / "providers"
+PROVIDERS_BUNDLE = DORK_DIR / "providers.json"
+DEFAULT_GHDB = DORK_DIR / "ghdb.json"
 GHDB_URL = "https://www.exploit-db.com/google-hacking-database"
 
 
 def load_presets(path: Path) -> dict:
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def load_providers(directory: Path) -> list[dict]:
+    """Carica i provider-plugin (un file JSON per motore) da ``directory``."""
+    items: list[dict] = []
+    if directory.is_dir():
+        for f in sorted(directory.glob("*.json")):
+            try:
+                p = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as e:
+                print(f"[!] provider ignorato ({f.name}): {e}", file=sys.stderr)
+                continue
+            if {"id", "name", "kind", "url"} <= set(p):
+                items.append(p)
+    items.sort(key=lambda p: (p.get("order", 999), p.get("name", p["id"])))
+    return items
+
+
+def build_providers(directory: Path, out: Path) -> list[dict]:
+    """Rigenera il bundle dei provider che la web UI statica carica."""
+    providers = load_providers(directory)
+    out.write_text(json.dumps({"generated_by": "ctf dork", "count": len(providers),
+                               "providers": providers}, ensure_ascii=False, indent=2) + "\n",
+                   encoding="utf-8")
+    return providers
+
+
+def default_engine_ids(providers: list[dict]) -> list[str]:
+    ids = [p["id"] for p in providers if p.get("default")]
+    return ids or [p["id"] for p in providers if p["kind"] == "web"]
+
+
+def load_data(presets_path: Path, providers_dir: Path | None = None) -> dict:
+    data = load_presets(presets_path)
+    data["providers"] = load_providers(providers_dir or presets_path.with_name("providers"))
+    return data
 
 
 def normalize_target(raw: str) -> str:
@@ -47,7 +88,7 @@ def build_url(template: str, query: str) -> str:
 
 
 def render(data: dict, target: str, preset_ids: list[str], engine_ids: list[str], as_json: bool) -> str:
-    engines = [e for e in data["meta"]["engines"] if e["id"] in engine_ids]
+    engines = [e for e in data["providers"] if e["id"] in engine_ids]
     rows: list[dict] = []
     for p in data["presets"]:
         if p["id"] not in preset_ids:
@@ -78,10 +119,11 @@ def list_all(data: dict) -> str:
     out = ["PRESET:"]
     for p in data["presets"]:
         out.append(f"  {p['id']:<11} [{p['kind']:<4}] {p['group']:<8} {p['name']}")
-    out.append("\nMOTORI:")
-    for e in data["meta"]["engines"]:
-        out.append(f"  {e['id']:<10} [{e['kind']:<4}] {e['name']}")
-    out.append(f"\ndefault engines: {', '.join(data['meta'].get('default_engines', []))}")
+    out.append("\nPROVIDER (plugin in config/dork/providers/):")
+    for e in data["providers"]:
+        star = " *" if e.get("default") else ""
+        out.append(f"  {e['id']:<10} [{e['kind']:<4}] {e['name']}{star}")
+    out.append(f"\ndefault: {', '.join(default_engine_ids(data['providers']))}")
     return "\n".join(out)
 
 
@@ -174,13 +216,26 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ghdb-file", default=os.environ.get("DORK_GHDB", str(DEFAULT_GHDB)))
     ap.add_argument("--limit", type=int, default=300, help="max risultati GHDB (default 300)")
     ap.add_argument("--presets-file", default=os.environ.get("DORK_PRESETS", str(DEFAULT_PRESETS)))
+    ap.add_argument("--providers-dir", default=os.environ.get("DORK_PROVIDERS", str(DEFAULT_PROVIDERS)))
+    ap.add_argument("--providers-bundle", default=os.environ.get("DORK_PROVIDERS_BUNDLE", str(PROVIDERS_BUNDLE)))
+    ap.add_argument("--build", action="store_true", help="rigenera il bundle dei provider (config/dork/providers.json)")
     args = ap.parse_args(argv)
 
     path = Path(args.presets_file)
     if not path.is_file():
         print(f"[x] preset non trovati: {path}", file=sys.stderr)
         return 2
-    data = load_presets(path)
+    providers_dir = Path(args.providers_dir)
+    # tieni il bundle allineato ai provider-plugin (lo carica la web UI statica)
+    try:
+        build_providers(providers_dir, Path(args.providers_bundle))
+    except OSError as e:
+        print(f"[!] bundle provider non aggiornato: {e}", file=sys.stderr)
+    data = load_data(path, providers_dir)
+
+    if args.build:
+        print(f"[+] provider: {len(data['providers'])} -> {args.providers_bundle}")
+        return 0
 
     if args.list:
         print(list_all(data))
@@ -199,8 +254,8 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         target = normalize_target(args.target) if args.target else ""
         engine_ids = ([s.strip() for s in args.engine.split(",")] if args.engine
-                      else data["meta"].get("default_engines", []))
-        engs = [e for e in data["meta"]["engines"] if e["id"] in engine_ids and e["kind"] == "web"]
+                      else default_engine_ids(data["providers"]))
+        engs = [e for e in data["providers"] if e["id"] in engine_ids and e["kind"] == "web"]
         rows = []
         for d in found:
             q = f"site:{target} {d['d']}" if target else d["d"]
@@ -223,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
     target = normalize_target(args.target)
     preset_ids = [s.strip() for s in args.preset.split(",")] if args.preset else [p["id"] for p in data["presets"]]
     engine_ids = ([s.strip() for s in args.engine.split(",")] if args.engine
-                  else data["meta"].get("default_engines", [e["id"] for e in data["meta"]["engines"]]))
+                  else default_engine_ids(data["providers"]))
     unknown = set(preset_ids) - {p["id"] for p in data["presets"]}
     if unknown:
         print(f"[x] preset sconosciuti: {', '.join(sorted(unknown))}", file=sys.stderr)

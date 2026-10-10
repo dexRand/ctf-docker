@@ -1,0 +1,101 @@
+{
+  "generated_by": "ctf dork",
+  "count": 13,
+  "providers": [
+    {
+      "id": "google",
+      "name": "Google",
+      "kind": "web",
+      "order": 10,
+      "url": "https://www.google.com/search?q={q}",
+      "default": true
+    },
+    {
+      "id": "bing",
+      "name": "Bing",
+      "kind": "web",
+      "order": 20,
+      "url": "https://www.bing.com/search?q={q}"
+    },
+    {
+      "id": "ddg",
+      "name": "DuckDuckGo",
+      "kind": "web",
+      "order": 30,
+      "url": "https://duckduckgo.com/?q={q}",
+      "default": true
+    },
+    {
+      "id": "brave",
+      "name": "Brave",
+      "kind": "web",
+      "order": 40,
+      "url": "https://search.brave.com/search?q={q}"
+    },
+    {
+      "id": "startpage",
+      "name": "Startpage",
+      "kind": "web",
+      "order": 50,
+      "url": "https://www.startpage.com/sp/search?query={q}"
+    },
+    {
+      "id": "yandex",
+      "name": "Yandex",
+      "kind": "web",
+      "order": 60,
+      "url": "https://yandex.com/search/?text={q}"
+    },
+    {
+      "id": "wayback",
+      "name": "Wayback",
+      "kind": "web",
+      "order": 70,
+      "url": "https://web.archive.org/web/*/{q}"
+    },
+    {
+      "id": "scholar",
+      "name": "Scholar",
+      "kind": "web",
+      "order": 80,
+      "url": "https://scholar.google.com/scholar?q={q}"
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "kind": "code",
+      "order": 90,
+      "url": "https://github.com/search?type=code&q={q}",
+      "default": true
+    },
+    {
+      "id": "gitlab",
+      "name": "GitLab",
+      "kind": "code",
+      "order": 100,
+      "url": "https://gitlab.com/search?scope=blobs&search={q}"
+    },
+    {
+      "id": "grepapp",
+      "name": "grep.app",
+      "kind": "code",
+      "order": 110,
+      "url": "https://grep.app/search?q={q}"
+    },
+    {
+      "id": "shodan",
+      "name": "Shodan",
+      "kind": "host",
+      "order": 120,
+      "url": "https://www.shodan.io/search?query={q}",
+      "default": true
+    },
+    {
+      "id": "censys",
+      "name": "Censys",
+      "kind": "host",
+      "order": 130,
+      "url": "https://search.censys.io/search?resource=hosts&q={q}"
+    }
+  ]
+}

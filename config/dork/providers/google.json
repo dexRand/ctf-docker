@@ -1,0 +1,8 @@
+{
+  "id": "google",
+  "name": "Google",
+  "kind": "web",
+  "order": 10,
+  "url": "https://www.google.com/search?q={q}",
+  "default": true
+}
