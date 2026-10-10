@@ -469,6 +469,21 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     p.write_text("".join("A" if b else "a" for b in bits31))
     cases.append(("case-bits", p, flag31))
 
+    # 32) homoglyph: the flag is written with Cyrillic look-alikes -> de-homoglyph
+    p = TMP / "homoglyph.txt"
+    p.write_text("hello ІТЅ{hоm0glyph_32} world", encoding="utf-8")
+    cases.append(("homoglyph", p, "ITS{hom0glyph_32}"))
+
+    # 33) low-bit-depth PNG: the 0/1 pixel values encode the flag
+    from PIL import Image as _Image33
+    flag33 = "ITS{png_pixels_33}"
+    bits33 = [int(b) for c in flag33 for b in f"{ord(c):08b}"]
+    im33 = _Image33.new("1", (len(bits33), 1))
+    im33.putdata([255 if b else 0 for b in bits33])
+    p = TMP / "bits.png"
+    im33.save(p)
+    cases.append(("png-pixels", p, flag33))
+
     return cases
 
 
