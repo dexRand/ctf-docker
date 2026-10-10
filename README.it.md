@@ -118,9 +118,9 @@ sincronizzata da sola al primo uso.
 ./ctf dork-test                     # self-test del generator
 ```
 
-I motori di ricerca sono **plugin**: aggiungi un file JSON per motore in
-`config/dork/providers/` (`id`, `name`, `kind` = `web|code|host`, `url` con
-`{q}`) e lancia `./ctf dork --build` — senza toccare il codice.
+I plugin sono semplici file JSON: i motori in `config/dork/providers/` (uno per
+motore) e i dork in `config/dork/dorks/` (uno per gruppo, `{name, presets:[…]}`).
+Aggiungi un file e lancia `./ctf dork --build` — senza toccare il codice.
 
 ## 🧪 Analisi
 

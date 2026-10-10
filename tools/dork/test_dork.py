@@ -32,7 +32,7 @@ sys.path.insert(0, str(HERE))
 
 import dork  # noqa: E402  (import dopo sys.path)
 
-DATA = dork.load_data(dork.DEFAULT_PRESETS, dork.DEFAULT_PROVIDERS)
+DATA = dork.load_data(dork.DEFAULT_DORKS, dork.DEFAULT_PROVIDERS, dork.DEFAULT_META)
 PRESETS = DATA["presets"]
 ENGINES = {e["id"]: e for e in DATA["providers"]}
 
@@ -209,6 +209,33 @@ def test_cli_normalizes_url_target():
 
 
 # ----------------------------------------------------------- provider (plugin)
+def test_dork_plugins_are_valid():
+    files = sorted(dork.DEFAULT_DORKS.glob("*.json"))
+    assert files, "nessun dork-plugin in config/dork/dorks/"
+    for f in files:
+        blob = json.loads(f.read_text(encoding="utf-8"))
+        assert isinstance(blob, dict) and "presets" in blob, f"{f.name}: manca 'presets'"
+        for p in blob["presets"]:
+            for k in ("id", "group", "kind", "name", "q"):
+                assert k in p, f"{f.name}/{p.get('id')}: manca '{k}'"
+            assert p["kind"] in ("web", "code", "host"), f"{p['id']}: kind={p['kind']}"
+            assert "{t}" in p["q"], f"{p['id']}: la query non usa {{t}}"
+
+
+def test_dork_bundle_matches_plugins():
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d) / "presets.json"
+        presets = dork.build_presets(dork.DEFAULT_DORKS, out, dork.DEFAULT_META)
+        assert json.loads(out.read_text(encoding="utf-8"))["presets"] == presets
+    committed = json.loads(dork.DEFAULT_PRESETS.read_text(encoding="utf-8"))["presets"]
+    assert committed == presets, "config/dork/presets.json non allineato: esegui ./ctf dork --build"
+
+
+def test_unique_dork_ids():
+    ids = [p["id"] for p in PRESETS]
+    assert len(ids) == len(set(ids)), "id dork duplicati tra i plugin"
+
+
 def test_provider_plugins_are_valid():
     files = sorted(dork.DEFAULT_PROVIDERS.glob("*.json"))
     assert files, "nessun provider in config/dork/providers/"

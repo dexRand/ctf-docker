@@ -136,6 +136,11 @@
       dalla cartella e rigenera il bundle `config/dork/providers.json` (servito alla
       web UI) a ogni run / `./ctf dork --build`. Aggiungere un motore = droppare un
       file, zero modifiche al codice. Test: validazione plugin + bundle allineato.
+- [x] **Dork generator — anche i dork sono plugin**: sorgenti in
+      `config/dork/dorks/*.json` (`{name, presets:[…]}`, uno per gruppo) + `meta.json`;
+      i bundle `presets.json`/`providers.json` sono **generati** da `./ctf dork --build`
+      (e a ogni run). Test: validazione plugin dork, id univoci, drift check del bundle.
+      Totale self-test **26/26**.
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

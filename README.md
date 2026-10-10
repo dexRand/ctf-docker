@@ -121,9 +121,9 @@ only builds the query and the ready-to-open link. The page at
 ./ctf dork-test                     # generator self-test
 ```
 
-New search providers are **plugins**: drop one JSON file per engine into
-`config/dork/providers/` (`id`, `name`, `kind` = `web|code|host`, `url` with
-`{q}`) and run `./ctf dork --build` — no code changes needed.
+Plugins are just JSON files: search providers in `config/dork/providers/` (one
+per engine) and dorks in `config/dork/dorks/` (one per group, `{name, presets:[…]}`).
+Add a file and run `./ctf dork --build` — no code changes needed.
 
 ## 🧪 Analysis
 

@@ -1,0 +1,26 @@
+{
+  "name": "Recon",
+  "presets": [
+    {
+      "id": "subs",
+      "group": "Recon",
+      "kind": "web",
+      "name": "Sottodomini",
+      "q": "site:*.{t} -www"
+    },
+    {
+      "id": "errors",
+      "group": "Recon",
+      "kind": "web",
+      "name": "Errori / stack trace",
+      "q": "site:{t} (\"SQL syntax\" OR \"Warning:\" OR \"Fatal error\" OR \"stack trace\" OR \"Traceback (most recent call last)\")"
+    },
+    {
+      "id": "cache",
+      "group": "Recon",
+      "kind": "web",
+      "name": "Cache / versioni passate",
+      "q": "cache:{t} OR site:webcache.googleusercontent.com {t}"
+    }
+  ]
+}

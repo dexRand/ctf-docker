@@ -1,0 +1,33 @@
+{
+  "name": "Code",
+  "presets": [
+    {
+      "id": "vcs",
+      "group": "Code",
+      "kind": "web",
+      "name": ".git / .svn / .DS_Store / .env",
+      "q": "site:{t} (inurl:.git OR inurl:.svn OR inurl:.DS_Store OR inurl:.env)"
+    },
+    {
+      "id": "gh-code",
+      "group": "Code",
+      "kind": "code",
+      "name": "Codice che cita il target",
+      "q": "\"{t}\""
+    },
+    {
+      "id": "gh-secret",
+      "group": "Code",
+      "kind": "code",
+      "name": "Segreti nel codice",
+      "q": "\"{t}\" (api_key OR apikey OR secret OR token OR password)"
+    },
+    {
+      "id": "gh-config",
+      "group": "Code",
+      "kind": "code",
+      "name": "Config/filename hardcoded",
+      "q": "\"{t}\" (filename:env OR filename:config OR filename:.env)"
+    }
+  ]
+}

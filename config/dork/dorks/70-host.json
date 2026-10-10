@@ -1,0 +1,26 @@
+{
+  "name": "Host",
+  "presets": [
+    {
+      "id": "host-name",
+      "group": "Host",
+      "kind": "host",
+      "name": "Host per hostname",
+      "q": "hostname:{t}"
+    },
+    {
+      "id": "host-cert",
+      "group": "Host",
+      "kind": "host",
+      "name": "Certificati (ssl/hostname)",
+      "q": "ssl.cert.subject.cn:\"{t}\""
+    },
+    {
+      "id": "host-org",
+      "group": "Host",
+      "kind": "host",
+      "name": "Per organizzazione",
+      "q": "org:\"{t}\""
+    }
+  ]
+}

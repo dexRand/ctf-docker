@@ -83,39 +83,18 @@
       "q": "site:{t} (\"SQL syntax\" OR \"Warning:\" OR \"Fatal error\" OR \"stack trace\" OR \"Traceback (most recent call last)\")"
     },
     {
-      "id": "vcs",
-      "group": "Code",
-      "kind": "web",
-      "name": ".git / .svn / .DS_Store / .env",
-      "q": "site:{t} (inurl:.git OR inurl:.svn OR inurl:.DS_Store OR inurl:.env)"
-    },
-    {
-      "id": "cams",
-      "group": "Devices",
-      "kind": "web",
-      "name": "Webcam / IoT",
-      "q": "site:{t} (inurl:viewerframe OR inurl:axis-cgi OR inurl:mjpg OR intitle:webcam)"
-    },
-    {
-      "id": "paste",
-      "group": "Leaks",
-      "kind": "web",
-      "name": "Pastebin / paste",
-      "q": "site:pastebin.com OR site:paste.ee OR site:rentry.co \"{t}\""
-    },
-    {
-      "id": "leaks",
-      "group": "Leaks",
-      "kind": "web",
-      "name": "Segreti menzionati fuori dal sito",
-      "q": "\"{t}\" (password OR secret OR token OR api_key) -site:{t}"
-    },
-    {
       "id": "cache",
       "group": "Recon",
       "kind": "web",
       "name": "Cache / versioni passate",
       "q": "cache:{t} OR site:webcache.googleusercontent.com {t}"
+    },
+    {
+      "id": "vcs",
+      "group": "Code",
+      "kind": "web",
+      "name": ".git / .svn / .DS_Store / .env",
+      "q": "site:{t} (inurl:.git OR inurl:.svn OR inurl:.DS_Store OR inurl:.env)"
     },
     {
       "id": "gh-code",
@@ -137,6 +116,27 @@
       "kind": "code",
       "name": "Config/filename hardcoded",
       "q": "\"{t}\" (filename:env OR filename:config OR filename:.env)"
+    },
+    {
+      "id": "cams",
+      "group": "Devices",
+      "kind": "web",
+      "name": "Webcam / IoT",
+      "q": "site:{t} (inurl:viewerframe OR inurl:axis-cgi OR inurl:mjpg OR intitle:webcam)"
+    },
+    {
+      "id": "paste",
+      "group": "Leaks",
+      "kind": "web",
+      "name": "Pastebin / paste",
+      "q": "site:pastebin.com OR site:paste.ee OR site:rentry.co \"{t}\""
+    },
+    {
+      "id": "leaks",
+      "group": "Leaks",
+      "kind": "web",
+      "name": "Segreti menzionati fuori dal sito",
+      "q": "\"{t}\" (password OR secret OR token OR api_key) -site:{t}"
     },
     {
       "id": "host-name",

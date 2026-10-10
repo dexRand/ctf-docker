@@ -1,0 +1,26 @@
+{
+  "name": "File",
+  "presets": [
+    {
+      "id": "docs",
+      "group": "File",
+      "kind": "web",
+      "name": "Documenti esposti (pdf/doc/xls/ppt)",
+      "q": "site:{t} (ext:pdf OR ext:doc OR ext:docx OR ext:xls OR ext:xlsx OR ext:ppt OR ext:pptx OR ext:odt)"
+    },
+    {
+      "id": "conf",
+      "group": "File",
+      "kind": "web",
+      "name": "Config / .env / yml",
+      "q": "site:{t} (ext:env OR ext:ini OR ext:conf OR ext:cfg OR ext:yaml OR ext:yml)"
+    },
+    {
+      "id": "dump",
+      "group": "File",
+      "kind": "web",
+      "name": "Dump / backup",
+      "q": "site:{t} (ext:sql OR ext:bak OR ext:backup OR ext:old OR ext:tar OR ext:gz OR ext:zip)"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Devices",
+  "presets": [
+    {
+      "id": "cams",
+      "group": "Devices",
+      "kind": "web",
+      "name": "Webcam / IoT",
+      "q": "site:{t} (inurl:viewerframe OR inurl:axis-cgi OR inurl:mjpg OR intitle:webcam)"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "name": "CTF Toolbox — Dork generator",
+  "note": "Genera solo query (nessuno scraping): apri il link nel motore scelto. Provider in config/dork/providers/ (un file per motore). Le stesse regole sono usate dalla pagina web e dalla CLI (./ctf dork).",
+  "target_placeholder": "esempio.com"
+}

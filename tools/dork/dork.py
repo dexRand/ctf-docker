@@ -23,10 +23,12 @@ from pathlib import Path
 from urllib.parse import quote_plus
 
 DORK_DIR = Path(__file__).resolve().parents[2] / "config" / "dork"
+# Plugin (sorgenti versionati):
+DEFAULT_DORKS = DORK_DIR / "dorks"            # un file JSON per gruppo di dork
+DEFAULT_PROVIDERS = DORK_DIR / "providers"    # un file JSON per motore
+DEFAULT_META = DORK_DIR / "meta.json"
+# Bundle generati (li carica la web UI statica):
 DEFAULT_PRESETS = DORK_DIR / "presets.json"
-# Provider = plugin: un file JSON per motore in config/dork/providers/. Il bundle
-# `providers.json` (generato) e' quello che carica la web UI statica.
-DEFAULT_PROVIDERS = DORK_DIR / "providers"
 PROVIDERS_BUNDLE = DORK_DIR / "providers.json"
 DEFAULT_GHDB = DORK_DIR / "ghdb.json"
 GHDB_URL = "https://www.exploit-db.com/google-hacking-database"
@@ -67,10 +69,52 @@ def default_engine_ids(providers: list[dict]) -> list[str]:
     return ids or [p["id"] for p in providers if p["kind"] == "web"]
 
 
-def load_data(presets_path: Path, providers_dir: Path | None = None) -> dict:
-    data = load_presets(presets_path)
-    data["providers"] = load_providers(providers_dir or presets_path.with_name("providers"))
-    return data
+def load_meta(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def load_dorks(directory: Path) -> list[dict]:
+    """Carica i dork-plugin (config/dork/dorks/*.json: `{name, presets:[…]}`)."""
+    items: list[dict] = []
+    seen: set[str] = set()
+    if directory.is_dir():
+        for f in sorted(directory.glob("*.json")):
+            try:
+                blob = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as e:
+                print(f"[!] dork ignorati ({f.name}): {e}", file=sys.stderr)
+                continue
+            presets = blob.get("presets", blob) if isinstance(blob, dict) else blob
+            for p in presets or []:
+                if not isinstance(p, dict) or not {"id", "group", "kind", "name", "q"} <= set(p):
+                    print(f"[!] dork incompleto in {f.name}: {p}", file=sys.stderr)
+                    continue
+                if p["id"] in seen:
+                    print(f"[!] dork duplicato ignorato: {p['id']} ({f.name})", file=sys.stderr)
+                    continue
+                seen.add(p["id"])
+                items.append(p)
+    return items
+
+
+def build_presets(dorks_dir: Path, out: Path, meta_path: Path | None = None) -> list[dict]:
+    """Rigenera il bundle dei dork (meta + presets) che la web UI carica."""
+    presets = load_dorks(dorks_dir)
+    meta = load_meta(meta_path or dorks_dir.with_name("meta.json"))
+    out.write_text(json.dumps({"meta": meta, "presets": presets}, ensure_ascii=False, indent=2) + "\n",
+                   encoding="utf-8")
+    return presets
+
+
+def load_data(dorks_dir: Path, providers_dir: Path, meta_path: Path | None = None) -> dict:
+    return {
+        "meta": load_meta(meta_path or dorks_dir.with_name("meta.json")),
+        "presets": load_dorks(dorks_dir),
+        "providers": load_providers(providers_dir),
+    }
 
 
 def normalize_target(raw: str) -> str:
@@ -216,25 +260,30 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ghdb-file", default=os.environ.get("DORK_GHDB", str(DEFAULT_GHDB)))
     ap.add_argument("--limit", type=int, default=300, help="max risultati GHDB (default 300)")
     ap.add_argument("--presets-file", default=os.environ.get("DORK_PRESETS", str(DEFAULT_PRESETS)))
+    ap.add_argument("--dorks-dir", default=os.environ.get("DORK_DORKS", str(DEFAULT_DORKS)))
     ap.add_argument("--providers-dir", default=os.environ.get("DORK_PROVIDERS", str(DEFAULT_PROVIDERS)))
     ap.add_argument("--providers-bundle", default=os.environ.get("DORK_PROVIDERS_BUNDLE", str(PROVIDERS_BUNDLE)))
-    ap.add_argument("--build", action="store_true", help="rigenera il bundle dei provider (config/dork/providers.json)")
+    ap.add_argument("--meta-file", default=os.environ.get("DORK_META", str(DEFAULT_META)))
+    ap.add_argument("--build", action="store_true", help="rigenera i bundle (presets.json + providers.json)")
     args = ap.parse_args(argv)
 
-    path = Path(args.presets_file)
-    if not path.is_file():
-        print(f"[x] preset non trovati: {path}", file=sys.stderr)
-        return 2
+    dorks_dir = Path(args.dorks_dir)
     providers_dir = Path(args.providers_dir)
-    # tieni il bundle allineato ai provider-plugin (lo carica la web UI statica)
+    meta_path = Path(args.meta_file)
+    if not dorks_dir.is_dir():
+        print(f"[x] dork-plugin non trovati: {dorks_dir}", file=sys.stderr)
+        return 2
+    # rigenera i bundle che carica la web UI statica
     try:
         build_providers(providers_dir, Path(args.providers_bundle))
+        build_presets(dorks_dir, Path(args.presets_file), meta_path)
     except OSError as e:
-        print(f"[!] bundle provider non aggiornato: {e}", file=sys.stderr)
-    data = load_data(path, providers_dir)
+        print(f"[!] bundle non aggiornato: {e}", file=sys.stderr)
+    data = load_data(dorks_dir, providers_dir, meta_path)
 
     if args.build:
-        print(f"[+] provider: {len(data['providers'])} -> {args.providers_bundle}")
+        print(f"[+] plugin: {len(data['presets'])} dork, {len(data['providers'])} provider"
+              f" -> {args.presets_file} + {args.providers_bundle}")
         return 0
 
     if args.list:

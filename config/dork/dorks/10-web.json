@@ -1,0 +1,40 @@
+{
+  "name": "Web",
+  "presets": [
+    {
+      "id": "listing",
+      "group": "Web",
+      "kind": "web",
+      "name": "Directory listing",
+      "q": "site:{t} intitle:\"index of\""
+    },
+    {
+      "id": "admin",
+      "group": "Web",
+      "kind": "web",
+      "name": "Admin / login",
+      "q": "site:{t} (inurl:admin OR inurl:login OR inurl:signin OR inurl:dashboard OR intitle:admin)"
+    },
+    {
+      "id": "params",
+      "group": "Web",
+      "kind": "web",
+      "name": "Parametri GET",
+      "q": "site:{t} inurl:? (inurl:redirect OR inurl:url= OR inurl:file= OR inurl:path= OR inurl:page=)"
+    },
+    {
+      "id": "footholds",
+      "group": "Web",
+      "kind": "web",
+      "name": "Foothold (phpinfo / phpMyAdmin / server-status)",
+      "q": "site:{t} (inurl:phpinfo.php OR intitle:phpMyAdmin OR inurl:server-status OR intitle:\"Apache2 Ubuntu Default Page\")"
+    },
+    {
+      "id": "wordpress",
+      "group": "Web",
+      "kind": "web",
+      "name": "WordPress (config/backup/users)",
+      "q": "site:{t} (inurl:wp-config OR inurl:wp-content/backup OR inurl:wp-json/wp/v2/users OR inurl:xmlrpc.php)"
+    }
+  ]
+}

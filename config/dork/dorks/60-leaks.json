@@ -1,0 +1,19 @@
+{
+  "name": "Leaks",
+  "presets": [
+    {
+      "id": "paste",
+      "group": "Leaks",
+      "kind": "web",
+      "name": "Pastebin / paste",
+      "q": "site:pastebin.com OR site:paste.ee OR site:rentry.co \"{t}\""
+    },
+    {
+      "id": "leaks",
+      "group": "Leaks",
+      "kind": "web",
+      "name": "Segreti menzionati fuori dal sito",
+      "q": "\"{t}\" (password OR secret OR token OR api_key) -site:{t}"
+    }
+  ]
+}
