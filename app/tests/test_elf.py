@@ -3,7 +3,13 @@ from __future__ import annotations
 
 import struct
 
-from backend.analyzers.elf import _dynamic_info, _parse_sections, elf_summary, is_elf
+from backend.analyzers.elf import (
+    _dyn_imports,
+    _dynamic_info,
+    _parse_sections,
+    elf_summary,
+    is_elf,
+)
 
 _IDENT64 = b"\x7fELF\x02\x01\x01\x00\x00" + b"\x00" * 7  # ELF64, little-endian
 
@@ -141,3 +147,60 @@ def test_dynamic_bind_now_sets_full_relro() -> None:
     info = elf_summary(data)
     assert info is not None
     assert info["checksec"]["relro"] == "full"
+    assert info["checksec"]["bind_now"] is True
+
+
+def test_dyn_imports_from_dynsym() -> None:
+    dynstr = b"\x00gets\x00system\x00main\x00"          # 1 / 6 / 13
+    sym = lambda off, shndx: struct.pack("<IBBHQQ", off, 0x12, 0, shndx, 0, 0)  # GLOBAL FUNC
+    dynsym = sym(1, 0) + sym(6, 0) + sym(13, 1)          # gets/system undefined, main defined
+    symtab_off = len(dynstr)
+    buf = bytearray(symtab_off + len(dynsym))
+    buf[:len(dynstr)] = dynstr
+    buf[symtab_off:] = dynsym
+    sections = [
+        {"name": "", "offset": 0, "size": 0, "link": 0, "entsize": 0},
+        {"name": ".dynsym", "offset": symtab_off, "size": len(dynsym), "link": 2, "entsize": 24},
+        {"name": ".dynstr", "offset": 0, "size": len(dynstr), "link": 0, "entsize": 0},
+    ]
+    assert _dyn_imports(bytes(buf), sections, True, "<") == ["gets", "system"]
+
+
+def _full_elf64(dynstr: bytes, dynsym: bytes, init_array: bytes) -> bytes:
+    """Minimal ELF64 with .dynstr/.dynsym/.init_array/.shstrtab (for end-to-end)."""
+    shstr = b"\x00.dynstr\x00.dynsym\x00.init_array\x00.shstrtab\x00"  # 1 / 9 / 17 / 29
+    cur, body, off = 64 + 56, b"", {}
+    for key, blob in (("dynstr", dynstr), ("dynsym", dynsym),
+                      ("init_array", init_array), ("shstrtab", shstr)):
+        off[key] = cur + len(body)
+        body += blob
+    shoff = cur + len(body)
+
+    def shdr(name_off: int, type_: int, offset: int, size: int, link: int, entsize: int) -> bytes:
+        return struct.pack("<IIQQQQIIQQ", name_off, type_, 0, 0, offset, size, link, 0, 0, entsize)
+
+    shdrs = (shdr(0, 0, 0, 0, 0, 0)                                   # NULL
+             + shdr(1, 3, off["dynstr"], len(dynstr), 0, 0)           # .dynstr   (idx 1)
+             + shdr(9, 11, off["dynsym"], len(dynsym), 1, 24)         # .dynsym -> .dynstr
+             + shdr(17, 14, off["init_array"], len(init_array), 0, 8)  # .init_array
+             + shdr(29, 3, off["shstrtab"], len(shstr), 0, 0))        # .shstrtab (idx 4)
+    ident = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 8
+    ehdr = ident + struct.pack("<HHIQQQIHHHHHH", 2, 0x3E, 1, 0x400000,
+                               64, shoff, 0, 64, 56, 1, 64, 5, 4)
+    total = len(ehdr) + 56 + len(body) + len(shdrs)
+    ph = struct.pack("<IIQQQQQQ", 1, 4, 0, 0x400000, 0x400000, total, total, 0x1000)
+    return ehdr + ph + body + shdrs
+
+
+def test_full_elf_imports_dangerous_and_init_array() -> None:
+    dynstr = b"\x00gets\x00system\x00safe_fn\x00"       # 1 / 6 / 13
+    dynsym = (struct.pack("<IBBHQQ", 1, 0x12, 0, 0, 0, 0)     # gets   (undefined)
+              + struct.pack("<IBBHQQ", 6, 0x12, 0, 0, 0, 0)    # system (undefined)
+              + struct.pack("<IBBHQQ", 13, 0x12, 0, 1, 0, 0))   # safe_fn (defined)
+    init_array = struct.pack("<QQ", 0x401000, 0x401100)
+    info = elf_summary(_full_elf64(dynstr, dynsym, init_array))
+    assert info is not None
+    assert info["imports"] == ["gets", "system"]
+    assert info["dangerous"] == ["gets", "system"]
+    assert info["init_array"] == 2
+    assert info["checksec"]["bind_now"] is False

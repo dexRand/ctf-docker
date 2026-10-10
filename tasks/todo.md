@@ -110,8 +110,10 @@
       qemu-user + **Ghidra headless** da **terminale web** (ttyd). Tool StegSuite **45**.
       **Estensione (passiva, pure-python)**: oltre a header+checksec ora parsa anche
       **sezioni** e **sezione dinamica** → linking static/dynamic, librerie `DT_NEEDED`,
-      `SONAME`, `RPATH/RUNPATH`, `stripped`/debug info, conteggio segmenti **RWX**,
-      rilevazione **packer UPX**; `readelf` guadagna `-W -V`. Test: `test_elf.py` (10)
+      `SONAME`, `RPATH/RUNPATH`, `stripped`/debug info, segmenti **RWX**, **packer UPX**,
+      **import dinamici** (`.dynsym` → PLT/GOT) con evidenza delle **funzioni pericolose**
+      (`gets/strcpy/system/execve/…`), **costruttori `.init_array`/`.fini_array`** e
+      `BIND_NOW` nel checksec; `readelf` guadagna `-W -V`. Test: `test_elf.py` (12)
       + caso **`elf`** in `ctf_regression.py` (regressione **26/26**).
 
 ### Da fare (prossima sessione)

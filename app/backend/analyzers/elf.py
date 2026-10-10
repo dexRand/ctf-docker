@@ -47,30 +47,30 @@ def _parse_sections(data: bytes, shoff: int, shentsize: int, shnum: int,
     """Section headers with resolved names (empty when the file has no sections)."""
     if not shoff or not shnum or not shentsize:
         return []
-    raw: list[tuple[int, int, int, int]] = []
+    raw: list[tuple[int, int, int, int, int, int]] = []
     for i in range(shnum):
         off = shoff + i * shentsize
         try:
             if is64:
                 sh_name, sh_type = struct.unpack_from(endian + "II", data, off)
-                sh_offset = struct.unpack_from(endian + "Q", data, off + 24)[0]
-                sh_size = struct.unpack_from(endian + "Q", data, off + 32)[0]
+                sh_offset, sh_size = struct.unpack_from(endian + "QQ", data, off + 24)
+                sh_link, _sh_info = struct.unpack_from(endian + "II", data, off + 40)
+                sh_entsize = struct.unpack_from(endian + "Q", data, off + 56)[0]
             else:
                 sh_name, sh_type = struct.unpack_from(endian + "II", data, off)
-                sh_offset = struct.unpack_from(endian + "I", data, off + 16)[0]
-                sh_size = struct.unpack_from(endian + "I", data, off + 20)[0]
+                sh_offset, sh_size = struct.unpack_from(endian + "II", data, off + 16)
+                sh_link, _sh_info = struct.unpack_from(endian + "II", data, off + 24)
+                sh_entsize = struct.unpack_from(endian + "I", data, off + 36)[0]
         except struct.error:
             break
-        raw.append((sh_name, sh_type, sh_offset, sh_size))
+        raw.append((sh_name, sh_type, sh_offset, sh_size, sh_link, sh_entsize))
     strtab = b""
     if 0 <= shstrndx < len(raw):
-        _, _, so, ss = raw[shstrndx]
+        so, ss = raw[shstrndx][2], raw[shstrndx][3]
         strtab = data[so:so + ss]
-    out: list[dict] = []
-    for sh_name, sh_type, sh_offset, sh_size in raw:
-        out.append({"name": _cstr(strtab, sh_name), "type": _SHT.get(sh_type, hex(sh_type)),
-                    "size": sh_size, "offset": sh_offset})
-    return out
+    return [{"name": _cstr(strtab, n), "type": _SHT.get(t, hex(t)), "type_id": t, "size": sz,
+             "offset": o, "link": lk, "entsize": es}
+            for n, t, o, sz, lk, es in raw]
 
 
 def _dynamic_info(data: bytes, off: int, size: int, endian: str, is64: bool,
@@ -101,6 +101,39 @@ def _dynamic_info(data: bytes, off: int, size: int, endian: str, is64: bool,
         elif tag in (_DT_RPATH, _DT_RUNPATH):
             info["rpath"] = _cstr(dynstr, val)
     return info
+
+
+# funczioni importate che in CTF/pwn valgono un'occhiata (overflow, format string,
+# esecuzione di comandi, W^X…)
+_DANGEROUS = ("gets", "strcpy", "strcat", "sprintf", "vsprintf", "scanf", "sscanf",
+              "system", "popen", "execve", "execl", "execlp", "execvp", "execv",
+              "mprotect", "memcpy", "strncpy")
+
+
+def _dyn_imports(data: bytes, sections: list[dict], is64: bool, endian: str) -> list[str]:
+    """Imported function names (undefined symbols in .dynsym) — i.e. the PLT/GOT."""
+    sym = next((s for s in sections if s["name"] == ".dynsym" and s["entsize"]), None)
+    if not sym:
+        return []
+    strtab = b""
+    if 0 <= sym["link"] < len(sections):
+        st = sections[sym["link"]]
+        strtab = data[st["offset"]:st["offset"] + st["size"]]
+    imports: list[str] = []
+    for i in range(sym["size"] // sym["entsize"]):
+        o = sym["offset"] + i * sym["entsize"]
+        try:
+            if is64:
+                st_name, st_info, _st_other, st_shndx = struct.unpack_from(endian + "IBBH", data, o)
+            else:
+                st_name, _v, _sz, st_info, _st_other, st_shndx = struct.unpack_from(endian + "IIIBBH", data, o)
+        except struct.error:
+            break
+        if st_shndx == 0 and (st_info & 0xF) == 2 and st_name:   # SHN_UNDEF + STT_FUNC
+            name = _cstr(strtab, st_name)
+            if name and name not in imports:
+                imports.append(name)
+    return imports
 
 
 def elf_summary(data: bytes) -> dict | None:
@@ -179,6 +212,13 @@ def elf_summary(data: bytes) -> dict | None:
 
     relro = "full" if (has_relro and dyn["bind_now"]) else ("partial" if has_relro else "none")
     packer = "UPX" if (any(n.startswith("UPX") for n in names) or _UPX_MAGIC in data[:4096]) else None
+    imports = _dyn_imports(data, sections, is64, endian)
+    ptr = 8 if is64 else 4
+
+    def _arr(section_name: str) -> int:
+        s = next((x for x in sections if x["name"] == section_name), None)
+        return (s["size"] // ptr) if s else 0
+
     out.update({
         "section_count": len(sections),
         "sections": [s for s in sections if s["name"]],   # named only (skip the NULL section)
@@ -190,6 +230,10 @@ def elf_summary(data: bytes) -> dict | None:
         "rwx": rwx,
         "packer": packer,
         "debug": any(n.startswith(".debug") for n in names),
+        "imports": imports,
+        "dangerous": [i for i in imports if i in _DANGEROUS],
+        "init_array": _arr(".init_array"),
+        "fini_array": _arr(".fini_array"),
     })
     out["checksec"] = {
         "relro": relro,
@@ -197,6 +241,7 @@ def elf_summary(data: bytes) -> dict | None:
         "nx": nx,
         "pie": out["type"] == "DYN" and out["interpreter"] is not None,
         "fortify": b"__printf_chk" in data or b"__memcpy_chk" in data,
+        "bind_now": bool(dyn["bind_now"]),
     }
     return out
 
@@ -236,17 +281,25 @@ class ElfAnalyzer(Analyzer):
             "checksec: "
             f"RELRO={cs['relro']} · Canary={'yes' if cs['canary'] else 'no'} · "
             f"NX={yn(cs['nx'])} · PIE={'yes' if cs['pie'] else 'no'} · "
-            f"Fortify={'yes' if cs['fortify'] else 'no'}",
-            _libs_line(info),
-            f"sections: {info['section_count']} · stripped={'yes' if info['stripped'] else 'no'}"
-            + (" · debug=yes" if info["debug"] else "")
-            + (f" · RWX segments={info['rwx']}" if info["rwx"] else ""),
-            "segments: " + ", ".join(dict.fromkeys(info["segments"])),
+            f"Fortify={'yes' if cs['fortify'] else 'no'} · BIND_NOW={'yes' if cs['bind_now'] else 'no'}",
         ]
         if info["packer"]:
-            lines.insert(3, f"⚠ packer rilevato: {info['packer']}")
+            lines.append(f"⚠ packer rilevato: {info['packer']}")
         if info["rpath"]:
-            lines.insert(3, f"⚠ RPATH/RUNPATH: {info['rpath']}")
+            lines.append(f"⚠ RPATH/RUNPATH: {info['rpath']}")
+        if info["dangerous"]:
+            lines.append("⚠ import pericolosi: " + ", ".join(info["dangerous"]))
+        lines.append(_libs_line(info))
+        lines.append(
+            f"sections: {info['section_count']} · stripped={'yes' if info['stripped'] else 'no'}"
+            + (" · debug=yes" if info["debug"] else "")
+            + (f" · init_array={info['init_array']}" if info["init_array"] else "")
+            + (f" · RWX segments={info['rwx']}" if info["rwx"] else ""))
+        imp = info["imports"]
+        if imp:
+            shown = ", ".join(imp[:24]) + (f" …(+{len(imp) - 24})" if len(imp) > 24 else "")
+            lines.append(f"imports ({len(imp)}): {shown}")
+        lines.append("segments: " + ", ".join(dict.fromkeys(info["segments"])))
         return ToolResult(self.name, status="done", output="\n".join(lines),
                           summary=f"{info['class']} {info['type']} {info['machine']}")
 
