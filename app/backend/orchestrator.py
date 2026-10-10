@@ -248,6 +248,12 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         return
     data = text.encode("latin-1", "replace")
     views = _views(data) + _url_decoded(data)
+    # a flag can be split across lines by OCR (e.g. `flag{Wh4t_\nth3_fl4g}`):
+    # also scan a whitespace-collapsed copy so the token is contiguous again.
+    if len(data) <= 200_000:
+        collapsed = re.sub(rb"\s+", b"", data)
+        if collapsed != data:
+            views.append(collapsed)
     existing = {f.value for f in session.exec(select(Finding).where(Finding.project_id == project_id)).all()}
     existing_norm = {v.replace(" ", "") for v in existing}
     canon_index = {_canon_flag(v): v for v in existing}

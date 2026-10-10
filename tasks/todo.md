@@ -77,7 +77,9 @@
       `wireshark`).
 - [x] **Analyzer `wav-levels`**: rileva WAV con campioni **quantizzati a pochi
       livelli** e li mappa a cifre **hex** → decodifica i byte. Risolve *Surfing the
-      Waves* (reali **32/32**, regressione **25/25**, tool **48**).
+      Waves* (reali **33/33**, regressione **25/25**, tool **48**).
+- [x] **GIF: frame analizzati come figli** (pipeline completa) + flag hunt su view
+      **senza spazi** (flag su più righe) → risolve *Corrupted flag*.
 - [x] **Analyzer `lsb-carve`**: file nascosto nei piani LSB + password da file
       "fratello" → risolve *Gab-Chan* (tool **48**).
 - [x] **Challenge OliCyber/ITS + Olimpiadi + SOFTWARE**: 18 reali da mirror
@@ -94,11 +96,8 @@
 - [ ] **Area OSINT condivisa** (`osint/`): fatta la base (override compose + README
       contratto + `example_client.py` + `CODEOWNERS`); il collega aggiunge i suoi
       servizi su `ctfnet` e chiama le API per nome servizio.
-- [ ] **Frame GIF → analizzarli come figli**: `gif-frames` oggi salva i frame come
-      *artifact* e fa una sola passata OCR; per *Corrupted flag* la flag sta in un
-      frame estratto ma non viene letta. Far girare su ogni frame il pipeline vero
-      (`bit-planes`, `zsteg`, `channel-remap`, `image-enhance`) — con un tetto ai
-      frame per non appesantire.
+- [x] **Frame GIF → analizzati come figli** (pipeline completa, tetto `MAX_NODES`)
+      + flag hunt su view **senza spazi** → risolve *Corrupted flag*.
 - [ ] **`./ctf dork`** / tool **dorking** (richiesta utente): generatore di query
       Google/GitHub/Shodan da un target. *(valutare scope OSINT.)*
 

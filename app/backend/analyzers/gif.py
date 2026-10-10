@@ -7,6 +7,7 @@ from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
 
 MAX_FRAMES = 500
+MAX_NODES = 40  # frames returned as children (full pipeline); others stay artifacts
 
 
 def _try_decode_bits(values: list[int]) -> list[str]:
@@ -107,8 +108,20 @@ class GifFramesAnalyzer(Analyzer):
 
         artifacts = [{"name": str(f.relative_to(ctx.workdir)), "path": str(f),
                       "size": f.stat().st_size} for f in sorted(outdir.glob("*.png"))]
-        return ToolResult(self.name, status="done", summary=f"{len(frames)} frame",
-                          output="\n".join(lines), artifacts=artifacts)
+        # analyse every frame as a normal child (bit-planes, zsteg, channel-remap,
+        # image-enhance, OCR): a flag can be drawn or hidden in a single frame.
+        # Above MAX_NODES, sample evenly plus the most-changed frames.
+        if len(frames) <= MAX_NODES:
+            exported = list(frames)
+        else:
+            step = len(frames) / MAX_NODES
+            keep = sorted({int(i * step) for i in range(MAX_NODES)}
+                          | {i for _, i in sorted(diffs, reverse=True)[:10]})
+            exported = [frames[i] for i in keep if 0 <= i < len(frames)]
+        return ToolResult(self.name, status="done",
+                          summary=f"{len(frames)} frame, {len(exported)} analysed",
+                          output="\n".join(lines), artifacts=artifacts,
+                          extracted=[str(f) for f in exported])
 
 
 register(GifFramesAnalyzer())

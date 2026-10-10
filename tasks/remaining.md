@@ -9,7 +9,7 @@ cd <repo>                               # es. /home/r/__Github/CTF
 ./ctf up                                # core (Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser)
 ./ctf up web                            # + ZAP (con add-on extra)   [recon|crypto|forensics|crack|audio|rev]
 ./ctf urls                              # URL di tutti i servizi
-./ctf test                              # regressione 25/25 + reali 32/32 + verify ALL CORRECT
+./ctf test                              # regressione 25/25 + reali 33/33 + verify ALL CORRECT
 ./ctf ui-smoke                          # smoke test della SPA (Chromium headless in Docker)
 docker compose config -q                # valida il compose
 ```
@@ -368,11 +368,7 @@ presente, flag visiva non OCR-abile), **Surfing the Waves** (WAV: mapping
 custom), **tunn3l v1s10n** e **like1000** (risolte strutturalmente, resta il
 near-miss OCR).
 
-## TODO immediati (domani)
-- **Frame GIF**: `gif-frames` salva i frame come *artifact* e fa solo un OCR per
-  frame; in *Corrupted flag* (Olimpiadi) la flag sta in **un frame estratto** e non
-  viene letta → far girare sui frame il pipeline completo (`bit-planes`, `zsteg`,
-  `channel-remap`, `image-enhance`) con un tetto ai frame.
+## TODO immediati
 - **Dorking**: valutare un tool/`./ctf dork` che genera query Google/GitHub/Shodan
   da un target (richiesta utente; tocca lo scope OSINT, decidere prima).
 
@@ -399,7 +395,7 @@ app/frontend/                  # GUI Vue 3 (+ package-lock.json)
 app/frontend/src/toast.js      # store toast globale
 app/frontend/src/components/Toasts.vue  # rendering toast
 app/tests/ctf_regression.py    # 25/25 (incl. image-repair, dns-tunnel, nested-archive, sstv, tls-pcap, openstego, psimage, office, wav-levels)
-app/tests/real_challenges.py   # 32/32 (picoCTF 13 + OliCyber/Olimpiadi 19; incl. git repo, LSB carve, TLS keylog, comments)
+app/tests/real_challenges.py   # 33/33 (picoCTF 13 + OliCyber/Olimpiadi 20; incl. git, LSB carve, GIF frames, TLS keylog)
 app/tests/verify_flags.py      # verifica per-istanza (ALL CORRECT)
 app/tests/ui_smoke.mjs         # smoke test UI (Playwright/Chromium) + ui_smoke.sh
 app/tests/fixtures/            # challenge.png + webnet0/{capture.pcap, picopico.key}
