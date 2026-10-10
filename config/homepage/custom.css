@@ -73,11 +73,16 @@ h1, h2, h3 { color: rgb(var(--acc)) !important; }
   max-width: 100% !important;
 }
 .services-list {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: .4rem !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: .5rem !important;
 }
-.services-list > * { width: 100%; }
+/* a group with a single tool: let its card span the whole row (no empty cell) */
+.services-list > :only-child { grid-column: 1 / -1; }
+@media (max-width: 700px) {
+  .services-list { grid-template-columns: 1fr !important; }
+  .services-list > :only-child { grid-column: auto; }
+}
 
 /* ----------------------------------------------------------- uniform cards */
 .service-card {
