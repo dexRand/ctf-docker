@@ -49,5 +49,9 @@ COPY ghidra-decompile.sh /usr/local/bin/ghidra-decompile
 RUN chmod +x /usr/local/bin/ghidra-decompile
 
 # web terminal: writable shell on port 7681 (published on 127.0.0.1 only)
+# banner + scorciatoie (menu, dec, sec) ad ogni login shell
+COPY profile.sh /etc/profile.d/rev.sh
+RUN chmod 0644 /etc/profile.d/rev.sh
+
 EXPOSE 7681
 ENTRYPOINT ["ttyd", "-W", "-p", "7681", "-t", "fontSize=14", "bash", "-l"]

@@ -48,9 +48,10 @@ on-demand). Il token serve con scope **`workflow`**.
   **Estensione**: l'analyzer `elf` passivo (pure-python) parsa anche **sezioni** e
   **sezione dinamica** → linking static/dynamic, librerie `DT_NEEDED`, `SONAME`,
   `RPATH/RUNPATH`, `stripped`/debug, segmenti **RWX**, **packer UPX**, **import**
-  (PLT/GOT) con **funzioni pericolose**, **`.init_array`/`.fini_array`**, `BIND_NOW`;
-  `readelf` con `-W -V`. Unit test in `test_elf.py` (12) + caso `elf` nella regressione
-  (**26/26**).
+  (PLT/GOT) con **funzioni pericolose**, **`.init_array`/`.fini_array`**, `BIND_NOW`,
+  **hardening CET** (`IBT`/`SHSTK`) e **PLT relocations**; `readelf` con `-W -V`.
+  Il sandbox `rev` ha un **menu** all'avvio con `dec`/`sec`/`menu`.
+  Unit test in `test_elf.py` (14) + caso `elf` nella regressione (**26/26**).
 - **P27 MacroHard WeakEdge risolta (analyzer `office`)**: nuovo tool **`office`**
   che scompatta i documenti **Office/OpenDocument** (`.pptm/.docm/.docx/.xlsx/.odt…`)
   e decodifica il **base64 anche separato da spazi** (o un carattere per riga) — è

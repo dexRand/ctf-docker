@@ -26,9 +26,13 @@ _SHT = {0: "NULL", 1: "PROGBITS", 2: "SYMTAB", 3: "STRTAB", 4: "RELA", 5: "HASH"
         6: "DYNAMIC", 7: "NOTE", 8: "NOBITS", 9: "REL", 10: "SHLIB", 11: "DYNSYM",
         14: "INIT_ARRAY", 15: "FINI_ARRAY", 16: "PREINIT_ARRAY", 18: "GROUP"}
 _DT_NEEDED, _DT_SONAME, _DT_RPATH, _DT_RUNPATH = 1, 14, 15, 29
+_DT_PLTRELSZ, _DT_PLTREL, _DT_JMPREL = 2, 20, 23
 _DT_BIND_NOW, _DT_FLAGS, _DT_FLAGS_1 = 24, 30, 0x6FFFFFFB
 _DF_BIND_NOW, _DF_1_NOW = 0x8, 0x1
 _UPX_MAGIC = b"UPX!"
+# GNU property note (type NT_GNU_PROPERTY_TYPE_0 = 5): x86 / aarch64 feature bits
+_NT_GNU_PROPERTY = 5
+_PROP_FEAT1 = {0xC0000002: ("IBT", "SHSTK"), 0xC0000000: ("BTI", "PAC")}
 
 
 def is_elf(head: bytes) -> bool:
@@ -76,7 +80,8 @@ def _parse_sections(data: bytes, shoff: int, shentsize: int, shnum: int,
 def _dynamic_info(data: bytes, off: int, size: int, endian: str, is64: bool,
                   dynstr: bytes) -> dict:
     """DT_BIND_NOW + DT_NEEDED (libs) + SONAME + RPATH/RUNPATH."""
-    info = {"bind_now": False, "needed": [], "soname": None, "rpath": None}
+    info = {"bind_now": False, "needed": [], "soname": None, "rpath": None,
+            "pltrelsz": 0, "pltrel": 0}
     entsize = 16 if is64 else 8
     for i in range(size // entsize):
         o = off + i * entsize
@@ -100,6 +105,10 @@ def _dynamic_info(data: bytes, off: int, size: int, endian: str, is64: bool,
             info["soname"] = _cstr(dynstr, val)
         elif tag in (_DT_RPATH, _DT_RUNPATH):
             info["rpath"] = _cstr(dynstr, val)
+        elif tag == _DT_PLTRELSZ:
+            info["pltrelsz"] = val
+        elif tag == _DT_PLTREL:
+            info["pltrel"] = val
     return info
 
 
@@ -134,6 +143,38 @@ def _dyn_imports(data: bytes, sections: list[dict], is64: bool, endian: str) -> 
             if name and name not in imports:
                 imports.append(name)
     return imports
+
+
+def _gnu_property_hardening(data: bytes, sections: list[dict], endian: str) -> list[str]:
+    """Hardware hardening from ``.note.gnu.property``: CET (IBT/SHSTK) or BTI/PAC."""
+    note = next((s for s in sections if s["name"] == ".note.gnu.property"), None)
+    if not note:
+        return []
+    feats: list[str] = []
+    off, end = note["offset"], note["offset"] + note["size"]
+    while off + 12 <= end:
+        try:
+            namesz, descsz, ntype = struct.unpack_from(endian + "III", data, off)
+        except struct.error:
+            break
+        off += 12 + ((namesz + 3) & ~3)
+        desc = data[off:off + descsz]
+        off += (descsz + 3) & ~3
+        if ntype != _NT_GNU_PROPERTY:
+            continue
+        j = 0
+        while j + 8 <= len(desc):
+            pr_type, pr_datasz = struct.unpack_from(endian + "II", desc, j)
+            j += 8
+            val = desc[j:j + pr_datasz]
+            j += (pr_datasz + 7) & ~7
+            names = _PROP_FEAT1.get(pr_type)
+            if names and len(val) >= 4:
+                bits = struct.unpack_from(endian + "I", val, 0)[0]
+                for bit, feat in enumerate(names):
+                    if bits & (1 << bit) and feat not in feats:
+                        feats.append(feat)
+    return feats
 
 
 def elf_summary(data: bytes) -> dict | None:
@@ -208,7 +249,8 @@ def elf_summary(data: bytes) -> dict | None:
             dynstr = data[s["offset"]:s["offset"] + s["size"]]
             break
     dyn = _dynamic_info(data, dyn_off, dyn_size, endian, is64, dynstr) if (dyn_off and dyn_size) \
-        else {"bind_now": False, "needed": [], "soname": None, "rpath": None}
+        else {"bind_now": False, "needed": [], "soname": None, "rpath": None,
+              "pltrelsz": 0, "pltrel": 0}
 
     relro = "full" if (has_relro and dyn["bind_now"]) else ("partial" if has_relro else "none")
     packer = "UPX" if (any(n.startswith("UPX") for n in names) or _UPX_MAGIC in data[:4096]) else None
@@ -234,6 +276,8 @@ def elf_summary(data: bytes) -> dict | None:
         "dangerous": [i for i in imports if i in _DANGEROUS],
         "init_array": _arr(".init_array"),
         "fini_array": _arr(".fini_array"),
+        "plt_relocs": (dyn["pltrelsz"] // (24 if dyn["pltrel"] == 7 else 16)) if dyn["pltrelsz"] else 0,
+        "hardening": _gnu_property_hardening(data, sections, endian),
     })
     out["checksec"] = {
         "relro": relro,
@@ -289,11 +333,14 @@ class ElfAnalyzer(Analyzer):
             lines.append(f"⚠ RPATH/RUNPATH: {info['rpath']}")
         if info["dangerous"]:
             lines.append("⚠ import pericolosi: " + ", ".join(info["dangerous"]))
+        if info["hardening"]:
+            lines.append("hardening: " + ", ".join(info["hardening"]))
         lines.append(_libs_line(info))
         lines.append(
             f"sections: {info['section_count']} · stripped={'yes' if info['stripped'] else 'no'}"
             + (" · debug=yes" if info["debug"] else "")
             + (f" · init_array={info['init_array']}" if info["init_array"] else "")
+            + (f" · PLT={info['plt_relocs']}" if info["plt_relocs"] else "")
             + (f" · RWX segments={info['rwx']}" if info["rwx"] else ""))
         imp = info["imports"]
         if imp:

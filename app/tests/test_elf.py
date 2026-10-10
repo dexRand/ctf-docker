@@ -6,6 +6,7 @@ import struct
 from backend.analyzers.elf import (
     _dyn_imports,
     _dynamic_info,
+    _gnu_property_hardening,
     _parse_sections,
     elf_summary,
     is_elf,
@@ -137,7 +138,10 @@ def test_dynamic_bind_now_sets_full_relro() -> None:
     interp_off = 64 + 3 * 56          # 3 phdrs -> interp sits right after them
     # DYNAMIC segment with a DT_BIND_NOW entry, placed right after the phdrs
     dyn_off = interp_off + 28
-    dyn = struct.pack("<QQ", 24, 0) + struct.pack("<QQ", 0, 0)
+    dyn = (struct.pack("<QQ", 24, 0)      # DT_BIND_NOW
+           + struct.pack("<QQ", 2, 48)    # DT_PLTRELSZ (48 bytes -> 2 RELA entries)
+           + struct.pack("<QQ", 20, 7)    # DT_PLTREL = RELA
+           + struct.pack("<QQ", 0, 0))    # DT_NULL
     phdrs = [
         _phdr64(3, 4, interp_off, 28),                    # PT_INTERP
         _phdr64(2, 6, dyn_off, len(dyn)),                 # PT_DYNAMIC
@@ -148,6 +152,23 @@ def test_dynamic_bind_now_sets_full_relro() -> None:
     assert info is not None
     assert info["checksec"]["relro"] == "full"
     assert info["checksec"]["bind_now"] is True
+    assert info["plt_relocs"] == 2
+
+
+def test_dynamic_plt_relocations() -> None:
+    entries = (struct.pack("<QQ", 2, 48)      # DT_PLTRELSZ
+               + struct.pack("<QQ", 20, 7)    # DT_PLTREL = RELA
+               + struct.pack("<QQ", 0, 0))
+    info = _dynamic_info(entries, 0, len(entries), "<", True, b"\x00")
+    assert info["pltrelsz"] == 48 and info["pltrel"] == 7
+
+
+def test_gnu_property_hardening_cet() -> None:
+    desc = struct.pack("<III", 0xC0000002, 4, 1 | 2)      # x86 FEATURE_1: IBT + SHSTK
+    note = struct.pack("<III", 4, len(desc), 5) + b"GNU\x00" + desc   # NT_GNU_PROPERTY_TYPE_0
+    sections = [{"name": ".note.gnu.property", "offset": 0, "size": len(note)}]
+    assert _gnu_property_hardening(note, sections, "<") == ["IBT", "SHSTK"]
+    assert _gnu_property_hardening(note, [{"name": ".text", "offset": 0, "size": 4}], "<") == []
 
 
 def test_dyn_imports_from_dynsym() -> None:
