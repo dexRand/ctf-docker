@@ -53,7 +53,7 @@ tool pesanti stanno dietro **profili** Compose opzionali.
 | Web | **mitmproxy** | http://localhost:19003 | Intercetta e modifica HTTP(S) · proxy su `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoder, converter, hash, regex e simili | core |
 | Recon | Dork generator | http://localhost:19019 | Dork curati + **Google Hacking Database** (exploit-db): query Google/Bing/DuckDuckGo/GitHub/Shodan da un target (nessuno scraping) · sync con `./ctf dork --update` · export .md/.json | core |
-| Stego workbench | **StegSuite** | http://localhost:19014 | Analisi ricorsiva auto su 41 tool (stego, forensics, vision/OCR, audio/SSTV/network), albero file, log live, terminale, API REST | core |
+| Stego workbench | **StegSuite** | http://localhost:19014 | Analisi ricorsiva auto su 50 tool (stego, forensics, vision/OCR, audio/SSTV/network, email, blob base64/hex), albero file, log live, terminale, API REST | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Scanner di sicurezza web con GUI nel browser · proxy su `:19006` · add-on extra (regole alpha/beta, accessControl, fuzzdb, ptk…) | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domini, IP, email, leak | `recon` |
 | Crypto | SageMath | http://localhost:19010 | Notebook Python/Sage per crypto e matematica | `crypto` |

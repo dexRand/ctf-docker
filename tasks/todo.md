@@ -100,6 +100,12 @@
       Risolta *impossible stego* (`SEKAI{impossible_stego_round_trip_works}`). Nuovi
       comandi: **`./ctf pull <url>`** (scarica in `./data/pull`, estrae archivi) e
       **`./ctf scan <file>`** (`tools/scan.py`: invia a StegSuite via API e stampa le flag).
+- [x] **StegSuite: analyzer `blobs`** (base64/hex nascosti nei testi): decodifica i
+      blocchi, estrae i **file** (magic) come figli e **inline-a il testo** decodificato
+      (fonte non-noisy) così il flag hunt trova flag con **prefisso arbitrario**
+      (`SEKAI{}`…). Fix: gli escape `\n` non incollano più una `n` alla flag.
+      **Risolve *impossible stego*** (SekaiCTF 2026) — prima 0 flag. Regressione **28/28**,
+      `test_blobs` 4/4, tool StegSuite **50**.
 - [x] **Analyzer `git`**: repo git dentro uno zip → storia/refs/reflog/oggetti →
       risolve *gitgud* (tool **47**).
 - [x] **SPA StegSuite — fix audit `impeccable`** (commit `ca50ea8`/`c1daf6c`):

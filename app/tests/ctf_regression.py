@@ -431,6 +431,14 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     p.write_bytes(msg27.as_bytes())
     cases.append(("eml", p, flag27))
 
+    # 28) base64 blob inside a text log hiding the flag -> `blobs` analyzer decodes
+    #     the blob and inlines it so the (non-noisy) flag hunt finds the flag
+    import base64 as _b6428
+    flag28 = "SEKAI{blobs_28}"
+    p = TMP / "blobs.log"
+    p.write_text("[INFO] request\npayload=" + _b6428.b64encode(f"hidden {flag28} here".encode()).decode() + "\n")
+    cases.append(("blobs", p, flag28))
+
     return cases
 
 

@@ -143,7 +143,7 @@ DEFAULT_PLAN = [
     "file", "exiftool", "identify", "ffprobe", "pdfinfo",
     "strings", "hexyl", "xxd", "pdftotext", "pdfid", "elf", "readelf", "objdump",
     "binwalk-scan",
-    "decode", "morse-text",
+    "decode", "blobs", "morse-text",
     "ocr", "qr",
     "zsteg", "lsb-carve", "psimage", "png-chunks", "steghide", "outguess", "jsteg", "openstego",
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
@@ -247,6 +247,13 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     if not text:
         return
     data = text.encode("latin-1", "replace")
+    # Text logs escape newlines as `\n`, which glues a stray `n` onto a flag that
+    # starts right after it (`...is\nSEKAI{...}` -> `nSEKAI{...}`). Decode the
+    # common escapes (n/r/t) before hunting so the token is clean.
+    if b"\\" in data:
+        data = re.sub(rb"\\([nrt])",
+                      lambda m: b"\n" if m.group(1) == b"n" else (b"\r" if m.group(1) == b"r" else b"\t"),
+                      data)
     views = _views(data) + _url_decoded(data)
     # A flag can be split across lines by OCR (e.g. `flag{Wh4t_\nth3_fl4g}`), so we
     # also scan a whitespace-collapsed copy. But collapsing also glues unrelated

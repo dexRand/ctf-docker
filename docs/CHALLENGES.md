@@ -136,7 +136,7 @@ analisi locale:
 
 | Challenge | File | Flag | Tecnica |
 |---|---|---|---|
-| impossible stego (Misc) | `misc_impossible-stego.tar.gz` → `messages.log` (23 MB) | `SEKAI{impossible_stego_round_trip_works}` | il log è traffico API **AI (JSON) in base64**; decodificando tutti i blob e cercando `SEKAI{` (o `round trip`) si trova la flag |
+| impossible stego (Misc) | `misc_impossible-stego.tar.gz` → `messages.log` (23 MB) | `SEKAI{impossible_stego_round_trip_works}` | log di traffico API **AI (JSON) in base64**; **ora risolta automaticamente da StegSuite** (analyzer `blobs` decodifica i blocchi e inline-a il testo) — `./ctf scan messages.log` |
 
 Per rendere il flusso ripetibile: **`./ctf pull <url>`** scarica un allegato in
 `./data/pull` (estrae tar/zip/7z) e **`./ctf scan <file>`** lo passa a StegSuite e

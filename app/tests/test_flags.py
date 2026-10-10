@@ -159,3 +159,11 @@ def test_collapsed_view_still_joins_an_ocr_split_flag() -> None:
     # OCR (`Corrupted flag`) is still recovered via the STRICT prefix matcher.
     out = _hunt_values("fp-split", "flag{Wh4t_\nth3_fl4g}", "gif-frames:frame-1.png")
     assert "flag{Wh4t_th3_fl4g}" in out
+
+
+def test_escaped_newline_before_flag_is_not_glued() -> None:
+    # a JSON/text log escapes newlines as `\n`; the generic matcher used to grab
+    # the `n`, yielding `nSEKAI{...}` instead of `SEKAI{...}`.
+    out = _hunt_values("fp-esc", "the flag is\\nSEKAI{esc_ok}", "decode:x.txt")
+    assert "SEKAI{esc_ok}" in out
+    assert not any(v == "nSEKAI{esc_ok}" for v in out)
