@@ -1,16 +1,14 @@
 # Attribuzione — Agent Skills
 
-Le skill contenute in questa directory provengono dal progetto open source
-[`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills)
-(versione **0.6.11**), distribuito con licenza MIT (vedi
-[`LICENSE-agent-skills`](./LICENSE-agent-skills)).
+Le skill in `.opencode/skills/`, i `references/` e i `commands/` provengono da
+due progetti open source.
+
+## addyosmani/agent-skills (MIT)
 
 - **Upstream:** https://github.com/addyosmani/agent-skills
-- **Versione importata:** 0.6.11
-- **Licenza:** MIT © 2025 Addy Osmani
-- **Data di import:** 2026-10-01
-
-## Cosa è stato importato
+- **Versione importata:** 0.6.12
+- **Licenza:** MIT © 2025 Addy Osmani (testo integrale in fondo)
+- **Data di import:** 2026-10-01 — aggiornato **2026-10-10**
 
 | Percorso locale            | Contenuto upstream                          |
 | -------------------------- | ------------------------------------------- |
@@ -18,19 +16,29 @@ Le skill contenute in questa directory provengono dal progetto open source
 | `.opencode/references/`    | `references/` (checklist condivise)         |
 | `.opencode/commands/`      | `.claude/commands/*.md` (adattati a OpenCode) |
 
-## Modifiche rispetto all'upstream
+**Modifiche rispetto all'upstream:** nei comandi il namespace `agent-skills:<nome>`
+è stato rimosso (le skill sono installate localmente e si invocano con il solo
+nome) e il riferimento a `CLAUDE.md` è stato sostituito con `AGENTS.md`. Nessun
+altro contenuto delle skill è stato modificato. Per riallineare: ri-copia le
+directory `skills/` e `references/` e ri-applica il `sed` ai comandi
+(`s/agent-skills://g; s/CLAUDE\.md/AGENTS.md/g`).
 
-- I comandi in `.opencode/commands/` sono stati adattati: il namespace
-  `agent-skills:<nome>` è stato rimosso perché le skill sono installate
-  localmente nel progetto e vengono invocate con il solo nome.
-- Il riferimento a `CLAUDE.md` nei comandi è stato sostituito con `AGENTS.md`,
-  il file di istruzioni usato da OpenCode.
+## pbakaus/impeccable (Apache-2.0)
 
-Nessun altro contenuto delle skill è stato modificato. Per riallineare le skill
-con l'upstream, ri-copia le directory da `skills/` e `references/` del
-repository sorgente.
+- **Upstream:** https://github.com/pbakaus/impeccable
+- **Versione skill:** 4.5.2 (engine `0.1.14`)
+- **Licenza:** Apache License 2.0 — testo integrale in
+  [`LICENSE-impeccable`](./LICENSE-impeccable), avvisi in
+  [`NOTICE-impeccable.md`](./NOTICE-impeccable.md)
+- **Data di import:** 2026-10-10
 
-## Licenza (testo integrale)
+| Percorso locale                  | Contenuto upstream                            |
+| -------------------------------- | --------------------------------------------- |
+| `.opencode/skills/impeccable/`   | `.agents/skills/impeccable/` (SKILL.md + reference/ + scripts/ + agents/) |
+
+Nessuna modifica al contenuto.
+
+## Licenza MIT (addyosmani/agent-skills)
 
 ```text
 MIT License
