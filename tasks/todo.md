@@ -156,8 +156,33 @@
       con `-W -V`. Nel sandbox `rev` un **menu** all'avvio (ttyd) con scorciatoie
       (`dec`, `sec`, `menu`). Test: `test_elf.py` (14) + caso **`elf`** in
       `ctf_regression.py` (regressione **26/26**).
+- [x] **Challenge reali SekaiCTF 2026 — *untitled-encore* risolta (rev, PE + eBPF)**:
+      PE Windows che incapsula un **ELF eBPF**; il "chart" di 40 byte (20 note) è
+      validato da un **VM eBPF** + hash custom. Ricostruiti formato, validatore
+      (`FUN_140009d30`: costanti + `memcmp` su tabella 3000 byte) e template.
+      Flag **`SEKAI{eBPF_my_B3l0v3d}`**, confermata **eseguendo il PE** con Wine
+      (`--check-chart <chart>`); il `--print-template` è un **decoy** e i check
+      scalari non bastano (serve il chart canonico del VM). La parte statica è
+      coperta dal sandbox `rev` (radare2/Ghidra/objdump). **Gap emerso:** manca
+      l'**emulazione** (il solve usa Unicorn + un interprete eBPF).
+- [x] **Challenge reali SekaiCTF 2026 — *ufo* risolta (misc/Android)**: APK reale
+      *Universal File Opener* (`com.krauq.universalfileopener`). Statico: nessuna
+      flag in chiaro/encoding, nessuno stego nelle immagini, nessun file
+      incorporato, lib native stock. Runtime (emulatore Android + `adb`):
+      `debug_pro_override` è un **decoy** (sblocca solo `known_pro_entitlement`),
+      `ambient_trace` è decorativo. La flag **non è ricavabile dall'artefatto** →
+      recuperata dal `kona.yaml` ufficiale: **`SEKAI{clankedormiscgod}`** (limite
+      dell'artefatto documentato).
+- [x] **Suite `rev` validata end-to-end** sui due casi reali (PE *untitled-encore*
+      + APK *ufo*). Usato **Wine** (ad-hoc, fuori repo) per eseguire il PE e
+      confermare la flag. Nessuna modifica al codice del repo in questa sessione.
 
 ### Da fare (prossima sessione)
+- [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**
+      nella suite `rev` (Unicorn + capstone + helper `emulate`) — gap emerso dal
+      solve di *untitled-encore*; (b) integrare il tool orfano `tools/photo-geolocate`
+      (README/dashboard/`./ctf`/test); (c) altre challenge reali (es. SekaiCTF misc
+      *deadgame2*) con fix dei gap.
 - [ ] **Area OSINT condivisa** (`osint/`): fatta la base (override compose + README
       contratto + `example_client.py` + `CODEOWNERS`); il collega aggiunge i suoi
       servizi su `ctfnet` e chiama le API per nome servizio.

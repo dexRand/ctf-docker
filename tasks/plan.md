@@ -67,6 +67,13 @@ strumenti dedicati e la dashboard li raggruppa di conseguenza.
 Le challenge **stego/forensics** si verificano con `./ctf scan` (StegSuite); per la
 **rev** c'è il sandbox `rev` (terminale web, menu con `dec`/`r2`/`apk`/`upx`).
 
+> **Validazione (2026-10-11).** La suite `rev` è stata provata end-to-end su due
+> challenge reali di SekaiCTF 2026: **untitled-encore** (PE: radare2/Ghidra/objdump;
+> flag `SEKAI{eBPF_my_B3l0v3d}` confermata eseguendo il PE con **Wine**) e **ufo**
+> (APK: jadx/apktool; la flag `SEKAI{clankedormiscgod}` non è ricavabile
+> dall'artefatto). **Gap:** manca l'**emulazione** (Unicorn/eBPF) — prossimo
+> candidato in `tasks/todo.md`. Wine non è ancora nel toolbox (usato ad-hoc).
+
 ## Task List
 
 ### Phase 1: Scaffolding repo
