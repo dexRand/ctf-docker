@@ -136,7 +136,7 @@ analisi locale:
 
 | Challenge | File | Flag | Tecnica |
 |---|---|---|---|
-| impossible stego (Misc) | `misc_impossible-stego.tar.gz` → `messages.log` (23 MB) | `SEKAI{impossible_stego_round_trip_works}` | log di traffico API **AI (JSON) in base64**; **ora risolta automaticamente da StegSuite** (analyzer `blobs` decodifica i blocchi e inline-a il testo) — `./ctf scan messages.log` |
+| impossible stego (Misc) | `misc_impossible-stego.tar.gz` → `messages.log` (23 MB) | `SEKAI{impossible_stego_round_trip_works}` | log di traffico API **AI (JSON) in base64**; **risolta automaticamente da StegSuite** (analyzer `blobs`) e aggiunta ai **test reali** (`real_challenges.py`) |
 
 Per rendere il flusso ripetibile: **`./ctf pull <url>`** scarica un allegato in
 `./data/pull` (estrae tar/zip/7z) e **`./ctf scan <file>`** lo passa a StegSuite e
@@ -301,7 +301,7 @@ docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
   /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 25/25
 
 # challenge reali (host: scaricano i file da sole)
-python3 app/tests/real_challenges.py                        # → 34/34 (lento: ~10 min)
+python3 app/tests/real_challenges.py                        # → 35/35 (lento: ~10 min)
 
 # verifica INDIPENDENTE: per ogni (artifact, writeup) confronta la flag trovata
 # con quella dichiarata dal writeup per QUELL'artifact; include una seconda

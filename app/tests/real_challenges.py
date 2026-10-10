@@ -31,6 +31,8 @@ OLI23 = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/Olicyber 2023/Tra
 # susers/Writeups: archive of Chinese CTF challenges + write-ups (challenge files
 # under each challenge dir, expected flags in the READMEs).
 SUS = "https://raw.githubusercontent.com/susers/Writeups/master"
+# SekaiCTF 2026 archived platform (attachments under uploads/external/<hash>/).
+SEK26 = "https://2026.ctf.sekai.team/uploads/external/9ba479d8"
 
 CASES = [
     ("pico_img.png", f"{B19}/So Meta/pico_img.png", "picoCTF{s0_m3ta_43f253bb}"),
@@ -79,6 +81,11 @@ CASES = [
     # SusCTF 2017 Misc "Fun jpg": the flag lives in the JPEG XMP metadata
     # (dc:creator) -> exiftool source, custom "SusCTF" prefix
     ("flag.jpg", f"{SUS}/2017/SusCTF萌新赛/Misc/Misc1/flag.jpg", "SusCTF{MetaData_1s_Important}"),
+    # --- SekaiCTF 2026 archived platform ---
+    # impossible stego: the flag is inside base64-encoded AI traffic in messages.log;
+    # StegSuite extracts the tar.gz, then the `blobs` analyzer decodes the blobs
+    ("misc_impossible-stego.tar.gz", f"{SEK26}/misc_impossible-stego.tar.gz",
+     "SEKAI{impossible_stego_round_trip_works}"),
 ]
 
 # multi-file challenges: (label, [(filename, url), ...], expected flag)
