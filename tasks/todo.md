@@ -123,6 +123,11 @@
       DorkScout, Dorkify: fragili/rate-limit). Card in dashboard (Recon).
       Export web `.md/.json/.txt` + "apri tutti"; CLI `-o/--out FILE` (es.
       `./ctf dork x -o data/dork/report.md`).
+- [x] **Dork generator — Google Hacking Database**: sync via
+      `./ctf dork --update` (endpoint DataTables di exploit-db → 7944 dork,
+      14 categorie, cache locale `config/dork/ghdb.json`, .gitignored) + tab
+      **GHDB** nella web UI (ricerca + categoria + export) + ricerca CLI
+      `./ctf dork [target] --ghdb <kw> [--ghdb-cat …]`. Test con righe reali.
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

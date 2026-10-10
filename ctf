@@ -21,8 +21,10 @@ Uso: ./ctf <comando>
   reports|files     Apre FileBrowser su ./data (progetti, estratti, wordlist)
   urls              Stampa gli URL dei servizi (porte da .env)
   open <servizio>   Apre un servizio nel browser (stegsuite|docs|dash|reports|…)
-  dork [target]     Dork generator: query Google/GitHub/Shodan da un target
-                    (senza target apre la pagina web; -l elenca i preset)
+  dork [target]     Dork generator: query Google/GitHub/Shodan da un target.
+                    `--update` scarica la Google Hacking Database (GHDB);
+                    `--ghdb <kw>` la cerca; senza target apre la pagina web.
+  dork-test         Self-test del dork generator
   test              Regressione + challenge reali + verifica risposte
   ui-smoke          Smoke test della SPA con un browser headless (Docker)
 
@@ -124,6 +126,10 @@ EOF
     else
       exec python3 tools/dork/dork.py "$@"
     fi
+    ;;
+  dork-test)
+    echo "== Dork generator: self-test =="
+    python3 tools/dork/test_dork.py
     ;;
   test)
     echo "[*] Avvio StegSuite..."

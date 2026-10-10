@@ -10,6 +10,10 @@ config/zap/*
 config/homepage/logs/
 config/homepage/kubernetes.yaml
 
+# Dork generator: cache della Google Hacking Database (scaricata con
+# `./ctf dork --update`; i preset curati restano versionati)
+config/dork/ghdb.json
+
 # StegSuite app data (SQLite + progetti)
 appdata/
 
