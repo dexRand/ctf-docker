@@ -52,6 +52,7 @@ tool pesanti stanno dietro **profili** Compose opzionali.
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashing, JWT e molto altro | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercetta e modifica HTTP(S) · proxy su `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoder, converter, hash, regex e simili | core |
+| Recon | Dork generator | http://localhost:19019 | Costruisce query Google/Bing/DuckDuckGo/GitHub/Shodan da un target (nessuno scraping) · CLI `./ctf dork` | core |
 | Stego workbench | **StegSuite** | http://localhost:19014 | Analisi ricorsiva auto su 41 tool (stego, forensics, vision/OCR, audio/SSTV/network), albero file, log live, terminale, API REST | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Scanner di sicurezza web con GUI nel browser · proxy su `:19006` · add-on extra (regole alpha/beta, accessControl, fuzzdb, ptk…) | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domini, IP, email, leak | `recon` |
@@ -111,7 +112,7 @@ grande; la `rockyou.txt` completa è inclusa nell'immagine.
 
 | Profilo | Aggiunge |
 | --- | --- |
-| *(core)* | Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser |
+| *(core)* | Homepage, CyberChef, mitmproxy, IT-Tools, Dork generator, StegSuite, FileBrowser |
 | `web` | OWASP ZAP |
 | `recon` | SpiderFoot |
 | `crypto` | SageMath |
@@ -146,6 +147,7 @@ Tutte le porte host stanno nella **fascia 19000+** e sono configurabili in `.env
 | 19015 / 19016 | Hashtopolis backend / frontend (profilo `crack`) |
 | 19017 | Whisper-WebUI trascrizione audio (profilo `audio`) |
 | 19018 | Sandbox ELF (reversing attivo, profilo `rev`) |
+| 19019 | Dork generator (query Google/GitHub/Shodan) |
 
 ## 📂 Struttura
 

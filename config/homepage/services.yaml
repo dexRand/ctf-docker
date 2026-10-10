@@ -44,6 +44,11 @@
         href: http://localhost:19007/spiderfoot/
         description: OSINT automation — domini, IP, email, leak (profilo recon)
         container: ctf-spiderfoot-1
+    - Dork generator:
+        icon: mdi-magnify
+        href: http://localhost:19019
+        description: Genera query Google/Bing/DuckDuckGo/GitHub/Shodan da un target (nessuno scraping)
+        container: ctf-dork-1
 
 - Cracking:
     - Hashtopolis:

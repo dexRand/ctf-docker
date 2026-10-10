@@ -169,6 +169,20 @@ services:
       - "${ITTOOLS_PORT:-19011}:80"
     networks: [ctfnet]
 
+  # Dork generator: pagina statica (nginx upstream, nessuna build custom) che
+  # costruisce query Google/Bing/DuckDuckGo/GitHub/Shodan/… da un target.
+  # Nessuno scraping: apre solo i link nel motore scelto.
+  dork:
+    image: nginx:alpine
+    restart: unless-stopped
+    mem_limit: 64m
+    logging: *default-logging
+    ports:
+      - "${DORK_PORT:-19019}:80"
+    volumes:
+      - ./config/dork:/usr/share/nginx/html:ro
+    networks: [ctfnet]
+
   # FileBrowser: browse ./data (progetti StegSuite, estratti, wordlist). Solo localhost.
   # FileBrowser Quantum (fork attivo di filebrowser, che è archiviato).
   # Configurato in noauth: accesso libero, nessun login.

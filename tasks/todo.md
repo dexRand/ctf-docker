@@ -115,8 +115,12 @@
       servizi su `ctfnet` e chiama le API per nome servizio.
 - [x] **Frame GIF → analizzati come figli** (pipeline completa, tetto `MAX_NODES`)
       + flag hunt su view **senza spazi** → risolve *Corrupted flag*.
-- [ ] **`./ctf dork`** / tool **dorking** (richiesta utente): generatore di query
-      Google/GitHub/Shodan da un target. *(valutare scope OSINT.)*
+- [x] **Dork generator** (richiesta utente): pagina web statica
+      (`config/dork/`, servita da `nginx:alpine` su `:19019`, core) + CLI
+      `./ctf dork <target>` (`tools/dork/dork.py`). Un unico `presets.json`
+      condiviso web/CLI; nessuno scraping (genera solo query Google/Bing/DDG/
+      GitHub/Shodan/…). Valutati e scartati gli scraper esistenti (pagodo,
+      DorkScout, Dorkify: fragili/rate-limit). Card in dashboard (Recon).
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

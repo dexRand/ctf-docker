@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CTF Toolbox — Dork generator</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%3E_%3C/text%3E%3C/svg%3E" />
+<style>
+  :root {
+    --ink: 12 14 16; --panel: 20 23 26; --panel2: 26 30 34;
+    --edge: 38 43 49; --edge2: 56 64 73;
+    --acc: 69 224 140; --warn: 245 197 66; --info: 95 208 242; --danger: 255 97 102;
+    --dim: 102 113 124; --fg: 215 221 227; --fglite: 170 180 189; --fgx: 244 247 249;
+    --font: ui-monospace, 'JetBrains Mono', 'Cascadia Code', 'Fira Code', Menlo, Consolas,
+      'Liberation Mono', 'DejaVu Sans Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: rgb(var(--ink)); color: rgb(var(--fg)); font-family: var(--font);
+    font-size: 14px; line-height: 1.5; padding: 1rem 1.25rem 3rem;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: .3;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 4px),
+      radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,.4));
+  }
+  main, header, footer { position: relative; z-index: 2; max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 1.05rem; margin: 0 0 .2rem; color: rgb(var(--acc)); }
+  h1 .prompt { opacity: .7; }
+  p.sub { color: rgb(var(--dim)); margin: 0 0 1.2rem; font-size: 12px; }
+  fieldset { border: 1px solid rgb(var(--edge)); border-radius: 4px; padding: .7rem .8rem; margin: 0 0 1rem; }
+  legend { color: rgb(var(--acc)); text-transform: uppercase; font-size: 10px; letter-spacing: .18em; padding: 0 .4rem; }
+  label { color: rgb(var(--fglite)); }
+  input[type="text"] {
+    width: 100%; background: rgb(var(--ink)); color: rgb(var(--fgx));
+    border: 1px solid rgb(var(--edge)); border-radius: 4px; padding: .5rem .6rem;
+    font: inherit; margin-top: .35rem;
+  }
+  input[type="text"]:focus { outline: none; border-color: rgb(var(--acc)); }
+  .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+  .chip {
+    border: 1px solid rgb(var(--edge)); border-radius: 999px; padding: .15rem .6rem;
+    color: rgb(var(--dim)); cursor: pointer; user-select: none; font-size: 12px;
+  }
+  .chip:hover { border-color: rgb(var(--acc)); color: rgb(var(--fglite)); }
+  .chip.on { background: rgb(var(--acc)); border-color: rgb(var(--acc)); color: rgb(var(--ink)); font-weight: 700; }
+  .presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: .3rem .8rem; }
+  .p { display: flex; align-items: baseline; gap: .5rem; padding: .15rem .2rem; border-radius: 3px; }
+  .p:hover { background: rgb(var(--acc) / .06); }
+  .p input { accent-color: rgb(var(--acc)); }
+  .p .g { color: rgb(var(--dim)); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; min-width: 62px; }
+  .p .n { color: rgb(var(--fglite)); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; }
+  button {
+    font: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    border: 1px solid rgb(var(--edge)); background: rgb(var(--panel)); color: rgb(var(--fglite));
+    border-radius: 4px; padding: .3rem .7rem; cursor: pointer; min-height: 24px;
+  }
+  button:hover { border-color: rgb(var(--acc)); color: rgb(var(--fgx)); background: rgb(var(--panel2)); }
+  button.acc { background: rgb(var(--acc)); border-color: rgb(var(--acc)); color: rgb(var(--ink)); font-weight: 700; }
+  button.acc:hover { color: rgb(var(--ink)); }
+  #out { display: flex; flex-direction: column; gap: .7rem; }
+  .card { border: 1px solid rgb(var(--edge)); border-radius: 4px; background: rgb(var(--panel)); padding: .55rem .7rem; }
+  .card .head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+  .card .name { color: rgb(var(--fgx)); font-weight: 600; }
+  .card .grp { color: rgb(var(--dim)); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
+  .card code {
+    display: block; margin: .45rem 0 .5rem; padding: .4rem .5rem; overflow-x: auto; white-space: pre;
+    background: rgb(var(--ink)); border: 1px solid rgb(var(--edge)); border-radius: 3px; color: rgb(var(--fglite)); font-size: 12px;
+  }
+  .links { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .links a {
+    color: rgb(var(--info)); text-decoration: none; border: 1px solid rgb(var(--edge));
+    border-radius: 3px; padding: .1rem .5rem; font-size: 11px;
+  }
+  .links a:hover { border-color: rgb(var(--acc)); color: rgb(var(--acc)); }
+  .muted { color: rgb(var(--dim)); }
+  footer { margin-top: 1.5rem; color: rgb(var(--dim)); font-size: 11px; border-top: 1px solid rgb(var(--edge)); padding-top: .6rem; }
+  a { color: rgb(var(--info)); }
+  code, .query { word-break: break-word; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="prompt">$&nbsp;</span>ctf dork <span class="muted">--target</span></h1>
+  <p class="sub" id="sub">Genera query (Google / Bing / DuckDuckGo / GitHub / Shodan / …) da un target. Nessuno scraping: apri tu il link.</p>
+</header>
+
+<main>
+  <fieldset>
+    <legend>Target</legend>
+    <label for="target">Dominio o keyword</label>
+    <input id="target" type="text" autocomplete="off" spellcheck="false" placeholder="esempio.com" />
+  </fieldset>
+
+  <fieldset>
+    <legend>Motori</legend>
+    <div class="chips" id="engines"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Dork</legend>
+    <div class="presets" id="presets"></div>
+  </fieldset>
+
+  <div class="toolbar">
+    <button id="all" type="button">tutti</button>
+    <button id="none" type="button">nessuno</button>
+    <button id="copy" class="acc" type="button">copia query</button>
+  </div>
+
+  <section id="out" aria-live="polite"></section>
+</main>
+
+<footer>
+  Solo query: nessuna richiesta viene fatta ai motori da questa pagina. Usa solo su target autorizzati.
+</footer>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const state = { engines: new Set(), presets: new Set(), data: null };
+
+async function boot() {
+  const r = await fetch('presets.json', { cache: 'no-cache' });
+  const data = await r.json();
+  state.data = data;
+  document.title = data.meta.name;
+  $('#target').placeholder = data.meta.target_placeholder || 'esempio.com';
+  const def = new Set(data.meta.default_engines || []);
+  data.meta.engines.forEach((e) => { if (def.has(e.id)) state.engines.add(e.id); });
+  data.presets.forEach((p) => state.presets.add(p.id));
+  renderChips();
+  renderPresets();
+  render();
+}
+
+function renderChips() {
+  const box = $('#engines');
+  box.innerHTML = '';
+  state.data.meta.engines.forEach((e) => {
+    const b = document.createElement('span');
+    b.className = 'chip' + (state.engines.has(e.id) ? ' on' : '');
+    b.textContent = e.name;
+    b.title = e.kind;
+    b.onclick = () => { state.engines.has(e.id) ? state.engines.delete(e.id) : state.engines.add(e.id); renderChips(); render(); };
+    box.appendChild(b);
+  });
+}
+
+function renderPresets() {
+  const box = $('#presets');
+  box.innerHTML = '';
+  state.data.presets.forEach((p) => {
+    const l = document.createElement('label');
+    l.className = 'p';
+    const g = document.createElement('span'); g.className = 'g'; g.textContent = p.group;
+    const i = document.createElement('input'); i.type = 'checkbox'; i.checked = state.presets.has(p.id);
+    i.onchange = () => { i.checked ? state.presets.add(p.id) : state.presets.delete(p.id); render(); };
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = p.name;
+    l.append(i, g, n);
+    box.appendChild(l);
+  });
+}
+
+function normTarget(t) {
+  t = (t || '').trim();
+  t = t.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '');
+  return t.split(/[/?#]/)[0].replace(/\.$/, '');
+}
+
+function buildUrl(tpl, q) {
+  return tpl.replace('{q}', encodeURIComponent(q));
+}
+
+function render() {
+  const t = normTarget($('#target').value);
+  const out = $('#out');
+  out.innerHTML = '';
+  if (!t) { out.innerHTML = '<p class="muted">Scrivi un target per generare le query.</p>'; return; }
+  const engines = state.data.meta.engines.filter((e) => state.engines.has(e.id));
+  let n = 0;
+  state.data.presets.forEach((p) => {
+    if (!state.presets.has(p.id)) return;
+    const q = p.q.replaceAll('{t}', t);
+    const engs = engines.filter((e) => e.kind === p.kind);
+    if (!engs.length) return;
+    n++;
+    const card = document.createElement('article'); card.className = 'card';
+    const head = document.createElement('div'); head.className = 'head';
+    const grp = document.createElement('span'); grp.className = 'grp'; grp.textContent = p.group;
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = p.name;
+    head.append(name, grp);
+    const code = document.createElement('code'); code.textContent = q;
+    const links = document.createElement('div'); links.className = 'links';
+    engs.forEach((e) => {
+      const a = document.createElement('a');
+      a.href = buildUrl(e.url, q); a.target = '_blank'; a.rel = 'noreferrer'; a.textContent = e.name + ' ↗';
+      a.dataset.q = q; a.dataset.engine = e.name;
+      links.appendChild(a);
+    });
+    card.append(head, code, links);
+    out.appendChild(card);
+  });
+  if (!n) out.innerHTML = '<p class="muted">Nessun dork per i motori selezionati (controlla le spunte).</p>';
+}
+
+function allQueries() {
+  const t = normTarget($('#target').value);
+  if (!t) return '';
+  const engines = state.data.meta.engines.filter((e) => state.engines.has(e.id));
+  const lines = [];
+  state.data.presets.forEach((p) => {
+    if (!state.presets.has(p.id)) return;
+    const q = p.q.replaceAll('{t}', t);
+    const engs = engines.filter((e) => e.kind === p.kind);
+    if (!engs.length) return;
+    lines.push(`# ${p.group} — ${p.name}`);
+    engs.forEach((e) => lines.push(`${e.name}: ${buildUrl(e.url, q)}`));
+    lines.push('');
+  });
+  return lines.join('\n').trim();
+}
+
+$('#target').addEventListener('input', render);
+$('#all').onclick = () => { state.data.presets.forEach((p) => state.presets.add(p.id)); renderPresets(); render(); };
+$('#none').onclick = () => { state.presets.clear(); renderPresets(); render(); };
+$('#copy').onclick = async () => {
+  const txt = allQueries();
+  if (!txt) return;
+  try { await navigator.clipboard.writeText(txt); $('#copy').textContent = 'copiato ✓'; }
+  catch { $('#copy').textContent = 'copia fallita'; }
+  setTimeout(() => { $('#copy').textContent = 'copia query'; }, 1500);
+};
+boot();
+</script>
+</body>
+</html>

@@ -21,6 +21,8 @@ Uso: ./ctf <comando>
   reports|files     Apre FileBrowser su ./data (progetti, estratti, wordlist)
   urls              Stampa gli URL dei servizi (porte da .env)
   open <servizio>   Apre un servizio nel browser (stegsuite|docs|dash|reports|…)
+  dork [target]     Dork generator: query Google/GitHub/Shodan da un target
+                    (senza target apre la pagina web; -l elenca i preset)
   test              Regressione + challenge reali + verifica risposte
   ui-smoke          Smoke test della SPA con un browser headless (Docker)
 
@@ -86,6 +88,7 @@ case "${1:-up}" in
   CyberChef        http://localhost:$(port CYBERCHEF_PORT 19002)
   mitmweb          http://localhost:$(port MITMWEB_UI_PORT 19003)
   IT-Tools         http://localhost:$(port ITTOOLS_PORT 19011)
+  Dork generator   http://localhost:$(port DORK_PORT 19019)
   ZAP              http://localhost:$(port ZAP_UI_PORT 19005)/zap   (profilo web)
   SpiderFoot       http://localhost:$(port SPIDERFOOT_PORT 19007)/spiderfoot/   (profilo recon)
   Wireshark        http://localhost:$(port WIRESHARK_HTTP_PORT 19008)   (profilo forensics)
@@ -101,6 +104,7 @@ EOF
       steg|stegsuite)               url="http://localhost:$(port STEGSUITE_PORT 19014)" ;;
       docs|api)                     url="http://localhost:$(port STEGSUITE_PORT 19014)/api/docs" ;;
       reports|files)                url="http://localhost:$(port FILEBROWSER_PORT 19012)" ;;
+      dork|dorks)                   url="http://localhost:$(port DORK_PORT 19019)" ;;
       whisper|audio|stt)            url="http://localhost:$(port WHISPER_PORT 19017)" ;;
       rev|elf)                      url="http://localhost:$(port REV_PORT 19018)" ;;
       *)                            url="$1" ;;  # consenti un URL esplicito
@@ -108,6 +112,18 @@ EOF
     echo "[*] ${url}"
     opener="$(command -v xdg-open || command -v open || true)"
     [ -n "$opener" ] && "$opener" "$url" >/dev/null 2>&1 || true
+    ;;
+  dork)
+    shift || true
+    if [ "$#" -eq 0 ]; then
+      docker compose up -d dork >/dev/null 2>&1 || true
+      url="http://localhost:$(port DORK_PORT 19019)"
+      echo "Dork generator: ${url}"
+      opener="$(command -v xdg-open || command -v open || true)"
+      [ -n "$opener" ] && "$opener" "$url" >/dev/null 2>&1 || true
+    else
+      exec python3 tools/dork/dork.py "$@"
+    fi
     ;;
   test)
     echo "[*] Avvio StegSuite..."

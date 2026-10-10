@@ -55,6 +55,7 @@ It is designed to live next to other self-hosted apps: every service runs on the
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashing, JWT and much more | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercept and rewrite HTTP(S) · proxy on `:19004` | core |
 | Utility | IT-Tools | http://localhost:19011 | Encoders, converters, hashes, regex and friends | core |
+| Recon | Dork generator | http://localhost:19019 | Build Google/Bing/DuckDuckGo/GitHub/Shodan queries from a target (no scraping) · CLI `./ctf dork` | core |
 | Stego workbench | **StegSuite** | http://localhost:19014 | Recursive auto analysis over 41 tools (stego, forensics, vision/OCR, audio/SSTV/network), file tree, live log, embedded terminal, REST API | core |
 | Web | **OWASP ZAP** | http://localhost:19005/zap | Web security scanner with an in-browser GUI · proxy on `:19006` · extra marketplace add-ons (alpha/beta rules, accessControl, fuzzdb, ptk…) | `web` |
 | Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domains, IPs, e-mails, leaks | `recon` |
@@ -114,7 +115,7 @@ hunt and the cracking — it replaces the old `triage` CLI/GUI. Wordlists in
 
 | Profile | Adds |
 | --- | --- |
-| *(core)* | Homepage, CyberChef, mitmproxy, IT-Tools, StegSuite, FileBrowser |
+| *(core)* | Homepage, CyberChef, mitmproxy, IT-Tools, Dork generator, StegSuite, FileBrowser |
 | `web` | OWASP ZAP |
 | `recon` | SpiderFoot |
 | `crypto` | SageMath |
@@ -149,6 +150,7 @@ All host ports live in the **19000+ range** and are configurable in `.env`:
 | 19015 / 19016 | Hashtopolis backend / frontend (profile `crack`) |
 | 19017 | Whisper-WebUI speech-to-text (profile `audio`) |
 | 19018 | ELF sandbox (active reversing, profile `rev`) |
+| 19019 | Dork generator (Google/GitHub/Shodan queries) |
 
 ## 📂 Project structure
 

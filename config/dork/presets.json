@@ -1,0 +1,45 @@
+{
+  "meta": {
+    "name": "CTF Toolbox — Dork generator",
+    "note": "Genera solo query (nessuno scraping): apri il link nel motore scelto. Le stesse regole sono usate dalla pagina web e dalla CLI (./ctf dork).",
+    "target_placeholder": "esempio.com",
+    "engines": [
+      { "id": "google",    "name": "Google",     "kind": "web",  "url": "https://www.google.com/search?q={q}" },
+      { "id": "bing",      "name": "Bing",       "kind": "web",  "url": "https://www.bing.com/search?q={q}" },
+      { "id": "ddg",       "name": "DuckDuckGo", "kind": "web",  "url": "https://duckduckgo.com/?q={q}" },
+      { "id": "brave",     "name": "Brave",      "kind": "web",  "url": "https://search.brave.com/search?q={q}" },
+      { "id": "startpage", "name": "Startpage",  "kind": "web",  "url": "https://www.startpage.com/sp/search?query={q}" },
+      { "id": "yandex",    "name": "Yandex",     "kind": "web",  "url": "https://yandex.com/search/?text={q}" },
+      { "id": "wayback",   "name": "Wayback",    "kind": "web",  "url": "https://web.archive.org/web/*/{q}" },
+      { "id": "scholar",   "name": "Scholar",    "kind": "web",  "url": "https://scholar.google.com/scholar?q={q}" },
+      { "id": "github",    "name": "GitHub",     "kind": "code", "url": "https://github.com/search?type=code&q={q}" },
+      { "id": "gitlab",    "name": "GitLab",     "kind": "code", "url": "https://gitlab.com/search?scope=blobs&search={q}" },
+      { "id": "grepapp",   "name": "grep.app",   "kind": "code", "url": "https://grep.app/search?q={q}" },
+      { "id": "shodan",    "name": "Shodan",     "kind": "host", "url": "https://www.shodan.io/search?query={q}" },
+      { "id": "censys",    "name": "Censys",     "kind": "host", "url": "https://search.censys.io/search?resource=hosts&q={q}" }
+    ],
+    "default_engines": ["google", "ddg", "github", "shodan"]
+  },
+  "presets": [
+    { "id": "docs",       "group": "File",    "kind": "web",  "name": "Documenti esposti (pdf/doc/xls/ppt)", "q": "site:{t} (ext:pdf OR ext:doc OR ext:docx OR ext:xls OR ext:xlsx OR ext:ppt OR ext:pptx OR ext:odt)" },
+    { "id": "conf",       "group": "File",    "kind": "web",  "name": "Config / .env / yml",                 "q": "site:{t} (ext:env OR ext:ini OR ext:conf OR ext:cfg OR ext:yaml OR ext:yml)" },
+    { "id": "dump",       "group": "File",    "kind": "web",  "name": "Dump / backup",                       "q": "site:{t} (ext:sql OR ext:bak OR ext:backup OR ext:old OR ext:tar OR ext:gz OR ext:zip)" },
+    { "id": "listing",    "group": "Web",     "kind": "web",  "name": "Directory listing",                   "q": "site:{t} intitle:\"index of\"" },
+    { "id": "admin",      "group": "Web",     "kind": "web",  "name": "Admin / login",                       "q": "site:{t} (inurl:admin OR inurl:login OR inurl:signin OR inurl:dashboard OR intitle:admin)" },
+    { "id": "params",     "group": "Web",     "kind": "web",  "name": "Parametri GET",                       "q": "site:{t} inurl:? (inurl:redirect OR inurl:url= OR inurl:file= OR inurl:path= OR inurl:page=)" },
+    { "id": "keys",       "group": "Secrets", "kind": "web",  "name": "Segreti nel testo",                   "q": "site:{t} (\"api_key\" OR \"apikey\" OR \"secret\" OR \"token\" OR \"password\" OR \"BEGIN RSA PRIVATE KEY\")" },
+    { "id": "subs",       "group": "Recon",   "kind": "web",  "name": "Sottodomini",                         "q": "site:*.{t} -www" },
+    { "id": "errors",     "group": "Recon",   "kind": "web",  "name": "Errori / stack trace",                "q": "site:{t} (\"SQL syntax\" OR \"Warning:\" OR \"Fatal error\" OR \"stack trace\" OR \"Traceback (most recent call last)\")" },
+    { "id": "vcs",        "group": "Code",    "kind": "web",  "name": ".git / .svn / .DS_Store / .env",      "q": "site:{t} (inurl:.git OR inurl:.svn OR inurl:.DS_Store OR inurl:.env)" },
+    { "id": "cams",       "group": "Devices", "kind": "web",  "name": "Webcam / IoT",                        "q": "site:{t} (inurl:viewerframe OR inurl:axis-cgi OR inurl:mjpg OR intitle:webcam)" },
+    { "id": "paste",      "group": "Leaks",   "kind": "web",  "name": "Pastebin / paste",                    "q": "site:pastebin.com OR site:paste.ee OR site:rentry.co \"{t}\"" },
+    { "id": "leaks",      "group": "Leaks",   "kind": "web",  "name": "Segreti menzionati fuori dal sito",   "q": "\"{t}\" (password OR secret OR token OR api_key) -site:{t}" },
+    { "id": "cache",      "group": "Recon",   "kind": "web",  "name": "Cache / versioni passate",            "q": "cache:{t} OR site:webcache.googleusercontent.com {t}" },
+    { "id": "gh-code",    "group": "Code",    "kind": "code", "name": "Codice che cita il target",           "q": "\"{t}\"" },
+    { "id": "gh-secret",  "group": "Code",    "kind": "code", "name": "Segreti nel codice",                  "q": "\"{t}\" (api_key OR apikey OR secret OR token OR password)" },
+    { "id": "gh-config",  "group": "Code",    "kind": "code", "name": "Config/filename hardcoded",           "q": "\"{t}\" (filename:env OR filename:config OR filename:.env)" },
+    { "id": "host-name",  "group": "Host",    "kind": "host", "name": "Host per hostname",                   "q": "hostname:{t}" },
+    { "id": "host-cert",  "group": "Host",    "kind": "host", "name": "Certificati (ssl/hostname)",          "q": "ssl.cert.subject.cn:\"{t}\"" },
+    { "id": "host-org",   "group": "Host",    "kind": "host", "name": "Per organizzazione",                  "q": "org:\"{t}\"" }
+  ]
+}
