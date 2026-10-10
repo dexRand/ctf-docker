@@ -248,12 +248,17 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         return
     data = text.encode("latin-1", "replace")
     views = _views(data) + _url_decoded(data)
-    # a flag can be split across lines by OCR (e.g. `flag{Wh4t_\nth3_fl4g}`):
-    # also scan a whitespace-collapsed copy so the token is contiguous again.
+    # A flag can be split across lines by OCR (e.g. `flag{Wh4t_\nth3_fl4g}`), so we
+    # also scan a whitespace-collapsed copy. But collapsing also glues unrelated
+    # words together (`hello VGF{..}` -> `helloVGF{..}`), which the *generic*
+    # `word{...}` matcher would then report as a flag — the source of the bogus
+    # "nested decode found ITS{...}" findings. So the collapsed copy is scanned
+    # with the STRICT (known-prefix) and rot13 matchers only.
+    collapsed_views: list[bytes] = []
     if len(data) <= 200_000:
         collapsed = re.sub(rb"\s+", b"", data)
         if collapsed != data:
-            views.append(collapsed)
+            collapsed_views.append(collapsed)
     existing = {f.value for f in session.exec(select(Finding).where(Finding.project_id == project_id)).all()}
     existing_norm = {v.replace(" ", "") for v in existing}
     canon_index = {_canon_flag(v): v for v in existing}
@@ -261,7 +266,7 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     is_vision = head in VISION_SOURCES
     fuzzy_ok = head in FUZZY_SOURCES
     noisy = any(p in VISION_SOURCES or p in GENERIC_NOISY for p in source.split(":"))
-    pats = list(_STRICT_RE) + ([] if noisy else list(_GENERIC_RE))
+    generic = [] if noisy else list(_GENERIC_RE)
 
     def add(value: str, src: str, ctx: str = "") -> None:
         if not _ok_flag(value) or value in existing:
@@ -316,19 +321,29 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         session.add(Finding(project_id=project_id, file_id=file_id, kind="flag",
                             value=value, source=src, context=ctx))
 
-    for view in views:
+    def scan(view: bytes, with_generic: bool) -> None:
         for val, s, e in custom_flag_matches(view):
             add_raw(val, f"custom:{source}", _snippet(view, s, e))
-        for pat in pats:
+        for pat in _STRICT_RE:
             for m in pat.finditer(view):
                 add(m.group(0).decode("latin-1", "replace"), source,
                     _snippet(view, m.start(), m.end()))
+        if with_generic:
+            for pat in generic:
+                for m in pat.finditer(view):
+                    add(m.group(0).decode("latin-1", "replace"), source,
+                        _snippet(view, m.start(), m.end()))
         if fuzzy_ok:
             for m in _FUZZY_RE.finditer(view):
                 add((m.group(1) + b"{" + m.group(2) + b"}").decode("latin-1", "replace"),
                     f"fuzzy:{source}", _snippet(view, m.start(), m.end()))
         for val, s, e in _rot13_candidates(view):
             add(val, f"rot13:{source}", _snippet(view, s, e))
+
+    for view in views:
+        scan(view, with_generic=True)
+    for view in collapsed_views:
+        scan(view, with_generic=False)
     if depth >= 2:
         return
     # inline encodings in tool outputs (e.g. base64 in EXIF metadata)

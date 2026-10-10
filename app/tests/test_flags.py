@@ -127,3 +127,35 @@ def test_wav_lsb_bits_roundtrip() -> None:
     text = "ITS{wav_lsb}"
     bits = [(ord(c) >> i) & 1 for c in text for i in range(8)]
     assert _bits_to_text(bits) == text
+
+
+def _hunt_values(pid: str, text: str, source: str) -> set[str]:
+    from sqlmodel import Session, select
+
+    from backend.db import engine, init_db
+    from backend.models import Finding, Project
+    from backend.orchestrator import _hunt
+
+    init_db()
+    with Session(engine) as s:
+        s.add(Project(id=pid, name=pid, status="running"))
+        s.commit()
+        _hunt(s, pid, None, text, source)
+        s.commit()
+        return {f.value for f in s.exec(select(Finding).where(Finding.project_id == pid)).all()}
+
+
+def test_collapsed_view_does_not_fabricate_flags() -> None:
+    # `hello ITS{ui_smoke}` -> decode emits the rot13 layer `uryyb VGF{hv_fzbxr}`.
+    # The generic matcher on the whitespace-collapsed copy used to glue the words
+    # and report `uryybVGF{hv_fzbxr}` as a flag (a bogus "nested decode" finding).
+    out = _hunt_values("fp-collapse", "[rot13] uryyb VGF{hv_fzbxr}", "decode:a.txt")
+    assert "ITS{ui_smoke}" in out
+    assert not any("VGF" in v or v.startswith("uryyb") for v in out)
+
+
+def test_collapsed_view_still_joins_an_ocr_split_flag() -> None:
+    # the fix keeps the collapsed copy useful: a flag broken across a newline by
+    # OCR (`Corrupted flag`) is still recovered via the STRICT prefix matcher.
+    out = _hunt_values("fp-split", "flag{Wh4t_\nth3_fl4g}", "gif-frames:frame-1.png")
+    assert "flag{Wh4t_th3_fl4g}" in out
