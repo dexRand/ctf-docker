@@ -25,6 +25,8 @@ Uso: ./ctf <comando>
                     `--update` scarica la Google Hacking Database (GHDB);
                     `--ghdb <kw>` la cerca; senza target apre la pagina web.
   dork-test         Self-test del dork generator
+  pull <url>...     Scarica file (es. allegati di challenge online) in ./data/pull
+  scan <file>...    Analizza file con StegSuite e stampa le flag (richiede ./ctf up)
   test              Regressione + challenge reali + verifica risposte
   ui-smoke          Smoke test della SPA con un browser headless (Docker)
 
@@ -133,6 +135,32 @@ EOF
     else
       exec python3 tools/dork/dork.py "$@"
     fi
+    ;;
+  pull)
+    shift || true
+    [ "$#" -eq 0 ] && { echo "uso: ./ctf pull <url>..."; exit 1; }
+    mkdir -p data/pull
+    for u in "$@"; do
+      fn="data/pull/$(basename "${u%%\?*}")"
+      echo "[*] $u"
+      if curl -fsSL -o "$fn" "$u"; then
+        echo "    -> $fn ($(du -h "$fn" 2>/dev/null | cut -f1))"
+        case "$fn" in
+          *.tar.gz|*.tgz) tar -xzf "$fn" -C data/pull 2>/dev/null && echo "    estratto in data/pull/";;
+          *.zip)          unzip -oq "$fn" -d data/pull 2>/dev/null && echo "    estratto in data/pull/";;
+          *.7z)           7z x -y -odata/pull "$fn" >/dev/null 2>&1 && echo "    estratto in data/pull/";;
+        esac
+      else
+        echo "    [x] download fallito"
+      fi
+    done
+    echo "[i] analizza con: ./ctf scan <file>   ·   sfoglia: ./ctf reports"
+    ;;
+  scan)
+    shift || true
+    if [ "$#" -eq 0 ]; then echo "uso: ./ctf scan <file>...   (avvia prima: ./ctf up)"; exit 1; fi
+    docker compose up -d stegsuite >/dev/null 2>&1 || true
+    python3 tools/scan.py "$@"
     ;;
   dork-test)
     echo "== Dork generator: self-test =="

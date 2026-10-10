@@ -138,6 +138,14 @@ analisi locale:
 |---|---|---|---|
 | impossible stego (Misc) | `misc_impossible-stego.tar.gz` → `messages.log` (23 MB) | `SEKAI{impossible_stego_round_trip_works}` | il log è traffico API **AI (JSON) in base64**; decodificando tutti i blob e cercando `SEKAI{` (o `round trip`) si trova la flag |
 
+Per rendere il flusso ripetibile: **`./ctf pull <url>`** scarica un allegato in
+`./data/pull` (estrae tar/zip/7z) e **`./ctf scan <file>`** lo passa a StegSuite e
+stampa le flag.
+
+Altri allegati dell'archivio (analizzati ma **non risolti**: servono tool RE che non
+abbiamo): `misc_ufo` (APK Android — serve un decompilatore DEX), `misc_deadgame2`
+(replay StarCraft II, MPQ), `rev_untitled-encore` (PE Windows).
+
 ### So Meta — EXIF `Artist`
 
 ```bash

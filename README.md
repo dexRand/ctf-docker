@@ -103,6 +103,8 @@ The small `ctf` wrapper is a thin, readable layer over Compose:
 ./ctf status              # container status
 ./ctf logs wireshark      # follow logs of one service
 ./ctf reports             # browse ./data (projects, extracts, wordlists)
+./ctf pull <url>          # download a file (e.g. a challenge attachment) into ./data/pull
+./ctf scan <file>         # analyze a file with StegSuite and print the flags
 ./ctf down                # stop and remove containers
 ```
 

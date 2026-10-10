@@ -100,6 +100,8 @@ Il piccolo wrapper `ctf` è un livello leggibile sopra Compose:
 ./ctf status              # stato container
 ./ctf logs wireshark      # segui i log di un servizio
 ./ctf reports             # sfoglia ./data (progetti, estratti, wordlist)
+./ctf pull <url>          # scarica un file (es. allegato di una challenge) in ./data/pull
+./ctf scan <file>         # analizza un file con StegSuite e stampa le flag
 ./ctf down                # ferma e rimuove i container
 ```
 

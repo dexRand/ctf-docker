@@ -95,6 +95,11 @@
       SniperOJ/RTB servono a **hostare** challenge, non all'analisi. Idee future annotate
       in `docs/CHALLENGES.md`: analisi **`.eml`**, **XOR-exfil da pcap**, **USB HID**,
       ricostruzione **QR**.
+- [x] **Da browser alle CTF (MCP Chrome)**: verificato sull'archivio **SekaiCTF 2026**
+      (`2026.ctf.sekai.team`, read-only): navigo, apro le challenge, scarico gli allegati.
+      Risolta *impossible stego* (`SEKAI{impossible_stego_round_trip_works}`). Nuovi
+      comandi: **`./ctf pull <url>`** (scarica in `./data/pull`, estrae archivi) e
+      **`./ctf scan <file>`** (`tools/scan.py`: invia a StegSuite via API e stampa le flag).
 - [x] **Analyzer `git`**: repo git dentro uno zip → storia/refs/reflog/oggetti →
       risolve *gitgud* (tool **47**).
 - [x] **SPA StegSuite — fix audit `impeccable`** (commit `ca50ea8`/`c1daf6c`):
