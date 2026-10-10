@@ -84,6 +84,10 @@
       "fratello" → risolve *Gab-Chan* (tool **48**).
 - [x] **Challenge OliCyber/ITS + Olimpiadi + SOFTWARE**: 18 reali da mirror
       pubblico (`training.olicyber.it` richiede login) → reali **31/31**.
+- [x] **Challenge da `susers/Writeups`** (archivio CTF cinesi, consigliato): nuovo
+      caso reale *SusCTF 2017 — «Fun jpg»* (flag nei metadati XMP del JPEG →
+      analyzer `exiftool`, prefisso custom `SusCTF{}`). Aggiunto anche come
+      **bookmark** in dashboard (`config/homepage/bookmarks.yaml`).
 - [x] **Analyzer `git`**: repo git dentro uno zip → storia/refs/reflog/oggetti →
       risolve *gitgud* (tool **47**).
 - [x] **SPA StegSuite — fix audit `impeccable`** (commit `ca50ea8`/`c1daf6c`):

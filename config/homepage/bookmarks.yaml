@@ -11,6 +11,9 @@
     - picoCTF:
         - abbr: pC
           href: https://picoctf.org/
+    - Writeups (susers):
+        - abbr: WU
+          href: https://github.com/susers/Writeups
     - RevShells:
         - abbr: RS
           href: https://www.revshells.com/

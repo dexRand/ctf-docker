@@ -28,6 +28,9 @@ OLI = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/NETWORK"
 OLIM = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/Olimpiadi Italiane di Cybersecurity"
 SW = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/SOFTWARE"
 OLI23 = "https://raw.githubusercontent.com/00xFE/Olicyber/HEAD/Olicyber 2023/Training camp 3"
+# susers/Writeups: archive of Chinese CTF challenges + write-ups (challenge files
+# under each challenge dir, expected flags in the READMEs).
+SUS = "https://raw.githubusercontent.com/susers/Writeups/master"
 
 CASES = [
     ("pico_img.png", f"{B19}/So Meta/pico_img.png", "picoCTF{s0_m3ta_43f253bb}"),
@@ -72,6 +75,10 @@ CASES = [
     ("sw-09", f"{SW}/SW_9/sw-09", "flag{01b81d48}"),
     ("sw-10", f"{SW}/SW_10/sw-10", "flag{0f32826c}"),
     ("sw-11", f"{SW}/SW_11/sw-11", "flag{5a11b5a6}"),
+    # --- susers/Writeups (Chinese CTF archive) ---
+    # SusCTF 2017 Misc "Fun jpg": the flag lives in the JPEG XMP metadata
+    # (dc:creator) -> exiftool source, custom "SusCTF" prefix
+    ("flag.jpg", f"{SUS}/2017/SusCTF萌新赛/Misc/Misc1/flag.jpg", "SusCTF{MetaData_1s_Important}"),
 ]
 
 # multi-file challenges: (label, [(filename, url), ...], expected flag)

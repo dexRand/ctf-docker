@@ -103,6 +103,16 @@ sandbox `rev`).
 | SW_10 | `sw-10` | `flag{0f32826c}` | stringa nel binario (esca `THisIsNotYourFlag`) |
 | SW_11 | `sw-11` | `flag{5a11b5a6}` | stringa nel binario |
 
+### Altri archivi: `susers/Writeups` (CTF cinesi)
+
+[`susers/Writeups`](https://github.com/susers/Writeups) è un archivio di challenge
+CTF cinesi (2017–2019) con write-up e **allegati**; la flag attesa è nel `README.md`
+di ogni challenge. Aggiunto anche come **bookmark** in dashboard.
+
+| Challenge | File | Flag | Tecnica |
+|---|---|---|---|
+| SusCTF 2017 — Fun jpg (Misc1) | `flag.jpg` | `SusCTF{MetaData_1s_Important}` | flag nei **metadati XMP** (`dc:creator`) → analyzer `exiftool` (prefisso custom `SusCTF{}`) |
+
 ### So Meta — EXIF `Artist`
 
 ```bash
@@ -258,7 +268,7 @@ docker exec -e FIXTURES_DIR=/tmp/fixtures ctf-stegsuite-1 \
   /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py     # → 25/25
 
 # challenge reali (host: scaricano i file da sole)
-python3 app/tests/real_challenges.py                        # → 33/33 (lento: ~10 min)
+python3 app/tests/real_challenges.py                        # → 34/34 (lento: ~10 min)
 
 # verifica INDIPENDENTE: per ogni (artifact, writeup) confronta la flag trovata
 # con quella dichiarata dal writeup per QUELL'artifact; include una seconda
