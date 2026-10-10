@@ -95,6 +95,14 @@
 - [x] **Dashboard allineata ai token della SPA**: `config/homepage/custom.css` porta
       gli **stessi** design token (ink/panel/edge/acc/fg…, mono, scanline CRT) → la
       dashboard e l'app parlano la stessa lingua visiva.
+- [x] **Flag hunt: falso positivo `decode`** (commit `5d87013`): la copia
+      *senza spazi* (per le flag spezzate a capo dall'OCR) incollava le parole e il
+      pattern generico ripescava token tipo `uryybVGF{…}` → flag fasulle. Ora la
+      copia collassata usa **solo i pattern STRICT + rot13**. Test in
+      `test_flags.py`; reali **33/33**, regressione **25/25**.
+- [x] **Dashboard: layout uniforme** (commit `5f7568b`): gruppi a piena larghezza
+      + una card per riga via CSS (questa build di Homepage non mappa il `layout`
+      per-gruppo). Card tutte 1208px, righe allineate.
 - [x] **Analisi ELF**: **passiva** in StegSuite (analyzer `elf`/`readelf`/`objdump`:
       struttura, **checksec** RELRO/Canary/NX/PIE/Fortify, disassemblaggio) +
       **attiva** nel container **`rev`** (profilo `rev`, :19018): sandbox isolato
