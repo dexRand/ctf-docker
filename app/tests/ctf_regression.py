@@ -403,6 +403,19 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
         w.writeframes(_struct2.pack("<" + "h" * len(samps), *samps))
     cases.append(("wav-levels", p, flag25))
 
+    # 26) minimal valid ELF64 with a plaintext flag -> the elf/readelf/objdump
+    #     analyzers run (structure + checksec) and the raw hunt reads the flag
+    import struct as _struct3
+    flag26 = "ITS{elf_26}"
+    ident = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 8
+    ehdr = ident + _struct3.pack("<HHIQQQIHHHHHH", 2, 0x3E, 1, 0x400000, 64, 0, 0,
+                                 64, 56, 1, 0, 0, 0)
+    payload = b"StegSuite ELF fixture\x00" + flag26.encode() + b"\x00"
+    ph = _struct3.pack("<IIQQQQQQ", 1, 4, 0, 0x400000, 0x400000, len(payload), len(payload), 0x1000)
+    p = TMP / "fixture.elf"
+    p.write_bytes(ehdr + ph + payload)
+    cases.append(("elf", p, flag26))
+
     return cases
 
 

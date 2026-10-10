@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import struct
 
-from backend.analyzers.elf import elf_summary, is_elf
+from backend.analyzers.elf import _dynamic_info, _parse_sections, elf_summary, is_elf
 
 _IDENT64 = b"\x7fELF\x02\x01\x01\x00\x00" + b"\x00" * 7  # ELF64, little-endian
 
@@ -73,3 +73,71 @@ def test_canary_and_fortify_strings() -> None:
     assert info is not None
     assert info["checksec"]["canary"] is True
     assert info["checksec"]["fortify"] is True
+
+
+def test_rwx_load_segment_and_static() -> None:
+    assert elf_summary(_elf([_phdr64(1, 6, 0, 0)]))["rwx"] == 0        # LOAD R|W
+    assert elf_summary(_elf([_phdr64(1, 7, 0, 0)]))["rwx"] == 1        # LOAD R|W|X
+    info = elf_summary(_elf([]))
+    assert info["static"] is True and info["libs"] == []
+    assert info["stripped"] is True                                    # no .symtab
+
+
+def test_upx_packer_magic() -> None:
+    info = elf_summary(_elf([], trailer=b"....UPX!...."))
+    assert info is not None
+    assert info["packer"] == "UPX"
+    assert elf_summary(_elf([]))["packer"] is None
+
+
+def _shdr64(sh_name: int, sh_type: int, sh_offset: int, sh_size: int) -> bytes:
+    return struct.pack("<IIQQQQIIQQ", sh_name, sh_type, 0, 0, sh_offset, sh_size, 0, 0, 0, 0)
+
+
+def test_parse_sections_resolves_names_and_types() -> None:
+    strtab = b"\x00.text\x00.dynstr\x00.shstrtab\x00"   # offsets 1 / 7 / 15
+    shoff = 0x100
+    shdrs = (_shdr64(0, 0, 0, 0)                       # NULL
+             + _shdr64(1, 1, 0x1000, 0x20)              # .text  (PROGBITS)
+             + _shdr64(7, 3, 0x2000, 0x10)              # .dynstr (STRTAB)
+             + _shdr64(15, 3, 0, len(strtab)))          # .shstrtab
+    buf = bytearray(shoff + len(shdrs))
+    buf[:len(strtab)] = strtab
+    buf[shoff:shoff + len(shdrs)] = shdrs
+    secs = _parse_sections(bytes(buf), shoff, 64, 4, 3, "<", True)
+    assert [s["name"] for s in secs] == ["", ".text", ".dynstr", ".shstrtab"]
+    assert secs[1]["type"] == "PROGBITS" and secs[2]["type"] == "STRTAB"
+
+
+def test_dynamic_info_needed_soname_rpath() -> None:
+    dynstr = b"\x00libc.so.6\x00libm.so.6\x00mylib\x00/opt/lib\x00"  # 1 / 11 / 21 / 27
+    entries = [
+        struct.pack("<QQ", 1, 1),     # DT_NEEDED -> libc.so.6
+        struct.pack("<QQ", 1, 11),    # DT_NEEDED -> libm.so.6
+        struct.pack("<QQ", 14, 21),   # DT_SONAME -> mylib
+        struct.pack("<QQ", 29, 27),   # DT_RUNPATH -> /opt/lib
+        struct.pack("<QQ", 24, 0),    # DT_BIND_NOW
+        struct.pack("<QQ", 0, 0),     # DT_NULL
+    ]
+    buf = b"".join(entries)
+    info = _dynamic_info(buf, 0, len(buf), "<", True, dynstr)
+    assert info["needed"] == ["libc.so.6", "libm.so.6"]
+    assert info["soname"] == "mylib"
+    assert info["rpath"] == "/opt/lib"
+    assert info["bind_now"] is True
+
+
+def test_dynamic_bind_now_sets_full_relro() -> None:
+    interp_off = 64 + 3 * 56          # 3 phdrs -> interp sits right after them
+    # DYNAMIC segment with a DT_BIND_NOW entry, placed right after the phdrs
+    dyn_off = interp_off + 28
+    dyn = struct.pack("<QQ", 24, 0) + struct.pack("<QQ", 0, 0)
+    phdrs = [
+        _phdr64(3, 4, interp_off, 28),                    # PT_INTERP
+        _phdr64(2, 6, dyn_off, len(dyn)),                 # PT_DYNAMIC
+        _phdr64(0x6474E552, 4, 0, 0),                     # PT_GNU_RELRO
+    ]
+    data = _elf(phdrs, trailer=dyn)
+    info = elf_summary(data)
+    assert info is not None
+    assert info["checksec"]["relro"] == "full"

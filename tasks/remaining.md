@@ -45,6 +45,10 @@ on-demand). Il token serve con scope **`workflow`**.
   sandbox isolato (`pwntools` + gdb/strace/ltrace + qemu-user + **Ghidra headless**) con
   **terminale web** (ttyd; `ghidra-decompile` per decompilare), rete interna **senza internet**, `cap_drop: ALL` + `SYS_PTRACE`,
   no-new-privileges, limiti mem/cpu/pids.
+  **Estensione**: l'analyzer `elf` passivo (pure-python) parsa anche **sezioni** e
+  **sezione dinamica** → linking static/dynamic, librerie `DT_NEEDED`, `SONAME`,
+  `RPATH/RUNPATH`, `stripped`/debug, segmenti **RWX**, **packer UPX**; `readelf` con
+  `-W -V`. Unit test in `test_elf.py` + caso `elf` nella regressione (**26/26**).
 - **P27 MacroHard WeakEdge risolta (analyzer `office`)**: nuovo tool **`office`**
   che scompatta i documenti **Office/OpenDocument** (`.pptm/.docm/.docx/.xlsx/.odt…`)
   e decodifica il **base64 anche separato da spazi** (o un carattere per riga) — è

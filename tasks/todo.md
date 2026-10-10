@@ -108,6 +108,11 @@
       **attiva** nel container **`rev`** (profilo `rev`, :19018): sandbox isolato
       (rete interna senza internet, `cap_drop: ALL`) con gdb/strace/ltrace/pwntools/
       qemu-user + **Ghidra headless** da **terminale web** (ttyd). Tool StegSuite **45**.
+      **Estensione (passiva, pure-python)**: oltre a header+checksec ora parsa anche
+      **sezioni** e **sezione dinamica** → linking static/dynamic, librerie `DT_NEEDED`,
+      `SONAME`, `RPATH/RUNPATH`, `stripped`/debug info, conteggio segmenti **RWX**,
+      rilevazione **packer UPX**; `readelf` guadagna `-W -V`. Test: `test_elf.py` (10)
+      + caso **`elf`** in `ctf_regression.py` (regressione **26/26**).
 
 ### Da fare (prossima sessione)
 - [ ] **Area OSINT condivisa** (`osint/`): fatta la base (override compose + README
