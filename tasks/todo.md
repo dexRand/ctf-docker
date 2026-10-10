@@ -106,6 +106,9 @@
       (`SEKAI{}`…). Fix: gli escape `\n` non incollano più una `n` alla flag.
       **Risolve *impossible stego*** (SekaiCTF 2026) — prima 0 flag. Regressione **28/28**,
       `test_blobs` 4/4, tool StegSuite **50**.
+- [x] **StegSuite: analyzer `zero-width`** (stego "invisibile"): decodifica lo stego a
+      **caratteri zero-width** (ZWSP/ZWNJ/ZWJ) e a **spazi finali** (space=0/tab=1).
+      Regressione **29/29** (nuovo caso `zero-width`), `test_zerowidth` 3/3, tool **51**.
 - [x] **Analyzer `git`**: repo git dentro uno zip → storia/refs/reflog/oggetti →
       risolve *gitgud* (tool **47**).
 - [x] **SPA StegSuite — fix audit `impeccable`** (commit `ca50ea8`/`c1daf6c`):

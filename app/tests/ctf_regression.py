@@ -439,6 +439,14 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     p.write_text("[INFO] request\npayload=" + _b6428.b64encode(f"hidden {flag28} here".encode()).decode() + "\n")
     cases.append(("blobs", p, flag28))
 
+    # 29) zero-width stego: the flag is encoded as invisible ZWSP/ZWJ characters
+    flag29 = "ITS{zero_width_29}"
+    bits29 = [(ord(c) >> i) & 1 for c in flag29 for i in range(7, -1, -1)]
+    zw = "".join("\u200b" if b == 0 else "\u200d" for b in bits29)
+    p = TMP / "hidden.txt"
+    p.write_text("Meet me at the usual place.\n" + zw + "\nsee you!\n", encoding="utf-8")
+    cases.append(("zero-width", p, flag29))
+
     return cases
 
 
