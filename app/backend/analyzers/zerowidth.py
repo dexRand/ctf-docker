@@ -20,13 +20,13 @@ _ZW = ("\u200b", "\u200c", "\u200d", "\ufeff", "\u2060", "\u00ad", "\u180e")
 _MAX_OUT = 50_000
 
 
-def _bits_to_bytes(bits: list[int]) -> bytes:
+def _bits_to_bytes(bits: list[int], width: int = 8) -> bytes:
     out = bytearray()
-    for i in range(0, len(bits) - len(bits) % 8, 8):
+    for i in range(0, len(bits) - len(bits) % width, width):
         val = 0
-        for b in bits[i:i + 8]:
+        for b in bits[i:i + width]:
             val = (val << 1) | b
-        out.append(val)
+        out.append(val & 0xFF)
     return bytes(out)
 
 
@@ -54,15 +54,19 @@ class ZeroWidthAnalyzer(Analyzer):
 
         seq = [c for c in text if c in _ZW]
         if len(seq) >= 16:
-            order = [c for c, _ in Counter(seq).most_common(2)]
-            if len(order) == 2:
+            # the two most frequent symbols are the bits; a 3rd char is usually a
+            # separator (ignored). Try both 0/1 assignments and 8/7-bit widths.
+            order = [c for c, _ in Counter(seq).most_common(3)]
+            if len(order) >= 2:
+                decodes: list[str] = []
                 for zero, one in ((order[0], order[1]), (order[1], order[0])):
                     bits = [0 if c == zero else 1 for c in seq if c in (zero, one)]
-                    dec = _bits_to_bytes(bits)
-                    if _printable(dec):
-                        out.append(f"[zero-width {len(seq)} chars] "
-                                   + dec.decode("latin-1", "replace")[:_MAX_OUT])
-                        break
+                    for width in (8, 7):
+                        dec = _bits_to_bytes(bits, width).decode("latin-1", "replace")
+                        if _printable(dec.encode("latin-1")) and dec not in decodes:
+                            decodes.append(dec)
+                for dec in decodes:
+                    out.append(f"[zero-width {len(seq)} chars] " + dec[:_MAX_OUT])
 
         tw: list[int] = []
         for line in text.split("\n"):

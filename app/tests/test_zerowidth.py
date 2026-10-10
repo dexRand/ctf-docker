@@ -39,3 +39,14 @@ def test_trailing_whitespace_flag() -> None:
 def test_plain_text_is_skipped() -> None:
     res = _run(b"just a normal file with nothing hidden\n")
     assert res.status == "skipped"
+
+
+def test_zero_width_7bit_with_separator() -> None:
+    # some encoders use 7-bit groups + a separator char (e.g. U+200D)
+    hidden = "r00t{ZW_7bit}"
+    bits = [(ord(c) >> i) & 1 for c in hidden for i in range(6, -1, -1)]
+    zw = "".join("\u200b" if b == 0 else "\u200c" for b in bits)
+    doc = "hello\u200d\n" + "\u200d".join(zw[i:i + 10] for i in range(0, len(zw), 10))
+    res = _run(doc.encode("utf-8"))
+    assert res.status == "done"
+    assert hidden in res.output
