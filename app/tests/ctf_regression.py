@@ -416,6 +416,21 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     p.write_bytes(ehdr + ph + payload)
     cases.append(("elf", p, flag26))
 
+    # 27) .eml email whose flag is inside a base64 attachment -> the eml analyzer
+    #     extracts the attachment as a child and the raw hunt reads the flag
+    from email.message import EmailMessage
+    flag27 = "ITS{eml_27}"
+    msg27 = EmailMessage()
+    msg27["From"] = "sender@ctf.local"
+    msg27["To"] = "you@ctf.local"
+    msg27["Subject"] = "fixture with attachment"
+    msg27.set_content("see attached note.txt")
+    msg27.add_attachment(f"the hidden flag is {flag27}\n".encode(),
+                         maintype="text", subtype="plain", filename="note.txt")
+    p = TMP / "mail.eml"
+    p.write_bytes(msg27.as_bytes())
+    cases.append(("eml", p, flag27))
+
     return cases
 
 

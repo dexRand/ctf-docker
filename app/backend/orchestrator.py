@@ -149,7 +149,7 @@ DEFAULT_PLAN = [
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
     "pcap",
-    "nested-archive", "git", "7z", "office", "binwalk-extract", "foremost", "pngcheck",
+    "nested-archive", "git", "7z", "office", "eml", "binwalk-extract", "foremost", "pngcheck",
     "png-repair", "image-repair",
 ]
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}
@@ -395,6 +395,7 @@ def _detect_ext(ftype: str) -> str:
         ("png image", ".png"), ("jpeg image", ".jpg"), ("gif image", ".gif"),
         ("bmp image", ".bmp"), ("tiff image", ".tiff"), ("web/p image", ".webp"),
         ("webp", ".webp"), ("pdf document", ".pdf"), ("zip archive", ".zip"),
+        ("rfc 822", ".eml"), ("mail message", ".eml"),
         ("7-zip archive", ".7z"), ("rar archive", ".rar"), ("tar archive", ".tar"),
         ("gzip compressed", ".gz"), ("bzip2 compressed", ".bz2"),
         ("wave audio", ".wav"), ("mpeg audio", ".mp3"), ("mp3", ".mp3"),

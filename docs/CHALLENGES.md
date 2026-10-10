@@ -127,6 +127,17 @@ Suggerimenti raccolti e non ancora implementati: parsing **`.eml`/email** (alleg
 base64), **XOR-exfil da pcap** (byte esfiltrati con key), **USB HID** nel pcap,
 ricostruzione **QR** con format-info mancante.
 
+### SekaiCTF 2026 — archivio online (giocabile da browser)
+
+`https://ctf.sekai.team/` reindirizza a `https://2026.ctf.sekai.team/`: la
+piattaforma è **archiviata** ma navigabile (si aprono le challenge e si
+scaricano gli allegati; **nessun invio flag**). Risolta via browser (MCP Chrome) +
+analisi locale:
+
+| Challenge | File | Flag | Tecnica |
+|---|---|---|---|
+| impossible stego (Misc) | `misc_impossible-stego.tar.gz` → `messages.log` (23 MB) | `SEKAI{impossible_stego_round_trip_works}` | il log è traffico API **AI (JSON) in base64**; decodificando tutti i blob e cercando `SEKAI{` (o `round trip`) si trova la flag |
+
 ### So Meta — EXIF `Artist`
 
 ```bash
