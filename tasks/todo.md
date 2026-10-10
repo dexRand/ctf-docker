@@ -86,6 +86,15 @@
       pubblico (`training.olicyber.it` richiede login) → reali **31/31**.
 - [x] **Analyzer `git`**: repo git dentro uno zip → storia/refs/reflog/oggetti →
       risolve *gitgud* (tool **47**).
+- [x] **SPA StegSuite — fix audit `impeccable`** (commit `ca50ea8`/`c1daf6c`):
+      history **paginata** (623→~40 tab-stop), `aria-label` sugli input, `<html lang>`
+      dinamico, un solo `<main>` + heading `sr-only`, target **≥24px** (WCAG 2.5.8),
+      **design token** come CSS custom properties (style.css + Tailwind + canvas +
+      terminale), rimosso il `border-left` colorato (anti-pattern `side-tab`).
+      Audit **12 → 17/20**, detector **`[]`**, UI smoke ALL PASSED.
+- [x] **Dashboard allineata ai token della SPA**: `config/homepage/custom.css` porta
+      gli **stessi** design token (ink/panel/edge/acc/fg…, mono, scanline CRT) → la
+      dashboard e l'app parlano la stessa lingua visiva.
 - [x] **Analisi ELF**: **passiva** in StegSuite (analyzer `elf`/`readelf`/`objdump`:
       struttura, **checksec** RELRO/Canary/NX/PIE/Fortify, disassemblaggio) +
       **attiva** nel container **`rev`** (profilo `rev`, :19018): sandbox isolato

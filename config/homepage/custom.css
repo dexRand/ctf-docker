@@ -1,96 +1,101 @@
 /* ============================================================================
-   CTF Toolbox — "hacker" theme
-   Neon green on near-black, terminal vibes, uniform cards. Served by Homepage
-   as /api/config/custom.css (bind-mounted from config/homepage/).
+   CTF Toolbox — dashboard theme
+   Mirrors the StegSuite SPA design tokens so the dashboard and the app share one
+   visual language: near-black ink, a single green accent, mono type, faint CRT
+   scanlines + vignette. Served by Homepage as /api/config/custom.css
+   (bind-mounted from config/homepage/). Keep in sync with
+   app/frontend/src/style.css.
    ============================================================================ */
 :root {
-  --hx-bg: #04070a;
-  --hx-panel: rgba(0, 22, 13, 0.72);
-  --hx-panel-2: rgba(0, 32, 19, 0.55);
-  --hx-green: #39ff14;
-  --hx-green-soft: #8affc1;
-  --hx-line: rgba(57, 255, 20, 0.22);
-  --hx-font: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SFMono-Regular',
-    ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
+  --ink: 12 14 16;
+  --panel: 20 23 26;
+  --panel2: 26 30 34;
+  --edge: 38 43 49;
+  --edge2: 56 64 73;
+  --acc: 69 224 140;
+  --accdim: 20 51 37;
+  --warn: 245 197 66;
+  --danger: 255 97 102;
+  --dangerlite: 255 179 182;
+  --info: 95 208 242;
+  --dim: 102 113 124;
+  --fg: 215 221 227;
+  --fglite: 170 180 189;
+  --fgx: 244 247 249;
+  --font: ui-monospace, 'JetBrains Mono', 'Cascadia Code', 'Fira Code', Menlo,
+    Consolas, 'Liberation Mono', 'DejaVu Sans Mono', monospace;
 }
 
 html { color-scheme: dark; }
 
 html, body, #__next {
-  background-color: var(--hx-bg) !important;
-  color: var(--hx-green-soft) !important;
-  font-family: var(--hx-font) !important;
+  background-color: rgb(var(--ink)) !important;
+  color: rgb(var(--fg)) !important;
+  font-family: var(--font) !important;
 }
 
-/* subtle terminal grid */
-body {
-  background-image:
-    linear-gradient(rgba(57, 255, 20, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(57, 255, 20, 0.045) 1px, transparent 1px) !important;
-  background-size: 26px 26px !important;
-  background-attachment: fixed !important;
-}
-
-/* faint CRT scanlines, non-interactive */
+/* faint CRT: scanlines + vignette, non-interactive (same recipe as the SPA) */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 9999;
-  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, 0.13) 2px 3px);
-  opacity: 0.5;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, .14) 0 1px, transparent 1px 4px),
+    radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, .4));
+  opacity: .3;
 }
 
 #__next { position: relative; z-index: 1; }
 
-h1, h2, h3, h4, .service-title { font-family: var(--hx-font) !important; }
-h1, h2, h3 { color: var(--hx-green) !important; }
+h1, h2, h3, h4, .service-title { font-family: var(--font) !important; }
+h1, h2, h3 { color: rgb(var(--acc)) !important; }
 
-/* ------------------------------------------------- uniform mono-green icons
+/* ----------------------------------------------------- uniform accent icons
    Homepage renders every icon as a <div> filled with a theme gradient and
-   masked by the SVG. Paint them all the same neon green. */
+   masked by the SVG. Paint them all on the shared accent. */
 .service-icon > div,
 .information-widget-logo div[style*="mask"],
 .information-widget-search div[style*="mask"] {
-  background: linear-gradient(180deg, #9dffc7 0%, #39ff14 100%) !important;
+  background: linear-gradient(180deg, rgb(var(--acc) / .72) 0%, rgb(var(--acc)) 100%) !important;
 }
 
-/* --------------------------------------------------------- uniform services */
+/* ----------------------------------------------------------- uniform cards */
 .services-list { align-items: stretch !important; }
 .services-list > * { height: 100%; }
 .service-card {
   height: 100% !important;
-  background: linear-gradient(180deg, var(--hx-panel), var(--hx-panel-2)) !important;
-  border: 1px solid var(--hx-line) !important;
-  border-radius: 6px !important;
-  box-shadow: inset 0 0 0 1px rgba(57, 255, 20, 0.04),
-              inset 0 0 22px rgba(57, 255, 20, 0.05) !important;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+  background: rgb(var(--panel)) !important;
+  border: 1px solid rgb(var(--edge)) !important;
+  border-radius: 4px !important;
+  box-shadow: inset 0 0 0 1px rgb(var(--acc) / .04) !important;
+  transition: border-color .15s ease, box-shadow .15s ease !important;
 }
 .service-card:hover {
-  border-color: rgba(57, 255, 20, 0.75) !important;
-  box-shadow: 0 0 14px rgba(57, 255, 20, 0.35),
-              inset 0 0 26px rgba(57, 255, 20, 0.10) !important;
+  border-color: rgb(var(--acc)) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .45) !important;
 }
-.service-icon { color: var(--hx-green) !important; }
+.service-icon { color: rgb(var(--acc)) !important; }
 .service-name {
-  color: var(--hx-green) !important;
+  color: rgb(var(--acc)) !important;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: .01em;
 }
-.service-name::before { content: "> "; opacity: 0.7; }
-.service-title-text { color: var(--hx-green) !important; }
-.service-description { color: rgba(138, 255, 193, 0.62) !important; }
+.service-name::before { content: "> "; color: rgb(var(--acc) / .7); }
+.service-title-text { color: rgb(var(--acc)) !important; }
+.service-description { color: rgb(var(--dim)) !important; }
 .service-group-name {
-  color: var(--hx-green) !important;
+  color: rgb(var(--acc)) !important;
   text-transform: uppercase;
-  letter-spacing: 0.24em;
-  font-size: 0.72rem !important;
-  opacity: 0.9;
+  letter-spacing: .24em;
+  font-size: .72rem !important;
 }
-.service-group-name::before { content: "// "; opacity: 0.55; }
-.service-tag { border: 1px solid var(--hx-line) !important; color: var(--hx-green-soft) !important; }
+.service-group-name::before { content: "// "; color: rgb(var(--acc) / .55); }
+.service-tag {
+  border: 1px solid rgb(var(--edge)) !important;
+  color: rgb(var(--fglite)) !important;
+}
 
 /* ---------------------------------------------------------------- widgets */
 .widget-container,
@@ -98,41 +103,46 @@ h1, h2, h3 { color: var(--hx-green) !important; }
 .information-widget-datetime,
 .information-widget-search,
 .information-widget-logo {
-  background: var(--hx-panel) !important;
-  border: 1px solid var(--hx-line) !important;
-  border-radius: 6px !important;
+  background: rgb(var(--panel)) !important;
+  border: 1px solid rgb(var(--edge)) !important;
+  border-radius: 4px !important;
 }
 .widget-container, .information-widget-resource,
 .information-widget-datetime, .information-widget-search {
   height: 64px !important;
   display: flex !important;
   align-items: center !important;
-  padding: 0 0.6rem !important;
+  padding: 0 .6rem !important;
 }
-.information-widget-logo { padding: 0.4rem !important; }
+.information-widget-logo { padding: .4rem !important; }
 .information-widget-logo div[style*="mask"] { width: 26px !important; height: 26px !important; }
-.information-widget-datetime { font-size: 1rem !important; color: var(--hx-green) !important; }
-.information-widget-resource { color: var(--hx-green-soft) !important; }
+.information-widget-datetime { font-size: 1rem !important; color: rgb(var(--acc)) !important; }
+.information-widget-resource { color: rgb(var(--fglite)) !important; }
 
 /* -------------------------------------------------------------- bookmarks */
-.bookmark-name, .bookmark-group-name { color: var(--hx-green) !important; }
-.bookmark-description { color: rgba(138, 255, 193, 0.6) !important; }
-.bookmark-icon { filter: drop-shadow(0 0 5px rgba(57, 255, 20, 0.4)); }
+.bookmark-name, .bookmark-group-name { color: rgb(var(--acc)) !important; }
+.bookmark-description { color: rgb(var(--dim)) !important; }
+.bookmark-icon { color: rgb(var(--acc)); }
 
 /* ----------------------------------------------------------------- status */
-.docker-status-sano { color: var(--hx-green) !important; }
-.docker-status-non-trovato { color: #ff5c5c !important; }
+.docker-status-sano { color: rgb(var(--acc)) !important; }
+.docker-status-non-trovato { color: rgb(var(--danger)) !important; }
 
 /* ------------------------------------------------------------ links/inputs */
 a { text-decoration: none; }
+a:hover { color: rgb(var(--acc)) !important; }
 input {
-  background: rgba(0, 10, 6, 0.6) !important;
-  color: var(--hx-green) !important;
-  border: 1px solid var(--hx-line) !important;
-  border-radius: 6px !important;
+  background: rgb(var(--ink)) !important;
+  color: rgb(var(--fg)) !important;
+  border: 1px solid rgb(var(--edge)) !important;
+  border-radius: 4px !important;
 }
-::selection { background: rgba(57, 255, 20, 0.28); color: #eafff2; }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: #04070a; }
-::-webkit-scrollbar-thumb { background: rgba(57, 255, 20, 0.25); border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(57, 255, 20, 0.45); }
+input:focus { border-color: rgb(var(--acc)) !important; outline: none !important; }
+:focus-visible { outline: 1px solid rgb(var(--acc)); outline-offset: 1px; }
+
+::selection { background: rgb(var(--acc) / .3); color: rgb(var(--fgx)); }
+* { scrollbar-width: thin; scrollbar-color: rgb(var(--edge2)) transparent; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgb(var(--edge2)); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--acc) / .5); }
