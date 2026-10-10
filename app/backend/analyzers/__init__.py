@@ -5,4 +5,4 @@ from .base import Analyzer, ToolContext, ToolResult  # noqa: F401
 from .registry import REGISTRY, catalog, get, register, run_tool, subprocess_analyzer  # noqa: F401
 
 # register all tools (import side effects)
-from . import metadata, text, hex, decode, blobs, extract, nested_archive, steg, png, image, gif, vision, morse, audio, sstv, qr, pcap, repair, elf, git, lsb, eml, zerowidth  # noqa: E402,F401
+from . import metadata, text, hex, decode, blobs, extract, nested_archive, steg, png, image, gif, vision, morse, audio, sstv, qr, pcap, repair, elf, git, lsb, eml, zerowidth, whitespace  # noqa: E402,F401

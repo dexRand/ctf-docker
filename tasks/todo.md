@@ -107,8 +107,13 @@
       **Risolve *impossible stego*** (SekaiCTF 2026) — prima 0 flag. Regressione **28/28**,
       `test_blobs` 4/4, tool StegSuite **50**.
 - [x] **StegSuite: analyzer `zero-width`** (stego "invisibile"): decodifica lo stego a
-      **caratteri zero-width** (ZWSP/ZWNJ/ZWJ) e a **spazi finali** (space=0/tab=1).
-      Regressione **29/29** (nuovo caso `zero-width`), `test_zerowidth` 3/3, tool **51**.
+      **caratteri zero-width** (ZWSP/ZWNJ/ZWJ) e a **spazi finali** (space=0/tab=1),
+      provando **8 e 7 bit** + separatore + entrambi i mapping. Regressione **29/29**
+      (caso `zero-width`), `test_zerowidth` 4/4, tool **51**.
+- [x] **StegSuite: analyzer `whitespace`** (esolang Whitespace): interprete completo
+      (stack/aritmetica/heap/flow/IO) su programmi di soli spazi/tab/newline; emette
+      l'output così il flag hunt lo legge. Regressione **30/30** (caso `whitespace`),
+      `test_whitespace` 5/5, tool **52**.
 - [x] **Analyzer `git`**: repo git dentro uno zip → storia/refs/reflog/oggetti →
       risolve *gitgud* (tool **47**).
 - [x] **SPA StegSuite — fix audit `impeccable`** (commit `ca50ea8`/`c1daf6c`):

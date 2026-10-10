@@ -447,6 +447,21 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     p.write_text("Meet me at the usual place.\n" + zw + "\nsee you!\n", encoding="utf-8")
     cases.append(("zero-width", p, flag29))
 
+    # 30) Whitespace esolang: a program made only of spaces/tabs/newlines that
+    #     prints the flag -> the `whitespace` interpreter runs it
+    flag30 = "ITS{whitespace_30}"
+    _sp, _tb, _nl = " ", "\t", "\n"
+
+    def _pw(n: int) -> str:
+        bits = bin(abs(n))[2:]
+        return _sp + _sp + (_sp if n >= 0 else _tb) + "".join(_sp if b == "0" else _tb for b in bits) + _nl
+
+    _oc = _tb + _nl + _sp + _sp
+    prog = "".join(_pw(ord(c)) + _oc for c in flag30) + _nl + _nl + _nl
+    p = TMP / "prog.ws"
+    p.write_text(prog)
+    cases.append(("whitespace", p, flag30))
+
     return cases
 
 
