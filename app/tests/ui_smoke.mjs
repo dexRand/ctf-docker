@@ -32,7 +32,7 @@ await fetch(`${BASE}/api/v1/projects/${proj.id}/start`, { method: 'POST' })
 
 await page.goto(`${BASE}/#/p/${proj.id}`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(1500)
-const center = page.locator('main.min-w-0')
+const center = page.locator('section.min-w-0')
 check('project: center pane visible', await center.isVisible())
 check('project: findings tab present', (await page.getByRole('button', { name: /findings/i }).count()) > 0)
 check('desktop: mobile switcher absent', (await page.getByRole('button', { name: 'detail', exact: true }).count()) === 0)

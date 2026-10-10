@@ -2,21 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
+/* Design tokens: single source of truth. Tailwind maps its palette to these
+   (tailwind.config.js), so `text-acc` and `rgb(var(--acc)/…)` share one value. */
+:root {
+  --ink: 12 14 16;
+  --panel: 20 23 26;
+  --panel2: 26 30 34;
+  --edge: 38 43 49;
+  --edge2: 56 64 73;
+  --acc: 69 224 140;
+  --accdim: 20 51 37;
+  --warn: 245 197 66;
+  --danger: 255 97 102;
+  --dangerlite: 255 179 182;
+  --info: 95 208 242;
+  --dim: 102 113 124;
+  --fg: 215 221 227;
+  --fglite: 170 180 189;
+  --fgx: 244 247 249;
+  color-scheme: dark;
+}
+
 html, body, #app { height: 100%; }
 body {
   margin: 0;
   font-family: ui-monospace, "JetBrains Mono", "Cascadia Code", "Fira Code", Menlo,
     Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
-  background: #0c0e10;
-  color: #d7dde3;
+  background: rgb(var(--ink));
+  color: rgb(var(--fg));
 }
 
-::selection { background: rgba(69, 224, 140, .3); color: #f4f7f9; }
+::selection { background: rgb(var(--acc) / .3); color: rgb(var(--fgx)); }
 
-* { scrollbar-width: thin; scrollbar-color: #384049 transparent; }
+* { scrollbar-width: thin; scrollbar-color: rgb(var(--edge2)) transparent; }
 *::-webkit-scrollbar { width: 9px; height: 9px; }
-*::-webkit-scrollbar-thumb { background: #384049; }
+*::-webkit-scrollbar-thumb { background: rgb(var(--edge2)); }
 *::-webkit-scrollbar-track { background: transparent; }
 
 /* faint CRT: scanlines + vignette, never intersect modals (z>=40) */
@@ -35,7 +55,7 @@ body::before {
 input, select, button, textarea { font-family: inherit; }
 
 :focus-visible {
-  outline: 1px solid #45e08c;
+  outline: 1px solid rgb(var(--acc));
   outline-offset: 1px;
 }
 
@@ -51,69 +71,73 @@ pre.out {
   display: inline-flex;
   align-items: center;
   gap: .35rem;
-  border: 1px solid #262b31;
-  background: #14171a;
-  color: #aab4bd;
+  border: 1px solid rgb(var(--edge));
+  background: rgb(var(--panel));
+  color: rgb(var(--fglite));
   padding: .18rem .55rem;
   font-size: 11px;
   line-height: 1.2;
   text-transform: uppercase;
   letter-spacing: .04em;
 }
-.kb:hover:not(:disabled) { border-color: #45e08c; color: #f4f7f9; background: #1a1e22; }
+.kb:hover:not(:disabled) { border-color: rgb(var(--acc)); color: rgb(var(--fgx)); background: rgb(var(--panel2)); }
 .kb:disabled { opacity: .45; cursor: not-allowed; }
-.kb-acc { border-color: #45e08c; color: #06120b; background: #45e08c; font-weight: 700; }
-.kb-acc:hover:not(:disabled) { background: #aae9c8; color: #06120b; }
-.kb-danger { color: #ffb3b6; }
-.kb-danger:hover:not(:disabled) { border-color: #ff6166; background: rgba(255, 97, 102, .12); color: #ffb3b6; }
+.kb-acc { border-color: rgb(var(--acc)); color: rgb(var(--ink)); background: rgb(var(--acc)); font-weight: 700; }
+.kb-acc:hover:not(:disabled) { background: rgb(var(--acc) / .82); color: rgb(var(--ink)); }
+.kb-danger { color: rgb(var(--dangerlite)); }
+.kb-danger:hover:not(:disabled) { border-color: rgb(var(--danger)); background: rgb(var(--danger) / .12); color: rgb(var(--dangerlite)); }
 
-.prompt { color: #45e08c; }
-.prompt::before { content: '> '; color: #45e08c; font-weight: 700; }
+.prompt { color: rgb(var(--acc)); }
+.prompt::before { content: '> '; color: rgb(var(--acc)); font-weight: 700; }
 
 .row { padding: .25rem .5rem; font-size: 12px; line-height: 1.5; }
-.row:hover { background: rgba(69, 224, 140, .06); }
+.row:hover { background: rgb(var(--acc) / .06); }
 
 /* --- resizable separators ------------------------------------------- */
-.sep { flex: 0 0 auto; background: #262b31; transition: background .12s ease; }
-.sep:hover, .sep:focus-visible, .sep:active { background: #45e08c; outline: none; }
+.sep { flex: 0 0 auto; background: rgb(var(--edge)); transition: background .12s ease; }
+.sep:hover, .sep:focus-visible, .sep:active { background: rgb(var(--acc)); outline: none; }
 .sep-v { width: 5px; cursor: col-resize; }
 .sep-h { height: 5px; cursor: row-resize; }
 
 /* --- markdown rendering (report) ------------------------------------ */
-.md { font-size: 13px; line-height: 1.55; color: #d7dde3; }
-.md h1, .md h2 { color: #45e08c; font-weight: 700; }
+.md { font-size: 13px; line-height: 1.55; color: rgb(var(--fg)); }
+.md h1, .md h2 { color: rgb(var(--acc)); font-weight: 700; }
 .md h1 { font-size: 1.3rem; margin: .4rem 0 .7rem; }
 .md h2 {
   font-size: 1.05rem;
   margin: 1.2rem 0 .5rem;
   padding-bottom: .3rem;
-  border-bottom: 1px solid #262b31;
+  border-bottom: 1px solid rgb(var(--edge));
 }
-.md h3 { font-size: .95rem; font-weight: 700; margin: .9rem 0 .35rem; color: #f4f7f9; }
+.md h3 { font-size: .95rem; font-weight: 700; margin: .9rem 0 .35rem; color: rgb(var(--fgx)); }
 .md p { margin: .35rem 0; }
 .md ul { list-style: none; margin: .35rem 0 .35rem .4rem; }
-.md ul > li::before { content: '• '; color: #45e08c; }
+.md ul > li::before { content: '• '; color: rgb(var(--acc)); }
 .md code {
-  background: #0c0e10;
-  border: 1px solid #262b31;
+  background: rgb(var(--ink));
+  border: 1px solid rgb(var(--edge));
   border-radius: 3px;
   padding: 0 4px;
   font-family: inherit;
   font-size: .86em;
-  color: #aab4bd;
+  color: rgb(var(--fglite));
 }
 .md pre {
-  background: #0c0e10;
-  border: 1px solid #262b31;
-  border-left: 2px solid #45e08c;
+  background: rgb(var(--ink));
+  border: 1px solid rgb(var(--edge));
   border-radius: 4px;
   padding: 10px;
   overflow: auto;
   font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
-  color: #d7dde3;
+  color: rgb(var(--fg));
 }
 .md table { border-collapse: collapse; width: 100%; margin: .6rem 0; font-size: 12px; }
-.md th, .md td { border: 1px solid #262b31; padding: 5px 8px; text-align: left; vertical-align: top; }
-.md th { background: #1a1e22; color: #45e08c; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
-.md a { color: #5fd0f2; }
-.md strong { color: #f4f7f9; }
+.md th, .md td { border: 1px solid rgb(var(--edge)); padding: 5px 8px; text-align: left; vertical-align: top; }
+.md th { background: rgb(var(--panel2)); color: rgb(var(--acc)); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.md a { color: rgb(var(--info)); }
+.md strong { color: rgb(var(--fgx)); }
+
+/* touch devices: comfortable hit targets for the terminal chrome controls */
+@media (pointer: coarse) {
+  .kb { min-height: 34px; }
+}

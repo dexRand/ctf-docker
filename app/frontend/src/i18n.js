@@ -9,6 +9,12 @@ const KEY = 'stegsuite-lang'
 
 export const lang = ref(localStorage.getItem(KEY) || 'en')
 
+// keep <html lang> in sync with the UI language (a11y: screen-reader pronunciation)
+function syncHtmlLang() {
+  if (typeof document !== 'undefined') document.documentElement.lang = lang.value
+}
+syncHtmlLang()
+
 const en = {
   // ---- tools (labels.js consumes these) ----
   'tools.upload': 'Uploaded by you',
@@ -74,6 +80,8 @@ const en = {
   'home.history': 'history',
   'home.projects_count': '{n} projects',
   'home.clear_history': 'clear history',
+  'home.pick_files': 'files to analyse',
+  'home.load_more': 'load more',
   'home.del_confirm': 'Delete this project and all its files?',
   'home.clear_confirm_1': 'Delete ALL history ({n} projects) and every file?',
   'home.clear_confirm_2': 'Final confirmation? This cannot be undone.',
@@ -112,6 +120,7 @@ const en = {
   'proj.delete': 'Delete project',
   'proj.del_confirm': 'Delete this project and all its files?',
   'proj.files': 'files',
+  'proj.detail': 'run detail',
   'proj.filter_placeholder': 'filter…',
   'proj.legend_route': 'route',
   'proj.legend_adjacent': 'adjacent',
@@ -270,6 +279,8 @@ const it = {
   'home.history': 'history',
   'home.projects_count': '{n} progetti',
   'home.clear_history': 'svuota history',
+  'home.pick_files': 'file da analizzare',
+  'home.load_more': 'carica altri',
   'home.del_confirm': 'Eliminare il progetto e tutti i file?',
   'home.clear_confirm_1': 'Eliminare TUTTA la history ({n} progetti) e tutti i file?',
   'home.clear_confirm_2': 'Confermi definitivamente? L\'operazione non è reversibile.',
@@ -307,6 +318,7 @@ const it = {
   'proj.delete': 'Elimina progetto',
   'proj.del_confirm': 'Eliminare il progetto e tutti i file?',
   'proj.files': 'file',
+  'proj.detail': 'dettaglio run',
   'proj.filter_placeholder': 'filtra…',
   'proj.legend_route': 'percorso',
   'proj.legend_adjacent': 'adiacente',
@@ -427,4 +439,5 @@ export function setLang(l) {
   if (!LABELS[l] || l === lang.value) return
   lang.value = l
   localStorage.setItem(KEY, l)
+  syncHtmlLang()
 }

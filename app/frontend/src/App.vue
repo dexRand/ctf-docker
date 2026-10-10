@@ -19,7 +19,7 @@ import Toasts from './components/Toasts.vue'
         <div class="flex items-center gap-0.5 rounded border border-edge bg-ink p-0.5" role="group" aria-label="language">
           <button v-for="l in LANGUAGES" :key="l" @click="setLang(l)"
                   class="rounded px-1.5 py-0.5 text-[10px]"
-                  :class="lang === l ? 'bg-acc font-bold text-[#06120b]' : 'text-dim hover:text-fglite'">
+                  :class="lang === l ? 'bg-acc font-bold text-ink' : 'text-dim hover:text-fglite'">
             {{ l.toUpperCase() }}
           </button>
         </div>

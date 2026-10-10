@@ -10,15 +10,17 @@ const el = ref(null)
 let term, fit, ws, onResize, ro
 
 onMounted(() => {
+  // resolve the app tokens for the terminal chrome (ANSI 16 stays the standard palette)
+  const css = getComputedStyle(document.documentElement)
+  const tok = (n, fb) => { const v = css.getPropertyValue(n).trim(); return v ? `rgb(${v})` : fb }
   term = new Terminal({
     fontSize: 12, cursorBlink: true, convertEol: false, cursorStyle: 'block',
     theme: {
-      // standard Linux-console / Debian palette: black bg, grey fg,
-      // classic 16-color ANSI (aa/55 base tones)
-      background: '#000000',
-      foreground: '#aaaaaa',
-      cursor: '#ffffff',
-      cursorAccent: '#000000',
+      // app chrome on the design tokens; classic 16-color ANSI kept as the console palette
+      background: tok('--ink', '#000000'),
+      foreground: tok('--fg', '#aaaaaa'),
+      cursor: tok('--acc', '#ffffff'),
+      cursorAccent: tok('--ink', '#000000'),
       selectionBackground: 'rgba(255, 255, 255, 0.4)',
       black: '#000000', red: '#aa0000', green: '#00aa00', yellow: '#aa5500',
       blue: '#0000aa', magenta: '#aa00aa', cyan: '#00aaaa', white: '#aaaaaa',

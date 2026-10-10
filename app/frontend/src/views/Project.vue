@@ -42,7 +42,7 @@ const MOBILE_PANES = ['files', 'detail', 'panel']
 let mq = null
 function onMq() { if (mq) narrow.value = mq.matches }
 function mobileTabBtn(p) {
-  return mobilePane.value === p ? 'bg-acc text-[#06120b] font-bold' : 'text-dim hover:text-fglite'
+  return mobilePane.value === p ? 'bg-acc text-ink font-bold' : 'text-dim hover:text-fglite'
 }
 function loadW(key, def) {
   try { const v = parseInt(localStorage.getItem('steg.pane.' + key) || '', 10); return isNaN(v) ? def : v } catch { return def }
@@ -359,10 +359,10 @@ function effStatus(r) {
   return (r && r.needs_password && pwdOf(r.file_id)) ? 'cracked' : (r ? r.status : '')
 }
 function tabBtn(tb) {
-  return tab.value === tb ? 'bg-acc text-[#06120b] font-bold' : 'text-dim hover:text-fglite'
+  return tab.value === tb ? 'bg-acc text-ink font-bold' : 'text-dim hover:text-fglite'
 }
 function rightTabBtn(t) {
-  return rightTab.value === t ? 'bg-acc text-[#06120b] font-bold' : 'text-dim hover:text-fglite'
+  return rightTab.value === t ? 'bg-acc text-ink font-bold' : 'text-dim hover:text-fglite'
 }
 
 async function load() {
@@ -976,6 +976,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex h-full flex-col font-mono">
+    <h1 class="sr-only">{{ project?.name }}</h1>
     <!-- action bar -->
     <div class="flex flex-wrap items-center gap-2 border-b border-edge bg-panel px-3 py-1.5 text-xs">
       <button @click="router.push('/')" class="kb px-2" :aria-label="t('proj.back_home')"><Icon name="chevronR" class="rotate-180" :size="12" /></button>
@@ -1025,6 +1026,7 @@ onBeforeUnmount(() => {
       <aside class="flex min-h-0 flex-col bg-panel"
              :class="narrow ? (mobilePane === 'files' ? 'flex-1' : 'hidden') : 'shrink-0'"
              :style="narrow ? {} : { width: leftW + 'px' }">
+        <h2 class="sr-only">{{ t('proj.files') }}</h2>
         <div class="flex items-center gap-2 border-b border-edge bg-panel2 px-2 py-1.5 text-[10px] uppercase tracking-widest text-dim">
           <Icon name="folder" :size="12" /> files <span class="normal-case text-acc">({{ tree.length }})</span>
           <input v-model="search" type="search" :placeholder="t('proj.filter_placeholder')" :aria-label="t('proj.filter_placeholder')"
@@ -1063,7 +1065,9 @@ onBeforeUnmount(() => {
            @keydown.left.prevent="nudge('left', -16)" @keydown.right.prevent="nudge('left', 16)"></div>
 
       <!-- detail (center) -->
-      <main class="flex min-h-0 min-w-0 flex-1 flex-col" :class="narrow && mobilePane !== 'detail' ? 'hidden' : ''">
+      <section class="flex min-h-0 min-w-0 flex-1 flex-col" :aria-label="t('proj.detail')"
+               :class="narrow && mobilePane !== 'detail' ? 'hidden' : ''">
+        <h2 class="sr-only">{{ t('proj.detail') }}</h2>
         <div class="flex items-center gap-1 border-b border-edge bg-panel2 px-2 py-1.5 text-[11px]">
           <button v-for="tb in ['overview','extracted','preview']" :key="tb" @click="tab = tb"
                   class="rounded px-2.5 py-0.5" :class="tabBtn(tb)">
@@ -1133,7 +1137,7 @@ onBeforeUnmount(() => {
             </div>
           </template>
         </div>
-      </main>
+      </section>
       <div v-if="!narrow" class="sep sep-v" role="separator" aria-orientation="vertical" tabindex="0" :aria-label="t('proj.resize_panel')"
            @pointerdown="startDrag('right', $event)"
            @keydown.left.prevent="nudge('right', -16)" @keydown.right.prevent="nudge('right', 16)"></div>
@@ -1142,6 +1146,7 @@ onBeforeUnmount(() => {
       <aside class="flex min-h-0 flex-col border-l border-edge bg-panel"
              :class="narrow ? (mobilePane === 'panel' ? 'flex-1' : 'hidden') : 'shrink-0'"
              :style="narrow ? {} : { width: rightW + 'px' }">
+        <h2 class="sr-only">{{ t('proj.tab_findings') }}</h2>
         <div class="flex items-center gap-1 border-b border-edge bg-panel2 px-2 py-1.5 text-[11px]">
           <button type="button" @click="rightTab = 'findings'" class="rounded px-2.5 py-0.5" :class="rightTabBtn('findings')">
             {{ t('proj.tab_findings') }}

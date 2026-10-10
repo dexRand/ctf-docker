@@ -28,8 +28,13 @@ const MODES = [
 
 const STATUS_ORDER = ['queued', 'running', 'done', 'paused', 'error', 'created', 'cancelled']
 const STATUS_BAR = {
-  queued: '#f5c542', running: '#f5c542', done: '#45e08c', paused: '#5fd0f2',
-  error: '#ff6166', created: '#384049', cancelled: '#384049',
+  queued: 'rgb(var(--warn))', running: 'rgb(var(--warn))', done: 'rgb(var(--acc))',
+  paused: 'rgb(var(--info))', error: 'rgb(var(--danger))',
+  created: 'rgb(var(--edge2))', cancelled: 'rgb(var(--edge2))',
+}
+const STATUS_TEXT = {
+  queued: 'text-warn', running: 'text-warn', done: 'text-acc',
+  paused: 'text-info', error: 'text-danger', created: 'text-dim', cancelled: 'text-dim',
 }
 
 const statCells = computed(() => [
@@ -56,10 +61,7 @@ const statusRows = computed(() => {
     ...r,
     pct: Math.max(4, Math.round((r.count / total) * 100)),
     bar: STATUS_BAR[r.status],
-    text: STATUS_BAR[r.status] === '#45e08c' ? 'text-acc'
-      : STATUS_BAR[r.status] === '#f5c542' ? 'text-warn'
-      : STATUS_BAR[r.status] === '#5fd0f2' ? 'text-info'
-      : STATUS_BAR[r.status] === '#ff6166' ? 'text-danger' : 'text-dim',
+    text: STATUS_TEXT[r.status] || 'text-dim',
   }))
 })
 
@@ -68,6 +70,10 @@ const modeRows = computed(() => [
   { mode: 'check', count: stats.value.perMode.check || 0 },
 ])
 const topTools = computed(() => stats.value.topTools)
+// the history can grow to hundreds of projects: render only a window, not all
+// of them (hundreds of rows = hundreds of tab stops and a heavy DOM).
+const historyLimit = ref(25)
+const visibleProjects = computed(() => projects.value.slice(0, historyLimit.value))
 
 async function loadStats() {
   const all = projects.value
@@ -204,7 +210,8 @@ function open(id) { router.push(`/p/${id}`) }
           <div class="mt-1 text-xs text-dim">
             {{ t('home.drop_hint') }}
             <span class="cursor-pointer text-acc underline underline-offset-2">{{ t('home.drop_browse') }}</span>
-            <input ref="filepicker" type="file" multiple class="hidden" @change="onPick" />
+            <input ref="filepicker" type="file" multiple class="hidden"
+                   :aria-label="t('home.pick_files')" @change="onPick" />
           </div>
           <table v-if="files.length" class="mx-auto mt-3 min-w-[260px] text-left text-[11px] text-fglite">
             <tbody>
@@ -239,6 +246,7 @@ function open(id) { router.push(`/p/${id}`) }
             <p class="max-w-[38ch] text-[11px] leading-4 text-dim">{{ t('home.mode_' + m.id) }}</p>
           </div>
           <input v-model="name" :placeholder="t('home.name_placeholder')"
+                 :aria-label="t('home.name_placeholder')"
                  class="min-w-[180px] rounded border border-edge bg-ink px-2.5 py-1.5 text-xs placeholder:text-dim focus:border-acc" />
           <button :disabled="busy || !files.length" @click="start"
                   class="kb kb-acc disabled:opacity-50" :aria-label="t('home.run_analysis')">
@@ -313,7 +321,7 @@ function open(id) { router.push(`/p/${id}`) }
                 <span class="text-dim">{{ m.count }}</span>
               </div>
               <div class="mt-1 h-1.5 rounded bg-ink">
-                <div class="h-1.5 rounded" :style="{ width: Math.max(4, stats.projects ? Math.round(m.count / stats.projects * 100) : 0) + '%', background: m.mode === 'auto' ? '#45e08c' : '#f5c542' }"></div>
+                <div class="h-1.5 rounded" :style="{ width: Math.max(4, stats.projects ? Math.round(m.count / stats.projects * 100) : 0) + '%', background: m.mode === 'auto' ? 'rgb(var(--acc))' : 'rgb(var(--warn))' }"></div>
               </div>
             </div>
             <div class="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-dim">
@@ -359,7 +367,7 @@ function open(id) { router.push(`/p/${id}`) }
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in projects" :key="p.id" @click="open(p.id)"
+            <tr v-for="p in visibleProjects" :key="p.id" @click="open(p.id)"
                 class="cursor-pointer border-t border-edge/60 hover:bg-acc/5">
               <td class="px-3 py-1.5 text-fg">
                 <span v-if="p.status === 'done'" class="mr-2 text-acc">✓</span>
@@ -380,6 +388,12 @@ function open(id) { router.push(`/p/${id}`) }
             </tr>
             <tr v-if="!projects.length"><td colspan="6" class="px-3 py-8 text-center text-dim">
               <span class="text-acc">$</span> {{ t('home.empty') }}
+            </td></tr>
+            <tr v-else-if="projects.length > historyLimit"><td colspan="6" class="px-3 py-2">
+              <button class="kb w-full justify-center text-[10px]" @click="historyLimit += 50"
+                      :aria-label="t('home.load_more')">
+                {{ t('home.load_more') }} (+{{ projects.length - historyLimit }})
+              </button>
             </td></tr>
           </tbody>
         </table>

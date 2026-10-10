@@ -15,9 +15,19 @@ let ro = null
 let fitted = false
 const cache = new Map() // id -> stable node object, so positions survive refreshes
 
-const C_ROUTE = '#45e08c'
-const C_WARN = '#f5c542'
-const C_OFF = '#5b6672'
+// canvas cannot read CSS vars directly: resolve the design tokens once, at load
+const TOK = (n, fb) => {
+  const v = typeof document !== 'undefined'
+    ? getComputedStyle(document.documentElement).getPropertyValue(n).trim() : ''
+  return v ? `rgb(${v})` : fb
+}
+const C_ROUTE = TOK('--acc', '#45e08c')
+const C_WARN = TOK('--warn', '#f5c542')
+const C_OFF = TOK('--dim', '#5b6672')
+const C_FGX = TOK('--fgx', '#f4f7f9')
+const C_FG = TOK('--fg', '#c7d0d8')
+const C_LINK = TOK('--edge', '#2b3238')
+const C_BG = TOK('--ink', '#0c0e10')
 
 function buildData() {
   const keep = new Set()
@@ -46,18 +56,18 @@ function painter(node, ctx, scale) {
   }
   ctx.beginPath(); ctx.arc(node.x, node.y, r, 0, 2 * Math.PI)
   ctx.fillStyle = node.__color; ctx.fill()
-  if (node.__sel) { ctx.lineWidth = 1.4 / scale; ctx.strokeStyle = '#f4f7f9'; ctx.stroke() }
+  if (node.__sel) { ctx.lineWidth = 1.4 / scale; ctx.strokeStyle = C_FGX; ctx.stroke() }
   const fs = 11 / scale
   ctx.font = `${fs}px ui-monospace, Menlo, Consolas, monospace`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
-  ctx.fillStyle = node.flag ? C_ROUTE : '#c7d0d8'
+  ctx.fillStyle = node.flag ? C_ROUTE : C_FG
   ctx.fillText(node.name, node.x, node.y + r + 1.6 / scale)
 }
 
 onMounted(() => {
   graph = ForceGraph()(el.value)
-    .backgroundColor('#0c0e10')
+    .backgroundColor(C_BG)
     .nodeId('id')
     .nodeCanvasObject(painter)
     .nodePointerAreaPaint((n, color, ctx, scale) => {
@@ -70,11 +80,11 @@ onMounted(() => {
       const w = ctx.measureText(n.name).width
       ctx.fillRect(n.x - w / 2 - 2, n.y + n.__r, w + 4, fs + 4)
     })
-    .linkColor((l) => (l.__route ? C_ROUTE : '#2b3238'))
+    .linkColor((l) => (l.__route ? C_ROUTE : C_LINK))
     .linkWidth((l) => (l.__route ? 1.6 : 0.7))
     .linkDirectionalArrowLength(2.4)
     .linkDirectionalArrowRelPos(1)
-    .linkDirectionalArrowColor((l) => (l.__route ? C_ROUTE : '#2b3238'))
+    .linkDirectionalArrowColor((l) => (l.__route ? C_ROUTE : C_LINK))
     .nodeLabel((n) => `${n.name} — ${n.tool || ''}`)
     .warmupTicks(20)
     .cooldownTicks(200)
