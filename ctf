@@ -118,6 +118,12 @@ EOF
   dork)
     shift || true
     if [ "$#" -eq 0 ]; then
+      ghdb="config/dork/ghdb.json"
+      if [ ! -f "$ghdb" ] || [ -n "$(find "$ghdb" -mtime +7 2>/dev/null)" ]; then
+        echo "[*] Aggiorno la Google Hacking Database (circa una volta a settimana)…"
+        python3 tools/dork/dork.py --update \
+          || echo "[!] Sync GHDB non riuscita (offline?): la tab GHDB resterà vuota finché non fai './ctf dork --update'."
+      fi
       docker compose up -d dork >/dev/null 2>&1 || true
       url="http://localhost:$(port DORK_PORT 19019)"
       echo "Dork generator: ${url}"

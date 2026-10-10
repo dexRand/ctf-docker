@@ -106,6 +106,21 @@ The small `ctf` wrapper is a thin, readable layer over Compose:
 ./ctf down                # stop and remove containers
 ```
 
+### Dork generator (easy)
+
+Google/Bing/DuckDuckGo/GitHub/Shodan queries from a target — **no scraping**: it
+only builds the query and the ready-to-open link. The page at
+**http://localhost:19019** shows the curated presets *and* the whole
+**Google Hacking Database** (exploit-db), synced automatically on first use.
+
+```bash
+./ctf dork                          # sync the GHDB (first run) + open the web page
+./ctf dork example.com              # print ready-to-open dork URLs in the terminal
+./ctf dork example.com --ghdb camera     # search the GHDB (add a target to scope it with site:)
+./ctf dork --update                 # refresh the GHDB cache (config/dork/ghdb.json)
+./ctf dork-test                     # generator self-test
+```
+
 ## 🧪 Analysis
 
 Use **StegSuite** (below) for the recursive steg/forensics pipeline, the flag

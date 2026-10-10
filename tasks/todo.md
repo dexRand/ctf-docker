@@ -128,6 +128,9 @@
       14 categorie, cache locale `config/dork/ghdb.json`, .gitignored) + tab
       **GHDB** nella web UI (ricerca + categoria + export) + ricerca CLI
       `./ctf dork [target] --ghdb <kw> [--ghdb-cat …]`. Test con righe reali.
+      **Usabilità**: `./ctf dork` (senza argomenti) sincronizza la GHDB in automatico
+      se assente/vecchia (>7gg) e apre la pagina; hint "come si usa", copia per-card,
+      call-to-action se la GHDB non è sincronizzata; quick-start nei README.
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

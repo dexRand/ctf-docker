@@ -29,6 +29,9 @@
   h1 { font-size: 1.05rem; margin: 0 0 .2rem; color: rgb(var(--acc)); }
   h1 .prompt { opacity: .7; }
   p.sub { color: rgb(var(--dim)); margin: 0 0 1.2rem; font-size: 12px; }
+  p.hint { color: rgb(var(--fglite)); font-size: 12px; margin: -0.8rem 0 1.1rem;
+    border-left: 2px solid rgb(var(--acc) / .6); padding-left: .6rem; }
+  p.hint b { color: rgb(var(--acc)); font-weight: 600; }
   fieldset { border: 1px solid rgb(var(--edge)); border-radius: 4px; padding: .7rem .8rem; margin: 0 0 1rem; }
   legend { color: rgb(var(--acc)); text-transform: uppercase; font-size: 10px; letter-spacing: .18em; padding: 0 .4rem; }
   label { color: rgb(var(--fglite)); }
@@ -81,6 +84,7 @@
     border-radius: 3px; padding: .1rem .5rem; font-size: 11px;
   }
   .links a:hover { border-color: rgb(var(--acc)); color: rgb(var(--acc)); }
+  .links a.copy { color: rgb(var(--dim)); border-style: dashed; }
   .muted { color: rgb(var(--dim)); }
   footer { margin-top: 1.5rem; color: rgb(var(--dim)); font-size: 11px; border-top: 1px solid rgb(var(--edge)); padding-top: .6rem; }
   a { color: rgb(var(--info)); }
@@ -91,6 +95,7 @@
 <header>
   <h1><span class="prompt">$&nbsp;</span>ctf dork <span class="muted">--target</span></h1>
   <p class="sub">Preset curati + <strong>Google Hacking Database</strong> (exploit-db). Genera solo query: nessuno scraping.</p>
+  <p class="hint">Come si usa: scrivi il <b>target</b> → spunta i dork in <b>preset</b> (o apri la tab <b>GHDB</b>) → clicca un motore. I risultati si aggiornano dal vivo.</p>
 </header>
 
 <main>
@@ -224,6 +229,9 @@ function card(idText, groupText, nameText, query, links) {
   if (groupText) { const g = document.createElement('span'); g.className = 'grp'; g.textContent = groupText; head.appendChild(g); }
   const code = document.createElement('code'); code.textContent = query;
   const lk = document.createElement('div'); lk.className = 'links';
+  const cp = document.createElement('a'); cp.href = '#'; cp.className = 'copy'; cp.textContent = 'copia';
+  cp.onclick = (e) => { e.preventDefault(); copy(query, cp, 'copia'); };
+  lk.appendChild(cp);
   links.forEach((l) => { const a = document.createElement('a'); a.href = l.url; a.target = '_blank'; a.rel = 'noreferrer'; a.textContent = l.engine + ' ↗'; lk.appendChild(a); });
   c.append(head, code, lk); return c;
 }
@@ -263,7 +271,11 @@ function ghdbRows() {
 function ghdbQuery(d) { const t = normTarget($('#target').value); return t ? `site:${t} ${d.d}` : d.d; }
 function renderGhdb() {
   const out = $('#gout'); out.innerHTML = '';
-  if (!state.ghdb) { $('#gmeta').textContent = 'GHDB non sincronizzata — esegui: ./ctf dork --update'; out.innerHTML = '<p class="muted">Esegui <code>./ctf dork --update</code>, poi ricarica.</p>'; return; }
+  if (!state.ghdb) {
+    $('#gmeta').textContent = 'GHDB non sincronizzata';
+    out.innerHTML = '<div class="card"><p>La Google Hacking Database non è ancora stata scaricata.</p><p>Esegui <code>./ctf dork --update</code> (oppure <code>./ctf dork</code>) e ricarica la pagina.</p><p class="muted">Sono i ~7900 dork ufficiali di exploit-db; la cache resta locale.</p></div>';
+    return;
+  }
   const engs = webEngines();
   const rows = ghdbRows();
   $('#gmeta').textContent = `${rows.length} dork corrispondenti${state.glimit < rows.length ? ` (mostrati ${state.glimit})` : ''}`;

@@ -103,6 +103,21 @@ Il piccolo wrapper `ctf` è un livello leggibile sopra Compose:
 ./ctf down                # ferma e rimuove i container
 ```
 
+### Dork generator (facile)
+
+Query Google/Bing/DuckDuckGo/GitHub/Shodan da un target — **nessuno scraping**:
+genera solo la query e il link pronto. La pagina su **http://localhost:19019**
+mostra i preset curati *e* tutta la **Google Hacking Database** (exploit-db),
+sincronizzata da sola al primo uso.
+
+```bash
+./ctf dork                          # sync GHDB (primo avvio) + apre la pagina web
+./ctf dork example.com              # stampa gli URL dei dork, pronti da aprire
+./ctf dork example.com --ghdb camera     # cerca nella GHDB (con target la limita con site:)
+./ctf dork --update                 # aggiorna la cache GHDB (config/dork/ghdb.json)
+./ctf dork-test                     # self-test del generator
+```
+
 ## 🧪 Analisi
 
 Usa **StegSuite** (sotto) per la pipeline steg/forense ricorsiva, la caccia alle
