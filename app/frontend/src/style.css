@@ -53,6 +53,8 @@ body::before {
 }
 
 input, select, button, textarea { font-family: inherit; }
+button { min-height: 24px; min-width: 24px; }   /* WCAG 2.5.8 target size (AA) for the chrome controls */
+input, select { min-height: 24px; }
 
 :focus-visible {
   outline: 1px solid rgb(var(--acc));
@@ -71,6 +73,8 @@ pre.out {
   display: inline-flex;
   align-items: center;
   gap: .35rem;
+  min-height: 24px;              /* WCAG 2.5.8 target size (AA) */
+  min-width: 24px;
   border: 1px solid rgb(var(--edge));
   background: rgb(var(--panel));
   color: rgb(var(--fglite));

@@ -13,12 +13,12 @@ import Toasts from './components/Toasts.vue'
       </RouterLink>
       <span class="hidden max-w-[30ch] truncate text-dim md:inline">— {{ t('app.tagline') }}</span>
       <div class="ml-auto flex items-center gap-3">
-        <RouterLink to="/" class="text-dim hover:text-acc">{{ t('app.home') }}</RouterLink>
-        <a href="/api/docs" target="_blank" class="text-dim hover:text-acc">{{ t('app.api') }}</a>
-        <a href="/api/v1/health" target="_blank" class="text-dim hover:text-acc">{{ t('app.health') }}</a>
+        <RouterLink to="/" class="inline-flex min-h-6 items-center px-1 text-dim hover:text-acc">{{ t('app.home') }}</RouterLink>
+        <a href="/api/docs" target="_blank" class="inline-flex min-h-6 items-center px-1 text-dim hover:text-acc">{{ t('app.api') }}</a>
+        <a href="/api/v1/health" target="_blank" class="inline-flex min-h-6 items-center px-1 text-dim hover:text-acc">{{ t('app.health') }}</a>
         <div class="flex items-center gap-0.5 rounded border border-edge bg-ink p-0.5" role="group" aria-label="language">
           <button v-for="l in LANGUAGES" :key="l" @click="setLang(l)"
-                  class="rounded px-1.5 py-0.5 text-[10px]"
+                  class="inline-flex min-h-6 items-center rounded px-1.5 py-0.5 text-[10px]"
                   :class="lang === l ? 'bg-acc font-bold text-ink' : 'text-dim hover:text-fglite'">
             {{ l.toUpperCase() }}
           </button>
