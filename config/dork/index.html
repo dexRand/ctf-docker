@@ -108,6 +108,10 @@
     <button id="all" type="button">tutti</button>
     <button id="none" type="button">nessuno</button>
     <button id="copy" class="acc" type="button">copia query</button>
+    <button id="dl-md" type="button">scarica .md</button>
+    <button id="dl-json" type="button">scarica .json</button>
+    <button id="dl-txt" type="button">scarica .txt</button>
+    <button id="openall" type="button">apri tutti</button>
   </div>
 
   <section id="out" aria-live="polite"></section>
@@ -232,6 +236,58 @@ $('#copy').onclick = async () => {
   catch { $('#copy').textContent = 'copia fallita'; }
   setTimeout(() => { $('#copy').textContent = 'copia query'; }, 1500);
 };
+
+function allData() {
+  const t = normTarget($('#target').value);
+  const engines = state.data.meta.engines.filter((e) => state.engines.has(e.id));
+  const dorks = [];
+  state.data.presets.forEach((p) => {
+    if (!state.presets.has(p.id)) return;
+    const q = p.q.replaceAll('{t}', t);
+    const engs = engines.filter((e) => e.kind === p.kind);
+    if (!engs.length) return;
+    dorks.push({
+      id: p.id, group: p.group, name: p.name, query: q,
+      links: engs.map((e) => ({ engine: e.name, url: buildUrl(e.url, q) })),
+    });
+  });
+  return { target: t, dorks };
+}
+
+function toMarkdown() {
+  const d = allData();
+  const out = [`# Dork report — ${d.target}`, ''];
+  d.dorks.forEach((r) => {
+    out.push(`## ${r.group} — ${r.name}`, '', '```', r.query, '```', '');
+    r.links.forEach((l) => out.push(`- [${l.engine}](${l.url})`));
+    out.push('');
+  });
+  return out.join('\n').trim();
+}
+
+function stamp() {
+  const t = (normTarget($('#target').value) || 'dork').replace(/[^A-Za-z0-9.-]/g, '_');
+  return `dork-${t}-${new Date().toISOString().slice(0, 10)}`;
+}
+
+function download(name, text, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+$('#dl-txt').onclick = () => { const t = allQueries(); if (t) download(stamp() + '.txt', t, 'text/plain'); };
+$('#dl-md').onclick = () => { const t = toMarkdown(); if (t) download(stamp() + '.md', t, 'text/markdown'); };
+$('#dl-json').onclick = () => { const d = allData(); if (d.dorks.length) download(stamp() + '.json', JSON.stringify(d, null, 2), 'application/json'); };
+$('#openall').onclick = () => {
+  const links = [...document.querySelectorAll('#out .links a')];
+  if (!links.length) return;
+  if (!confirm(`Aprire ${links.length} link in nuove schede?`)) return;
+  links.forEach((a) => window.open(a.href, '_blank', 'noopener'));
+};
+
 boot();
 </script>
 </body>

@@ -121,6 +121,8 @@
       condiviso web/CLI; nessuno scraping (genera solo query Google/Bing/DDG/
       GitHub/Shodan/…). Valutati e scartati gli scraper esistenti (pagodo,
       DorkScout, Dorkify: fragili/rate-limit). Card in dashboard (Recon).
+      Export web `.md/.json/.txt` + "apri tutti"; CLI `-o/--out FILE` (es.
+      `./ctf dork x -o data/dork/report.md`).
 
 ### ZAP: add-on "potenti" (profilo `web`) ✅
 Installati in un'unica passata in **`zap/Dockerfile`** (`FROM ghcr.io/zaproxy/zaproxy`

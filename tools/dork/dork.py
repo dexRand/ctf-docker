@@ -86,6 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--engine", "-e", help="id motore, separati da virgola (default: dal preset file)")
     ap.add_argument("--list", "-l", action="store_true", help="elenca preset e motori")
     ap.add_argument("--json", action="store_true", help="output JSON")
+    ap.add_argument("--out", "-o", help="scrive il report su file (es. ./data/dork/report.md)")
     ap.add_argument("--presets-file", default=os.environ.get("DORK_PRESETS", str(DEFAULT_PRESETS)))
     args = ap.parse_args(argv)
 
@@ -111,7 +112,14 @@ def main(argv: list[str] | None = None) -> int:
     if unknown:
         print(f"[x] preset sconosciuti: {', '.join(sorted(unknown))}", file=sys.stderr)
         return 2
-    print(render(data, target, preset_ids, engine_ids, args.json))
+    text = render(data, target, preset_ids, engine_ids, args.json)
+    if args.out:
+        outp = Path(args.out)
+        outp.parent.mkdir(parents=True, exist_ok=True)
+        outp.write_text(text + "\n", encoding="utf-8")
+        print(f"[+] salvato: {outp}")
+    else:
+        print(text)
     return 0
 
 
