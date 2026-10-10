@@ -113,6 +113,20 @@ di ogni challenge. Aggiunto anche come **bookmark** in dashboard.
 |---|---|---|---|
 | SusCTF 2017 — Fun jpg (Misc1) | `flag.jpg` | `SusCTF{MetaData_1s_Important}` | flag nei **metadati XMP** (`dc:creator`) → analyzer `exiftool` (prefisso custom `SusCTF{}`) |
 
+### Fonti esterne valutate (raccolte di challenge)
+
+| Fonte | Cosa contiene | Uso / esito |
+|---|---|---|
+| [`susers/Writeups`](https://github.com/susers/Writeups) | challenge CTF cinesi 2017–2019 + writeup + **allegati** | **usata**: challenge reale *Fun jpg* (sopra) |
+| [`project-sekai-ctf`](https://github.com/project-sekai-ctf) (2022/2023) | sorgenti+writeup web/pwn/rev/crypto/forensics/misc, alta qualità | **riferimento**. Quasi tutte **server/jail/pwn** o con artefatti esterni/per-istanza → non auto-testabili offline qui (es. *Eval Me* richiede la key esterna, *DEF CON Invitation* un download remoto, *matryoshka* stego PNG custom) |
+| [`SniperOJ/Jeopardy-Dockerfiles`](https://github.com/SniperOJ/Jeopardy-Dockerfiles) | Dockerfile di challenge (web/pwn/misc) con flag statiche | per **hostare** challenge locali (lab), non per l'analisi offline |
+| [`abs0lut3pwn4g3/RTB-CTF-Framework`](https://github.com/abs0lut3pwn4g3/RTB-CTF-Framework) | piattaforma CTF (Flask) per **ospitare** eventi | riferimento (hosting), non per l'analisi |
+
+Le fonti sono anche in dashboard come **bookmark** (`config/homepage/bookmarks.yaml`).
+Suggerimenti raccolti e non ancora implementati: parsing **`.eml`/email** (allegati
+base64), **XOR-exfil da pcap** (byte esfiltrati con key), **USB HID** nel pcap,
+ricostruzione **QR** con format-info mancante.
+
 ### So Meta — EXIF `Artist`
 
 ```bash

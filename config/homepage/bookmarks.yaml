@@ -14,6 +14,15 @@
     - Writeups (susers):
         - abbr: WU
           href: https://github.com/susers/Writeups
+    - SekaiCTF:
+        - abbr: SK
+          href: https://github.com/project-sekai-ctf
+    - CTF dockerfiles (SniperOJ):
+        - abbr: SJ
+          href: https://github.com/SniperOJ/Jeopardy-Dockerfiles
+    - RTB CTF Framework:
+        - abbr: RB
+          href: https://github.com/abs0lut3pwn4g3/RTB-CTF-Framework
     - RevShells:
         - abbr: RS
           href: https://www.revshells.com/

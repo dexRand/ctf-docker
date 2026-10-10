@@ -88,6 +88,13 @@
       caso reale *SusCTF 2017 — «Fun jpg»* (flag nei metadati XMP del JPEG →
       analyzer `exiftool`, prefisso custom `SusCTF{}`). Aggiunto anche come
       **bookmark** in dashboard (`config/homepage/bookmarks.yaml`).
+- [x] **Altre fonti esterne valutate** (`project-sekai-ctf`, `SniperOJ/Jeopardy-Dockerfiles`,
+      `abs0lut3pwn4g3/RTB-CTF-Framework`): aggiunte come **bookmark**. Le challenge
+      SekaiCTF sono di alta qualità ma **non auto-testabili offline** qui (server/jail/pwn
+      o artefatti esterni/per-istanza: *Eval Me*, *DEF CON Invitation*, *matryoshka*).
+      SniperOJ/RTB servono a **hostare** challenge, non all'analisi. Idee future annotate
+      in `docs/CHALLENGES.md`: analisi **`.eml`**, **XOR-exfil da pcap**, **USB HID**,
+      ricostruzione **QR**.
 - [x] **Analyzer `git`**: repo git dentro uno zip → storia/refs/reflog/oggetti →
       risolve *gitgud* (tool **47**).
 - [x] **SPA StegSuite — fix audit `impeccable`** (commit `ca50ea8`/`c1daf6c`):
