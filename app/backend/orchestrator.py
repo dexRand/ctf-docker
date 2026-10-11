@@ -559,6 +559,14 @@ def _run(pid: str, job: Job) -> None:
             for tool_name in [t for t in plan if t != "file"]:
                 if job.cancelled:
                     break
+                # don't feed an image decoder another decoder's output
+                if tool_name in _IMG_DECODERS and _origin_tool(node.origin) in _IMG_DECODERS:
+                    continue
+                # heavy file carving is meaningful on the original artifact (and on
+                # archive contents), not on what an image decoder just produced
+                if tool_name in ("binwalk-extract", "foremost") \
+                        and _origin_tool(node.origin) in _STEG_DECODERS:
+                    continue
                 job.wait()
                 analyzer = get_tool(tool_name)
                 logs: list[str] = []
@@ -685,6 +693,12 @@ def record_crack_run(session: Session, pid: str, file_id: int, work: Path,
 _STEG_DECODERS = {"zsteg", "bit-planes", "png-pixels", "lsb-carve", "channel-remap",
                   "image-enhance", "psimage", "gif-frames", "blobs", "decode",
                   "image-repair", "png-repair"}
+
+# image decoders/transforms: re-running one on another's output is almost always
+# noise, and it is what makes the recursion explode (hundreds of runs). Archives,
+# the original upload and their contents still get the full plan.
+_IMG_DECODERS = {"zsteg", "bit-planes", "png-pixels", "lsb-carve", "channel-remap",
+                 "image-enhance", "psimage", "image-repair", "png-repair"}
 
 
 def _origin_tool(origin: str) -> str:
