@@ -16,6 +16,7 @@ menu() {
   upx -d BIN               scompatta un binario packed con UPX
   dec BIN                  decompila con Ghidra headless (in ./dec_out)
   emulate BIN --func F --argbuf HEX --arg N    esegue una funzione (Unicorn) -> rax
+  emulate BIN --func F --brute 0:N --expected V   brute-force del 1° argomento (rax/mem)
   report BIN               report di 1° passaggio (info/checksec/import/strings/Ghidra)
   angr-run BIN --find SYM --stdin N    esecuzione simbolica: trova l'input che ci arriva
   gdb BIN                  debug interattivo

@@ -209,6 +209,12 @@
       [--stdin N] [--timeout S]` che esplora e stampa l'**input concreto** che
       raggiunge il target (stdin simbolico ASCII). Comando `sym` nel menu `rev`.
       Testato: trova `SEKAI   ` in 0.2s su un binario di prova.
+- [x] **rev — auto-brute (`emulate --brute`)**: `emulate` ora itera il **primo
+      argomento** su un range (`START:END[:STEP]`) o una lista, fermandosi al primo
+      che soddisfa `--expected` (rax) o `--expected-mem ADDR:LEN:HEX`. L'emulatore è
+      **riusato con `reset()`** (immagine + stack + registri) → ~0.17 ms/candidato
+      (4661 in 0.78s, contro **116s** ricreando Unicorn a ogni giro). Testato su rax
+      e su memoria.
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**

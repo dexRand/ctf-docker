@@ -15,6 +15,12 @@ Examples
   # ELF symbol: call secret_hash(buf, 4)
   emulate BIN --func secret_hash --argbuf 41424344 --arg 4
 
+  # brute-force the first argument until the return value matches
+  emulate BIN --func check --brute 0:100000 --expected 0xdeadbeef
+
+  # sweep a small list instead of a range
+  emulate BIN --func check --brute 1,2,0x41,0x1337 --expected 42
+
   # raw code blob (its own base)
   emulate blob.bin --raw --arg 1 --arg 2
 
@@ -34,6 +40,9 @@ Arguments
   --base ADDR     load base for PIE ELF / raw blob (default 0x1000000)
   --steps N       instruction budget (default 1000000)
   --mem ADDR:LEN  hex-dump LEN bytes at ADDR after the call
+  --brute RANGE   sweep the FIRST argument (START:END[:STEP] or a comma list)
+  --expected V    with --brute: stop at the first candidate whose rax == V
+  --expected-mem A:L:H   with --brute: stop when that memory window matches
   --json          emit a JSON result
   --raw           treat the file as a flat code blob
 
@@ -49,6 +58,7 @@ import argparse
 import json
 import struct
 import sys
+import time
 
 try:
     from unicorn import (
@@ -56,8 +66,10 @@ try:
         UC_PROT_READ, UC_PROT_WRITE, UC_PROT_EXEC, UC_PROT_ALL,
     )
     from unicorn.x86_const import (
-        UC_X86_REG_RAX, UC_X86_REG_RDI, UC_X86_REG_RSI, UC_X86_REG_RDX,
-        UC_X86_REG_RCX, UC_X86_REG_R8, UC_X86_REG_R9, UC_X86_REG_RSP,
+        UC_X86_REG_RAX, UC_X86_REG_RBX, UC_X86_REG_RCX, UC_X86_REG_RDX,
+        UC_X86_REG_RSI, UC_X86_REG_RDI, UC_X86_REG_RBP, UC_X86_REG_RSP,
+        UC_X86_REG_R8, UC_X86_REG_R9, UC_X86_REG_R10, UC_X86_REG_R11,
+        UC_X86_REG_R12, UC_X86_REG_R13, UC_X86_REG_R14, UC_X86_REG_R15,
     )
 except ImportError:  # pragma: no cover
     sys.exit("emulate: the 'unicorn' python package is required (it ships with pwntools)")
@@ -68,6 +80,12 @@ PAGE = 0x1000
 ARG_REGS_SYSV = [UC_X86_REG_RDI, UC_X86_REG_RSI, UC_X86_REG_RDX,
                  UC_X86_REG_RCX, UC_X86_REG_R8, UC_X86_REG_R9]
 ARG_REGS_MS = [UC_X86_REG_RCX, UC_X86_REG_RDX, UC_X86_REG_R8, UC_X86_REG_R9]
+
+# general-purpose registers zeroed between brute-force runs (rsp is set last)
+GP_REGS = [UC_X86_REG_RAX, UC_X86_REG_RBX, UC_X86_REG_RCX, UC_X86_REG_RDX,
+           UC_X86_REG_RSI, UC_X86_REG_RDI, UC_X86_REG_RBP,
+           UC_X86_REG_R8, UC_X86_REG_R9, UC_X86_REG_R10, UC_X86_REG_R11,
+           UC_X86_REG_R12, UC_X86_REG_R13, UC_X86_REG_R14, UC_X86_REG_R15]
 
 STACK_BASE = 0x7FFF_0000_0000
 STACK_SIZE = 0x10_0000
@@ -212,13 +230,30 @@ class Emulator:
         self.img = img
         self.uc = Uc(UC_ARCH_X86, UC_MODE_64)
         self._mapped: set[int] = set()
+        self._writable: list[tuple[int, bytes]] = []
         for addr, chunk, perms in img.segments:
             self._map(addr, chunk, perms)
+            if perms & UC_PROT_WRITE:
+                self._writable.append((addr, chunk))
         self._map(SENTINEL, b"\xc3", UC_PROT_ALL)          # return trap
         self._map(STACK_BASE, b"\x00" * STACK_SIZE, UC_PROT_ALL)
-        rsp = STACK_BASE + STACK_SIZE - 0x1000 - 8         # %16 == 8 at entry
-        self.uc.reg_write(UC_X86_REG_RSP, rsp)
-        self.uc.mem_write(rsp, struct.pack("<Q", SENTINEL))
+        self.rsp0 = STACK_BASE + STACK_SIZE - 0x1000 - 8   # %16 == 8 at entry
+        self._scratch_next = SCRATCH
+        self.reset()
+
+    def reset(self) -> None:
+        """Restore the image (+ stack) to its initial state for a fresh call.
+
+        Cheap enough to reuse one emulator across a brute-force sweep instead of
+        rebuilding it (which costs ~25 ms per call)."""
+        for addr, chunk in self._writable:
+            if chunk:
+                self.uc.mem_write(addr, chunk)
+        self.uc.mem_write(STACK_BASE, b"\x00" * STACK_SIZE)
+        for reg in GP_REGS:
+            self.uc.reg_write(reg, 0)
+        self.uc.reg_write(UC_X86_REG_RSP, self.rsp0)
+        self.uc.mem_write(self.rsp0, struct.pack("<Q", SENTINEL))
         self._scratch_next = SCRATCH
 
     def _map(self, addr: int, chunk: bytes, perms: int) -> None:
@@ -243,18 +278,94 @@ class Emulator:
         self._map(addr, raw, UC_PROT_ALL)
         return addr
 
-    def run(self, entry: int, args: list[int], steps: int, arg_regs) -> int:
+    def run(self, entry: int, args: list[int], steps: int, arg_regs, quiet: bool = False):
         for reg, val in zip(arg_regs, args):
             self.uc.reg_write(reg, val & 0xFFFFFFFFFFFFFFFF)
         try:
             self.uc.emu_start(entry, SENTINEL, timeout=0, count=steps)
         except UcError as exc:
+            if quiet:
+                return None
             die(f"emulation stopped: {exc}. An unmapped address usually means an "
                 f"import (PLT/IAT) call — only self-contained functions run here.")
         return self.uc.reg_read(UC_X86_REG_RAX)
 
     def read(self, addr: int, length: int) -> bytes:
         return bytes(self.uc.mem_read(addr, length))
+
+
+def parse_brute(spec: str):
+    """--brute accepts START:END[:STEP] or a comma/space separated list."""
+    spec = spec.strip()
+    if "," in spec:
+        return [int(t, 0) for t in spec.split(",") if t.strip()]
+    if ":" in spec:
+        parts = spec.split(":")
+        start, end = int(parts[0], 0), int(parts[1], 0)
+        step = int(parts[2], 0) if len(parts) > 2 and parts[2] else 1
+        return range(start, end, step if step > 0 else 1)
+    die("--brute expects START:END[:STEP] or a comma-separated list")
+
+
+def parse_expected_mem(spec: str):
+    """--expected-mem is ADDR:LEN:HEX."""
+    parts = spec.split(":")
+    if len(parts) != 3:
+        die("--expected-mem expects ADDR:LEN:HEX")
+    try:
+        return int(parts[0], 0), int(parts[1], 0), bytes.fromhex(parts[2].replace(" ", ""))
+    except ValueError:
+        die("--expected-mem expects ADDR:LEN:HEX")
+
+
+def printable(value: int) -> str:
+    raw = value.to_bytes(8, "little").rstrip(b"\x00")
+    if raw and all(0x20 <= c < 0x7F for c in raw):
+        return f"  {raw.decode('latin1')!r}"
+    return ""
+
+
+def brute(img: Image, entry: int, arg_regs, a) -> int:
+    if a.expected is None and not a.expected_mem:
+        die("--brute needs --expected (rax) and/or --expected-mem")
+    cands = parse_brute(a.brute)
+    expmem = parse_expected_mem(a.expected_mem) if a.expected_mem else None
+    mask = 0xFFFFFFFFFFFFFFFF
+    t0 = time.time()
+    n = 0
+    emu = Emulator(img)
+    for x in cands:
+        n += 1
+        emu.reset()
+        ptrs = [emu.argbuf(h) for h in a.argbuf]
+        args = ptrs + [x] + list(a.arg)
+        rax = emu.run(entry, args, a.steps, arg_regs, quiet=True)
+        if rax is None:
+            continue
+        hit = a.expected is not None and (rax & mask) == (a.expected & mask)
+        if expmem is not None:
+            try:
+                if emu.read(expmem[0], expmem[1]) == expmem[2]:
+                    hit = True
+            except Exception:
+                pass
+        if hit:
+            dt = time.time() - t0
+            print(f"match  arg=0x{x:x} ({x}){printable(x)}")
+            print(f"rax    0x{rax:x}  ({rax})")
+            for spec in a.mem:
+                if ":" in spec:
+                    sa, sl = spec.split(":", 1)
+                    try:
+                        print(f"mem 0x{int(sa, 0):x} {emu.read(int(sa, 0), int(sl, 0)).hex()}")
+                    except Exception:
+                        pass
+            print(f"# {n} candidati in {dt:.2f}s")
+            return 0
+        if n % 20000 == 0:
+            print(f"# … {n} candidati ({time.time() - t0:.0f}s)", file=sys.stderr)
+    print(f"nessun match su {n} candidati ({time.time() - t0:.1f}s)", file=sys.stderr)
+    return 1
 
 
 def main(argv) -> int:
@@ -273,6 +384,12 @@ def main(argv) -> int:
                     help="load base for PIE ELF / raw blob (default 0x1000000)")
     ap.add_argument("--steps", type=lambda s: int(s, 0), default=1_000_000)
     ap.add_argument("--mem", action="append", default=[], help="ADDR:LEN hex-dump after the call")
+    ap.add_argument("--brute", metavar="RANGE",
+                    help="sweep the FIRST argument (START:END[:STEP] or a comma list)")
+    ap.add_argument("--expected", type=lambda s: int(s, 0), metavar="VALUE",
+                    help="with --brute: stop when rax == VALUE")
+    ap.add_argument("--expected-mem", metavar="ADDR:LEN:HEX",
+                    help="with --brute: stop when that memory window matches")
     ap.add_argument("--raw", action="store_true", help="force raw blob mode")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
@@ -290,11 +407,14 @@ def main(argv) -> int:
     else:
         entry = img.default_entry
 
+    arg_regs = ARG_REGS_MS if kind == "pe" else ARG_REGS_SYSV
+
+    if a.brute:
+        return brute(img, entry, arg_regs, a)
+
     emu = Emulator(img)
     ptrs = [emu.argbuf(h) for h in a.argbuf]
     args = ptrs + list(a.arg)
-
-    arg_regs = ARG_REGS_MS if kind == "pe" else ARG_REGS_SYSV
     rax = emu.run(entry, args, a.steps, arg_regs)
 
     mem = []
