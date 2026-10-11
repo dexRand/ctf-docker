@@ -59,7 +59,7 @@ tool pesanti stanno dietro **profili** Compose opzionali.
 | Crypto | SageMath | http://localhost:19010 | Notebook Python/Sage per crypto e matematica | `crypto` |
 | Forensics | Wireshark | http://localhost:19008 | Analisi pacchetti/pcap con GUI web | `forensics` |
 | Audio | **Whisper-WebUI** | http://localhost:19017 | Trascrizione audio→testo con timestamp (SRT/VTT/…) via Whisper · output in `./data/whisper/outputs` | `audio` |
-| Pwn/Rev | **ELF sandbox** | http://localhost:19018 | Esegui/debugga/decompila binari sconosciuti da terminale web — **ELF, PE e APK** (Ghidra headless, radare2, upx, apktool, jadx, gdb, strace, ltrace, pwntools, qemu-user) · rete isolata · GUI **emulate** su `:19020` (Unicorn + brute-force) · `rev-report` + **angr** (esecuzione simbolica) | `rev` |
+| Pwn/Rev | **ELF sandbox** | http://localhost:19018 | Esegui/debugga/decompila binari sconosciuti da terminale web — **ELF, PE e APK** (Ghidra headless, radare2, upx, apktool, jadx, gdb, strace, ltrace, pwntools, qemu-user) · rete isolata · GUI **workbench** su `:19020` (emulate + brute + report) · **angr** (esecuzione simbolica) | `rev` |
 
 > Esclusi di proposito perché senza immagine GUI upstream affidabile:
 > Burp Suite, Ghidra, Autopsy, Volatility, hashcat/john (tool CLI, già su Kali).
@@ -180,7 +180,7 @@ ctf                     wrapper CLI (up / up-all / down / status / logs)
 config/homepage/        configurazione dashboard (services / settings / widgets)
 config/zap/             working dir ZAP (certificati)
 config/whisper/         config default Whisper-WebUI (profilo `audio`)
-rev/                    sandbox analisi attiva ELF (ttyd + Ghidra headless + gdb/qemu + GUI `emulate` + `rev-report`, profilo `rev`)
+rev/                    sandbox analisi attiva ELF (ttyd + Ghidra headless + gdb/qemu + web workbench `:19020` + `rev-report`/`angr`, profilo `rev`)
 osint/                  area OSINT del collega + override compose (vedi osint/README.md)
 SPEC.md                 specifica
 tasks/                  plan.md + todo.md
@@ -240,9 +240,9 @@ http://localhost:19014 (solo localhost).
 
 <img src="docs/screenshots/stegsuite-mobile.png" alt="Layout mobile" width="300">
 
-**Sandbox rev — GUI web `emulate` (esegue una funzione self-contained con Unicorn):**
+**Sandbox rev — web workbench (`emulate` / `brute` / `report`):**
 
-![GUI emulate](docs/screenshots/rev-emulate.png)
+![rev workbench](docs/screenshots/rev-workbench.png)
 
 ## ⚙️ Configurazione
 

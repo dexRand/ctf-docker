@@ -189,7 +189,7 @@ def main(argv) -> int:
         dest = os.path.join(a.out, f"{os.path.basename(a.binary)}-{stamp}.md")
         with open(dest, "w") as fh:
             fh.write(report)
-        print(f"rev-report: scritto {dest}")
+        print(f"rev-report: scritto {dest}", file=sys.stderr)
     except OSError as exc:
         print(f"rev-report: impossibile scrivere il report ({exc}); stampo su stdout")
         print(report)

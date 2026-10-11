@@ -37,10 +37,10 @@
         href: http://localhost:19018
         description: Analisi attiva di ELF in sandbox (Ghidra headless, gdb, strace, ltrace, pwntools, qemu-user) da terminale web — rete isolata (profilo rev)
         container: ctf-rev-1
-    - Emulate (rev):
+    - Rev workbench:
         icon: mdi-chip
         href: http://localhost:19020
-        description: Esegue funzioni self-contained (hash/KDF) con Unicorn — binario + argomenti → rax e dump di memoria (profilo rev)
+        description: Workbench rev — emulate (Unicorn) · brute del 1° argomento · report di primo passaggio (Ghidra/checksec/stringhe) — profilo rev
         container: ctf-rev-1
 
 - Recon (OSINT):

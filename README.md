@@ -62,7 +62,7 @@ It is designed to live next to other self-hosted apps: every service runs on the
 | Crypto | SageMath | http://localhost:19010 | Python/Sage notebook for crypto and math | `crypto` |
 | Forensics | Wireshark | http://localhost:19008 | Packet / pcap analysis with a web GUI | `forensics` |
 | Audio | **Whisper-WebUI** | http://localhost:19017 | Speech-to-text with timestamps (SRT/VTT/…) via Whisper · outputs in `./data/whisper/outputs` | `audio` |
-| Pwn/Rev | **ELF sandbox** | http://localhost:19018 | Run/debug/decompile untrusted binaries from a web terminal — **ELF, PE and APK** (Ghidra headless, radare2, upx, apktool, jadx, gdb, strace, ltrace, pwntools, qemu-user) · isolated network · **emulate** GUI on `:19020` (Unicorn + brute-force) · `rev-report` + **angr** (symbolic execution) | `rev` |
+| Pwn/Rev | **ELF sandbox** | http://localhost:19018 | Run/debug/decompile untrusted binaries from a web terminal — **ELF, PE and APK** (Ghidra headless, radare2, upx, apktool, jadx, gdb, strace, ltrace, pwntools, qemu-user) · isolated network · **workbench** GUI on `:19020` (emulate + brute + report) · **angr** (symbolic execution) | `rev` |
 
 > Deliberately excluded because they have no reliable upstream GUI image:
 > Burp Suite, Ghidra, Autopsy, Volatility, hashcat/john (CLI tools, already on Kali).
@@ -183,7 +183,7 @@ ctf                     CLI wrapper (up / up-all / down / status / logs)
 config/homepage/        dashboard config (services / settings / widgets)
 config/zap/             ZAP working dir (certificates)
 config/whisper/         Whisper-WebUI default config (profile `audio`)
-rev/                    ELF active-analysis sandbox (ttyd + Ghidra headless + gdb/qemu + `emulate` GUI + `rev-report`, profile `rev`)
+rev/                    ELF active-analysis sandbox (ttyd + Ghidra headless + gdb/qemu + web workbench `:19020` + `rev-report`/`angr`, profile `rev`)
 osint/                  area OSINT del collega + override compose (vedi osint/README.md)
 SPEC.md                 specification
 tasks/                  plan.md + todo.md
@@ -245,9 +245,9 @@ http://localhost:19014 (localhost only).
 
 <img src="docs/screenshots/stegsuite-mobile.png" alt="Mobile layout" width="300">
 
-**Rev sandbox — `emulate` web GUI (run a self-contained function with Unicorn):**
+**Rev sandbox — web workbench (`emulate` / `brute` / `report`):**
 
-![emulate GUI](docs/screenshots/rev-emulate.png)
+![rev workbench](docs/screenshots/rev-workbench.png)
 
 ## ⚙️ Configuration
 

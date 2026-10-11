@@ -215,6 +215,14 @@
       **riusato con `reset()`** (immagine + stack + registri) → ~0.17 ms/candidato
       (4661 in 0.78s, contro **116s** ricreando Unicorn a ogni giro). Testato su rax
       e su memoria.
+- [x] **rev — workbench web (tab `emulate`/`brute`/`report`)**: la GUI su `:19020`
+      è diventata un **workbench** a tre schede nello stesso stile — **emulate**
+      (chiamata singola), **brute** (sweep + match su rax o memoria), **report**
+      (`rev-report --print`, Markdown a schermo). Endpoint `/api/run|brute|report`
+      con target/entry condivisi e upload; la cartella `reports/` è esclusa dal menu
+      file. Rinominati file/comando in `rev_web.py`/`rev-web`; dashboard (card
+      **Rev workbench**) e README aggiornati, screenshot `rev-workbench.png`.
+      Testato in browser (tab ok, console pulita) e via API.
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**

@@ -7,7 +7,7 @@
 # through the localhost socat proxies only.
 set -eu
 
-EMULATE_HOST="${EMULATE_HOST:-0.0.0.0}" EMULATE_PORT="${EMULATE_PORT:-8080}" \
-  emulate-web &
+REV_WEB_HOST="${REV_WEB_HOST:-0.0.0.0}" REV_WEB_PORT="${REV_WEB_PORT:-8080}" \
+  rev-web &
 
 exec ttyd -W -p 7681 -t fontSize=14 bash -l

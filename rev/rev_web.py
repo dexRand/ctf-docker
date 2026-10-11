@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
-"""emulate-web — small web GUI for the `emulate` helper inside the rev sandbox.
+"""rev-web — small web workbench for the rev sandbox (emulate / brute / report).
 
-Serves a single page: pick or upload a binary, choose how to reach the routine
-(symbol / absolute addr / objdump vaddr), pass integer arguments and/or hex
-buffers, and see `rax` plus any memory dump. The page talks to three endpoints:
+Serves one page with three tabs over the sandbox tools, so the recurring moves
+are a form instead of a command line:
 
-  GET  /api/files   -> list the files found under the workdir
-  POST /api/upload  -> write a raw body (header X-Filename) into the workdir
-  POST /api/run     -> run `emulate ... --json` and return its structured result
+  emulate  run a self-contained x86-64 function with Unicorn and read rax
+  brute    sweep the first argument until rax (or a memory window) matches
+  report   first-pass report (checksec/imports/strings/Ghidra) via rev-report
 
-It runs *inside* the isolated `rev` container (no network egress); the host only
-reaches it through the localhost socat proxy. Stdlib only, so the image needs no
-extra server dependency. Shared visual language with the dashboard and StegSuite
-(same design tokens + CRT treatment).
+Endpoints:
+  GET  /api/files   list files under the workdir
+  POST /api/upload  write a raw body (header X-Filename) into the workdir
+  POST /api/run     emulate a single call (structured JSON result)
+  POST /api/brute   emulate --brute (text result)
+  POST /api/report  rev-report --print (Markdown result)
+
+Runs *inside* the isolated `rev` container (no egress); the host reaches it only
+through the localhost socat proxy. Stdlib only. Same visual language as the
+dashboard and StegSuite (shared design tokens + CRT).
 """
 
 from __future__ import annotations
@@ -25,11 +30,14 @@ import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
-EMULATE = os.environ.get("EMULATE_BIN", "/usr/local/bin/emulate")
-WORK = os.environ.get("EMULATE_WORK", "/work")
+EMULATE = os.environ.get("EMULATE_BIN", "emulate")
+REPORT = os.environ.get("REV_REPORT_BIN", "rev-report")
+WORK = os.environ.get("REV_WEB_WORK", "/work")
 MAX_BODY = 64 * 1024
 MAX_UPLOAD = 128 * 1024 * 1024
-RUN_TIMEOUT = int(os.environ.get("EMULATE_TIMEOUT", "30"))
+RUN_TIMEOUT = int(os.environ.get("REV_RUN_TIMEOUT", "30"))
+BRUTE_TIMEOUT = int(os.environ.get("REV_BRUTE_TIMEOUT", "300"))
+REPORT_TIMEOUT = int(os.environ.get("REV_REPORT_TIMEOUT", "600"))
 MAX_STEPS = 50_000_000
 
 _NUM = re.compile(r"^-?(0x[0-9a-fA-F]+|\d+)$")
@@ -38,9 +46,14 @@ _MEM = re.compile(r"^-?(0x[0-9a-fA-F]+|\d+):-?(0x[0-9a-fA-F]+|\d+)$")
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
 
 
+# --------------------------------------------------------------------------- #
+# workdir helpers
+# --------------------------------------------------------------------------- #
 def list_files(root: str) -> list[str]:
     out: list[str] = []
     for base, dirs, files in os.walk(root):
+        if base == root and "reports" in dirs:      # generated output, not an input binary
+            dirs.remove("reports")
         depth = base[len(root):].count(os.sep)
         if depth >= 4:
             dirs[:] = []
@@ -61,7 +74,15 @@ def _safe_path(rel: str) -> str:
     return full
 
 
-def build_argv(p: dict) -> list[str]:
+def _as_list(v) -> list[str]:
+    if not v:
+        return []
+    if isinstance(v, list):
+        return [str(x).strip() for x in v if str(x).strip()]
+    return [x.strip() for x in re.split(r"[,\s]+", str(v)) if x.strip()]
+
+
+def build_argv(p: dict, json_out: bool = True) -> list[str]:
     argv = [EMULATE, _safe_path(p.get("binary", ""))]
     mode = p.get("mode", "auto")
     if mode == "func" and p.get("func"):
@@ -88,39 +109,73 @@ def build_argv(p: dict) -> list[str]:
         argv += ["--mem", m]
     steps = int(p.get("steps") or 1_000_000)
     argv += ["--steps", str(max(1, min(steps, MAX_STEPS)))]
-    argv.append("--json")
+    if p.get("brute"):
+        argv += ["--brute", str(p["brute"])]
+        if p.get("expected"):
+            argv += ["--expected", str(p["expected"])]
+        if p.get("expected_mem"):
+            if ":" not in str(p["expected_mem"]):
+                raise ValueError("expected-mem must be ADDR:LEN:HEX")
+            argv += ["--expected-mem", str(p["expected_mem"])]
+    if json_out:
+        argv.append("--json")
     return argv
 
 
-def _as_list(v) -> list[str]:
-    if not v:
-        return []
-    if isinstance(v, list):
-        return [str(x).strip() for x in v if str(x).strip()]
-    return [x.strip() for x in re.split(r"[,\s]+", str(v)) if x.strip()]
-
-
-def run(p: dict) -> dict:
-    argv = build_argv(p)
+def _exec(argv: list[str], timeout: int):
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=RUN_TIMEOUT)
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
-        return {"ok": False, "error": f"timeout after {RUN_TIMEOUT}s", "argv": argv[1:]}
-    if proc.returncode != 0:
-        return {"ok": False, "error": (proc.stderr or proc.stdout).strip(), "argv": argv[1:]}
+        return None, "", f"timeout dopo {timeout}s", True
+    return proc.returncode, proc.stdout or "", proc.stderr or "", False
+
+
+def run_emulate(p: dict) -> dict:
+    argv = build_argv(p, json_out=True)
+    rc, out, err, timed = _exec(argv, RUN_TIMEOUT)
+    if timed:
+        return {"ok": False, "error": err, "argv": argv[1:]}
+    if rc != 0:
+        return {"ok": False, "error": (err or out).strip(), "argv": argv[1:]}
     try:
-        data = json.loads(proc.stdout)
+        return {"ok": True, "result": json.loads(out), "argv": argv[1:]}
     except ValueError:
-        return {"ok": True, "raw": proc.stdout, "argv": argv[1:]}
-    return {"ok": True, "result": data, "argv": argv[1:]}
+        return {"ok": True, "raw": out, "argv": argv[1:]}
 
 
+def run_brute(p: dict) -> dict:
+    if not p.get("brute"):
+        return {"ok": False, "error": "serve un range (es. 0:100000 o 1,2,3)"}
+    if not p.get("expected") and not p.get("expected_mem"):
+        return {"ok": False, "error": "serve --expected (rax) e/o una memoria attesa"}
+    argv = build_argv(p, json_out=False)
+    rc, out, err, timed = _exec(argv, BRUTE_TIMEOUT)
+    if timed:
+        return {"ok": False, "error": err, "argv": argv[1:]}
+    return {"ok": rc == 0, "stdout": out, "stderr": err.strip(), "argv": argv[1:]}
+
+
+def run_report(p: dict) -> dict:
+    argv = [REPORT, _safe_path(p.get("binary", "")), "--print"]
+    if p.get("fast"):
+        argv.append("--fast")
+    rc, out, err, timed = _exec(argv, REPORT_TIMEOUT)
+    if timed:
+        return {"ok": False, "error": err, "argv": argv[1:]}
+    if rc != 0:
+        return {"ok": False, "error": (err or out).strip(), "argv": argv[1:]}
+    return {"ok": True, "markdown": out, "argv": argv[1:]}
+
+
+# --------------------------------------------------------------------------- #
+# page
+# --------------------------------------------------------------------------- #
 PAGE = r"""<!doctype html>
 <html lang="it">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CTF Toolbox — emulate (rev)</title>
+<title>CTF Toolbox — rev workbench</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%3E_%3C/text%3E%3C/svg%3E">
 <style>
   :root {
@@ -169,6 +224,9 @@ PAGE = r"""<!doctype html>
   .modes { display: flex; flex-wrap: wrap; gap: .8rem; margin: .35rem 0 .2rem; }
   .modes label { display: flex; gap: .4rem; align-items: baseline; color: rgb(var(--fg)); }
   .modes input { width: auto; }
+  .tabs { display: flex; gap: .4rem; margin: 0 0 1rem; flex-wrap: wrap; }
+  .tabs button { text-transform: none; font-size: 13px; }
+  .tabs button.on { background: rgb(var(--acc)); border-color: rgb(var(--acc)); color: rgb(var(--ink)); font-weight: 700; }
   .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; align-items: center; }
   button {
     font: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
@@ -188,11 +246,11 @@ PAGE = r"""<!doctype html>
     background: rgb(var(--ink)); border: 1px solid rgb(var(--edge)); border-radius: 3px;
     color: rgb(var(--fglite)); font-size: 12px;
   }
-  pre.mem { margin: .5rem 0 0; padding: .5rem; overflow-x: auto; white-space: pre; font-size: 12px;
-    background: rgb(var(--ink)); border: 1px solid rgb(var(--edge)); border-radius: 3px; color: rgb(var(--fglite)); }
+  pre { margin: .5rem 0 0; padding: .6rem; overflow: auto; max-height: 60vh; font-size: 12px;
+    background: rgb(var(--ink)); border: 1px solid rgb(var(--edge)); border-radius: 3px;
+    color: rgb(var(--fglite)); white-space: pre-wrap; word-break: break-word; }
   .err { color: rgb(var(--dangerlite)); }
   .muted { color: rgb(var(--dim)); }
-  .banner { color: rgb(var(--acc)); }
   footer { margin-top: 1.5rem; color: rgb(var(--dim)); font-size: 11px;
     border-top: 1px solid rgb(var(--edge)); padding-top: .6rem; }
   footer b { color: rgb(var(--fglite)); }
@@ -202,35 +260,41 @@ PAGE = r"""<!doctype html>
 </head>
 <body>
 <header>
-  <h1><span class="prompt">$&nbsp;</span>emulate <span class="muted">· rev sandbox</span></h1>
-  <p class="sub">Esegue una funzione <b>self-contained</b> (hash, KDF, de-offuscatori) con <b>Unicorn</b> e legge <code>rax</code> — più rapido che riscrivere la routine a mano.</p>
-  <p class="hint">Come si usa: scegli (o <b>carica</b>) il <b>binario</b> → indica l'<b>entry</b> (simbolo ELF / indirizzo) → passa gli <b>argomenti</b> (interi e/o buffer hex) → <b>run</b>.</p>
+  <h1><span class="prompt">$&nbsp;</span>rev <span class="muted">· workbench</span></h1>
+  <p class="sub"><b>emulate</b> una funzione con Unicorn · <b>brute</b>-forza il primo argomento · <b>report</b> di primo passaggio (Ghidra, checksec, stringhe).</p>
+  <p class="hint">Scegli (o <b>carica</b>) il <b>binario</b>, imposta l'<b>entry</b>, poi usa la scheda che ti serve. Solo codice <b>self-contained</b> (niente import/PLT); la sandbox resta senza rete.</p>
 </header>
 
 <main>
-  <form id="f">
-    <fieldset>
-      <legend>Target</legend>
-      <label for="binary">Binario dal workdir <span class="muted">(./data/rev)</span></label>
-      <select id="binary" required aria-label="binario dal workdir"></select>
-      <p class="muted" id="filehint">caricamento…</p>
-      <label for="upload">… oppure carica un binario <span class="muted">(max 128 MB)</span></label>
-      <input type="file" id="upload" aria-label="carica un binario nel workdir">
-    </fieldset>
+  <fieldset>
+    <legend>Target</legend>
+    <label for="binary">Binario dal workdir <span class="muted">(./data/rev)</span></label>
+    <select id="binary" required aria-label="binario dal workdir"></select>
+    <p class="muted" id="filehint">caricamento…</p>
+    <label for="upload">… oppure carica un binario <span class="muted">(max 128 MB)</span></label>
+    <input type="file" id="upload" aria-label="carica un binario nel workdir">
+  </fieldset>
 
-    <fieldset>
-      <legend>Entry</legend>
-      <div class="modes" role="group" aria-label="come raggiungere la routine">
-        <label><input type="radio" name="mode" value="func" checked> simbolo ELF <span class="muted">--func</span></label>
-        <label><input type="radio" name="mode" value="addr"> assoluto <span class="muted">--addr</span></label>
-        <label><input type="radio" name="mode" value="vaddr"> vaddr <span class="muted">--vaddr</span></label>
-        <label><input type="radio" name="mode" value="auto"> entrypoint</label>
-      </div>
-      <input id="func" type="text" placeholder="secret_hash" autocomplete="off" spellcheck="false" aria-label="simbolo funzione">
-      <input id="addr" type="text" placeholder="0x140001480" autocomplete="off" spellcheck="false" aria-label="indirizzo assoluto" hidden>
-      <input id="vaddr" type="text" placeholder="0x1149" autocomplete="off" spellcheck="false" aria-label="indirizzo virtuale relativo" hidden>
-    </fieldset>
+  <fieldset>
+    <legend>Entry</legend>
+    <div class="modes" role="group" aria-label="come raggiungere la routine">
+      <label><input type="radio" name="mode" value="func" checked> simbolo ELF <span class="muted">--func</span></label>
+      <label><input type="radio" name="mode" value="addr"> assoluto <span class="muted">--addr</span></label>
+      <label><input type="radio" name="mode" value="vaddr"> vaddr <span class="muted">--vaddr</span></label>
+      <label><input type="radio" name="mode" value="auto"> entrypoint</label>
+    </div>
+    <input id="func" type="text" placeholder="secret_hash" autocomplete="off" spellcheck="false" aria-label="simbolo funzione">
+    <input id="addr" type="text" placeholder="0x140001480" autocomplete="off" spellcheck="false" aria-label="indirizzo assoluto" hidden>
+    <input id="vaddr" type="text" placeholder="0x1149" autocomplete="off" spellcheck="false" aria-label="indirizzo virtuale relativo" hidden>
+  </fieldset>
 
+  <div class="tabs" role="tablist">
+    <button id="tab-emulate" class="on" type="button" role="tab">emulate</button>
+    <button id="tab-brute" type="button" role="tab">brute</button>
+    <button id="tab-report" type="button" role="tab">report</button>
+  </div>
+
+  <section id="view-emulate">
     <fieldset>
       <legend>Argomenti</legend>
       <div class="grid">
@@ -246,12 +310,47 @@ PAGE = r"""<!doctype html>
       </div>
       <label class="check"><input type="checkbox" id="raw" aria-label="tratta il file come blob di codice"> blob di codice raw <span class="muted">--raw</span></label>
     </fieldset>
-
     <div class="toolbar">
-      <button id="go" class="acc" type="submit">run</button>
+      <button id="go-emulate" class="acc" type="button">run</button>
       <button id="copy" type="button" disabled>copia comando</button>
     </div>
-  </form>
+  </section>
+
+  <section id="view-brute" hidden>
+    <fieldset>
+      <legend>Sweep</legend>
+      <div class="grid">
+        <label>Range/lista del 1° argomento <span class="muted">START:END[:STEP] o 1,2,3</span>
+          <input id="brute" type="text" placeholder="0:100000" autocomplete="off" spellcheck="false"></label>
+        <label>rax atteso <span class="muted">--expected</span>
+          <input id="expected" type="text" placeholder="0xdeadbeef" autocomplete="off" spellcheck="false"></label>
+      </div>
+      <div class="grid3">
+        <label>memoria attesa <span class="muted">ADDR:LEN:HEX</span>
+          <input id="expected_mem" type="text" placeholder="0x300000000000:1:01" autocomplete="off" spellcheck="false"></label>
+        <label>buffer hex <span class="muted">(--argbuf)</span>
+          <input id="b_argbuf" type="text" placeholder="00" autocomplete="off" spellcheck="false"></label>
+        <label>altri interi <span class="muted">(--arg, dopo lo sweep)</span>
+          <input id="b_args" type="text" placeholder="" autocomplete="off" spellcheck="false"></label>
+      </div>
+      <p class="muted">Serve <code>--expected</code> e/o una memoria attesa. Lo sweep va sul <b>primo</b> argomento intero.</p>
+    </fieldset>
+    <div class="toolbar">
+      <button id="go-brute" class="acc" type="button">brute</button>
+      <button id="copy-brute" type="button" disabled>copia comando</button>
+    </div>
+  </section>
+
+  <section id="view-report" hidden>
+    <fieldset>
+      <legend>Report</legend>
+      <p class="muted">Tipo, hash, sezioni/import, checksec, funzioni pericolose, packer, stringhe con candidati flag e decompilato Ghidra.</p>
+      <label class="check"><input type="checkbox" id="fast" aria-label="salta il decompilato Ghidra"> salta il decompilato <span class="muted">--fast</span></label>
+    </fieldset>
+    <div class="toolbar">
+      <button id="go-report" class="acc" type="button">genera report</button>
+    </div>
+  </section>
 
   <section id="out" aria-live="polite"><p class="muted">—</p></section>
 </main>
@@ -264,6 +363,16 @@ PAGE = r"""<!doctype html>
 const $ = (id) => document.getElementById(id);
 let lastCmd = '';
 
+/* tabs */
+function showTab(which){
+  for (const t of ['emulate','brute','report']) {
+    $('tab-'+t).classList.toggle('on', t === which);
+    $('view-'+t).hidden = t !== which;
+  }
+}
+for (const t of ['emulate','brute','report']) $('tab-'+t).addEventListener('click', () => showTab(t));
+
+/* entry mode */
 function modeUI(){
   const m = document.querySelector('input[name=mode]:checked').value;
   $('func').hidden  = m !== 'func';
@@ -300,47 +409,54 @@ $('upload').addEventListener('change', async (ev) => {
   ev.target.value = '';
 });
 
-$('copy').addEventListener('click', () => {
-  if(lastCmd) navigator.clipboard.writeText(lastCmd).catch(() => {});
-});
-
-$('f').addEventListener('submit', async (ev) => {
-  ev.preventDefault();
-  const body = {
+function entry(){
+  return {
     binary: $('binary').value,
     mode: document.querySelector('input[name=mode]:checked').value,
     func: $('func').value, addr: $('addr').value, vaddr: $('vaddr').value,
+  };
+}
+function post(url, body, btn){
+  if(btn) btn.disabled = true;
+  $('out').innerHTML = '<p class="muted">esecuzione…</p>';
+  return fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
+    .then(r => r.json())
+    .catch(e => ({ok:false, error:String(e)}))
+    .finally(() => { if(btn) btn.disabled = false; });
+}
+
+$('go-emulate').addEventListener('click', async () => {
+  const body = Object.assign(entry(), {
     args: $('args').value, argbuf: $('argbuf').value, mem: $('mem').value,
     steps: $('steps').value, base: $('base').value, raw: $('raw').checked,
-  };
-  $('go').disabled = true;
-  $('out').innerHTML = '<p class="muted">esecuzione…</p>';
-  try{
-    const r = await (await fetch('api/run', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)})).json();
-    render(r);
-  }catch(e){ $('out').innerHTML = '<div class="card err"><div class="head err">richiesta fallita</div><p class="muted">' + esc(e) + '</p></div>'; }
-  finally{ $('go').disabled = false; }
+  });
+  renderEmulate(await post('api/run', body, $('go-emulate')));
+});
+
+$('go-brute').addEventListener('click', async () => {
+  const body = Object.assign(entry(), {
+    brute: $('brute').value, expected: $('expected').value, expected_mem: $('expected_mem').value,
+    argbuf: $('b_argbuf').value, args: $('b_args').value, base: $('base').value,
+  });
+  renderText(await post('api/brute', body, $('go-brute')), 'brute');
+});
+
+$('go-report').addEventListener('click', async () => {
+  const body = Object.assign(entry(), {fast: $('fast').checked});
+  const r = await post('api/report', body, $('go-report'));
+  lastCmd = r.argv ? 'rev-report ' + r.argv.map(esc).join(' ') : '';
+  if(r.ok){ $('out').innerHTML = '<div class="card"><div class="head"><span class="rax">report</span></div>' +
+    (r.argv ? '<code>' + lastCmd + '</code>' : '') + '<pre>' + esc(r.markdown) + '</pre></div>'; }
+  else { $('out').innerHTML = '<div class="card err"><div class="head err">errore</div><p class="err">' + esc(r.error||'') + '</p></div>'; }
 });
 
 function cmdLine(argv){ return 'emulate ' + (argv || []).map(esc).join(' '); }
 
-function render(r){
-  const out = $('out');
-  if(!r.ok){
-    lastCmd = r.argv ? cmdLine(r.argv) : '';
-    $('copy').disabled = !lastCmd;
-    out.innerHTML = '<div class="card err"><div class="head"><span class="err">errore</span></div>' +
-      '<p class="err">' + esc(r.error || 'esecuzione fallita') + '</p>' +
-      (r.argv ? '<code>' + cmdLine(r.argv) + '</code>' : '') + '</div>';
-    return;
-  }
+function renderEmulate(r){
+  if(!r.ok){ lastCmd = r.argv ? cmdLine(r.argv) : ''; $('copy').disabled = !lastCmd; return error(r); }
   lastCmd = r.argv ? cmdLine(r.argv) : '';
   $('copy').disabled = !lastCmd;
-  if(r.raw){
-    out.innerHTML = '<div class="card"><pre class="mem">' + esc(r.raw) + '</pre></div>';
-    return;
-  }
+  if(r.raw){ $('out').innerHTML = '<div class="card"><pre>' + esc(r.raw) + '</pre></div>'; return; }
   const d = r.result;
   let h = '<div class="card"><div class="head"><span class="rax">rax = 0x' + d.rax.toString(16) +
           '</span><span class="muted">(' + d.rax + ')</span></div>';
@@ -348,13 +464,37 @@ function render(r){
        (d.load_base ? (' · base 0x' + d.load_base.toString(16)) : '') + '</p>';
   if(r.argv) h += '<code>' + cmdLine(r.argv) + '</code>';
   if(d.mem && d.mem.length){
-    h += '<pre class="mem">';
+    h += '<pre>';
     d.mem.forEach(m => { h += 'mem 0x' + m[0].toString(16) + '  ' + esc(m[1]) + '\n'; });
     h += '</pre>';
   }
-  h += '</div>';
-  out.innerHTML = h;
+  $('out').innerHTML = h + '</div>';
 }
+
+function renderText(r, which){
+  if(r.argv) lastCmd = (which === 'brute' ? 'emulate ' : '') + r.argv.map(esc).join(' ');
+  const copyBtn = which === 'brute' ? $('copy-brute') : $('copy');
+  copyBtn.disabled = !lastCmd;
+  if(!r.ok && !r.stdout){ return error(r); }
+  let h = '<div class="card' + (r.ok ? '' : ' err') + '"><div class="head">' +
+          '<span class="' + (r.ok ? 'rax' : 'err') + '">' + (r.ok ? 'match' : 'nessun match') + '</span></div>';
+  if(r.argv) h += '<code>' + esc(lastCmd) + '</code>';
+  if(r.stdout) h += '<pre>' + esc(r.stdout) + '</pre>';
+  if(r.stderr) h += '<pre class="muted">' + esc(r.stderr) + '</pre>';
+  $('out').innerHTML = h + '</div>';
+}
+
+function error(r){
+  lastCmd = r.argv ? cmdLine(r.argv) : '';
+  $('copy').disabled = !lastCmd;
+  $('out').innerHTML = '<div class="card err"><div class="head"><span class="err">errore</span></div>' +
+    '<p class="err">' + esc(r.error || 'esecuzione fallita') + '</p>' +
+    (r.argv ? '<code>' + esc(lastCmd) + '</code>' : '') + '</div>';
+}
+
+function copyText(){ if(lastCmd) navigator.clipboard.writeText(lastCmd).catch(() => {}); }
+$('copy').addEventListener('click', copyText);
+$('copy-brute').addEventListener('click', copyText);
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 </script>
@@ -364,10 +504,10 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "emulate-web"
+    server_version = "rev-web"
 
-    def log_message(self, fmt, *args):  # keep the container logs tidy
-        sys.stderr.write("emulate-web %s\n" % (fmt % args))
+    def log_message(self, fmt, *args):
+        sys.stderr.write("rev-web %s\n" % (fmt % args))
 
     def _send(self, code: int, body: bytes, ctype: str) -> None:
         self.send_response(code)
@@ -391,25 +531,29 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(404, b"not found", "text/plain")
 
+    def _payload(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        if length <= 0 or length > MAX_BODY:
+            raise ValueError("bad body size")
+        return json.loads(self.rfile.read(length) or b"{}")
+
     def do_POST(self) -> None:
         path = urlparse(self.path).path
         if path == "/api/upload":
             self._upload()
             return
-        if path != "/api/run":
+        routes = {"/api/run": run_emulate, "/api/brute": run_brute, "/api/report": run_report}
+        fn = routes.get(path)
+        if fn is None:
             self._send(404, b"not found", "text/plain")
             return
-        length = int(self.headers.get("Content-Length") or 0)
-        if length <= 0 or length > MAX_BODY:
-            self._json(400, {"ok": False, "error": "bad body size"})
+        try:
+            payload = self._payload()
+        except (ValueError, json.JSONDecodeError):
+            self._json(400, {"ok": False, "error": "invalid JSON body"})
             return
         try:
-            payload = json.loads(self.rfile.read(length) or b"{}")
-        except ValueError:
-            self._json(400, {"ok": False, "error": "invalid JSON"})
-            return
-        try:
-            self._json(200, run(payload))
+            self._json(200, fn(payload))
         except ValueError as exc:
             self._json(200, {"ok": False, "error": str(exc)})
         except Exception as exc:  # pragma: no cover
@@ -441,13 +585,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> int:
-    host = os.environ.get("EMULATE_HOST", "0.0.0.0")
-    port = int(os.environ.get("EMULATE_PORT", "8080"))
+    host = os.environ.get("REV_WEB_HOST", "0.0.0.0")
+    port = int(os.environ.get("REV_WEB_PORT", "8080"))
     if not os.path.isdir(WORK):
-        print(f"emulate-web: workdir {WORK} missing", file=sys.stderr)
-    if not os.access(EMULATE, os.X_OK):
-        print(f"emulate-web: {EMULATE} is not executable", file=sys.stderr)
-    print(f"emulate-web listening on {host}:{port} (workdir {WORK})", file=sys.stderr)
+        print(f"rev-web: workdir {WORK} missing", file=sys.stderr)
+    print(f"rev-web listening on {host}:{port} (workdir {WORK})", file=sys.stderr)
     ThreadingHTTPServer((host, port), Handler).serve_forever()
     return 0
 

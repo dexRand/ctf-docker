@@ -66,11 +66,11 @@ RUN curl -fsSL -o /tmp/jadx.zip \
 # passaggio) e angr (esecuzione simbolica; pin `bitstring<5` per pyvex).
 RUN pip install --no-cache-dir --break-system-packages z3-solver angr "bitstring<5"
 COPY emulate.py /usr/local/bin/emulate
-COPY emulate_web.py /usr/local/bin/emulate-web
+COPY rev_web.py /usr/local/bin/rev-web
 COPY report.py /usr/local/bin/rev-report
 COPY angr_run.py /usr/local/bin/angr-run
 COPY entry.sh /usr/local/bin/rev-entry
-RUN chmod +x /usr/local/bin/emulate /usr/local/bin/emulate-web \
+RUN chmod +x /usr/local/bin/emulate /usr/local/bin/rev-web \
              /usr/local/bin/rev-report /usr/local/bin/angr-run /usr/local/bin/rev-entry
 
 # web terminal + emulation GUI: banner + scorciatoie ad ogni login shell
