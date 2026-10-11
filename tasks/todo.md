@@ -189,6 +189,13 @@
       (console pulita) e end-to-end (ELF non-PIE/PIE, blob raw, PE; + verifica via
       API). Aggiornati `compose.yaml` (`rev-web-proxy`), `.env.example`
       (`REV_WEB_PORT`), dashboard e README EN/IT (con screenshot).
+- [x] **Stile unico web per i tool sviluppati**: la GUI `emulate` è stata portata
+      al linguaggio visivo di **StegSuite/dashboard** (header `$`, sottotitolo +
+      hint, `fieldset`/`legend`, toolbar con azione primaria + "copia comando",
+      card risultato, footer, CRT, **token completi**) come la pagina **`dork`**
+      (a cui ho aggiunto `--accdim`/`--dangerlite` per allineare il set). Palette,
+      tipografia mono e spaziature ora identiche su tutte le nostre GUI.
+      Screenshot `docs/screenshots/rev-emulate.png` aggiornato; console pulita.
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**

@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """emulate-web — small web GUI for the `emulate` helper inside the rev sandbox.
 
-Serves a single page: pick a binary from the mounted workdir, choose how to
-reach the routine (symbol / absolute addr / objdump vaddr), pass integer
-arguments and/or hex buffers, and see `rax` plus any memory dump. The page talks
-to two JSON endpoints:
+Serves a single page: pick or upload a binary, choose how to reach the routine
+(symbol / absolute addr / objdump vaddr), pass integer arguments and/or hex
+buffers, and see `rax` plus any memory dump. The page talks to three endpoints:
 
   GET  /api/files   -> list the files found under the workdir
+  POST /api/upload  -> write a raw body (header X-Filename) into the workdir
   POST /api/run     -> run `emulate ... --json` and return its structured result
 
 It runs *inside* the isolated `rev` container (no network egress); the host only
 reaches it through the localhost socat proxy. Stdlib only, so the image needs no
-extra server dependency.
+extra server dependency. Shared visual language with the dashboard and StegSuite
+(same design tokens + CRT treatment).
 """
 
 from __future__ import annotations
@@ -44,8 +45,7 @@ def list_files(root: str) -> list[str]:
         if depth >= 4:
             dirs[:] = []
         for name in files:
-            rel = os.path.relpath(os.path.join(base, name), root)
-            out.append(rel)
+            out.append(os.path.relpath(os.path.join(base, name), root))
             if len(out) >= 2000:
                 return sorted(out)
     return sorted(out)
@@ -116,146 +116,195 @@ def run(p: dict) -> dict:
 
 
 PAGE = r"""<!doctype html>
-<html lang="en">
+<html lang="it">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>emulate · rev sandbox</title>
-<link rel="icon" href="data:,">
+<title>CTF Toolbox — emulate (rev)</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%3E_%3C/text%3E%3C/svg%3E">
 <style>
-  :root{
-    --ink:12 14 16; --panel:20 23 26; --panel2:26 30 34; --edge:38 43 49;
-    --acc:69 224 140; --accdim:20 51 37; --warn:245 197 66; --danger:255 97 102;
-    --dim:102 113 124; --fg:215 221 227;
-    --font:ui-monospace,'JetBrains Mono','Cascadia Code',Menlo,Consolas,monospace;
+  :root {
+    --ink: 12 14 16; --panel: 20 23 26; --panel2: 26 30 34;
+    --edge: 38 43 49; --edge2: 56 64 73;
+    --acc: 69 224 140; --accdim: 20 51 37;
+    --warn: 245 197 66; --info: 95 208 242;
+    --danger: 255 97 102; --dangerlite: 255 179 182;
+    --dim: 102 113 124; --fg: 215 221 227; --fglite: 170 180 189; --fgx: 244 247 249;
+    --font: ui-monospace, 'JetBrains Mono', 'Cascadia Code', 'Fira Code', Menlo, Consolas,
+      'Liberation Mono', 'DejaVu Sans Mono', monospace;
   }
-  *{box-sizing:border-box}
-  html,body{margin:0;background:rgb(var(--ink));color:rgb(var(--fg));font-family:var(--font);font-size:14px}
-  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.28;
-    background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 4px),
-               radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.4))}
-  header{padding:18px 20px 8px;max-width:1000px;margin:0 auto}
-  h1{color:rgb(var(--acc));font-size:18px;margin:0 0 4px}
-  .sub{color:rgb(var(--dim));font-size:12px}
-  main{max-width:1000px;margin:0 auto;padding:10px 20px 60px}
-  fieldset{border:1px solid rgb(var(--edge));border-radius:8px;background:rgb(var(--panel));padding:14px 16px;margin:0 0 14px}
-  legend{color:rgb(var(--acc));padding:0 6px;font-size:12px;letter-spacing:.05em;text-transform:uppercase}
-  label,.cap{display:block;color:rgb(var(--dim));font-size:12px;margin:10px 0 4px}
-  input,select{width:100%;background:rgb(var(--panel2));color:rgb(var(--fg));border:1px solid rgb(var(--edge));
-    border-radius:6px;padding:8px 10px;font:inherit}
-  input:focus,select:focus{outline:none;border-color:rgb(var(--acc));box-shadow:0 0 0 1px rgb(var(--accdim))}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  .modes{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px}
-  .modes label{display:flex;gap:6px;align-items:center;margin:0;color:rgb(var(--fg));font-size:13px}
-  .modes input{width:auto}
-  button{background:rgb(var(--acc));color:rgb(var(--ink));border:0;border-radius:6px;padding:9px 16px;
-    font:inherit;font-weight:700;cursor:pointer}
-  button:hover{filter:brightness(1.08)}
-  button:disabled{opacity:.5;cursor:wait}
-  pre{background:rgb(var(--panel2));border:1px solid rgb(var(--edge));border-radius:8px;padding:12px;
-    overflow:auto;white-space:pre-wrap;word-break:break-word;margin:0}
-  .rax{font-size:22px;color:rgb(var(--acc));font-weight:700}
-  .muted{color:rgb(var(--dim));font-size:12px}
-  .err{color:rgb(var(--danger))}
-  .k{color:rgb(var(--dim))}
-  .hint{color:rgb(var(--dim));font-size:12px;line-height:1.5}
-  code{color:rgb(var(--acc))}
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: rgb(var(--ink)); color: rgb(var(--fg)); font-family: var(--font);
+    font-size: 14px; line-height: 1.5; padding: 1rem 1.25rem 3rem;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: .3;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 4px),
+      radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,.4));
+  }
+  main, header, footer { position: relative; z-index: 2; max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 1.05rem; margin: 0 0 .2rem; color: rgb(var(--acc)); }
+  h1 .prompt { opacity: .7; }
+  p.sub { color: rgb(var(--dim)); margin: 0 0 1.2rem; font-size: 12px; }
+  p.sub b { color: rgb(var(--fglite)); }
+  p.hint { color: rgb(var(--fglite)); font-size: 12px; margin: -0.8rem 0 1.1rem;
+    border-left: 2px solid rgb(var(--acc) / .6); padding-left: .6rem; }
+  p.hint b { color: rgb(var(--acc)); font-weight: 600; }
+  fieldset { border: 1px solid rgb(var(--edge)); border-radius: 4px; padding: .7rem .8rem; margin: 0 0 1rem; }
+  legend { color: rgb(var(--acc)); text-transform: uppercase; font-size: 10px; letter-spacing: .18em; padding: 0 .4rem; }
+  label { color: rgb(var(--fglite)); display: block; }
+  label.check { margin-top: .6rem; }
+  label.check input { width: auto; margin-right: .4rem; }
+  input[type="text"], input[type="file"], select {
+    width: 100%; background: rgb(var(--ink)); color: rgb(var(--fgx));
+    border: 1px solid rgb(var(--edge)); border-radius: 4px; padding: .5rem .6rem;
+    font: inherit; margin-top: .35rem;
+  }
+  input[type="text"]:focus, select:focus { outline: none; border-color: rgb(var(--acc)); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-top: .8rem; }
+  @media (max-width: 700px) { .grid, .grid3 { grid-template-columns: 1fr; } }
+  .modes { display: flex; flex-wrap: wrap; gap: .8rem; margin: .35rem 0 .2rem; }
+  .modes label { display: flex; gap: .4rem; align-items: baseline; color: rgb(var(--fg)); }
+  .modes input { width: auto; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1rem; align-items: center; }
+  button {
+    font: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    border: 1px solid rgb(var(--edge)); background: rgb(var(--panel)); color: rgb(var(--fglite));
+    border-radius: 4px; padding: .35rem .8rem; cursor: pointer; min-height: 28px;
+  }
+  button:hover { border-color: rgb(var(--acc)); color: rgb(var(--fgx)); background: rgb(var(--panel2)); }
+  button.acc { background: rgb(var(--acc)); border-color: rgb(var(--acc)); color: rgb(var(--ink)); font-weight: 700; }
+  button.acc:hover { color: rgb(var(--ink)); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .card { border: 1px solid rgb(var(--edge)); border-radius: 4px; background: rgb(var(--panel)); padding: .7rem .8rem; }
+  .card.err { border-color: rgb(var(--danger) / .6); }
+  .card .head { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+  .rax { color: rgb(var(--acc)); font-weight: 700; font-size: 1.15rem; }
+  .card code {
+    display: block; margin: .5rem 0 0; padding: .4rem .5rem; overflow-x: auto; white-space: pre;
+    background: rgb(var(--ink)); border: 1px solid rgb(var(--edge)); border-radius: 3px;
+    color: rgb(var(--fglite)); font-size: 12px;
+  }
+  pre.mem { margin: .5rem 0 0; padding: .5rem; overflow-x: auto; white-space: pre; font-size: 12px;
+    background: rgb(var(--ink)); border: 1px solid rgb(var(--edge)); border-radius: 3px; color: rgb(var(--fglite)); }
+  .err { color: rgb(var(--dangerlite)); }
+  .muted { color: rgb(var(--dim)); }
+  .banner { color: rgb(var(--acc)); }
+  footer { margin-top: 1.5rem; color: rgb(var(--dim)); font-size: 11px;
+    border-top: 1px solid rgb(var(--edge)); padding-top: .6rem; }
+  footer b { color: rgb(var(--fglite)); }
+  a { color: rgb(var(--info)); }
+  code { word-break: break-word; }
 </style>
 </head>
 <body>
 <header>
-  <h1>emulate <span class="muted">· rev sandbox</span></h1>
-  <div class="sub">Run a self-contained x86-64 function with Unicorn and read <code>rax</code>.</div>
+  <h1><span class="prompt">$&nbsp;</span>emulate <span class="muted">· rev sandbox</span></h1>
+  <p class="sub">Esegue una funzione <b>self-contained</b> (hash, KDF, de-offuscatori) con <b>Unicorn</b> e legge <code>rax</code> — più rapido che riscrivere la routine a mano.</p>
+  <p class="hint">Come si usa: scegli (o <b>carica</b>) il <b>binario</b> → indica l'<b>entry</b> (simbolo ELF / indirizzo) → passa gli <b>argomenti</b> (interi e/o buffer hex) → <b>run</b>.</p>
 </header>
+
 <main>
   <form id="f">
     <fieldset>
-      <legend>target</legend>
-      <label for="binary">binary (from the workdir — mount files in ./data/rev)</label>
-      <select id="binary" required aria-label="binary from the workdir"></select>
-      <div class="hint" id="filehint">loading…</div>
-      <label for="upload">… or upload a binary (max 128 MB)</label>
-      <input type="file" id="upload" aria-label="upload a binary into the workdir">
-
-      <div class="cap">entry</div>
-      <div class="modes" role="group" aria-label="how to reach the routine">
-        <label><input type="radio" name="mode" value="func" checked> ELF symbol <span class="muted">--func</span></label>
-        <label><input type="radio" name="mode" value="addr"> absolute <span class="muted">--addr</span></label>
-        <label><input type="radio" name="mode" value="vaddr"> vaddr <span class="muted">--vaddr</span></label>
-        <label><input type="radio" name="mode" value="auto"> entrypoint</label>
-      </div>
-      <input id="func" placeholder="secret_hash" autocomplete="off" aria-label="function symbol">
-      <input id="addr" placeholder="0x140001480" autocomplete="off" aria-label="absolute address" style="display:none">
-      <input id="vaddr" placeholder="0x1149" autocomplete="off" aria-label="relative virtual address" style="display:none">
+      <legend>Target</legend>
+      <label for="binary">Binario dal workdir <span class="muted">(./data/rev)</span></label>
+      <select id="binary" required aria-label="binario dal workdir"></select>
+      <p class="muted" id="filehint">caricamento…</p>
+      <label for="upload">… oppure carica un binario <span class="muted">(max 128 MB)</span></label>
+      <input type="file" id="upload" aria-label="carica un binario nel workdir">
     </fieldset>
 
     <fieldset>
-      <legend>arguments</legend>
-      <div class="row">
-        <div>
-          <label for="args">integers (rdi,rsi,… / rcx,rdx,… on PE) — comma separated</label>
-          <input id="args" placeholder="5, 2" autocomplete="off">
-        </div>
-        <div>
-          <label for="argbuf">hex buffers (<code>--argbuf</code>, pointer args) — comma separated</label>
-          <input id="argbuf" placeholder="41424344, aabb" autocomplete="off">
-        </div>
+      <legend>Entry</legend>
+      <div class="modes" role="group" aria-label="come raggiungere la routine">
+        <label><input type="radio" name="mode" value="func" checked> simbolo ELF <span class="muted">--func</span></label>
+        <label><input type="radio" name="mode" value="addr"> assoluto <span class="muted">--addr</span></label>
+        <label><input type="radio" name="mode" value="vaddr"> vaddr <span class="muted">--vaddr</span></label>
+        <label><input type="radio" name="mode" value="auto"> entrypoint</label>
       </div>
-      <div class="row3">
-        <div><label for="steps">steps</label><input id="steps" value="1000000" autocomplete="off"></div>
-        <div><label for="base">load base (PIE/raw)</label><input id="base" placeholder="auto" autocomplete="off"></div>
-        <div><label for="mem">mem dumps ADDR:LEN</label><input id="mem" placeholder="0x2000:16" autocomplete="off"></div>
-      </div>
-      <div class="modes"><label><input type="checkbox" id="raw" aria-label="treat the file as a raw code blob"> raw code blob (<code>--raw</code>)</label></div>
+      <input id="func" type="text" placeholder="secret_hash" autocomplete="off" spellcheck="false" aria-label="simbolo funzione">
+      <input id="addr" type="text" placeholder="0x140001480" autocomplete="off" spellcheck="false" aria-label="indirizzo assoluto" hidden>
+      <input id="vaddr" type="text" placeholder="0x1149" autocomplete="off" spellcheck="false" aria-label="indirizzo virtuale relativo" hidden>
     </fieldset>
 
-    <button type="submit" id="go">run</button>
+    <fieldset>
+      <legend>Argomenti</legend>
+      <div class="grid">
+        <label>Interi <span class="muted">(rdi,rsi,… · rcx,rdx,… su PE)</span>
+          <input id="args" type="text" placeholder="5, 2" autocomplete="off" spellcheck="false"></label>
+        <label>Buffer hex <span class="muted">(--argbuf, argomenti puntatore)</span>
+          <input id="argbuf" type="text" placeholder="41424344, aabb" autocomplete="off" spellcheck="false"></label>
+      </div>
+      <div class="grid3">
+        <label>steps<input id="steps" type="text" value="1000000" autocomplete="off" spellcheck="false"></label>
+        <label>load base <span class="muted">(PIE/raw)</span><input id="base" type="text" placeholder="auto" autocomplete="off" spellcheck="false"></label>
+        <label>dump di memoria <span class="muted">ADDR:LEN</span><input id="mem" type="text" placeholder="0x2000:16" autocomplete="off" spellcheck="false"></label>
+      </div>
+      <label class="check"><input type="checkbox" id="raw" aria-label="tratta il file come blob di codice"> blob di codice raw <span class="muted">--raw</span></label>
+    </fieldset>
+
+    <div class="toolbar">
+      <button id="go" class="acc" type="submit">run</button>
+      <button id="copy" type="button" disabled>copia comando</button>
+    </div>
   </form>
 
-  <fieldset style="margin-top:14px">
-    <legend>result</legend>
-    <div id="out" class="muted">—</div>
-  </fieldset>
+  <section id="out" aria-live="polite"><p class="muted">—</p></section>
 </main>
+
+<footer>
+  Solo funzioni <b>self-contained</b>: le chiamate a import/PLT (libc, KERNEL32) fermano l'emulazione. x86-64; su PE i primi 4 argomenti. La sandbox resta <b>senza rete in uscita</b>.
+</footer>
+
 <script>
-const $ = id => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
+let lastCmd = '';
+
 function modeUI(){
   const m = document.querySelector('input[name=mode]:checked').value;
-  $('func').style.display  = m==='func'  ? 'block':'none';
-  $('addr').style.display  = m==='addr'  ? 'block':'none';
-  $('vaddr').style.display = m==='vaddr' ? 'block':'none';
+  $('func').hidden  = m !== 'func';
+  $('addr').hidden  = m !== 'addr';
+  $('vaddr').hidden = m !== 'vaddr';
 }
-document.querySelectorAll('input[name=mode]').forEach(r=>r.addEventListener('change',modeUI));
+document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', modeUI));
 modeUI();
 
 async function loadFiles(){
   try{
-    const files = await (await fetch('api/files')).json();
-    const sel = $('binary'); sel.innerHTML='';
-    if(!files.length){ $('filehint').textContent='no files under the workdir — add some in ./data/rev'; return; }
-    files.forEach(f=>{ const o=document.createElement('option'); o.value=f; o.textContent=f; sel.appendChild(o); });
-    $('filehint').textContent = files.length + ' file(s) in the workdir';
-  }catch(e){ $('filehint').textContent = 'could not list files: '+e; }
+    const files = await (await fetch('api/files', {cache:'no-cache'})).json();
+    const sel = $('binary'); const cur = sel.value; sel.innerHTML = '';
+    if(!files.length){ $('filehint').textContent = 'nessun file nel workdir — caricane uno o mettili in ./data/rev'; return; }
+    files.forEach(f => { const o = document.createElement('option'); o.value = f; o.textContent = f; sel.appendChild(o); });
+    if(files.includes(cur)) sel.value = cur;
+    $('filehint').textContent = files.length + ' file nel workdir';
+  }catch(e){ $('filehint').textContent = 'impossibile elencare i file: ' + e; }
 }
 loadFiles();
 
-$('upload').addEventListener('change', async ev=>{
+$('upload').addEventListener('change', async (ev) => {
   const file = ev.target.files[0];
   if(!file) return;
-  $('filehint').textContent = 'uploading ' + file.name + ' …';
+  $('filehint').textContent = 'carico ' + file.name + ' …';
   try{
     const r = await fetch('api/upload', {method:'POST', headers:{'X-Filename': file.name}, body: file});
     const j = await r.json();
-    if(!j.ok) throw new Error(j.error || ('HTTP '+r.status));
+    if(!j.ok) throw new Error(j.error || ('HTTP ' + r.status));
     await loadFiles();
     $('binary').value = j.name;
-    $('filehint').textContent = 'uploaded ' + j.name + ' (' + j.size + ' bytes)';
-  }catch(e){ $('filehint').textContent = 'upload failed: ' + e; }
+    $('filehint').textContent = 'caricato ' + j.name + ' (' + j.size + ' byte)';
+  }catch(e){ $('filehint').textContent = 'upload fallito: ' + e; }
   ev.target.value = '';
 });
 
-$('f').addEventListener('submit', async ev=>{
+$('copy').addEventListener('click', () => {
+  if(lastCmd) navigator.clipboard.writeText(lastCmd).catch(() => {});
+});
+
+$('f').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const body = {
     binary: $('binary').value,
@@ -265,34 +314,49 @@ $('f').addEventListener('submit', async ev=>{
     steps: $('steps').value, base: $('base').value, raw: $('raw').checked,
   };
   $('go').disabled = true;
-  $('out').className='muted'; $('out').textContent='running…';
+  $('out').innerHTML = '<p class="muted">esecuzione…</p>';
   try{
-    const r = await (await fetch('api/run',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(body)})).json();
+    const r = await (await fetch('api/run', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)})).json();
     render(r);
-  }catch(e){ $('out').className='err'; $('out').textContent='request failed: '+e; }
-  finally{ $('go').disabled=false; }
+  }catch(e){ $('out').innerHTML = '<div class="card err"><div class="head err">richiesta fallita</div><p class="muted">' + esc(e) + '</p></div>'; }
+  finally{ $('go').disabled = false; }
 });
 
+function cmdLine(argv){ return 'emulate ' + (argv || []).map(esc).join(' '); }
+
 function render(r){
-  const out=$('out');
-  if(!r.ok){ out.className='err'; out.innerHTML='<b>error</b><br>'+esc(r.error||'failed')+
-    (r.argv?'<div class="muted" style="margin-top:8px">emulate '+r.argv.map(esc).join(' ')+'</div>':''); return; }
-  out.className='';
-  if(r.raw){ out.innerHTML='<pre>'+esc(r.raw)+'</pre>'; return; }
-  const d=r.result;
-  let h='<div class="rax">rax = 0x'+d.rax.toString(16)+'  <span class="muted">('+d.rax+')</span></div>';
-  h+='<div class="muted" style="margin:8px 0 12px">format '+esc(d.format)+
-     ' · entry 0x'+d.entry.toString(16)+(d.load_base?(' · base 0x'+d.load_base.toString(16)):'')+'</div>';
-  h+='<div class="hint">emulate '+ (r.argv||[]).map(esc).join(' ') +'</div>';
-  if(d.mem && d.mem.length){
-    h+='<pre style="margin-top:10px">';
-    d.mem.forEach(m=>{ h+= 'mem 0x'+m[0].toString(16)+'  '+esc(m[1])+'\n'; });
-    h+='</pre>';
+  const out = $('out');
+  if(!r.ok){
+    lastCmd = r.argv ? cmdLine(r.argv) : '';
+    $('copy').disabled = !lastCmd;
+    out.innerHTML = '<div class="card err"><div class="head"><span class="err">errore</span></div>' +
+      '<p class="err">' + esc(r.error || 'esecuzione fallita') + '</p>' +
+      (r.argv ? '<code>' + cmdLine(r.argv) + '</code>' : '') + '</div>';
+    return;
   }
-  out.innerHTML=h;
+  lastCmd = r.argv ? cmdLine(r.argv) : '';
+  $('copy').disabled = !lastCmd;
+  if(r.raw){
+    out.innerHTML = '<div class="card"><pre class="mem">' + esc(r.raw) + '</pre></div>';
+    return;
+  }
+  const d = r.result;
+  let h = '<div class="card"><div class="head"><span class="rax">rax = 0x' + d.rax.toString(16) +
+          '</span><span class="muted">(' + d.rax + ')</span></div>';
+  h += '<p class="muted">format ' + esc(d.format) + ' · entry 0x' + d.entry.toString(16) +
+       (d.load_base ? (' · base 0x' + d.load_base.toString(16)) : '') + '</p>';
+  if(r.argv) h += '<code>' + cmdLine(r.argv) + '</code>';
+  if(d.mem && d.mem.length){
+    h += '<pre class="mem">';
+    d.mem.forEach(m => { h += 'mem 0x' + m[0].toString(16) + '  ' + esc(m[1]) + '\n'; });
+    h += '</pre>';
+  }
+  h += '</div>';
+  out.innerHTML = h;
 }
-function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 </script>
 </body>
 </html>
