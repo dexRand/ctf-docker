@@ -55,7 +55,7 @@ strumenti dedicati e la dashboard li raggruppa di conseguenza.
 | Dominio | Suite | Dove | Note |
 |---|---|---|---|
 | Stego / Forensics | **StegSuite** | `:19014` (core) | 55 analyzer, GUI + API REST, `./ctf scan` |
-| Rev / Pwn (attivo) | **`rev` sandbox** | `:19018` + GUI `:19020` (profilo `rev`) | **ELF + PE + APK**: Ghidra, radare2, upx, apktool, jadx, gdb, qemu, pwntools · **report** (`rev-report`) + **emulazione** (Unicorn + `z3`) con GUI web `emulate` |
+| Rev / Pwn (attivo) | **`rev` sandbox** | `:19018` + GUI `:19020` (profilo `rev`) | **ELF + PE + APK**: Ghidra, radare2, upx, apktool, jadx, gdb, qemu, pwntools · **report** (`rev-report`) + **emulazione** (Unicorn + `z3`, GUI `emulate`) + **angr** (esecuzione simbolica) |
 | Web | **ZAP** | `:19005` (profilo `web`) | scanner + proxy |
 | Crypto / Math | **SageMath** | `:19010` (profilo `crypto`) | notebook |
 | Cracking | **Hashtopolis** | `:19015/16` (profilo `crack`) | hashcat distribuito |

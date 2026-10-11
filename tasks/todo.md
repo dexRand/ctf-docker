@@ -203,6 +203,12 @@
       per saltarlo). Scrive in `./data/rev/reports/` (visibile in FileBrowser).
       Comando `report`/`rep` nel menu del terminale `rev`. Testato su un ELF reale
       (checksec letto da stderr, flag trovate, Ghidra ~13s).
+- [x] **rev — esecuzione simbolica (`angr`)**: aggiunto **angr** all'immagine (pin
+      `bitstring<5` per pyvex; verificato che resta compatibile con
+      pwntools/checksec) + helper `angr-run BIN --find SYM|ADDR [--avoid …]
+      [--stdin N] [--timeout S]` che esplora e stampa l'**input concreto** che
+      raggiunge il target (stdin simbolico ASCII). Comando `sym` nel menu `rev`.
+      Testato: trova `SEKAI   ` in 0.2s su un binario di prova.
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**

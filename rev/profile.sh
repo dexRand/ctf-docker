@@ -17,6 +17,7 @@ menu() {
   dec BIN                  decompila con Ghidra headless (in ./dec_out)
   emulate BIN --func F --argbuf HEX --arg N    esegue una funzione (Unicorn) -> rax
   report BIN               report di 1° passaggio (info/checksec/import/strings/Ghidra)
+  angr-run BIN --find SYM --stdin N    esecuzione simbolica: trova l'input che ci arriva
   gdb BIN                  debug interattivo
   strace BIN / ltrace BIN  syscall / librerie a runtime
   apk FILE.apk             apktool: estrae manifest/smali in FILE_apktool/
@@ -35,6 +36,7 @@ apk()  { apktool d -f "$1" -o "${1%.*}_apktool"; }
 jd()   { jadx -d "${1%.*}_jadx" "$1"; }
 emu()  { emulate "$@"; }
 rep()  { rev-report "$@"; }
+sym()  { angr-run "$@"; }
 help-rev() { menu; }
 alias rev-help='menu'
 
