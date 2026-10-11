@@ -250,6 +250,16 @@
       l'auto-report). Il testo copiato è un blocco **auto-contenuto** (intestazione
       + flag + pericolosi + meta + report), pronto da incollare. Verificato (buffer
       ~6 KB con `flags:`/`pericolosi:` + markdown, console pulita, detector `[]`).
+- [x] **StegSuite — fix del falso "password required" di steghide**: `steghide`
+      (e `outguess`) escono non-zero **sia** per "nessun payload" **sia** per
+      "password errata" — e non si distinguono. Su un nodo appena prodotto da un
+      **decoder stego** (zsteg, bit-planes, lsb-carve, image-enhance/repair, psimage,
+      …) quel "needs password" è un **falso positivo**: marcava il file come
+      **locked** e faceva partire l'**auto-crack** a vuoto (budget sprecato).
+      Ora l'orchestratore ignora il segnale per i **derivati dei decoder**; l'upload
+      originale e i file scompattati da **archivi** restano eleggibili, e i lock
+      **archivio** (7z/zip/rar) contano sempre. Su *try_me.pcap*: **niente** più note
+      "password required" né auto-crack, **flag ancora trovata**; regressione **33/33**.
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**

@@ -497,8 +497,14 @@ def _run(pid: str, job: Job) -> None:
                     op = out_dir / f"{tool_name}.out"
                     op.write_text(content, errors="replace")
                     rel_out = str(op.relative_to(work))
+                # steghide/outguess cannot tell "no payload" from "wrong
+                # passphrase"; on a node a stego decoder just produced, that
+                # "needs password" is a false positive — don't mark it locked.
+                unreliable = (tool_name in ("steghide", "outguess")
+                              and _origin_tool(node.origin) in _STEG_DECODERS)
+                needs = result.needs_password and not unreliable
                 run = ToolRun(project_id=pid, file_id=node.id, tool=tool_name,
-                              status=result.status, needs_password=result.needs_password,
+                              status=result.status, needs_password=needs,
                               exit_code=result.exit_code, summary=result.summary[:500],
                               output_path=rel_out, started_at=_now(), finished_at=_now())
                 session.add(run)
@@ -519,7 +525,7 @@ def _run(pid: str, job: Job) -> None:
                                          path=rel_art, size=int(art.get("size", 0))))
                 if result.output:
                     _hunt(session, pid, node.id, result.output, f"{tool_name}:{node.name}")
-                if result.needs_password:
+                if needs:
                     note_val = f"password required: {node.name}"
                     exists = session.exec(select(Finding).where(Finding.project_id == pid)
                                           .where(Finding.kind == "note")
@@ -528,7 +534,7 @@ def _run(pid: str, job: Job) -> None:
                         session.add(Finding(project_id=pid, file_id=node.id, kind="note",
                                             value=note_val, source=tool_name))
                 _emit(pid, {"type": "tool", "file_id": node.id, "name": node.name, "tool": tool_name,
-                            "status": result.status, "needs_password": result.needs_password,
+                            "status": result.status, "needs_password": needs,
                             "summary": result.summary, "extracted": len(result.extracted)})
                 # persist now: keep the SQLite write transaction short so a long
                 # tool run never blocks other requests ("database is locked")
@@ -674,6 +680,18 @@ def record_crack_run(session: Session, pid: str, file_id: int, work: Path,
         run.started_at = _now()
 
 
+# tools whose output is a *decoded* stream: a steghide/outguess "needs password"
+# on their children is a false positive (they are not original carriers).
+_STEG_DECODERS = {"zsteg", "bit-planes", "png-pixels", "lsb-carve", "channel-remap",
+                  "image-enhance", "psimage", "gif-frames", "blobs", "decode",
+                  "image-repair", "png-repair"}
+
+
+def _origin_tool(origin: str) -> str:
+    parts = (origin or "").split(":")
+    return parts[1] if origin.startswith("extracted:") and len(parts) >= 3 else ""
+
+
 def _auto_crack(session: Session, pid: str, work: Path, job: Job) -> list[FileNode]:
     """Auto mode: try the *small* wordlists on the locked files; return unlocked
     nodes. Bounded by ``AUTO_CRACK_MAX_MB`` (per list) and ``AUTO_CRACK_BUDGET_S``
@@ -686,8 +704,19 @@ def _auto_crack(session: Session, pid: str, work: Path, job: Job) -> list[FileNo
                         .where(ToolRun.needs_password == True)).all()  # noqa: E712
     fids: list[int] = []
     for r in runs:
-        if r.file_id not in already and r.file_id not in fids:
-            fids.append(r.file_id)
+        if r.file_id in already or r.file_id in fids:
+            continue
+        node = session.get(FileNode, r.file_id)
+        # steghide/outguess exit non-zero both for "no payload" and "wrong
+        # passphrase". When the file was just produced by a *stego decoder*
+        # (zsteg, bit-planes, …) that "needs password" is almost always the false
+        # positive and cracking it burns the whole budget — skip those only. The
+        # original upload and files unpacked from archives stay eligible, and
+        # archive locks (extract.py) always count.
+        if node is not None and r.tool in ("steghide", "outguess") \
+                and _origin_tool(node.origin) in _STEG_DECODERS:
+            continue
+        fids.append(r.file_id)
     if not fids:
         return []
 
