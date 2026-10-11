@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -108,7 +109,17 @@ def packer(path: str, info: str) -> str:
     return "; ".join(notes) if notes else "nessun packer noto"
 
 
-def build(path: str, fast: bool) -> str:
+def parse_kv(text: str) -> dict:
+    """rabin2 -I prints 'key<pad>value' lines; keep the ones we summarise."""
+    out = {}
+    for line in text.splitlines():
+        parts = line.split(None, 1)
+        if len(parts) == 2:
+            out[parts[0]] = parts[1].strip()
+    return out
+
+
+def build(path: str, fast: bool) -> tuple[str, dict]:
     k = kind(path)
     name = os.path.basename(path)
     size = os.path.getsize(path)
@@ -125,7 +136,7 @@ def build(path: str, fast: bool) -> str:
     s.append(f"- **sha256**: `{hs['sha256']}`")
     s.append(f"- **generato**: {datetime.datetime.now().isoformat(timespec='seconds')}\n")
 
-    info = ""
+    info, dang = "", []
     if have("rabin2"):
         info = run(["rabin2", "-I", path])
         s.append("## info (rabin2 -I)\n\n```\n" + cap(info.strip()) + "\n```\n")
@@ -148,7 +159,8 @@ def build(path: str, fast: bool) -> str:
         if "AndroidManifest.xml" in lst:
             s.append("## APK\n\n_Android package._ Nel terminale: `apk FILE` (apktool) e `jd FILE` (jadx).\n")
 
-    s.append("## packer\n\n" + packer(path, info) + "\n")
+    pack = packer(path, info)
+    s.append("## packer\n\n" + pack + "\n")
 
     flags, interesting, total = string_hits(path)
     s.append(f"## strings (di interesse)\n\n_{total} stringhe totali; {len(flags)} candidati flag._\n")
@@ -166,7 +178,19 @@ def build(path: str, fast: bool) -> str:
     else:
         s.append("## decompilato\n\n_saltato (--fast). Rilancia senza `--fast` per decompilare._\n")
 
-    return "\n".join(s)
+    kv = parse_kv(info)
+    summary = {
+        "binary": name, "path": path, "type": ftype, "size": size, "hashes": hs,
+        "arch": kv.get("arch"), "bits": kv.get("bits"), "bintype": kv.get("bintype"),
+        "canary": kv.get("canary"), "nx": kv.get("nx"), "pic": kv.get("pic"),
+        "relro": kv.get("relro"), "stripped": kv.get("stripped"),
+        "packer": pack,
+        "dangerous": dang,
+        "flags": [f.decode("latin1", "replace") for f in flags],
+        "interesting_total": total,
+        "interesting": [i.decode("latin1", "replace") for i in interesting[:40]],
+    }
+    return "\n".join(s), summary
 
 
 def main(argv) -> int:
@@ -178,25 +202,29 @@ def main(argv) -> int:
     ap.add_argument("--print", dest="show", action="store_true", help="also print the report to stdout")
     ap.add_argument("--no-write", action="store_true",
                     help="do not write the Markdown file (use with --print for a one-shot view)")
+    ap.add_argument("--json", action="store_true",
+                    help="print a JSON object (summary + markdown) instead of the report")
     a = ap.parse_args(argv)
 
     if not os.path.isfile(a.binary):
         sys.exit(f"rev-report: no such file: {a.binary}")
-    report = build(a.binary, a.fast)
-    if a.show:
+    report, summary = build(a.binary, a.fast)
+    if a.json:
+        print(json.dumps({**summary, "markdown": report}))
+    elif a.show:
         print(report)
-    if a.no_write:
-        return 0
-    try:
-        os.makedirs(a.out, exist_ok=True)
-        stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        dest = os.path.join(a.out, f"{os.path.basename(a.binary)}-{stamp}.md")
-        with open(dest, "w") as fh:
-            fh.write(report)
-        print(f"rev-report: scritto {dest}", file=sys.stderr)
-    except OSError as exc:
-        print(f"rev-report: impossibile scrivere il report ({exc}); stampo su stdout")
-        print(report)
+    if not a.no_write:
+        try:
+            os.makedirs(a.out, exist_ok=True)
+            stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            dest = os.path.join(a.out, f"{os.path.basename(a.binary)}-{stamp}.md")
+            with open(dest, "w") as fh:
+                fh.write(report)
+            print(f"rev-report: scritto {dest}", file=sys.stderr)
+        except OSError as exc:
+            print(f"rev-report: impossibile scrivere il report ({exc})", file=sys.stderr)
+            if not (a.json or a.show):
+                print(report)
     return 0
 
 

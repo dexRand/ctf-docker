@@ -179,7 +179,7 @@ def run_brute(p: dict) -> dict:
 
 
 def run_report(p: dict) -> dict:
-    argv = [REPORT, _safe_path(p.get("binary", "")), "--print"]
+    argv = [REPORT, _safe_path(p.get("binary", "")), "--json"]
     if p.get("fast"):
         argv.append("--fast")
     if p.get("no_write"):
@@ -189,7 +189,11 @@ def run_report(p: dict) -> dict:
         return {"ok": False, "error": err, "argv": argv[1:]}
     if rc != 0:
         return {"ok": False, "error": (err or out).strip(), "argv": argv[1:]}
-    return {"ok": True, "markdown": out, "argv": argv[1:]}
+    try:
+        data = json.loads(out)
+    except ValueError:
+        return {"ok": True, "markdown": out, "argv": argv[1:]}
+    return {"ok": True, "report": data, "markdown": data.get("markdown", ""), "argv": argv[1:]}
 
 
 # --------------------------------------------------------------------------- #
@@ -297,6 +301,10 @@ PAGE = r"""<!doctype html>
   .res .cmd { display: block; margin-top: .6rem; color: rgb(var(--fglite)); font-size: 12px;
     background: rgb(var(--ink)); border: 1px solid rgb(var(--edge)); border-radius: 3px; padding: .4rem .5rem;
     overflow-x: auto; white-space: pre; }
+  .hl { margin: .6rem 0 0; line-height: 1.9; }
+  .hl .k { color: rgb(var(--dim)); text-transform: uppercase; font-size: 10px; letter-spacing: .1em; margin-right: .35rem; }
+  .hl code { padding: .05rem .4rem; border-radius: 3px; }
+  .hl code.flag { background: rgb(var(--acc)); color: rgb(var(--ink)); font-weight: 700; border-color: rgb(var(--acc)); }
   pre { margin: .6rem 0 0; padding: .6rem; overflow: auto; max-height: 62vh; font-size: 12px;
     background: rgb(var(--ink)); border: 1px solid rgb(var(--edge)); border-radius: 3px;
     color: rgb(var(--fglite)); white-space: pre-wrap; word-break: break-word; }
@@ -451,9 +459,7 @@ async function autoReport(){
   const token = ++autoToken;
   const r = await post('api/report', Object.assign(entry(), {fast:true, no_write:true}), $('go'));
   if(token !== autoToken) return;                       // a newer selection won
-  lastCmd = ''; $('copy').disabled = true;
-  if(!r.ok){ show('<div class="res bad"><div class="lead"><span class="rax">report</span></div><p>' + esc(r.error || 'report non riuscito') + '</p></div>'); return; }
-  show('<div class="res"><div class="lead"><span class="rax">report</span><span class="muted">automatico · fast</span></div><pre>' + esc(r.markdown) + '</pre></div>');
+  renderReport(r, true);
 }
 async function onBinary(){ setAct('report'); await loadSymbols(); await autoReport(); }
 
@@ -539,12 +545,28 @@ function renderBrute(r){
   show(h + '</div>');
 }
 
-function renderReport(r){
-  setCmd(r.argv, 'rev-report');
+function renderReport(r, auto){
+  if(auto){ lastCmd = ''; $('copy').disabled = true; } else { setCmd(r.argv, 'rev-report'); }
   if(!r.ok) return errCard(r, 'rev-report');
-  show('<div class="res"><div class="lead"><span class="rax">report</span></div>' +
-    (lastCmd ? '<code class="cmd">' + esc(lastCmd) + '</code>' : '') +
-    '<pre>' + esc(r.markdown) + '</pre></div>');
+  const s = r.report || {};
+  let h = '<div class="res"><div class="lead"><span class="rax">report</span>' +
+          (auto ? '<span class="muted">automatico · fast</span>' : '') + '</div>';
+  const flags = s.flags || [], danger = s.dangerous || [];
+  if(!auto && lastCmd) h += '<code class="cmd">' + esc(lastCmd) + '</code>';
+  if(flags.length) h += '<p class="hl"><span class="k">flag?</span> ' +
+    flags.map(f => '<code class="flag">' + esc(f) + '</code>').join(' ') + '</p>';
+  if(danger.length) h += '<p class="hl"><span class="k">pericolosi</span> ' +
+    danger.map(d => '<code>' + esc(d) + '</code>').join(' ') + '</p>';
+  const meta = [];
+  if(s.arch || s.bits) meta.push((s.arch || '') + (s.bits ? '/' + s.bits : ''));
+  if(s.bintype) meta.push(s.bintype);
+  if(s.packer) meta.push('packer: ' + s.packer);
+  if(s.canary) meta.push('canary ' + s.canary);
+  if(s.nx) meta.push('nx ' + s.nx);
+  if(s.pic) meta.push('pic ' + s.pic);
+  if(meta.length) h += '<p class="muted" style="margin:.35rem 0 0">' + esc(meta.join(' · ')) + '</p>';
+  h += '<pre>' + esc(r.markdown || '') + '</pre></div>';
+  show(h);
 }
 
 $('copy').addEventListener('click', () => { if(lastCmd) navigator.clipboard.writeText(lastCmd).catch(() => {}); });

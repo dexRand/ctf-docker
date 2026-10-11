@@ -239,6 +239,12 @@
       (`GET /api/symbols` via `rabin2 -sj`, import esclusi). Flusso finale:
       *carica → vedi report → scegli funzione → emulate/brute*. Verificato
       (12 simboli, auto-report all'avvio, emulate ok, console pulita, detector `[]`).
+- [x] **rev — report: segnali in evidenza** (`rev-report --json`): il report espone
+      un **riepilogo strutturato** (flag, **funzioni pericolose**, packer,
+      arch/bits, canary/nx/pic); la GUI lo mostra **in cima** come badge — flag
+      evidenziate + pericolosi + riga meta — prima del report completo. L'endpoint
+      `/api/report` usa `--json`. Verificato (flag `SEKAI{…}` evidenziata,
+      `strcpy/system` in evidenza, console pulita, detector `[]`).
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**
