@@ -174,8 +174,19 @@
       recuperata dal `kona.yaml` ufficiale: **`SEKAI{clankedormiscgod}`** (limite
       dell'artefatto documentato).
 - [x] **Suite `rev` validata end-to-end** sui due casi reali (PE *untitled-encore*
-      + APK *ufo*). Usato **Wine** (ad-hoc, fuori repo) per eseguire il PE e
-      confermare la flag. Nessuna modifica al codice del repo in questa sessione.
+      + APK *ufo*): la parte statica è coperta dal sandbox (radare2/Ghidra/objdump);
+      per eseguire il PE è servito **Wine** (ad-hoc, non nel toolbox).
+- [x] **Suite `rev`: motore di emulazione + GUI web (`emulate`)** — il gap emerso da
+      *untitled-encore*. Helper Unicorn per eseguire funzioni **self-contained**
+      (ELF/PE/blob raw) con gli argomenti nei registri giusti (SysV `rdi,rsi,…` per
+      ELF, Microsoft x64 `rcx,rdx,…` per PE) → stampa `rax` + dump di memoria.
+      Aggiunto **z3** all'immagine (unicorn/capstone già presenti via pwntools).
+      **GUI web** (`rev/emulate_web.py`, solo stdlib) servita dal container `rev`
+      sulla porta **19020** (profilo `rev`, dietro proxy localhost, tema = token
+      dashboard): scegli il binario da `./data/rev`, funzione/indirizzo e argomenti
+      → `rax`. Testato in browser (console pulita) e end-to-end (ELF non-PIE/PIE,
+      blob raw, PE; + verifica via API). Aggiornati `compose.yaml` (`rev-web-proxy`),
+      `.env.example` (`REV_WEB_PORT`), dashboard e README EN/IT.
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**

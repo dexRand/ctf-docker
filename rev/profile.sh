@@ -15,12 +15,13 @@ menu() {
   strings -a BIN           stringhe (cerca la flag!)
   upx -d BIN               scompatta un binario packed con UPX
   dec BIN                  decompila con Ghidra headless (in ./dec_out)
+  emulate BIN --func F --argbuf HEX --arg N    esegue una funzione (Unicorn) -> rax
   gdb BIN                  debug interattivo
   strace BIN / ltrace BIN  syscall / librerie a runtime
   apk FILE.apk             apktool: estrae manifest/smali in FILE_apktool/
   jd FILE.apk              jadx: decompila in Java in FILE_jadx/
   qemu-x86_64 BIN   qemu-aarch64 BIN   qemu-riscv64 BIN
-  python3                  pwntools gia' importabile:  from pwn import *
+  python3                  pwntools + unicorn + capstone + z3 gia' importabili
   menu | help-rev          rimostra questo aiuto
 ============================================================
 EOF
@@ -31,6 +32,7 @@ dec()  { ghidra-decompile "$@"; }
 sec()  { checksec --file="$1"; }
 apk()  { apktool d -f "$1" -o "${1%.*}_apktool"; }
 jd()   { jadx -d "${1%.*}_jadx" "$1"; }
+emu()  { emulate "$@"; }
 help-rev() { menu; }
 alias rev-help='menu'
 

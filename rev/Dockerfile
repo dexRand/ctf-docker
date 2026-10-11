@@ -60,10 +60,20 @@ RUN curl -fsSL -o /tmp/jadx.zip \
  && chmod +x /opt/jadx/bin/jadx /opt/jadx/bin/jadx-gui \
  && ln -sf /opt/jadx/bin/jadx /usr/local/bin/jadx
 
-# web terminal: writable shell on port 7681 (published on 127.0.0.1 only)
-# banner + scorciatoie (menu, dec, sec) ad ogni login shell
+# ---- emulazione / constraint solving ----
+# unicorn + capstone arrivano già con pwntools; aggiungiamo z3 (SMT) e il
+# helper `emulate` per eseguire funzioni self-contained (hash/KDF/offuscatori).
+RUN pip install --no-cache-dir --break-system-packages z3-solver
+COPY emulate.py /usr/local/bin/emulate
+COPY emulate_web.py /usr/local/bin/emulate-web
+COPY entry.sh /usr/local/bin/rev-entry
+RUN chmod +x /usr/local/bin/emulate /usr/local/bin/emulate-web /usr/local/bin/rev-entry
+
+# web terminal + emulation GUI: banner + scorciatoie ad ogni login shell
 COPY profile.sh /etc/profile.d/rev.sh
 RUN chmod 0644 /etc/profile.d/rev.sh
 
-EXPOSE 7681
-ENTRYPOINT ["ttyd", "-W", "-p", "7681", "-t", "fontSize=14", "bash", "-l"]
+# 7681 = terminale web (ttyd), 8080 = GUI di emulazione. Entrambe sono
+# raggiunte solo tramite i proxy localhost del compose: il sandbox non ha egress.
+EXPOSE 7681 8080
+ENTRYPOINT ["/usr/local/bin/rev-entry"]

@@ -55,7 +55,7 @@ strumenti dedicati e la dashboard li raggruppa di conseguenza.
 | Dominio | Suite | Dove | Note |
 |---|---|---|---|
 | Stego / Forensics | **StegSuite** | `:19014` (core) | 55 analyzer, GUI + API REST, `./ctf scan` |
-| Rev / Pwn (attivo) | **`rev` sandbox** | `:19018` (profilo `rev`) | **ELF + PE + APK**: Ghidra, radare2, upx, apktool, jadx, gdb, qemu, pwntools |
+| Rev / Pwn (attivo) | **`rev` sandbox** | `:19018` + GUI `:19020` (profilo `rev`) | **ELF + PE + APK**: Ghidra, radare2, upx, apktool, jadx, gdb, qemu, pwntools · **emulazione** (Unicorn + `z3`) con GUI web `emulate` |
 | Web | **ZAP** | `:19005` (profilo `web`) | scanner + proxy |
 | Crypto / Math | **SageMath** | `:19010` (profilo `crypto`) | notebook |
 | Cracking | **Hashtopolis** | `:19015/16` (profilo `crack`) | hashcat distribuito |
@@ -71,8 +71,9 @@ Le challenge **stego/forensics** si verificano con `./ctf scan` (StegSuite); per
 > challenge reali di SekaiCTF 2026: **untitled-encore** (PE: radare2/Ghidra/objdump;
 > flag `SEKAI{eBPF_my_B3l0v3d}` confermata eseguendo il PE con **Wine**) e **ufo**
 > (APK: jadx/apktool; la flag `SEKAI{clankedormiscgod}` non è ricavabile
-> dall'artefatto). **Gap:** manca l'**emulazione** (Unicorn/eBPF) — prossimo
-> candidato in `tasks/todo.md`. Wine non è ancora nel toolbox (usato ad-hoc).
+> dall'artefatto). Il gap di **emulazione** (Unicorn/eBPF) è stato **colmato**: la
+> suite ha ora `emulate` (Unicorn) + `z3` e una **GUI web** su `:19020`. Wine resta
+> fuori dal toolbox (usato ad-hoc per eseguire PE).
 
 ## Task List
 
