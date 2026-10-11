@@ -60,14 +60,17 @@ RUN curl -fsSL -o /tmp/jadx.zip \
  && chmod +x /opt/jadx/bin/jadx /opt/jadx/bin/jadx-gui \
  && ln -sf /opt/jadx/bin/jadx /usr/local/bin/jadx
 
-# ---- emulazione / constraint solving ----
-# unicorn + capstone arrivano già con pwntools; aggiungiamo z3 (SMT) e il
-# helper `emulate` per eseguire funzioni self-contained (hash/KDF/offuscatori).
+# ---- emulazione / report / constraint solving ----
+# unicorn + capstone arrivano già con pwntools; aggiungiamo z3 (SMT), il helper
+# `emulate` (esegue funzioni self-contained) e `rev-report` (report di primo
+# passaggio: info/checksec/import/strings/packer + decompilato Ghidra).
 RUN pip install --no-cache-dir --break-system-packages z3-solver
 COPY emulate.py /usr/local/bin/emulate
 COPY emulate_web.py /usr/local/bin/emulate-web
+COPY report.py /usr/local/bin/rev-report
 COPY entry.sh /usr/local/bin/rev-entry
-RUN chmod +x /usr/local/bin/emulate /usr/local/bin/emulate-web /usr/local/bin/rev-entry
+RUN chmod +x /usr/local/bin/emulate /usr/local/bin/emulate-web \
+             /usr/local/bin/rev-report /usr/local/bin/rev-entry
 
 # web terminal + emulation GUI: banner + scorciatoie ad ogni login shell
 COPY profile.sh /etc/profile.d/rev.sh

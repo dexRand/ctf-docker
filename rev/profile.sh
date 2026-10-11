@@ -16,6 +16,7 @@ menu() {
   upx -d BIN               scompatta un binario packed con UPX
   dec BIN                  decompila con Ghidra headless (in ./dec_out)
   emulate BIN --func F --argbuf HEX --arg N    esegue una funzione (Unicorn) -> rax
+  report BIN               report di 1° passaggio (info/checksec/import/strings/Ghidra)
   gdb BIN                  debug interattivo
   strace BIN / ltrace BIN  syscall / librerie a runtime
   apk FILE.apk             apktool: estrae manifest/smali in FILE_apktool/
@@ -33,6 +34,7 @@ sec()  { checksec --file="$1"; }
 apk()  { apktool d -f "$1" -o "${1%.*}_apktool"; }
 jd()   { jadx -d "${1%.*}_jadx" "$1"; }
 emu()  { emulate "$@"; }
+rep()  { rev-report "$@"; }
 help-rev() { menu; }
 alias rev-help='menu'
 

@@ -196,6 +196,13 @@
       (a cui ho aggiunto `--accdim`/`--dangerlite` per allineare il set). Palette,
       tipografia mono e spaziature ora identiche su tutte le nostre GUI.
       Screenshot `docs/screenshots/rev-emulate.png` aggiornato; console pulita.
+- [x] **rev — report automatico (`rev-report`)**: primo passaggio su un binario
+      (ELF/PE/APK/altro) → Markdown con tipo + hash, `rabin2 -I`/`-S`/`-i`,
+      **checksec**, header/dynamic, **funzioni pericolose**, **packer**, stringhe di
+      interesse con **candidati flag** e **decompilato Ghidra** (headless; `--fast`
+      per saltarlo). Scrive in `./data/rev/reports/` (visibile in FileBrowser).
+      Comando `report`/`rep` nel menu del terminale `rev`. Testato su un ELF reale
+      (checksec letto da stderr, flag trovate, Ghidra ~13s).
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**
