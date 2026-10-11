@@ -184,9 +184,11 @@
       **GUI web** (`rev/emulate_web.py`, solo stdlib) servita dal container `rev`
       sulla porta **19020** (profilo `rev`, dietro proxy localhost, tema = token
       dashboard): scegli il binario da `./data/rev`, funzione/indirizzo e argomenti
-      → `rax`. Testato in browser (console pulita) e end-to-end (ELF non-PIE/PIE,
-      blob raw, PE; + verifica via API). Aggiornati `compose.yaml` (`rev-web-proxy`),
-      `.env.example` (`REV_WEB_PORT`), dashboard e README EN/IT.
+      → `rax`. La GUI ha anche l'**upload** del binario dal browser (max 128 MB,
+      nome sanitizzato) oltre alla scelta da `./data/rev`. Testato in browser
+      (console pulita) e end-to-end (ELF non-PIE/PIE, blob raw, PE; + verifica via
+      API). Aggiornati `compose.yaml` (`rev-web-proxy`), `.env.example`
+      (`REV_WEB_PORT`), dashboard e README EN/IT (con screenshot).
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**

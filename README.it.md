@@ -240,6 +240,10 @@ http://localhost:19014 (solo localhost).
 
 <img src="docs/screenshots/stegsuite-mobile.png" alt="Layout mobile" width="300">
 
+**Sandbox rev — GUI web `emulate` (esegue una funzione self-contained con Unicorn):**
+
+![GUI emulate](docs/screenshots/rev-emulate.png)
+
 ## ⚙️ Configurazione
 
 Tutto è guidato da `.env` (creato da `.env.example`):

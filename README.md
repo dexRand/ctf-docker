@@ -245,6 +245,10 @@ http://localhost:19014 (localhost only).
 
 <img src="docs/screenshots/stegsuite-mobile.png" alt="Mobile layout" width="300">
 
+**Rev sandbox — `emulate` web GUI (run a self-contained function with Unicorn):**
+
+![emulate GUI](docs/screenshots/rev-emulate.png)
+
 ## ⚙️ Configuration
 
 Everything is driven by `.env` (created from `.env.example`):

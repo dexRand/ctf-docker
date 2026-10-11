@@ -27,12 +27,14 @@ from urllib.parse import urlparse
 EMULATE = os.environ.get("EMULATE_BIN", "/usr/local/bin/emulate")
 WORK = os.environ.get("EMULATE_WORK", "/work")
 MAX_BODY = 64 * 1024
+MAX_UPLOAD = 128 * 1024 * 1024
 RUN_TIMEOUT = int(os.environ.get("EMULATE_TIMEOUT", "30"))
 MAX_STEPS = 50_000_000
 
 _NUM = re.compile(r"^-?(0x[0-9a-fA-F]+|\d+)$")
 _HEX = re.compile(r"^[0-9a-fA-F\s]*$")
 _MEM = re.compile(r"^-?(0x[0-9a-fA-F]+|\d+):-?(0x[0-9a-fA-F]+|\d+)$")
+_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
 
 
 def list_files(root: str) -> list[str]:
@@ -173,6 +175,8 @@ PAGE = r"""<!doctype html>
       <label for="binary">binary (from the workdir — mount files in ./data/rev)</label>
       <select id="binary" required aria-label="binary from the workdir"></select>
       <div class="hint" id="filehint">loading…</div>
+      <label for="upload">… or upload a binary (max 128 MB)</label>
+      <input type="file" id="upload" aria-label="upload a binary into the workdir">
 
       <div class="cap">entry</div>
       <div class="modes" role="group" aria-label="how to reach the routine">
@@ -235,6 +239,21 @@ async function loadFiles(){
   }catch(e){ $('filehint').textContent = 'could not list files: '+e; }
 }
 loadFiles();
+
+$('upload').addEventListener('change', async ev=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+  $('filehint').textContent = 'uploading ' + file.name + ' …';
+  try{
+    const r = await fetch('api/upload', {method:'POST', headers:{'X-Filename': file.name}, body: file});
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error || ('HTTP '+r.status));
+    await loadFiles();
+    $('binary').value = j.name;
+    $('filehint').textContent = 'uploaded ' + j.name + ' (' + j.size + ' bytes)';
+  }catch(e){ $('filehint').textContent = 'upload failed: ' + e; }
+  ev.target.value = '';
+});
 
 $('f').addEventListener('submit', async ev=>{
   ev.preventDefault();
@@ -309,7 +328,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, b"not found", "text/plain")
 
     def do_POST(self) -> None:
-        if urlparse(self.path).path != "/api/run":
+        path = urlparse(self.path).path
+        if path == "/api/upload":
+            self._upload()
+            return
+        if path != "/api/run":
             self._send(404, b"not found", "text/plain")
             return
         length = int(self.headers.get("Content-Length") or 0)
@@ -327,6 +350,30 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"ok": False, "error": str(exc)})
         except Exception as exc:  # pragma: no cover
             self._json(200, {"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+
+    def _upload(self) -> None:
+        name = os.path.basename((self.headers.get("X-Filename") or "").strip())
+        if not name or name in (".", "..") or not _NAME.match(name):
+            self._json(400, {"ok": False, "error": "missing or invalid X-Filename"})
+            return
+        length = int(self.headers.get("Content-Length") or 0)
+        if length <= 0:
+            self._json(400, {"ok": False, "error": "empty upload"})
+            return
+        if length > MAX_UPLOAD:
+            self._json(413, {"ok": False,
+                             "error": f"file too large (max {MAX_UPLOAD // (1024 * 1024)} MB)"})
+            return
+        dest = os.path.join(WORK, name)
+        remaining = length
+        with open(dest, "wb") as fh:
+            while remaining > 0:
+                chunk = self.rfile.read(min(65536, remaining))
+                if not chunk:
+                    break
+                fh.write(chunk)
+                remaining -= len(chunk)
+        self._json(200, {"ok": True, "name": name, "size": length})
 
 
 def main() -> int:
