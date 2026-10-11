@@ -176,6 +176,8 @@ def main(argv) -> int:
     ap.add_argument("--out", default="reports", help="directory for the Markdown (default ./reports)")
     ap.add_argument("--fast", action="store_true", help="skip the Ghidra decompile")
     ap.add_argument("--print", dest="show", action="store_true", help="also print the report to stdout")
+    ap.add_argument("--no-write", action="store_true",
+                    help="do not write the Markdown file (use with --print for a one-shot view)")
     a = ap.parse_args(argv)
 
     if not os.path.isfile(a.binary):
@@ -183,6 +185,8 @@ def main(argv) -> int:
     report = build(a.binary, a.fast)
     if a.show:
         print(report)
+    if a.no_write:
+        return 0
     try:
         os.makedirs(a.out, exist_ok=True)
         stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")

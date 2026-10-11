@@ -65,6 +65,28 @@ def list_files(root: str) -> list[str]:
     return sorted(out)
 
 
+def list_symbols(rel: str) -> list[str]:
+    """Function names defined in the binary (for the picker). Imports excluded."""
+    rc, out, _err, timed = _exec(["rabin2", "-sj", _safe_path(rel)], 30)
+    if timed or rc != 0:
+        return []
+    try:
+        data = json.loads(out)
+    except ValueError:
+        return []
+    rows = data.get("symbols", []) if isinstance(data, dict) else data
+    names = set()
+    for s in rows:
+        if not isinstance(s, dict) or s.get("type") != "FUNC" or s.get("is_imported"):
+            continue
+        nm = (s.get("name") or "").strip()
+        if nm.startswith("sym."):
+            nm = nm[4:]
+        if nm:
+            names.add(nm)
+    return sorted(names)[:1000]
+
+
 def _safe_path(rel: str) -> str:
     rel = (rel or "").strip()
     full = os.path.realpath(os.path.join(WORK, rel))
@@ -160,6 +182,8 @@ def run_report(p: dict) -> dict:
     argv = [REPORT, _safe_path(p.get("binary", "")), "--print"]
     if p.get("fast"):
         argv.append("--fast")
+    if p.get("no_write"):
+        argv.append("--no-write")
     rc, out, err, timed = _exec(argv, REPORT_TIMEOUT)
     if timed:
         return {"ok": False, "error": err, "argv": argv[1:]}
@@ -305,14 +329,15 @@ PAGE = r"""<!doctype html>
   <div id="entry" class="fields">
     <label class="f">Entry
       <span class="muted" id="modes">
-        <label class="check"><input type="radio" name="mode" value="func" checked aria-label="simbolo funzione"> simbolo</label>
-        <label class="check"><input type="radio" name="mode" value="addr" aria-label="indirizzo assoluto"> indirizzo</label>
-        <label class="check"><input type="radio" name="mode" value="vaddr" aria-label="vaddr relativo"> vaddr</label>
-        <label class="check"><input type="radio" name="mode" value="auto" aria-label="entrypoint"> entrypoint</label>
+        <label class="check"><input type="radio" name="mode" value="func" checked> simbolo</label>
+        <label class="check"><input type="radio" name="mode" value="addr"> indirizzo</label>
+        <label class="check"><input type="radio" name="mode" value="vaddr"> vaddr</label>
+        <label class="check"><input type="radio" name="mode" value="auto"> entrypoint</label>
       </span>
-      <input id="func" type="text" placeholder="secret_hash" autocomplete="off" spellcheck="false" aria-label="simbolo funzione">
+      <input id="func" type="text" list="funcs" placeholder="secret_hash" autocomplete="off" spellcheck="false" aria-label="nome funzione">
       <input id="addr" type="text" placeholder="0x140001480" autocomplete="off" spellcheck="false" aria-label="indirizzo assoluto" hidden>
       <input id="vaddr" type="text" placeholder="0x1149" autocomplete="off" spellcheck="false" aria-label="indirizzo virtuale relativo" hidden>
+      <datalist id="funcs"></datalist>
     </label>
   </div>
 
@@ -410,7 +435,30 @@ async function loadFiles(){
     sel.disabled = !files.length;
   }catch(e){ $('filehint').textContent = 'impossibile elencare i file: ' + e; }
 }
-loadFiles();
+async function loadSymbols(){
+  const f = $('binary').value;
+  const dl = $('funcs'); dl.innerHTML = '';
+  if(!f) return;
+  try{
+    const syms = await (await fetch('api/symbols?binary=' + encodeURIComponent(f), {cache:'no-cache'})).json();
+    if(Array.isArray(syms)) syms.forEach(s => { const o = document.createElement('option'); o.value = s; dl.appendChild(o); });
+  }catch(e){ /* the picker is optional */ }
+}
+
+let autoToken = 0;
+async function autoReport(){
+  if(!$('binary').value) return;
+  const token = ++autoToken;
+  const r = await post('api/report', Object.assign(entry(), {fast:true, no_write:true}), $('go'));
+  if(token !== autoToken) return;                       // a newer selection won
+  lastCmd = ''; $('copy').disabled = true;
+  if(!r.ok){ show('<div class="res bad"><div class="lead"><span class="rax">report</span></div><p>' + esc(r.error || 'report non riuscito') + '</p></div>'); return; }
+  show('<div class="res"><div class="lead"><span class="rax">report</span><span class="muted">automatico · fast</span></div><pre>' + esc(r.markdown) + '</pre></div>');
+}
+async function onBinary(){ setAct('report'); await loadSymbols(); await autoReport(); }
+
+$('binary').addEventListener('change', onBinary);
+loadFiles().then(() => onBinary());
 
 $('pick').addEventListener('click', () => $('upload').click());
 $('upload').addEventListener('change', async (ev) => {
@@ -424,6 +472,7 @@ $('upload').addEventListener('change', async (ev) => {
     await loadFiles();
     $('binary').value = j.name;
     $('filehint').textContent = 'caricato ' + j.name + ' (' + j.size + ' byte)';
+    onBinary();
   }catch(e){ $('filehint').textContent = 'upload fallito: ' + e; }
   ev.target.value = '';
 });
@@ -524,11 +573,19 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(obj).encode(), "application/json")
 
     def do_GET(self) -> None:
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
         if path in ("/", "/index.html"):
             self._send(200, PAGE.encode(), "text/html; charset=utf-8")
         elif path == "/api/files":
             self._json(200, list_files(WORK))
+        elif path == "/api/symbols":
+            from urllib.parse import parse_qs
+            rel = (parse_qs(parsed.query).get("binary") or [""])[0]
+            try:
+                self._json(200, list_symbols(rel))
+            except ValueError as exc:
+                self._json(200, {"ok": False, "error": str(exc)})
         elif path == "/healthz":
             self._send(200, b"ok", "text/plain")
         else:

@@ -232,6 +232,13 @@
       `hidden` restavano visibili (`.fields{display:grid}` batteva `[hidden]`).
       Verificato desktop + mobile, console pulita, `impeccable detect` → `[]`.
       Screenshot `rev-workbench.png` + `rev-workbench-mobile.png`.
+- [x] **rev — workbench più "automatico"**: all'**upload/selezione** del binario
+      parte **da solo** un **report `--fast`** (con il nuovo `rev-report --no-write`,
+      per non scrivere file a ogni cambio) e la scheda passa a `report`. L'input
+      della funzione è una **datalist** popolata con i **simboli** del binario
+      (`GET /api/symbols` via `rabin2 -sj`, import esclusi). Flusso finale:
+      *carica → vedi report → scegli funzione → emulate/brute*. Verificato
+      (12 simboli, auto-report all'avvio, emulate ok, console pulita, detector `[]`).
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**
