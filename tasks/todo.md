@@ -245,6 +245,11 @@
       evidenziate + pericolosi + riga meta — prima del report completo. L'endpoint
       `/api/report` usa `--json`. Verificato (flag `SEKAI{…}` evidenziata,
       `strcpy/system` in evidenza, console pulita, detector `[]`).
+- [x] **rev — copia report**: il pulsante di copia è ora **contestuale** —
+      `copia comando` (emulate/brute) oppure **`copia report`** (anche per
+      l'auto-report). Il testo copiato è un blocco **auto-contenuto** (intestazione
+      + flag + pericolosi + meta + report), pronto da incollare. Verificato (buffer
+      ~6 KB con `flags:`/`pericolosi:` + markdown, console pulita, detector `[]`).
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**

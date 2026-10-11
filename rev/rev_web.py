@@ -408,7 +408,6 @@ PAGE = r"""<!doctype html>
 <script>
 const $ = (id) => document.getElementById(id);
 let act = 'emulate';
-let lastCmd = '';
 const LABEL = { report: 'analizza', emulate: 'esegui', brute: 'brute' };
 
 function setAct(next){
@@ -419,7 +418,6 @@ function setAct(next){
   $('p-brute').hidden = next !== 'brute';
   $('p-report').hidden = next !== 'report';
   $('go').textContent = LABEL[next];
-  $('copy').hidden = next === 'report';
 }
 for (const a of ['report','emulate','brute']) $('act-'+a).addEventListener('click', () => setAct(a));
 
@@ -509,27 +507,30 @@ $('go').addEventListener('click', async () => {
 });
 
 function cmd(argv, tool){ return tool + ' ' + (argv || []).map(esc).join(' '); }
-function setCmd(argv, tool){
-  lastCmd = argv ? cmd(argv, tool) : '';
-  $('copy').disabled = !lastCmd;
-}
+let copyText = '';
+function setCopy(label, text){ copyText = text || ''; $('copy').textContent = label; $('copy').disabled = !copyText; }
+function setCmd(argv, tool){ setCopy('copia comando', argv ? cmd(argv, tool) : ''); }
 function show(html){ $('out').innerHTML = html; }
 function errCard(r, tool){
   setCmd(r.argv, tool);
+  const c = r.argv ? cmd(r.argv, tool) : '';
   show('<div class="res bad"><div class="lead"><span class="rax">errore</span></div>' +
     '<p>' + esc(r.error || 'esecuzione fallita') + '</p>' +
-    (lastCmd ? '<code class="cmd">' + esc(lastCmd) + '</code>' : '') + '</div>');
+    (c ? '<code class="cmd">' + esc(c) + '</code>' : '') + '</div>');
 }
 
 function renderEmulate(r){
-  if(!r.ok || !r.result){ if(r.raw){ setCmd(r.argv,'emulate'); return show('<div class="res"><pre>' + esc(r.raw) + '</pre></div>'); } return errCard(r, 'emulate'); }
+  if(!r.ok || !r.result){
+    if(r.raw){ setCmd(r.argv, 'emulate'); return show('<div class="res"><pre>' + esc(r.raw) + '</pre></div>'); }
+    return errCard(r, 'emulate');
+  }
   setCmd(r.argv, 'emulate');
-  const d = r.result;
+  const d = r.result, c = r.argv ? cmd(r.argv, 'emulate') : '';
   let h = '<div class="res"><div class="lead"><span class="rax">rax = 0x' + d.rax.toString(16) + '</span>' +
           '<span class="muted">(' + d.rax + ')</span></div>' +
           '<p class="muted" style="margin:.3rem 0 0">' + esc(d.format) + ' · entry 0x' + d.entry.toString(16) +
           (d.load_base ? ' · base 0x' + d.load_base.toString(16) : '') + '</p>';
-  if(lastCmd) h += '<code class="cmd">' + esc(lastCmd) + '</code>';
+  if(c) h += '<code class="cmd">' + esc(c) + '</code>';
   if(d.mem && d.mem.length){ h += '<pre>'; d.mem.forEach(m => { h += 'mem 0x' + m[0].toString(16) + '  ' + esc(m[1]) + '\n'; }); h += '</pre>'; }
   show(h + '</div>');
 }
@@ -537,26 +538,18 @@ function renderEmulate(r){
 function renderBrute(r){
   setCmd(r.argv, 'emulate');
   if(!r.ok && !r.stdout) return errCard(r, 'emulate');
+  const c = r.argv ? cmd(r.argv, 'emulate') : '';
   let h = '<div class="res' + (r.ok ? '' : ' bad') + '"><div class="lead"><span class="rax">' +
           (r.ok ? 'match' : 'nessun match') + '</span></div>';
-  if(lastCmd) h += '<code class="cmd">' + esc(lastCmd) + '</code>';
+  if(c) h += '<code class="cmd">' + esc(c) + '</code>';
   if(r.stdout) h += '<pre>' + esc(r.stdout) + '</pre>';
   if(r.stderr) h += '<pre class="muted">' + esc(r.stderr) + '</pre>';
   show(h + '</div>');
 }
 
 function renderReport(r, auto){
-  if(auto){ lastCmd = ''; $('copy').disabled = true; } else { setCmd(r.argv, 'rev-report'); }
-  if(!r.ok) return errCard(r, 'rev-report');
   const s = r.report || {};
-  let h = '<div class="res"><div class="lead"><span class="rax">report</span>' +
-          (auto ? '<span class="muted">automatico · fast</span>' : '') + '</div>';
   const flags = s.flags || [], danger = s.dangerous || [];
-  if(!auto && lastCmd) h += '<code class="cmd">' + esc(lastCmd) + '</code>';
-  if(flags.length) h += '<p class="hl"><span class="k">flag?</span> ' +
-    flags.map(f => '<code class="flag">' + esc(f) + '</code>').join(' ') + '</p>';
-  if(danger.length) h += '<p class="hl"><span class="k">pericolosi</span> ' +
-    danger.map(d => '<code>' + esc(d) + '</code>').join(' ') + '</p>';
   const meta = [];
   if(s.arch || s.bits) meta.push((s.arch || '') + (s.bits ? '/' + s.bits : ''));
   if(s.bintype) meta.push(s.bintype);
@@ -564,12 +557,28 @@ function renderReport(r, auto){
   if(s.canary) meta.push('canary ' + s.canary);
   if(s.nx) meta.push('nx ' + s.nx);
   if(s.pic) meta.push('pic ' + s.pic);
+  // a copyable, self-contained report (highlights + full report)
+  let txt = '# rev report — ' + (s.binary || $('binary').value) + '\n';
+  if(flags.length) txt += 'flags: ' + flags.join(', ') + '\n';
+  if(danger.length) txt += 'pericolosi: ' + danger.join(', ') + '\n';
+  if(meta.length) txt += meta.join(' · ') + '\n';
+  txt += '\n' + (r.markdown || '');
+  setCopy('copia report', txt);
+  if(!r.ok) return errCard(r, 'rev-report');
+  const c = (!auto && r.argv) ? cmd(r.argv, 'rev-report') : '';
+  let h = '<div class="res"><div class="lead"><span class="rax">report</span>' +
+          (auto ? '<span class="muted">automatico · fast</span>' : '') + '</div>';
+  if(c) h += '<code class="cmd">' + esc(c) + '</code>';
+  if(flags.length) h += '<p class="hl"><span class="k">flag?</span> ' +
+    flags.map(f => '<code class="flag">' + esc(f) + '</code>').join(' ') + '</p>';
+  if(danger.length) h += '<p class="hl"><span class="k">pericolosi</span> ' +
+    danger.map(d => '<code>' + esc(d) + '</code>').join(' ') + '</p>';
   if(meta.length) h += '<p class="muted" style="margin:.35rem 0 0">' + esc(meta.join(' · ')) + '</p>';
   h += '<pre>' + esc(r.markdown || '') + '</pre></div>';
   show(h);
 }
 
-$('copy').addEventListener('click', () => { if(lastCmd) navigator.clipboard.writeText(lastCmd).catch(() => {}); });
+$('copy').addEventListener('click', () => { if(copyText) navigator.clipboard.writeText(copyText).catch(() => {}); });
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 </script>
 </body>
