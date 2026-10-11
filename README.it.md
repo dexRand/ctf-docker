@@ -244,6 +244,8 @@ http://localhost:19014 (solo localhost).
 
 ![rev workbench](docs/screenshots/rev-workbench.png)
 
+<img src="docs/screenshots/rev-workbench-mobile.png" alt="Rev workbench su mobile" width="300">
+
 ## ⚙️ Configurazione
 
 Tutto è guidato da `.env` (creato da `.env.example`):

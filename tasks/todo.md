@@ -223,6 +223,15 @@
       file. Rinominati file/comando in `rev_web.py`/`rev-web`; dashboard (card
       **Rev workbench**) e README aggiornati, screenshot `rev-workbench.png`.
       Testato in browser (tab ok, console pulita) e via API.
+- [x] **rev — workbench `distill` (UI semplificata)**: la GUI era "un casino" →
+      ridisegnata in **flusso lineare** (binario → azione → campi → esegui →
+      risultato), niente più `fieldset`/tab annidati; opzioni secondarie dietro
+      **"opzioni avanzate"** (`<details>`); **un solo** pulsante primario che cambia
+      etichetta (analizza/esegui/brute); meno testo; focus ring, `::selection` e
+      scrollbar tematizzati; rimosso il `border-left` colorato. Bug fixed: i pannelli
+      `hidden` restavano visibili (`.fields{display:grid}` batteva `[hidden]`).
+      Verificato desktop + mobile, console pulita, `impeccable detect` → `[]`.
+      Screenshot `rev-workbench.png` + `rev-workbench-mobile.png`.
 
 ### Da fare (prossima sessione)
 - [ ] **Prossimo miglioramento (da scegliere, sessione breve)**: (a) **emulazione**
