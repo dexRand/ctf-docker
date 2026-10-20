@@ -208,6 +208,10 @@ services:
       dockerfile: app/Dockerfile
     image: ctf-stegsuite
     restart: unless-stopped
+    # host ports of the other tools (*_PORT), for /api/v1/services and the MCP server
+    env_file:
+      - path: .env
+        required: false
     mem_limit: 4g
     cpus: 3
     logging: *default-logging

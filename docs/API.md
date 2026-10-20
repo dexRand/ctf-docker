@@ -131,6 +131,25 @@ curl -X DELETE localhost:19014/api/v1/projects
 
 A stdlib client is in [`../tools/stegsuite_client.py`](../tools/stegsuite_client.py).
 
+## MCP server (AI agents)
+
+StegSuite is also an [MCP](https://modelcontextprotocol.io) server
+(Streamable HTTP, stateless) at `/api/v1/mcp`, with the same API key. With
+Claude Code:
+
+```bash
+claude mcp add --transport http ctf http://127.0.0.1:19014/api/v1/mcp
+# with a key: add  --header "X-API-Key: <key>"
+```
+
+Tools: `list_ctfs`, `create_ctf`, `ctf_scoreboard`, `add_challenge` (files by
+URL or base64), `autosolve`, `analyze`, `project_status`, `get_flags`,
+`get_report`, `get_transcript`, `read_file`, `list_tools`, `run_tools`,
+`locked_files`, `crack`, `list_wordlists`, `set_challenge`, `toolbox_services`.
+
+`GET /api/v1/services` lists the other web tools of the toolbox (CyberChef,
+ZAP, Wireshark, rev sandbox…) with their URL and whether they are up.
+
 ## Live updates & terminal (WebSocket)
 
 - `ws://localhost:19014/ws/projects/{pid}` → JSON events
