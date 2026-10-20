@@ -267,3 +267,17 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 - [x] Coda di cracking con N worker (`CRACK_WORKERS`), crack per file, `GET/DELETE /cracks`.
 - [ ] Gap reali: evtx, PNG/BMP corrotti + OCR, SSTV→OCR, porte UDP, evil bit, GPP
       cpassword, SAM, Chef, QOI, zstd IDAT, palette PNG, QR sfocato, pcap corrotto, ASK/SAME.
+
+### Prossima sessione (da fare)
+
+- [ ] **Spostare la CI al suo posto**: `git mv ci/ci.yml .github/workflows/ci.yml`
+      (sovrascrive la vecchia) e pushare da un PC con token con scope `workflow`.
+- [ ] **Coda di crack visuale** nella SPA: elenco job in coda/in corso/finiti per
+      file, con stato e progresso (API `crackqueue` già esistente → endpoint + vista).
+- [ ] **Job di nuovo `running`** quando si avvia un crack su un progetto fermo
+      (`done`/`failed`): lo stato del job deve riflettere il crack in corso e
+      tornare `done` a fine crack (incluso il rianalisi dei file estratti).
+- [ ] Verifica gate10 non completata prima del push: rilanciare la suite completa
+      (extra, regressione fixture, 35 reali, `verify_flags.py`) e confrontare
+      con `real-extra8.json`. Unit test: 239 verdi.
+- [ ] Fase 6 (RevSuite / rev auto-finder) ancora da approvare.
