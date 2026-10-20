@@ -38,10 +38,46 @@ Download an artifact produced by a stateless run:
 curl -OJ "localhost:19014/api/v1/tooljobs/<job_id>/files/<artifact-name>"
 ```
 
+## CTFs (one CTF = many challenges)
+
+A CTF groups its challenges (each challenge is a project). Its `flag_format`
+is used by the flag hunt of every challenge, and a flag in that format marks
+the challenge **solved** automatically.
+
+```bash
+# create a CTF: flag_format is a prefix ("DUCTF" / "DUCTF{...}") or a regex
+CID=$(curl -s -H 'Content-Type: application/json' \
+        -d '{"name":"DownUnderCTF 2026","flag_format":"DUCTF{...}","url":"https://play.duc.tf"}' \
+        localhost:19014/api/v1/ctfs | jq -r .id)
+
+# add challenges (one upload = one challenge; start=true analyzes it now)
+curl -s -F name="bad policies" -F category=forensics -F files=@badpolicies.zip \
+     localhost:19014/api/v1/ctfs/$CID/challenges
+
+# autosolver: analyze every unsolved challenge, 2 at a time
+curl -s -X POST -H 'Content-Type: application/json' -d '{"parallel":2}' \
+     localhost:19014/api/v1/ctfs/$CID/autosolve
+curl -s localhost:19014/api/v1/ctfs/$CID/autosolve          # progress
+curl -s -X DELETE localhost:19014/api/v1/ctfs/$CID/autosolve # stop queueing
+
+# the scoreboard: challenges with status / solved / flag / flags found
+curl -s localhost:19014/api/v1/ctfs/$CID | jq '.challenge_list[] | {name,status,solved,flag}'
+curl -s localhost:19014/api/v1/ctfs | jq .                   # all CTFs + counters
+
+# edit a challenge (confirm/correct the flag, move it to another CTF…)
+curl -s -X PATCH -H 'Content-Type: application/json' \
+     -d '{"solved":true,"flag":"DUCTF{...}","category":"misc"}' \
+     localhost:19014/api/v1/projects/<pid>
+```
+
+`PATCH /ctfs/{cid}` edits name/flag_format/url/notes; `DELETE /ctfs/{cid}`
+removes the CTF and keeps its challenges (detached).
+
 ## Projects (stateful, recursive)
 
 ```bash
 # create (Auto = runs everything + auto-cracks; Check = waits for you)
+# optional: -F ctf_id=<cid> -F category=forensics
 PID=$(curl -s -F mode=auto -F files=@a.png -F files=@b.jpg \
         localhost:19014/api/v1/projects | jq -r .id)
 
@@ -106,7 +142,8 @@ A stdlib client is in [`../tools/stegsuite_client.py`](../tools/stegsuite_client
 
 | Model | Notes |
 |---|---|
-| Project | id, name, status, mode(`auto`/`check`), timestamps |
+| Ctf | id, name, flag_format, url, notes |
+| Project (challenge) | id, name, status, mode(`auto`/`check`), ctf_id, category, solved, flag, timestamps |
 | FileNode | id, parent_id, name, rel_path, size, mime, hashes, depth, order_index, origin |
 | ToolRun | file_id, tool, status, needs_password, summary, output_path |
 | Artifact | run_id, file_id, name, path, size |

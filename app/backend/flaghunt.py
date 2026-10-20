@@ -17,6 +17,7 @@ from . import flagpatterns as fp
 from .flagpatterns import (_FUZZY_RE, _GENERIC_RE, _STRICT_RE, FUZZY_SOURCES, GENERIC_NOISY,
                            VISION_SOURCES, _canon_flag, _is_known_prefix, _ok_flag,
                            _rot13_candidates, _url_decoded)
+from .ctfs import format_regex, project_format
 from .models import Finding
 
 # tools whose output is an offset/hex/ASCII dump
@@ -105,6 +106,8 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     fuzzy_ok = head in FUZZY_SOURCES
     noisy = any(p in VISION_SOURCES or p in GENERIC_NOISY for p in source.split(":"))
     generic = [] if noisy else list(_GENERIC_RE)
+    # the challenge's CTF flag format (e.g. DUCTF{...}) applies to every source
+    ctf_re, ctf_is_prefix = format_regex(project_format(session, project_id))
 
     def add(value: str, src: str, ctx: str = "") -> None:
         if not _ok_flag(value) or value in existing:
@@ -160,6 +163,13 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     def scan(view: bytes, with_generic: bool) -> None:
         for val, s, e in custom_flag_matches(view):
             add_raw(val, f"custom:{source}", _snippet(view, s, e))
+        if ctf_re is not None:
+            for m in ctf_re.finditer(view):
+                val = m.group(0).decode("latin-1", "replace")
+                if ctf_is_prefix:   # brace format: same sanity rules as known prefixes
+                    add(val, source, _snippet(view, m.start(), m.end()))
+                else:
+                    add_raw(val, f"custom:{source}", _snippet(view, m.start(), m.end()))
         for pat in _STRICT_RE:
             for m in pat.finditer(view):
                 add(m.group(0).decode("latin-1", "replace"), source,

@@ -20,6 +20,7 @@ from .analyzers import get as get_tool
 from .analyzers.base import ToolContext, ToolResult
 from .config import MAX_DEPTH
 from .crackflow import _auto_crack
+from .ctfs import update_solved
 from .db import engine
 from .events import emit as _emit, event as _event, now as _now
 from .flaghunt import _hunt
@@ -213,6 +214,7 @@ def _run(pid: str, job: Job) -> None:
             _emit(pid, {"type": "status", "status": "error"})
             return
 
+        update_solved(session, pid)
         proj = session.get(Project, pid) or proj
         proj.status = "cancelled" if job.cancelled else "done"
         proj.updated_at = _now()
@@ -241,5 +243,6 @@ def run_tools_on_node(pid: str, file_id: int, tools: list[str],
             record_run(session, pid, node, tool_name, result, logs, t0)
             for src in result.extracted:
                 children.append(_store_extracted(session, pid, node, Path(src), tool=tool_name).id)
+            update_solved(session, pid)
             session.commit()
     return children

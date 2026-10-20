@@ -1,11 +1,12 @@
 """API routers (kept small and independent for easy maintenance)."""
 from __future__ import annotations
 
-from . import analysis, cracking_api, projects, reports, system, tools, ws
+from . import analysis, cracking_api, ctfs, projects, reports, system, tools, ws
 
 routers = [
     system.router,
     projects.router,
+    ctfs.router,
     analysis.router,
     reports.router,
     tools.router,

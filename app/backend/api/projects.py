@@ -3,21 +3,51 @@ from __future__ import annotations
 
 import mimetypes
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from .. import storage
 from ..config import MAX_UPLOAD
 from ..db import delete_project_rows, get_session
-from ..models import Event, FileNode, Project
+from ..models import Ctf, Event, FileNode, Project
 
 router = APIRouter()
 
 
 def _project_dict(p: Project, files: int = 0) -> dict:
     return {"id": p.id, "name": p.name, "status": p.status, "mode": p.mode,
+            "ctf_id": p.ctf_id, "category": p.category, "solved": p.solved, "flag": p.flag,
             "created_at": p.created_at, "updated_at": p.updated_at, "files": files}
+
+
+def create_from_uploads(session: Session, files: list[UploadFile], name: str = "",
+                        mode: str = "auto", ctf_id: str | None = None,
+                        category: str = "") -> dict:
+    """Create a project (challenge) from uploaded files; shared by
+    POST /projects and POST /ctfs/{cid}/challenges."""
+    if not files:
+        raise HTTPException(400, "no files uploaded")
+    if mode not in ("auto", "check"):
+        mode = "auto"
+    total = sum((u.size or 0) for u in files)
+    if total > MAX_UPLOAD:
+        raise HTTPException(413, f"upload too large ({total} > {MAX_UPLOAD} bytes)")
+    pid = storage.new_project_id()
+    storage.init_project(pid)
+    proj = Project(id=pid, name=name or f"project {pid}", mode=mode, status="created",
+                   ctf_id=ctf_id, category=category)
+    session.add(proj)
+    session.add(Event(project_id=pid, message=f"created with {len(files)} file(s)"))
+    for i, up in enumerate(files):
+        meta = storage.save_upload(pid, up.filename or "file", up.file)
+        mime, _ = mimetypes.guess_type(meta["name"])
+        session.add(FileNode(project_id=pid, parent_id=None, name=meta["name"],
+                             rel_path=f"uploads/{meta['name']}", size=meta["size"],
+                             mime=mime, sha256=meta["sha256"], md5=meta["md5"],
+                             depth=0, order_index=i, origin="upload"))
+    session.commit()
+    return _project_dict(proj, files=len(files))
 
 
 def _node_dict(n: FileNode) -> dict:
@@ -32,43 +62,56 @@ def create_project(
     files: list[UploadFile] = File(...),
     name: str = Form(""),
     mode: str = Form("auto"),
+    ctf_id: str = Form(""),
+    category: str = Form(""),
     session: Session = Depends(get_session),
 ) -> dict:
-    if not files:
-        raise HTTPException(400, "no files uploaded")
-    if mode not in ("auto", "check"):
-        mode = "auto"
-    total = sum((u.size or 0) for u in files)
-    if total > MAX_UPLOAD:
-        raise HTTPException(413, f"upload too large ({total} > {MAX_UPLOAD} bytes)")
-    pid = storage.new_project_id()
-    storage.init_project(pid)
-    proj = Project(id=pid, name=name or f"project {pid}", mode=mode, status="created")
-    session.add(proj)
-    session.add(Event(project_id=pid, message=f"created with {len(files)} file(s)"))
-    for i, up in enumerate(files):
-        meta = storage.save_upload(pid, up.filename or "file", up.file)
-        mime, _ = mimetypes.guess_type(meta["name"])
-        session.add(FileNode(project_id=pid, parent_id=None, name=meta["name"],
-                             rel_path=f"uploads/{meta['name']}", size=meta["size"],
-                             mime=mime, sha256=meta["sha256"], md5=meta["md5"],
-                             depth=0, order_index=i, origin="upload"))
-    session.commit()
-    return _project_dict(proj, files=len(files))
+    if ctf_id and not session.get(Ctf, ctf_id):
+        raise HTTPException(404, "ctf not found")
+    return create_from_uploads(session, files, name, mode, ctf_id or None, category)
 
 
 @router.get("/api/v1/projects")
-def list_projects(q: str = "", status: str = "", session: Session = Depends(get_session)) -> list[dict]:
-    rows = session.exec(select(Project).order_by(Project.created_at.desc())).all()
-    out = []
-    for p in rows:
-        if status and p.status != status:
-            continue
-        if q and q.lower() not in (p.name or "").lower() and q.lower() not in p.id:
-            continue
-        count = len(session.exec(select(FileNode).where(FileNode.project_id == p.id)).all())
-        out.append(_project_dict(p, files=count))
-    return out
+def list_projects(q: str = "", status: str = "", ctf_id: str = "",
+                  session: Session = Depends(get_session)) -> list[dict]:
+    stmt = select(Project).order_by(Project.created_at.desc())
+    if status:
+        stmt = stmt.where(Project.status == status)
+    if ctf_id:
+        stmt = stmt.where(Project.ctf_id == ctf_id)
+    rows = session.exec(stmt).all()
+    if q:
+        ql = q.lower()
+        rows = [p for p in rows if ql in (p.name or "").lower() or ql in p.id]
+    counts = dict(session.exec(select(FileNode.project_id, func.count(FileNode.id))
+                               .group_by(FileNode.project_id)).all())
+    return [_project_dict(p, files=counts.get(p.id, 0)) for p in rows]
+
+
+_EDITABLE = {"name", "category", "ctf_id", "solved", "flag", "mode"}
+
+
+@router.patch("/api/v1/projects/{pid}")
+def update_project(pid: str, payload: dict = Body(...),
+                   session: Session = Depends(get_session)) -> dict:
+    """Edit a challenge: name, category, ctf_id (move to a CTF, null = none),
+    solved/flag (confirm or correct the answer), mode."""
+    p = session.get(Project, pid)
+    if not p:
+        raise HTTPException(404, "project not found")
+    bad = set(payload) - _EDITABLE
+    if bad:
+        raise HTTPException(422, f"not editable: {sorted(bad)}")
+    if payload.get("ctf_id") and not session.get(Ctf, payload["ctf_id"]):
+        raise HTTPException(404, "ctf not found")
+    if "mode" in payload and payload["mode"] not in ("auto", "check"):
+        raise HTTPException(422, "mode must be auto or check")
+    for k, v in payload.items():
+        setattr(p, k, (bool(v) if k == "solved" else (v or None) if k == "ctf_id" else str(v or "")))
+    session.add(p)
+    session.commit()
+    count = session.exec(select(func.count(FileNode.id)).where(FileNode.project_id == pid)).one()
+    return _project_dict(p, files=count)
 
 
 @router.get("/api/v1/projects/{pid}")
