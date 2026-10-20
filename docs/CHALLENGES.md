@@ -146,6 +146,26 @@ Altri allegati dell'archivio (analizzati ma **non risolti**: servono tool RE che
 abbiamo): `misc_ufo` (APK Android — serve un decompilatore DEX), `misc_deadgame2`
 (replay StarCraft II, MPQ), `rev_untitled-encore` (PE Windows).
 
+### Set extra 2026-10 — `app/tests/real_challenges_extra.py`
+Challenge pubbliche con flag documentata (repo ufficiali delle CTF o writeup),
+lanciate con `./ctf test -j 3 --extra`. Quelle che richiedono tecniche non ancora
+presenti stanno in `GAPS` (`--gaps`): sono il backlog.
+
+| Challenge | Tecnica | Analyzer |
+| --- | --- | --- |
+| picoCTF 2019 *WhitePages* | em-space/spazio = bit | `zero-width` (two-symbol) |
+| picoCTF 2019 *shark on wire 1* | un carattere per pacchetto UDP | `pcap` (streams) |
+| picoCTF 2019 *shark on wire 2* | testo nelle porte sorgente (5000 + ASCII) | `pcap` (ports) |
+| picoCTF 2021 *Wireshark doo/twoo* | ROT13 in HTTP · DNS exfil fra flag esca | `pcap` |
+| picoCTF 2025 *RED* | LSB RGBA → base64 ripetuto | `zsteg` + flag hunt |
+| picoCTF 2025 *ph4nt0m 1ntrud3r* | base64 un token per pacchetto, in ordine di tempo | `pcap` |
+| picoCTF 2025 *Event-Viewing* | flag in 3 pezzi base64 fra gli eventi | `evtx` |
+| picoCTF 2022 *Enhance!* | flag spezzata nei `<tspan>` di un SVG | `markup-text` |
+| ImaginaryCTF 2024 *bom* | testo dopo un BOM UTF-16 | prefisso `ictf` |
+| TJCTF 2023 *neofeudalism* / *nothing-to-see* · 2024 *conversations* / *pals* | LSB per colonne · zip dopo IEND con password in EXIF · HTTP → EXIF · palette | vari |
+| LA CTF 2025 *extended* | bit alto impostato su ogni byte | `decode` (high-bit) |
+| DUCTF 2024 *Bad Policies* | GPP `cpassword` in `Groups.xml` | `markup-text` |
+
 ### So Meta — EXIF `Artist`
 
 ```bash
