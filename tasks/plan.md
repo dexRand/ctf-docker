@@ -55,7 +55,7 @@ strumenti dedicati e la dashboard li raggruppa di conseguenza.
 
 | Dominio | Suite | Dove | Note |
 |---|---|---|---|
-| Stego / Forensics | **StegSuite** | `:19014` (core) | 58 analyzer, CTF/challenge, autosolver, GUI + REST + MCP, `./ctf scan` |
+| Stego / Forensics | **StegSuite** | `:19014` (core) | 59 analyzer, CTF/challenge, autosolver, GUI + REST + MCP, `./ctf scan` |
 | Rev / Pwn (attivo) | **`rev` sandbox** | `:19018` (profilo `rev`) | **ELF + PE + APK**: Ghidra, radare2, upx, apktool, jadx, gdb, qemu, pwntools |
 | Web | **ZAP** | `:19005` (profilo `web`) | scanner + proxy |
 | Crypto / Math | **SageMath** | `:19010` (profilo `crypto`) | notebook |

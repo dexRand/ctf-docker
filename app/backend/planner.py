@@ -19,7 +19,7 @@ DEFAULT_PLAN = [
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
     "pcap", "evtx",
     "nested-archive", "git", "7z", "office", "eml", "binwalk-extract", "foremost", "pngcheck",
-    "png-repair", "image-repair",
+    "png-repair", "image-repair", "byte-swap",
 ]
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}
 # cap how many heavy tools run at once across all projects (CPU bound)

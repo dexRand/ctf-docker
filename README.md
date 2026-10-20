@@ -27,7 +27,7 @@ OSINT, reversing, password cracking — each with a **web interface**, behind a
 dashboard that lists them by phase of work.
 
 At its core is **StegSuite**, an analysis workbench that takes the challenge
-files, runs **58 analyzers** recursively, hunts the flag, cracks what is locked
+files, runs **59 analyzers** recursively, hunts the flag, cracks what is locked
 and tells you **how** it got there. It works **per CTF**: create the event, drop
 in its challenges, let the **autosolver** take the easy ones and keep working on
 the rest — yourself, or through an **AI agent** connected over **MCP**.
@@ -47,7 +47,7 @@ the rest — yourself, or through an **AI agent** connected over **MCP**.
 - **One CTF = one project** — a CTF holds its challenges and its flag format;
   a flag in that format marks the challenge **solved**; a scoreboard shows them all.
 - **Autosolver** — analyzes every unsolved challenge, a few at a time.
-- **58 analyzers**, recursive: metadata, strings/encodings/esolangs, image stego
+- **59 analyzers**, recursive: metadata, strings/encodings/esolangs, image stego
   (LSB, steghide, outguess, zsteg…), OCR/QR, audio (spectrogram, morse, DTMF,
   SSTV, WAV LSB/levels), network (tshark, TLS with keys/keylog, streams, DNS
   tunnels), archives/office/email/git, ELF.
@@ -91,7 +91,7 @@ flowchart LR
   agent([AI agent]) -->|MCP| api
   cli([./ctf scan / scripts]) -->|REST| api
   ss --> api[StegSuite API]
-  api --> pipe[analysis pipeline<br/>58 analyzers · flag hunt · cracking]
+  api --> pipe[analysis pipeline<br/>59 analyzers · flag hunt · cracking]
   pipe --> data[(./data<br/>projects · files · reports)]
   api --> svc[service catalog]
   svc -.-> tools[CyberChef · ZAP · Wireshark · SageMath ·<br/>SpiderFoot · Whisper · rev sandbox · …]
@@ -145,7 +145,7 @@ create_ctf → add_challenge(start) → project_status … → get_flags
 | Phase | Tool | URL | What it is for | Profile |
 | --- | --- | --- | --- | --- |
 | Dashboard | Homepage | http://localhost:19001 | Every tool, grouped by phase, with live status | core |
-| Analysis | **StegSuite** | http://localhost:19014 | CTFs/challenges, 58 analyzers, flag hunt, cracking, reports, REST + MCP | core |
+| Analysis | **StegSuite** | http://localhost:19014 | CTFs/challenges, 59 analyzers, flag hunt, cracking, reports, REST + MCP | core |
 | Analysis | FileBrowser | http://localhost:19012 | Browse `./data`: projects, extracted files, reports | core |
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashes, JWT and much more | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercept and rewrite HTTP(S) · proxy on `:19004` | core |
@@ -178,7 +178,7 @@ sandbox (`rev/Dockerfile`).
 | Network | `pcap` (protocols, HTTP/DNS fields, comments, reassembled UDP/TCP streams, base64 split one token per packet, text in source ports, DNS tunnels, HTTP objects, TLS with a key or a TLS 1.3 keylog, HTTP/2) |
 | Archives & documents | `7z`, `nested-archive`, `binwalk` (scan/extract), `foremost`, `office` (OOXML/ODF + macros), `eml`, `git` (history, reflog, every object) |
 | Windows | `evtx` (event logs as text, base64 pieces joined into the flag), GPP `cpassword` decrypted (in `markup-text`) |
-| Repair | `pngcheck`, `png-repair`, `image-repair` (JPEG/BMP/GIF headers, junk prefix) |
+| Repair | `pngcheck`, `png-repair`, `image-repair` (JPEG/BMP/GIF headers, junk prefix), `byte-swap` (16/32-bit word-swapped files) |
 | Binaries | `elf` (sections, dynamic info, checksec), `readelf`, `objdump` |
 
 **Flag hunt** — every tool output is scanned in several views (raw, UTF-16,

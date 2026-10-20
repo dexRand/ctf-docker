@@ -102,3 +102,16 @@ def test_carve_leaves_valid_images_alone() -> None:
 def test_carve_finds_nothing_in_random_data() -> None:
     data, ext = carve_embedded(b"\x00\x01\x02" + b"random bytes" * 10, [])
     assert ext == "" and data == b"\x00\x01\x02" + b"random bytes" * 10
+
+def test_byte_swapped_file_is_restored(tmp_path) -> None:
+    from backend.analyzers.base import ToolContext
+    from backend.analyzers.repair import ByteSwapAnalyzer, _swap
+    jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + bytes(range(50))
+    p = tmp_path / "challengefile"
+    p.write_bytes(_swap(jpeg, 4))
+    res = ByteSwapAnalyzer().run(ToolContext(input=p, workdir=tmp_path / "w"))
+    assert res.status == "done" and res.extracted[0].endswith(".jpg")
+    assert open(res.extracted[0], "rb").read().startswith(jpeg)
+    q = tmp_path / "plain.png"
+    q.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 20)
+    assert ByteSwapAnalyzer().run(ToolContext(input=q, workdir=tmp_path / "w2")).status == "skipped"
