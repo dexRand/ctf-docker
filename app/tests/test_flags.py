@@ -189,3 +189,12 @@ def test_a_flag_never_deletes_a_password_it_contains() -> None:
         kinds = {(f.kind, f.value) for f in s.exec(select(Finding).where(Finding.project_id == pid))}
     assert ("password", "s3cret") in kinds
     assert ("flag", "flag{s3cret}") in kinds
+
+
+def test_hex_dump_lines_are_not_glued_into_a_flag() -> None:
+    # xxd splits the ASCII column across lines; collapsing whitespace used to
+    # join `ITS{exif` with the next line's offset+hex into a bogus flag
+    dump = ("00000070: 0000 0048 0000 0001 4954 537b 6578 6966  ...H....ITS{exif\n"
+            "00000080: 5f66 6c61 675f 327d 0000 ffdb 0043 0008  _flag_2}.....C..\n")
+    out = _hunt_values("fp-xxd", dump, "xxd:exif.jpg")
+    assert not any("00000080" in v for v in out)

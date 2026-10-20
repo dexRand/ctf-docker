@@ -19,6 +19,9 @@ from .flagpatterns import (_FUZZY_RE, _GENERIC_RE, _STRICT_RE, FUZZY_SOURCES, GE
                            _rot13_candidates, _url_decoded)
 from .models import Finding
 
+# tools whose output is an offset/hex/ASCII dump
+HEX_DUMP_SOURCES = ("xxd", "hexyl", "hexdump")
+
 
 def custom_flag_matches(view: bytes) -> list[tuple[str, int, int]]:
     return fp.custom_flag_matches(view)
@@ -84,8 +87,11 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     # `word{...}` matcher would then report as a flag — the source of the bogus
     # "nested decode found ITS{...}" findings. So the collapsed copy is scanned
     # with the STRICT (known-prefix) and rot13 matchers only.
+    # Hex dumps are excluded: their lines start with offsets, so collapsing glues
+    # an ASCII-column fragment to the next line's offset+hex
+    # (`ITS{exif` + `00000080: 5f66…` -> bogus `ITS{exif00000080:5f66…}`).
     collapsed_views: list[bytes] = []
-    if len(data) <= 200_000:
+    if len(data) <= 200_000 and source.split(":", 1)[0] not in HEX_DUMP_SOURCES:
         collapsed = re.sub(rb"\s+", b"", data)
         if collapsed != data:
             collapsed_views.append(collapsed)
