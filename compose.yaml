@@ -14,13 +14,19 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+# common to every service: restart policy, rotated logs, the toolbox network
+x-base: &base
+  restart: unless-stopped
+  logging: *default-logging
+  networks: [ctfnet]
+
 services:
   # ---------------------------------------------------------------- DASHBOARD
   homepage:
+    <<: *base
     image: ghcr.io/gethomepage/homepage:latest
-    restart: unless-stopped
     mem_limit: 512m
-    logging: *default-logging
+    cpus: 0.5
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${HOMEPAGE_PORT:-19001}:3000"
     volumes:
@@ -35,56 +41,50 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       HOMEPAGE_ALLOWED_HOSTS: ${HOMEPAGE_ALLOWED_HOSTS:-localhost:19001,127.0.0.1:19001}
-    networks: [ctfnet]
 
   # -------------------------------------------------------------- CRYPTO/ENCODING
   cyberchef:
+    <<: *base
     image: ghcr.io/gchq/cyberchef:latest
-    restart: unless-stopped
     mem_limit: 256m
-    logging: *default-logging
+    cpus: 0.5
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${CYBERCHEF_PORT:-19002}:8080"
-    networks: [ctfnet]
 
   sagemath:
+    <<: *base
     image: sagemath/sagemath:latest
-    restart: unless-stopped
     command: sage-jupyter
     mem_limit: 2g
     cpus: 1.5
-    logging: *default-logging
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${SAGEMATH_PORT:-19010}:8888"
     volumes:
       - sagemath-home:/home/sage
     profiles: [crypto]
-    networks: [ctfnet]
 
   # ------------------------------------------------------------------------------- WEB
   mitmproxy:
+    <<: *base
     image: mitmproxy/mitmproxy:latest
-    restart: unless-stopped
     mem_limit: 512m
-    logging: *default-logging
+    cpus: 1
     command: mitmweb --web-host 0.0.0.0 --listen-host 0.0.0.0 --set web_password=${MITMWEB_PASSWORD:-mitm}
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${MITMPROXY_PORT:-19004}:8080"   # proxy HTTP(S)
       - "${BIND_ADDR:-127.0.0.1}:${MITMWEB_UI_PORT:-19003}:8081"  # GUI web (mitmweb)
     volumes:
       - mitmproxy:/home/mitmproxy/.mitmproxy
-    networks: [ctfnet]
 
   zap:
+    <<: *base
     build:
       context: ./zap
       dockerfile: Dockerfile
     image: ctf-zap
-    restart: unless-stopped
     user: zap
     mem_limit: 2g
     cpus: 1.5
-    logging: *default-logging
     command: zap-webswing.sh
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${ZAP_UI_PORT:-19005}:8080"      # GUI web -> http://localhost:19005/zap
@@ -92,15 +92,13 @@ services:
     volumes:
       - ./config/zap:/zap/wrk:rw
     profiles: [web]
-    networks: [ctfnet]
 
   # ----------------------------------------------------------------------------- RECON
   spiderfoot:
+    <<: *base
     image: dtagdevsec/spiderfoot:24.04.1
-    restart: unless-stopped
     mem_limit: 1g
     cpus: 1
-    logging: *default-logging
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${SPIDERFOOT_PORT:-19007}:8080"
     volumes:
@@ -112,15 +110,13 @@ services:
       retries: 3
       start_period: 30s
     profiles: [recon]
-    networks: [ctfnet]
 
   # ------------------------------------------------------------------------- FORENSICS
   wireshark:
+    <<: *base
     image: ghcr.io/linuxserver/wireshark:latest
-    restart: unless-stopped
     mem_limit: 2g
     cpus: 1.5
-    logging: *default-logging
     environment:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
@@ -134,7 +130,6 @@ services:
     security_opt:
       - seccomp:unconfined
     profiles: [forensics]
-    networks: [ctfnet]
 
   # ----------------------------------------------------------------------------- AUDIO
   # Whisper-WebUI (Gradio): trascrizione audio/video -> testo/SRT con timestamp.
@@ -144,11 +139,10 @@ services:
   # NB: serve un tag >= v1.0.8 (torch <= 2.8): `latest` ha torch 2.9 e rompe
   # l'import di pyannote/torchaudio (`AudioMetaData`).
   whisper:
+    <<: *base
     image: jhj0517/whisper-webui:v1.0.8-4def223
-    restart: unless-stopped
     mem_limit: 6g
     cpus: 3
-    logging: *default-logging
     entrypoint: ["sh", "-c", "cp -f /opt/whisper/default_parameters.yaml /Whisper-WebUI/configs/default_parameters.yaml && exec python app.py --server_name 0.0.0.0 --server_port 7860 --inbrowser false"]
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${WHISPER_PORT:-19017}:7860"
@@ -157,40 +151,37 @@ services:
       - ./data/whisper/models:/Whisper-WebUI/models
       - ./data/whisper/outputs:/Whisper-WebUI/outputs
     profiles: [audio]
-    networks: [ctfnet]
 
   # --------------------------------------------------------------------------- UTILITY
   it-tools:
+    <<: *base
     image: corentinth/it-tools:latest
-    restart: unless-stopped
     mem_limit: 128m
-    logging: *default-logging
+    cpus: 0.25
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${ITTOOLS_PORT:-19011}:80"
-    networks: [ctfnet]
 
   # Dork generator: pagina statica (nginx upstream, nessuna build custom) che
   # costruisce query Google/Bing/DuckDuckGo/GitHub/Shodan/… da un target.
   # Nessuno scraping: apre solo i link nel motore scelto.
   dork:
+    <<: *base
     image: nginx:alpine
-    restart: unless-stopped
     mem_limit: 64m
-    logging: *default-logging
+    cpus: 0.25
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${DORK_PORT:-19019}:80"
     volumes:
       - ./config/dork:/usr/share/nginx/html:ro
-    networks: [ctfnet]
 
   # FileBrowser: browse ./data (progetti StegSuite, estratti, wordlist). Solo localhost.
   # FileBrowser Quantum (fork attivo di filebrowser, che è archiviato).
   # Configurato in noauth: accesso libero, nessun login.
   filebrowser:
+    <<: *base
     image: gtstef/filebrowser:stable
-    restart: unless-stopped
     mem_limit: 512m
-    logging: *default-logging
+    cpus: 0.5
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${FILEBROWSER_PORT:-19012}:80"
     volumes:
@@ -199,22 +190,16 @@ services:
       - filebrowser-data:/home/filebrowser/data
     environment:
       FILEBROWSER_CONFIG: /config/config.yaml
-    networks: [ctfnet]
 
   # StegSuite — stego/forensics workbench (Auto + Check), API-first, own GUI.
   stegsuite:
+    <<: *base
     build:
       context: .
       dockerfile: app/Dockerfile
     image: ctf-stegsuite
-    restart: unless-stopped
-    # host ports of the other tools (*_PORT), for /api/v1/services and the MCP server
-    env_file:
-      - path: .env
-        required: false
     mem_limit: 4g
     cpus: 3
-    logging: *default-logging
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${STEGSUITE_PORT:-19014}:19014"
     environment:
@@ -234,20 +219,33 @@ services:
       - AUTO_CRACK_MAX_MB=${AUTO_CRACK_MAX_MB:-1}
       - AUTO_CRACK_BUDGET_S=${AUTO_CRACK_BUDGET_S:-120}
       - FLAG_PATTERN=${FLAG_PATTERN:-}
+      # host ports of the other tools, for /api/v1/services and the MCP server
+      - HOMEPAGE_PORT=${HOMEPAGE_PORT:-19001}
+      - STEGSUITE_PORT=${STEGSUITE_PORT:-19014}
+      - FILEBROWSER_PORT=${FILEBROWSER_PORT:-19012}
+      - CYBERCHEF_PORT=${CYBERCHEF_PORT:-19002}
+      - MITMWEB_UI_PORT=${MITMWEB_UI_PORT:-19003}
+      - ITTOOLS_PORT=${ITTOOLS_PORT:-19011}
+      - DORK_PORT=${DORK_PORT:-19019}
+      - ZAP_UI_PORT=${ZAP_UI_PORT:-19005}
+      - SPIDERFOOT_PORT=${SPIDERFOOT_PORT:-19007}
+      - WIRESHARK_HTTP_PORT=${WIRESHARK_HTTP_PORT:-19008}
+      - SAGEMATH_PORT=${SAGEMATH_PORT:-19010}
+      - HASHTOPOLIS_FRONTEND_PORT=${HASHTOPOLIS_FRONTEND_PORT:-19016}
+      - WHISPER_PORT=${WHISPER_PORT:-19017}
+      - REV_PORT=${REV_PORT:-19018}
     volumes:
       - ./data:/data
       - ./wordlists:/wordlists:ro
-    networks: [ctfnet]
 
   # ------------------------------------------------------------------- CRACK
   # Hashtopolis: distributed hashcat cracking (frontend + backend + MySQL).
   # Gli agent si registrano dalla UI (voucher); non ne avviamo uno di default.
   hashtopolis-db:
+    <<: *base
     image: mysql:9.7
-    restart: unless-stopped
     mem_limit: 1g
     cpus: 1
-    logging: *default-logging
     environment:
       MYSQL_ROOT_PASSWORD: ${HASHTOPOLIS_DB_ROOT_PASS:-hashtopolis}
       MYSQL_DATABASE: ${HASHTOPOLIS_DB_NAME:-hashtopolis}
@@ -255,16 +253,22 @@ services:
       MYSQL_PASSWORD: ${HASHTOPOLIS_DB_PASS:-hashtopolis}
     volumes:
       - hashtopolis-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     profiles: [crack]
-    networks: [ctfnet]
 
   hashtopolis-backend:
+    <<: *base
     image: hashtopolis/backend:latest
-    restart: unless-stopped
     mem_limit: 1g
     cpus: 1
-    logging: *default-logging
-    depends_on: [hashtopolis-db]
+    depends_on:
+      hashtopolis-db:
+        condition: service_healthy
     environment:
       HASHTOPOLIS_DB_TYPE: mysql
       HASHTOPOLIS_DB_USER: ${HASHTOPOLIS_DB_USER:-hashtopolis}
@@ -281,32 +285,29 @@ services:
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${HASHTOPOLIS_BACKEND_PORT:-19015}:80"
     profiles: [crack]
-    networks: [ctfnet]
 
   hashtopolis-frontend:
+    <<: *base
     image: hashtopolis/frontend:latest
-    restart: unless-stopped
     mem_limit: 512m
     cpus: 1
-    logging: *default-logging
     depends_on: [hashtopolis-backend]
     environment:
       HASHTOPOLIS_BACKEND_URL: ${HASHTOPOLIS_BACKEND_URL:-http://localhost:19015}
     ports:
       - "${BIND_ADDR:-127.0.0.1}:${HASHTOPOLIS_FRONTEND_PORT:-19016}:80"
     profiles: [crack]
-    networks: [ctfnet]
 
   # ------------------------------------------------------------- REV (analisi ELF attiva)
   # Sandbox per eseguire/debuggiare binari ELF sconosciuti (gdb, strace, ltrace,
   # pwntools, qemu-user) da un terminale web. Rete INTERNA (nessun accesso a
   # internet), cap_drop ALL, no-new-privileges. Solo localhost. Avvio: ./ctf up rev
   rev:
+    <<: *base
     build:
       context: ./rev
       dockerfile: Dockerfile
     image: ctf-rev
-    restart: unless-stopped
     mem_limit: 4g
     cpus: 2
     pids_limit: 512
@@ -316,7 +317,6 @@ services:
       - ALL
     cap_add:
       - SYS_PTRACE        # gdb/debug di processi figli
-    logging: *default-logging
     volumes:
       - ./data/rev:/work
     working_dir: /work
@@ -326,11 +326,10 @@ services:
   # Unico punto d'accesso al sandbox: inoltra la porta 19018 (localhost) a
   # `rev` sulla rete interna. `rev` NON è pubblicato, quindi non ha egress.
   rev-proxy:
+    <<: *base
     image: alpine/socat:latest
-    restart: unless-stopped
     mem_limit: 64m
     cpus: 0.5
-    logging: *default-logging
     depends_on: [rev]
     command: ["TCP-LISTEN:7681,fork,reuseaddr", "TCP:rev:7681"]
     ports:
