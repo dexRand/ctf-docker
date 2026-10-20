@@ -215,3 +215,14 @@ def test_decode_strips_the_high_bit() -> None:
     from backend.analyzers.decode import candidates
     data = bytes(b | 0x80 for b in b"lactf{high_bit_set}")
     assert candidates(data)["high-bit"] == b"lactf{high_bit_set}"
+
+
+def test_markup_text_joins_a_flag_split_across_tspans(tmp_path) -> None:
+    from backend.analyzers.base import ToolContext
+    from backend.analyzers.text import MarkupTextAnalyzer
+    svg = tmp_path / "d.svg"
+    svg.write_text('<svg><text><tspan>p </tspan><tspan>i c o C T F { 3 n h </tspan>'
+                   '<tspan>4 n c 3 d }</tspan></text><!-- note --></svg>')
+    res = MarkupTextAnalyzer().run(ToolContext(input=svg, workdir=tmp_path / "w"))
+    out = _hunt_values("fp-svg", res.output, "markup-text:d.svg")
+    assert "picoCTF{3nh4nc3d}" in out

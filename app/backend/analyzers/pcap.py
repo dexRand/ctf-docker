@@ -9,12 +9,14 @@ TLS traffic is decrypted with tshark and the plaintext HTTP is inspected too.
 """
 from __future__ import annotations
 
+import re
+
 import base64
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, list_files, which
 from .registry import register
-from .util import printable_ratio
+from .util import b64decode_loose, printable_ratio
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
 
@@ -164,20 +166,26 @@ def _streams_text(ctx: ToolContext, tls: list[str]) -> str:
     """Payload of every UDP/TCP conversation joined in order, shown as text
     (non-printables as '.') when it reads like text or holds a brace."""
     proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-T", "fields", "-E", "separator=\t",
-                    "-e", "udp.stream", "-e", "udp.payload", "-e", "tcp.stream", "-e", "tcp.payload"],
-                   timeout=180)
+                    "-e", "frame.time_epoch", "-e", "udp.stream", "-e", "udp.payload",
+                    "-e", "tcp.stream", "-e", "tcp.payload"], timeout=180)
     joined: dict[tuple[str, str], bytearray] = {}
+    timed: list[tuple[float, bytes]] = []
     for line in (proc.stdout or "").splitlines():
-        cols = line.split("\t") + ["", "", "", ""]
-        for proto, sid, payload in (("udp", cols[0], cols[1]), ("tcp", cols[2], cols[3])):
+        cols = line.split("\t") + ["", "", "", "", ""]
+        for proto, sid, payload in (("udp", cols[1], cols[2]), ("tcp", cols[3], cols[4])):
             if not sid or not payload:
                 continue
+            try:
+                chunk = bytes.fromhex(payload.replace(":", "").split(",")[0])
+            except ValueError:
+                continue
+            try:
+                timed.append((float(cols[0] or 0), chunk))
+            except ValueError:
+                pass
             buf = joined.setdefault((proto, sid), bytearray())
             if len(buf) < _MAX_STREAM:
-                try:
-                    buf += bytes.fromhex(payload.replace(":", "").split(",")[0])
-                except ValueError:
-                    pass
+                buf += chunk
     out = []
     for (proto, sid), buf in joined.items():
         if len(buf) < 4:
@@ -187,7 +195,31 @@ def _streams_text(ctx: ToolContext, tls: list[str]) -> str:
             out.append(f"[{proto} stream {sid}, {len(buf)} B] {text[:4000]}")
         if len(out) >= _MAX_STREAMS_OUT:
             break
+    tokens = _b64_per_packet(timed)
+    if tokens:
+        out.append(f"[base64 per packet, time order] {tokens}")
     return "\n".join(out)
+
+
+_B64_TOKEN = re.compile(rb"^[A-Za-z0-9+/]{2,}={0,2}$")
+
+
+def _b64_per_packet(timed: list[tuple[float, bytes]]) -> str:
+    """Packets that each carry one base64 token (exfil split across packets,
+    possibly out of order): decode each in capture-time order and join the
+    pieces that decode to text."""
+    toks = [(t, c.strip()) for t, c in timed if 4 <= len(c.strip()) <= 512 and _B64_TOKEN.match(c.strip())]
+    if len(toks) < 3 or len(toks) < 0.5 * len(timed):
+        return ""
+    parts = []
+    for _t, tok in sorted(toks, key=lambda x: x[0]):
+        try:
+            dec = b64decode_loose(tok)
+        except ValueError:
+            continue
+        if dec and printable_ratio(dec) >= 0.9:
+            parts.append(dec.decode("latin-1"))
+    return "".join(parts)
 
 
 class PcapAnalyzer(Analyzer):

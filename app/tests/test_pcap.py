@@ -141,3 +141,8 @@ def test_expand_http_response_request_only_row_is_dropped() -> None:
     # a request packet row carries the URI but no response headers
     assert _expand_http_response("https://host/\t") == ""
     assert _expand_http_response("https://host/\t   ") == ""
+
+def test_base64_tokens_one_per_packet_are_joined_in_time_order():
+    from backend.analyzers.pcap import _b64_per_packet
+    timed = [(3.0, b"fQ=="), (1.0, b"cGljb0NURg=="), (2.0, b"ezF0X3c0cw=="), (0.5, b"J4auZMY=")]
+    assert _b64_per_packet(timed) == "picoCTF{1t_w4s}"

@@ -10,7 +10,7 @@ from .analyzers.util import ARCHIVE_EXT
 # ordered analysis plan (order matters: metadata -> text -> steg -> extract)
 DEFAULT_PLAN = [
     "file", "exiftool", "identify", "ffprobe", "pdfinfo",
-    "strings", "hexyl", "xxd", "pdftotext", "pdfid", "elf", "readelf", "objdump",
+    "strings", "markup-text", "hexyl", "xxd", "pdftotext", "pdfid", "elf", "readelf", "objdump",
     "binwalk-scan",
     "decode", "blobs", "zero-width", "whitespace", "case-bits", "homoglyph", "morse-text",
     "ocr", "qr",
