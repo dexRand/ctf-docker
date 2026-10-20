@@ -21,7 +21,7 @@ _MAX_OUT = 50_000
 
 class ZeroWidthAnalyzer(Analyzer):
     name = "zero-width"
-    category = "stego"
+    category = "steg"
     description = "Decode zero-width (ZWSP/ZWNJ/ZWJ) and trailing-whitespace stego."
     accepts = TEXT_EXT + ("text/",)
     display_order = 128

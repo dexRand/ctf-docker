@@ -30,7 +30,7 @@ _MIN_HITS = 6
 
 class HomoglyphAnalyzer(Analyzer):
     name = "homoglyph"
-    category = "stego"
+    category = "steg"
     description = "De-homoglyph (Cyrillic/Greek look-alikes) and decode Latin/non-Latin bits."
     accepts = TEXT_EXT + ("text/",)
     display_order = 131

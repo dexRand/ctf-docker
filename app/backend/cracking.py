@@ -24,6 +24,7 @@ from typing import BinaryIO, Callable, Optional
 
 from .analyzers.base import run_cmd
 from .analyzers.util import ARCHIVE_EXT
+from . import storage
 from .config import DATA_DIR
 
 # user-uploaded lists live under /data (persisted); the rest come from the image
@@ -69,51 +70,55 @@ def _expand(p: Path) -> Path:
     return p
 
 
+WORDLIST_SUFFIXES = (".txt", ".lst", ".gz")
+_LINES_CACHE: dict[tuple[str, int, int], int] = {}
+
+
 def _lines(p: Path) -> int:
+    """Line count, cached by (path, size, mtime): rockyou is 14M lines and the
+    wordlist endpoint is polled by the UI."""
     try:
-        with open(p, "rb") as fh:
-            return sum(1 for _ in fh)
+        st = p.stat()
+        key = (str(p), st.st_size, st.st_mtime_ns)
+        if key not in _LINES_CACHE:
+            with open(p, "rb") as fh:
+                _LINES_CACHE[key] = sum(chunk.count(b"\n") for chunk in iter(lambda: fh.read(1 << 20), b""))
+        return _LINES_CACHE[key]
     except OSError:
         return 0
 
 
-def list_wordlists() -> list[dict]:
-    """Available lists, ordered smallest -> largest."""
+def _available() -> list[Path]:
+    """Every wordlist (first directory wins on a name clash), smallest first."""
     found: dict[str, Path] = {}
     for d in WORDLIST_DIRS:
         if not d.is_dir():
             continue
         for p in d.iterdir():
-            if p.is_file() and p.suffix in (".txt", ".lst", ".gz"):
+            if p.is_file() and p.suffix in WORDLIST_SUFFIXES:
                 found.setdefault(p.name, p)
-    return [{"name": p.name, "size": p.stat().st_size, "lines": _lines(p)}
-            for p in sorted(found.values(), key=lambda x: x.stat().st_size)]
+    return sorted(found.values(), key=lambda x: x.stat().st_size)
+
+
+def list_wordlists() -> list[dict]:
+    """Available lists, ordered smallest -> largest."""
+    return [{"name": p.name, "size": p.stat().st_size, "lines": _lines(p)} for p in _available()]
 
 
 def resolve_wordlists(names: Optional[list[str]] = None,
                       max_bytes: Optional[int] = None) -> list[Path]:
-    found: dict[str, Path] = {}
     wanted = set(names) if names else None
-    for d in WORDLIST_DIRS:
-        if not d.is_dir():
-            continue
-        for p in d.iterdir():
-            if not p.is_file() or p.suffix not in (".txt", ".lst", ".gz"):
-                continue
-            if wanted and p.name not in wanted:
-                continue
-            if max_bytes is not None and p.stat().st_size > max_bytes:
-                continue
-            found.setdefault(p.name, p)
-    return [_expand(p) for p in sorted(found.values(), key=lambda x: x.stat().st_size)]
+    return [_expand(p) for p in _available()
+            if (not wanted or p.name in wanted)
+            and (max_bytes is None or p.stat().st_size <= max_bytes)]
 
 
 def save_wordlist(filename: str, src: BinaryIO) -> dict:
     """Store an uploaded wordlist under ``/data/wordlists`` (persisted) and
     return its metadata. Rejects oversized uploads and sanitises the name."""
     USER_WORDLIST_DIR.mkdir(parents=True, exist_ok=True)
-    name = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(filename or "wordlist.txt").name) or "wordlist.txt"
-    if not name.lower().endswith((".txt", ".lst", ".gz")):
+    name = storage.sanitize_name(filename or "wordlist.txt")
+    if not name.lower().endswith(WORDLIST_SUFFIXES):
         name += ".txt"
     dest = USER_WORDLIST_DIR / name
     n = 1

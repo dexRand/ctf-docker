@@ -257,7 +257,7 @@ class SstvAnalyzer(Analyzer):
     category = "audio"
     description = "Decode an SSTV audio transmission (Scottie S1/S2) into an image (m00nwalk)."
     accepts = AV_EXT
-    display_order = 420
+    display_order = 421
 
     def _to_wav(self, ctx: ToolContext) -> Path:
         """Return a WAV path, converting with ffmpeg when the input is not PCM."""

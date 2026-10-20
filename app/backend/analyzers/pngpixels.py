@@ -19,10 +19,10 @@ _MAX_VALUES = 16
 
 class PngPixelsAnalyzer(Analyzer):
     name = "png-pixels"
-    category = "stego"
+    category = "steg"
     description = "Decode data hidden in low-bit-depth / palette PNG pixel values."
     accepts = (".png", "image/png")
-    display_order = 274
+    display_order = 337
 
     def run(self, ctx: ToolContext) -> ToolResult:
         try:

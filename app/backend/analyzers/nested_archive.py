@@ -170,7 +170,7 @@ class NestedArchiveAnalyzer(Analyzer):
     description = "Unwrap deep chains of nested archives (like1000) in one pass."
     has_archive = True
     accepts = ARCHIVE_EXT
-    display_order = 218
+    display_order = 219
 
     def run(self, ctx: ToolContext) -> ToolResult:
         layers, finals = peel(ctx.input, ctx.sub(self.name))

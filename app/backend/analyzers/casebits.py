@@ -22,7 +22,7 @@ def _bacon(bits: list[int]) -> str:
 
 class CaseBitsAnalyzer(Analyzer):
     name = "case-bits"
-    category = "stego"
+    category = "steg"
     description = "Decode data hidden in the letter case (upper/lower bits, Bacon)."
     accepts = TEXT_EXT + ("text/",)
     display_order = 130

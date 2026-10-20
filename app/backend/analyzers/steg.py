@@ -1,9 +1,7 @@
 """Steganography analyzers (image / audio payloads)."""
 from __future__ import annotations
 
-from pathlib import Path
-
-from .base import Analyzer, ToolContext, ToolResult, list_files, which, out_of
+from .base import Analyzer, ToolContext, ToolResult, which, out_of
 from .registry import register, subprocess_analyzer
 
 subprocess_analyzer(
@@ -12,9 +10,6 @@ subprocess_analyzer(
     accepts=(".png", ".bmp"),
 )
 
-
-def _first(d: Path) -> list[Path]:
-    return list_files(d)
 
 
 # steghide errors meaning the carrier itself is unusable (never worth cracking)
