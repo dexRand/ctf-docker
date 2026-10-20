@@ -226,3 +226,9 @@ def test_markup_text_joins_a_flag_split_across_tspans(tmp_path) -> None:
     res = MarkupTextAnalyzer().run(ToolContext(input=svg, workdir=tmp_path / "w"))
     out = _hunt_values("fp-svg", res.output, "markup-text:d.svg")
     assert "picoCTF{3nh4nc3d}" in out
+
+
+def test_guid_in_braces_is_not_a_flag_unless_known_prefix() -> None:
+    out = _hunt_values("fp-guid", r"Interface \Device\NPF_{EE54A6A6-8BD8-498A-995A-DE0B78012FBE} "
+                       "and flag{EE54A6A6-8BD8-498A-995A-DE0B78012FBE}", "exiftool:x.pcapng")
+    assert out == {"flag{EE54A6A6-8BD8-498A-995A-DE0B78012FBE}"}

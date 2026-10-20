@@ -20,6 +20,8 @@ from .flagpatterns import (_FUZZY_RE, _GENERIC_RE, _STRICT_RE, FUZZY_SOURCES, GE
 from .ctfs import format_regex, project_format
 from .models import Finding
 
+_GUID_BODY = re.compile(r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
+
 # tools whose output is an offset/hex/ASCII dump
 HEX_DUMP_SOURCES = ("xxd", "hexyl", "hexdump")
 
@@ -177,8 +179,12 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         if with_generic:
             for pat in generic:
                 for m in pat.finditer(view):
-                    add(m.group(0).decode("latin-1", "replace"), source,
-                        _snippet(view, m.start(), m.end()))
+                    val = m.group(0).decode("latin-1", "replace")
+                    # `word{GUID}` from an unknown prefix is an identifier (Windows
+                    # `NPF_{…}` interface names, COM/registry keys), not a flag
+                    if _GUID_BODY.fullmatch(val[val.find("{") + 1:-1]):
+                        continue
+                    add(val, source, _snippet(view, m.start(), m.end()))
         if fuzzy_ok:
             for m in _FUZZY_RE.finditer(view):
                 add((m.group(1) + b"{" + m.group(2) + b"}").decode("latin-1", "replace"),
