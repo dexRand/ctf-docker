@@ -149,18 +149,22 @@ class Analyzer:
 class SubprocessAnalyzer(Analyzer):
     cmd: list = []
     soft_errors: bool = False  # tools whose non-zero exit is informational, not a failure
+    alt_bins: tuple = ()       # other names of the binary (e.g. pdfid / pdfid.py)
+    max_output: int = 0        # cap the output (0 = no cap)
 
     def run(self, ctx: ToolContext) -> ToolResult:
         if not self.cmd:
             return ToolResult(self.name, status="skipped", summary="no command configured")
-        if not which(str(self.cmd[0])):
+        binary = next((b for b in (str(self.cmd[0]), *self.alt_bins) if which(b)), None)
+        if not binary:
             return ToolResult(self.name, status="skipped", summary=f"{self.cmd[0]} not installed")
-        cmd = [str(ctx.input) if str(c) == "{input}" else str(c) for c in self.cmd]
+        cmd = [binary] + [str(ctx.input) if str(c) == "{input}" else str(c) for c in self.cmd[1:]]
         proc = ctx.run(cmd)
         ok = proc.returncode == 0 or self.soft_errors
+        out = out_of(proc)
         return ToolResult(
             self.name,
             status="done" if ok else "error",
-            output=out_of(proc),
+            output=out[:self.max_output] if self.max_output else out,
             exit_code=proc.returncode,
         )
