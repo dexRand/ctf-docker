@@ -40,6 +40,28 @@ class ToolContext:
     password: Optional[str] = None
     log: Callable[[str], None] = lambda _m: None
 
+    def siblings(self, head_bytes: int = 4096) -> list[tuple[Path, bytes, int]]:
+        """Other files of the same project (uploads + analysed nodes) as
+        (path, first `head_bytes` bytes, size). Analyzers only get one file, but
+        a key / keylog / password hint often ships next to it. Reads only the
+        head, never whole files."""
+        proj = self.workdir.parent.parent   # <project>/work/<node id>
+        out: list[tuple[Path, bytes, int]] = []
+        for sub in ("uploads", "files"):
+            d = proj / sub
+            if not d.is_dir():
+                continue
+            for p in sorted(d.iterdir()):
+                if not p.is_file() or p == self.input:
+                    continue
+                try:
+                    with open(p, "rb") as fh:
+                        head = fh.read(head_bytes)
+                    out.append((p, head, p.stat().st_size))
+                except OSError:
+                    continue
+        return out
+
     def sub(self, tool: str) -> Path:
         d = self.workdir / tool
         d.mkdir(parents=True, exist_ok=True)

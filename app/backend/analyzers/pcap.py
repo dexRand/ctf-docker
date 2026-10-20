@@ -24,23 +24,10 @@ def _key_files(ctx: ToolContext) -> list[Path]:
     Analyzers only receive the current file, so we look at the sibling uploads
     and analysed nodes of the same project (that is how WebNet0/1 ship the key).
     """
-    proj = ctx.workdir.parent.parent
-    found: list[Path] = []
-    for sub in ("uploads", "files"):
-        d = proj / sub
-        if not d.is_dir():
-            continue
-        for p in sorted(d.iterdir()):
-            if not p.is_file() or p == ctx.input:
-                continue
-            try:
-                head = p.read_bytes()[:4096]
-            except OSError:
-                continue
-            if (b"PRIVATE KEY-----" in head or b"CLIENT_RANDOM" in head
-                    or b"TRAFFIC_SECRET" in head or b"EXPORTER_SECRET" in head
-                    or b"SSLKEYLOGFILE" in head or b"sslkeylog" in head.lower()):
-                found.append(p)
+    found = [p for p, head, _ in ctx.siblings(4096)
+             if b"PRIVATE KEY-----" in head or b"CLIENT_RANDOM" in head
+             or b"TRAFFIC_SECRET" in head or b"EXPORTER_SECRET" in head
+             or b"SSLKEYLOGFILE" in head or b"sslkeylog" in head.lower()]
     seen: set[tuple] = set()
     uniq: list[Path] = []
     for p in found:  # a key may appear both as upload and as analysed node
@@ -56,7 +43,8 @@ def _tls_options(keys: list[Path]) -> list[str]:
     opts: list[str] = []
     for k in keys:
         try:
-            head = k.read_bytes()[:4096]
+            with open(k, "rb") as fh:
+                head = fh.read(4096)
         except OSError:
             continue
         # a keylog file has CLIENT_RANDOM (TLS1.2) or the TLS1.3 *_SECRET labels
