@@ -159,7 +159,9 @@ create_ctf → add_challenge(start) → project_status … → get_flags
 | Audio | **Whisper-WebUI** | http://localhost:19017 | Speech-to-text with timestamps (SRT/VTT) | `audio` |
 | Rev/Pwn | **rev sandbox** | http://localhost:19018 | Web terminal for ELF/PE/APK: Ghidra headless, radare2, gdb, strace/ltrace, upx, apktool, jadx, pwntools, qemu-user · no internet | `rev` |
 
-Three images are built locally (everything else is upstream): StegSuite
+Every upstream image is pinned by digest (`tag@sha256:…`), so a new machine
+runs exactly what was tested; `python3 tools/pin_images.py` shows newer builds
+and `--write` updates them. Three images are built locally: StegSuite
 (`app/Dockerfile`), ZAP with extra add-ons (`zap/Dockerfile`) and the rev
 sandbox (`rev/Dockerfile`).
 

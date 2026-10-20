@@ -14,6 +14,9 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+# Images are pinned by digest (`tag@sha256:…`): a rebuild or a new machine gets
+# exactly what was tested. Refresh them with `python3 tools/pin_images.py`.
+
 # common to every service: restart policy, rotated logs, the toolbox network
 x-base: &base
   restart: unless-stopped
@@ -24,7 +27,7 @@ services:
   # ---------------------------------------------------------------- DASHBOARD
   homepage:
     <<: *base
-    image: ghcr.io/gethomepage/homepage:latest
+    image: ghcr.io/gethomepage/homepage:v2.6.0@sha256:3e38fe788223cb46a3ce1f046ef11667b40f7707fdca0dcbfa3f86c5c42bf1e8
     mem_limit: 512m
     cpus: 0.5
     ports:
@@ -62,7 +65,7 @@ services:
   # -------------------------------------------------------------- CRYPTO/ENCODING
   cyberchef:
     <<: *base
-    image: ghcr.io/gchq/cyberchef:latest
+    image: ghcr.io/gchq/cyberchef:latest@sha256:f04a39926344faf8e4cbbc8c92fb125d2b466f9be62db09aff23c7c406101a51
     mem_limit: 256m
     cpus: 0.5
     ports:
@@ -70,7 +73,7 @@ services:
 
   sagemath:
     <<: *base
-    image: sagemath/sagemath:latest
+    image: sagemath/sagemath:latest@sha256:310dfe23fc786f3a5a06a7b0387c60201ec79b32c0db941b7624505ee5edb565
     command: sage-jupyter
     mem_limit: 2g
     cpus: 1.5
@@ -83,7 +86,7 @@ services:
   # ------------------------------------------------------------------------------- WEB
   mitmproxy:
     <<: *base
-    image: mitmproxy/mitmproxy:latest
+    image: mitmproxy/mitmproxy:12.2.3@sha256:00b77b5d8804c8ad18cb6caefbf9d5849e895e8986c5ce011f4ae30f4385962f
     mem_limit: 512m
     cpus: 1
     command: mitmweb --web-host 0.0.0.0 --listen-host 0.0.0.0 --set web_password=${MITMWEB_PASSWORD:-mitm}
@@ -113,7 +116,7 @@ services:
   # ----------------------------------------------------------------------------- RECON
   spiderfoot:
     <<: *base
-    image: dtagdevsec/spiderfoot:24.04.1
+    image: dtagdevsec/spiderfoot:24.04.1@sha256:2eda6a8152c2d21aac5129832e4c17a695befd35096141219e9e36494e8ceb1f
     mem_limit: 1g
     cpus: 1
     ports:
@@ -131,7 +134,7 @@ services:
   # ------------------------------------------------------------------------- FORENSICS
   wireshark:
     <<: *base
-    image: ghcr.io/linuxserver/wireshark:latest
+    image: ghcr.io/linuxserver/wireshark:4.6.6-r0-ls329@sha256:9f35035b96eec43ec8736e0ad66fa52b0f5a12e37b1e8e9cfc6f19bf2fdf7583
     mem_limit: 2g
     cpus: 1.5
     environment:
@@ -157,7 +160,7 @@ services:
   # l'import di pyannote/torchaudio (`AudioMetaData`).
   whisper:
     <<: *base
-    image: jhj0517/whisper-webui:v1.0.8-4def223
+    image: jhj0517/whisper-webui:v1.0.8-4def223@sha256:e61d8ee5d5de80a6b290300f91f21e7ba4fd8c3aaf24d65a10551de3f513c6c3
     mem_limit: 6g
     cpus: 3
     entrypoint: ["sh", "-c", "cp -f /opt/whisper/default_parameters.yaml /Whisper-WebUI/configs/default_parameters.yaml && exec python app.py --server_name 0.0.0.0 --server_port 7860 --inbrowser false"]
@@ -172,7 +175,7 @@ services:
   # --------------------------------------------------------------------------- UTILITY
   it-tools:
     <<: *base
-    image: corentinth/it-tools:latest
+    image: corentinth/it-tools:latest@sha256:8b8128748339583ca951af03dfe02a9a4d7363f61a216226fc28030731a5a61f
     mem_limit: 128m
     cpus: 0.25
     ports:
@@ -183,7 +186,7 @@ services:
   # Nessuno scraping: apre solo i link nel motore scelto.
   dork:
     <<: *base
-    image: nginx:alpine
+    image: nginx:1-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d
     mem_limit: 64m
     cpus: 0.25
     ports:
@@ -196,7 +199,7 @@ services:
   # Configurato in noauth: accesso libero, nessun login.
   filebrowser:
     <<: *base
-    image: gtstef/filebrowser:stable
+    image: gtstef/filebrowser:stable@sha256:2e3936caf7b12908f7d3ebb68ddfcea075cda5f732e4bd95beae6cfa529cbec7
     mem_limit: 512m
     cpus: 0.5
     ports:
@@ -260,7 +263,7 @@ services:
   # Gli agent si registrano dalla UI (voucher); non ne avviamo uno di default.
   hashtopolis-db:
     <<: *base
-    image: mysql:9.7
+    image: mysql:9.7@sha256:e2fa358a74ac81148e7e27d9433e4c0ab62133de8ea4428b4f39a51a4ba7d07f
     mem_limit: 1g
     cpus: 1
     environment:
@@ -280,7 +283,7 @@ services:
 
   hashtopolis-backend:
     <<: *base
-    image: hashtopolis/backend:latest
+    image: hashtopolis/backend:latest@sha256:f8ea58f6f116cb67b559e351ca466687ae564b8942a83b453bcd6dbdde0f654d
     mem_limit: 1g
     cpus: 1
     depends_on:
@@ -305,7 +308,7 @@ services:
 
   hashtopolis-frontend:
     <<: *base
-    image: hashtopolis/frontend:latest
+    image: hashtopolis/frontend:latest@sha256:5749f8d6835205d390f8371cf55ac9a141248aa3e32902c8af42a6e939036732
     mem_limit: 512m
     cpus: 1
     depends_on: [hashtopolis-backend]
@@ -344,7 +347,7 @@ services:
   # `rev` sulla rete interna. `rev` NON è pubblicato, quindi non ha egress.
   rev-proxy:
     <<: *base
-    image: alpine/socat:latest
+    image: alpine/socat:latest@sha256:22d77becaeeea8ef56b8c4bb2312323acafe85354be6a85714ff5050e3537842
     mem_limit: 64m
     cpus: 0.5
     depends_on: [rev]
