@@ -9,14 +9,12 @@ TLS traffic is decrypted with tshark and the plaintext HTTP is inspected too.
 """
 from __future__ import annotations
 
-import re
-
 import base64
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, list_files, which
 from .registry import register
-from .util import b64decode_loose, printable_ratio
+from .util import B64_TOKEN, join_b64_fragments, printable_ratio
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
 
@@ -201,25 +199,13 @@ def _streams_text(ctx: ToolContext, tls: list[str]) -> str:
     return "\n".join(out)
 
 
-_B64_TOKEN = re.compile(rb"^[A-Za-z0-9+/]{2,}={0,2}$")
-
-
 def _b64_per_packet(timed: list[tuple[float, bytes]]) -> str:
     """Packets that each carry one base64 token (exfil split across packets,
-    possibly out of order): decode each in capture-time order and join the
-    pieces that decode to text."""
-    toks = [(t, c.strip()) for t, c in timed if 4 <= len(c.strip()) <= 512 and _B64_TOKEN.match(c.strip())]
+    possibly out of order): decode them in capture-time order and join."""
+    toks = [(t, c.strip()) for t, c in timed if 4 <= len(c.strip()) <= 512 and B64_TOKEN.match(c.strip())]
     if len(toks) < 3 or len(toks) < 0.5 * len(timed):
         return ""
-    parts = []
-    for _t, tok in sorted(toks, key=lambda x: x[0]):
-        try:
-            dec = b64decode_loose(tok)
-        except ValueError:
-            continue
-        if dec and printable_ratio(dec) >= 0.9:
-            parts.append(dec.decode("latin-1"))
-    return "".join(parts)
+    return join_b64_fragments([tok for _t, tok in sorted(toks, key=lambda x: x[0])])
 
 
 class PcapAnalyzer(Analyzer):

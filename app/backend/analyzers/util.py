@@ -5,6 +5,7 @@ Keep this module dependency-free (stdlib only): every analyzer imports it.
 from __future__ import annotations
 
 import base64
+import re
 
 # --- file-type groups ---------------------------------------------------------
 # union of what the text analyzers used to accept one by one: widening a list
@@ -54,6 +55,52 @@ def is_printable(blob: bytes, threshold: float = 0.90) -> bool:
 def b64decode_loose(raw: bytes) -> bytes:
     """base64 that tolerates missing padding (raises on invalid input)."""
     return base64.b64decode(raw + b"=" * ((4 - len(raw) % 4) % 4), validate=False)
+
+
+B64_TOKEN = re.compile(rb"^[A-Za-z0-9+/]{2,}={0,2}$")
+
+
+def join_b64_fragments(tokens: list[bytes]) -> str:
+    """Decode base64 pieces (already in the right order) and join the ones that
+    decode to text: a flag exfiltrated/logged a few characters at a time."""
+    parts = []
+    for tok in tokens:
+        tok = tok.strip()
+        if not B64_TOKEN.match(tok):
+            continue
+        try:
+            dec = b64decode_loose(tok)
+        except ValueError:
+            continue
+        if dec and printable_ratio(dec) >= 0.9:
+            parts.append(dec.decode("latin-1"))
+    return "".join(parts)
+
+
+_FLAG_START = re.compile(r"[A-Za-z0-9_]{2,32}\{[A-Za-z0-9_\-!?@.,:]*$")
+_FLAG_BODY = re.compile(r"[A-Za-z0-9_\-!?@.,:]+\}?$")
+
+
+def assemble_flag_fragments(pieces: list[str]) -> list[str]:
+    """Rebuild flags split into pieces mixed with noise (event logs, packets):
+    start at a piece ending with `prefix{…`, append the following pieces that
+    look like flag body (no brace), stop at the one that closes with `}`."""
+    flags: list[str] = []
+    cur: str | None = None
+    for p in pieces:
+        p = p.strip()
+        if cur is None:
+            if _FLAG_START.search(p):
+                cur = p[_FLAG_START.search(p).start():]
+            continue
+        if _FLAG_BODY.fullmatch(p):
+            cur += p
+            if p.endswith("}"):
+                flags.append(cur)
+                cur = None
+        elif _FLAG_START.search(p):        # a new start: drop the unfinished one
+            cur = p[_FLAG_START.search(p).start():]
+    return flags
 
 
 # --- magic bytes --------------------------------------------------------------

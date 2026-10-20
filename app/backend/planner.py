@@ -17,7 +17,7 @@ DEFAULT_PLAN = [
     "zsteg", "lsb-carve", "psimage", "png-chunks", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
     "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
-    "pcap",
+    "pcap", "evtx",
     "nested-archive", "git", "7z", "office", "eml", "binwalk-extract", "foremost", "pngcheck",
     "png-repair", "image-repair",
 ]
@@ -41,6 +41,7 @@ def _detect_ext(ftype: str) -> str:
         ("gzip compressed", ".gz"), ("bzip2 compressed", ".bz2"),
         ("wave audio", ".wav"), ("mpeg audio", ".mp3"), ("mp3", ".mp3"),
         ("flac", ".flac"), ("ogg", ".ogg"), ("iso media", ".mp4"),
+        ("ms windows vista event log", ".evtx"),
     ):
         if key in low:
             return ext

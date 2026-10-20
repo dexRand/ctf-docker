@@ -81,7 +81,7 @@ fa la GUI è disponibile via REST e via **MCP** (per un'IA). Lavora **a progetto
 una **CTF** raggruppa le sue **challenge**, il formato flag della CTF guida la
 ricerca e segna le challenge risolte; l'**autosolver** analizza tutte quelle aperte.
 Due modalità per challenge: **Auto** (fa tutto e prova le wordlist) e **Check**
-(scansiona, poi scegli cosa attaccare). Analisi ricorsiva e ordinata su **56 tool**
+(scansiona, poi scegli cosa attaccare). Analisi ricorsiva e ordinata su **57 tool**
 (metadati, testo/esolang, stego, immagini/OCR, audio/SSTV/DTMF, pcap/TLS, ELF,
 email, git, archivi) + flag hunt + cracking (stegseek, fcrackzip, hashcat+zip2hashcat,
 pdfcrack, bkcrack). Report, log e transcript sono generati dal backend; i file

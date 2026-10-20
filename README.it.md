@@ -27,7 +27,7 @@ reversing, cracking di password — ognuno con **interfaccia web**, dietro una
 dashboard che li elenca per fase di lavoro.
 
 Il cuore è **StegSuite**, un banco di analisi che prende i file della challenge,
-esegue **56 analyzer** in modo ricorsivo, cerca la flag, cracca ciò che è
+esegue **57 analyzer** in modo ricorsivo, cerca la flag, cracca ciò che è
 bloccato e ti dice **come** ci è arrivato. Lavora **per CTF**: crei l'evento,
 carichi le sue challenge, lasci che l'**autosolver** risolva quelle facili e
 continui sulle altre — da solo, o tramite un'**IA** collegata via **MCP**.
@@ -47,7 +47,7 @@ continui sulle altre — da solo, o tramite un'**IA** collegata via **MCP**.
 - **Una CTF = un progetto** — la CTF contiene le sue challenge e il formato
   flag; una flag in quel formato segna la challenge **risolta**; uno scoreboard le mostra tutte.
 - **Autosolver** — analizza tutte le challenge aperte, poche alla volta.
-- **56 analyzer** ricorsivi: metadati, stringhe/encoding/esolang, stego su
+- **57 analyzer** ricorsivi: metadati, stringhe/encoding/esolang, stego su
   immagini (LSB, steghide, outguess, zsteg…), OCR/QR, audio (spettrogramma,
   morse, DTMF, SSTV, LSB/livelli WAV), rete (tshark, TLS con chiavi/keylog,
   flussi, tunnel DNS), archivi/office/email/git, ELF.
@@ -92,7 +92,7 @@ flowchart LR
   ia([IA]) -->|MCP| api
   cli([./ctf scan / script]) -->|REST| api
   ss --> api[API StegSuite]
-  api --> pipe[pipeline di analisi<br/>56 analyzer · caccia alla flag · cracking]
+  api --> pipe[pipeline di analisi<br/>57 analyzer · caccia alla flag · cracking]
   pipe --> data[(./data<br/>progetti · file · report)]
   api --> svc[catalogo servizi]
   svc -.-> tools[CyberChef · ZAP · Wireshark · SageMath ·<br/>SpiderFoot · Whisper · sandbox rev · …]
@@ -146,7 +146,7 @@ create_ctf → add_challenge(start) → project_status … → get_flags
 | Fase | Tool | URL | A cosa serve | Profilo |
 | --- | --- | --- | --- | --- |
 | Dashboard | Homepage | http://localhost:19001 | Tutti i tool per fase, con stato in tempo reale | core |
-| Analisi | **StegSuite** | http://localhost:19014 | CTF/challenge, 56 analyzer, flag, cracking, report, REST + MCP | core |
+| Analisi | **StegSuite** | http://localhost:19014 | CTF/challenge, 57 analyzer, flag, cracking, report, REST + MCP | core |
 | Analisi | FileBrowser | http://localhost:19012 | Sfoglia `./data`: progetti, estratti, report | core |
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hash, JWT e molto altro | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercetta e modifica HTTP(S) · proxy su `:19004` | core |
@@ -178,6 +178,7 @@ build più nuove e `--write` le aggiorna. Tre immagini sono costruite in locale:
 | Audio / radio | `spectrogram`, `waveform`, `wav-lsb`, `wav-levels`, `morse`, `dtmf`, `sstv` (Scottie S1/S2) |
 | Rete | `pcap` (protocolli, campi HTTP/DNS, commenti, flussi UDP/TCP ricomposti, base64 spezzato un token per pacchetto, tunnel DNS, oggetti HTTP, TLS con chiave o keylog TLS 1.3, HTTP/2) |
 | Archivi e documenti | `7z`, `nested-archive`, `binwalk` (scan/estrazione), `foremost`, `office` (OOXML/ODF + macro), `eml`, `git` (storia, reflog, tutti gli oggetti) |
+| Windows | `evtx` (log eventi come testo, pezzi base64 riuniti nella flag), `cpassword` GPP decifrata (in `markup-text`) |
 | Riparazione | `pngcheck`, `png-repair`, `image-repair` (header JPEG/BMP/GIF, prefisso spazzatura) |
 | Binari | `elf` (sezioni, info dinamiche, checksec), `readelf`, `objdump` |
 
