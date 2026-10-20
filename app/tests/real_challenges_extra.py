@@ -60,20 +60,25 @@ EXTRA = [
      "lactf{Funnily_Enough_This_Looks_Different_On_Mac_And_Windows}"),
 ]
 
+EXTRA += [
+    # picoCTF 2019 shark on wire 2: text in UDP source ports (5000 + ASCII)
+    ("sow2.pcap", f"{P19}/shark on wire 2/capture.pcap", "picoCTF{p1LLf3r3d_data_v1a_st3g0}"),
+    # DUCTF 2024 Bad Policies: GPP cpassword in Groups.xml (published AES key)
+    ("badpolicies.zip", f"{DU24}/forensics/badpolicies/publish/badpolicies.zip",
+     "DUCTF{D0n7_Us3_P4s5w0rds_1n_Gr0up_P0l1cy}"),
+]
+
 # Known gaps: techniques not implemented yet (backlog, see tasks/plan-refactor.md)
 GAPS = [
     ("c0rrupt.bin", f"{P19}/c0rrupt/mystery", "picoCTF{c0rrupt10n_1847995}"),             # PNG repair + OCR
     ("1000.tar", f"{P19}/like1000/1000.tar", "picoCTF{l0t5_0f_TAR5}"),                   # deep tar + OCR
     ("m00nwalk.wav", f"{P19}/m00nwalk/message.wav", "picoCTF{beep_boop_im_in_space}"),   # SSTV + OCR
     ("pasta.png", f"{P19}/pastaAAA/ctf.png", "picoCTF{pa$ta_1s_lyf3}"),                  # bit plane + OCR
-    ("sow2.pcap", f"{P19}/shark on wire 2/capture.pcap", "picoCTF{p1LLf3r3d_data_v1a_st3g0}"),  # UDP src ports
     ("ir0.png", f"{P19}/Investigative Reversing 0/mystery.png", "picoCTF{f0und_1t_5266a857}"),  # shifted trailer
     ("b1g_mac.zip", f"{P19}/B1g_Mac/b1g_mac.zip", "picoCTF{M4cTim35!}"),                 # zip timestamps
     ("tunn3l_v1s10n", f"{P21}/tunn3l v1s10n/tunn3l_v1s10n", "picoCTF{qu1t3_a_v13w_2020}"),  # BMP repair + OCR
     ("endianness.bin", f"{P25B}/endianness-v2/challengefile",
      "picoCTF{cert!f1Ed_iNd!4n_s0rrY_3nDian_76e05f49}"),                                # word-swapped JPEG
-    ("badpolicies.zip", f"{DU24}/forensics/badpolicies/publish/badpolicies.zip",
-     "DUCTF{D0n7_Us3_P4s5w0rds_1n_Gr0up_P0l1cy}"),                                     # GPP cpassword
     ("samiam.zip", f"{DU24}/forensics/samiam/publish/samiam.zip", "DUCTF{!checkerboard1}"),  # SAM hive + crack
     ("recipe.txt", f"{DU24}/misc/wackyrecipe/publish/recipe.txt", "DUCTF{2tsp_Vegemite}"),   # Chef esolang
     ("all-fathers-wisdom", f"{DU23}/beginner/all-fathers-wisdom/publish/the-all-fathers-wisdom",
