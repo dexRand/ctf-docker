@@ -267,38 +267,42 @@ def _pot_password(show: str, hash_line: str) -> Optional[str]:
 def _crack_zip(path: Path, wls: list[Path], log, rules_file: Optional[Path] = None,
                mask: Optional[str] = None,
                deadline: Optional[float] = None) -> tuple[Optional[str], Optional[str]]:
-    # hashcat first: the vendored zip2hashcat handles BOTH ZipCrypto and AES.
-    # Plain wordlists smallest -> largest, then an optional rules pass, then an
-    # optional mask brute-force; a CPU deadline bounds the whole thing.
-    if shutil.which("hashcat"):
-        for wl in wls:
-            if deadline and time.time() > deadline:
-                break
+    """Wordlists smallest -> largest, each one with hashcat (zip2hashcat: ZipCrypto
+    and AES) *and then* fcrackzip — hashcat can't do every zip (e.g. "unsupported
+    compression type"), and the cheap fallback must not wait for a budget that
+    the rules pass already spent. Then the optional rules pass and mask."""
+    hashcat, fcrackzip = shutil.which("hashcat"), shutil.which("fcrackzip")
+    for wl in wls:
+        if deadline and time.time() > deadline:
+            return None, None
+        if hashcat:
             pw = _crack_zip_hashcat(path, log, wl=wl, runtime=_remaining(deadline))
             if pw:
                 return pw, wl.name
-        if rules_file:
-            for wl in wls:
-                if deadline and time.time() > deadline:
-                    break
-                pw = _crack_zip_hashcat(path, log, wl=wl, rules_file=rules_file,
-                                        runtime=_remaining(deadline))
-                if pw:
-                    return pw, f"{wl.name} (rules)"
-        if mask:
-            pw = _crack_zip_hashcat(path, log, mask=mask, runtime=_remaining(deadline))
+        if fcrackzip:
+            pw = _crack_zip_fcrackzip(path, wl, log, deadline)
             if pw:
-                return pw, "mask"
-    if shutil.which("fcrackzip"):
+                return pw, wl.name
+    if hashcat and rules_file:
         for wl in wls:
             if deadline and time.time() > deadline:
                 break
-            r = _run(["fcrackzip", "-u", "-D", "-p", str(wl), str(path)],
-                     timeout=_tool_timeout(deadline), log=log)
-            m = re.search(r"pw\s*==\s*(\S+)", r.stdout)
-            if m:
-                return m.group(1), wl.name
+            pw = _crack_zip_hashcat(path, log, wl=wl, rules_file=rules_file,
+                                    runtime=_remaining(deadline))
+            if pw:
+                return pw, f"{wl.name} (rules)"
+    if hashcat and mask:
+        pw = _crack_zip_hashcat(path, log, mask=mask, runtime=_remaining(deadline))
+        if pw:
+            return pw, "mask"
     return None, None
+
+
+def _crack_zip_fcrackzip(path: Path, wl: Path, log, deadline: Optional[float]) -> Optional[str]:
+    r = _run(["fcrackzip", "-u", "-D", "-p", str(wl), str(path)],
+             timeout=_tool_timeout(deadline), log=log)
+    m = re.search(r"pw\s*==\s*(\S+)", r.stdout)
+    return m.group(1) if m else None
 
 
 _BK_KEYS_RE = re.compile(r"Keys:\s*([0-9a-fA-F]{8}\s+[0-9a-fA-F]{8}\s+[0-9a-fA-F]{8})")
