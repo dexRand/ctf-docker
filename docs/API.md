@@ -83,6 +83,8 @@ PID=$(curl -s -F mode=auto -F files=@a.png -F files=@b.jpg \
 
 # start / pause / resume / cancel (pause/resume show up as status paused/running)
 curl -X POST localhost:19014/api/v1/projects/$PID/start
+curl -X POST localhost:19014/api/v1/projects/$PID/pause
+curl -X POST localhost:19014/api/v1/projects/$PID/resume
 curl -X POST localhost:19014/api/v1/projects/$PID/cancel
 
 # results
@@ -93,6 +95,7 @@ curl -s localhost:19014/api/v1/projects/$PID/events     | jq .      # log
 
 # reports (built server-side: the same text the GUI shows)
 curl -s localhost:19014/api/v1/projects/$PID/flags      | jq .      # each flag: chain of files + evidence
+curl -s localhost:19014/api/v1/projects/$PID/summary    | jq .      # what the GUI highlights: route ids/steps/tree, solver runs, tools
 curl -s "localhost:19014/api/v1/projects/$PID/report?lang=it"       # Markdown report (lang=en|it)
 curl -s "localhost:19014/api/v1/projects/$PID/report?format=json" | jq .
 curl -s localhost:19014/api/v1/projects/$PID/logs                   # event log + every run output
@@ -106,7 +109,8 @@ curl -X POST -H 'Content-Type: application/json' \
 # file / artifact / tool output
 curl -OJ localhost:19014/api/v1/projects/$PID/files/<fid>/content
 curl -OJ localhost:19014/api/v1/projects/$PID/artifacts/<aid>/content
-curl -s  localhost:19014/api/v1/projects/$PID/files/<fid>/runs/<rid>
+curl -s  localhost:19014/api/v1/projects/$PID/files/<fid>/runs/<rid>      # one run's output
+curl -s  localhost:19014/api/v1/projects/$PID/runs/<rid>/artifacts         # files a run produced
 
 # crack a locked file (Check mode), choosing wordlists
 curl -s localhost:19014/api/v1/projects/$PID/locked
