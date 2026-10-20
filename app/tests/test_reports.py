@@ -208,3 +208,9 @@ def test_carved_files_are_not_carved_again():
     assert not {"binwalk-scan", "binwalk-extract", "foremost"} & set(carved)
     assert set(from_archive) == set(up)
     assert "strings" in carved and "7z" in _plan_for("x.zip", None, False, made_by="foremost")
+
+
+def test_no_foremost_on_captures():
+    from backend.planner import _plan_for
+    plan = _plan_for("capture.pcapng", None, False)
+    assert "foremost" not in plan and "binwalk-extract" in plan and "pcap" in plan

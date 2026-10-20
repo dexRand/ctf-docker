@@ -54,6 +54,10 @@ def _detect_ext(ftype: str) -> str:
 # Carving a file that a carver cut out of its parent finds nothing new:
 # whatever it contains was inside the parent too, which was carved already.
 CARVERS = {"binwalk-scan", "binwalk-extract", "foremost"}
+# On a network capture foremost only re-cuts fragments of the payloads that the
+# pcap analyzer exports whole (shark2: 310 extra files, never a flag in the
+# real-challenge history); binwalk-extract still carves the capture.
+CAPTURE_EXT = (".pcap", ".pcapng", ".cap")
 
 
 def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "") -> list[str]:
@@ -69,6 +73,8 @@ def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "") -> 
         if tool in BINARY_ONLY and is_text:
             continue
         if tool in CARVERS and made_by in CARVERS:
+            continue
+        if tool == "foremost" and name.lower().endswith(CAPTURE_EXT):
             continue
         plan.append(tool)
     return plan
