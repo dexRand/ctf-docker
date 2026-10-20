@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, list_files, which, out_of
 from .registry import register, subprocess_analyzer
+from .util import ARCHIVE_EXT
 
 
 def _arts(files: list[Path], workdir: Path) -> list[dict]:
@@ -67,7 +68,6 @@ class ForemostAnalyzer(Analyzer):
         )
 
 
-ARCHIVE_EXT = (".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".cab", ".iso")
 
 
 def _sibling_passwords(ctx: ToolContext) -> list[str]:

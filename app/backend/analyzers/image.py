@@ -6,8 +6,8 @@ from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
+from .util import IMG_EXT
 
-IMG_EXT = (".png", ".bmp", ".jpg", ".jpeg", ".gif", ".tiff", ".webp")
 MAX_PIXELS = 4_000_000  # larger images: skip the heavy plane generation
 
 

@@ -5,6 +5,7 @@ import os
 import threading
 
 from .analyzers import get as get_tool
+from .analyzers.util import ARCHIVE_EXT
 
 # ordered analysis plan (order matters: metadata -> text -> steg -> extract)
 DEFAULT_PLAN = [
@@ -24,7 +25,6 @@ HEAVY_EXTRACT = {"binwalk-extract", "foremost"}
 # cap how many heavy tools run at once across all projects (CPU bound)
 _HEAVY_TOOLS = set(HEAVY_EXTRACT) | {"7z", "steghide", "outguess", "jsteg", "openstego", "sstv"}
 _HEAVY_SEM = threading.Semaphore(max(1, int(os.environ.get("HEAVY_TOOLS", "1"))))
-ARCHIVE_EXT = (".zip", ".7z", ".rar", ".tar", ".gz", ".bz2", ".xz", ".tgz")
 
 
 def _detect_ext(ftype: str) -> str:

@@ -3,9 +3,8 @@ from __future__ import annotations
 
 from .base import Analyzer, ToolContext, ToolResult, out_of, which
 from .registry import register
+from .util import IMG_EXT
 
-IMG_EXT = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".tif", ".webp",
-           ".pbm", ".pgm", ".ppm")
 
 
 class QrAnalyzer(Analyzer):

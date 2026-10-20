@@ -23,8 +23,8 @@ from typing import IO, Optional
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
+from .util import ARCHIVE_EXT
 
-ARCHIVE_EXT = (".tar", ".gz", ".tgz", ".tbz", ".tbz2", ".bz2", ".xz", ".txz", ".zip", ".7z")
 MAX_LAYERS = 5000
 MAX_SINGLE = 256 * 1024 * 1024  # cap for a single decompressed member
 

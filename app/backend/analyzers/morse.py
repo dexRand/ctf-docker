@@ -7,8 +7,8 @@ from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, which
 from .registry import register
+from .util import AV_EXT
 
-AV_EXT = (".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".au", ".mp4", ".mkv", ".webm", ".avi")
 
 MORSE = {
     ".-": "A", "-...": "B", "-.-.": "C", "-..": "D", ".": "E", "..-.": "F", "--.": "G",

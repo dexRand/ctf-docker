@@ -8,8 +8,8 @@ import urllib.parse
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
+from .util import TEXT_EXT
 
-TEXT_EXT = (".txt", ".md", ".csv", ".b64", ".hex", ".dat", ".log", ".asc")
 
 
 def _ok(b: bytes, thr: float = 0.9) -> bool:

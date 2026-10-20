@@ -10,8 +10,8 @@ from pathlib import Path
 from .base import Analyzer, ToolContext, ToolResult, run_cmd
 from ..config import OCR_EXTRA_LANGS, OCR_LANGS, OCR_MAX_DIM
 from .registry import register
+from .util import IMG_EXT
 
-IMG_EXT = (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff", ".tif", ".webp", ".ppm")
 _KNOWN_FLAG = re.compile(r"(?i)(picoCTF|ITS|flag|CTF|HTB)\{[^}\n]{2,}\}")
 
 

@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import BinaryIO, Callable, Optional
 
 from .analyzers.base import run_cmd
+from .analyzers.util import ARCHIVE_EXT
 from .config import DATA_DIR
 
 # user-uploaded lists live under /data (persisted); the rest come from the image
@@ -38,7 +39,6 @@ CRACK_BUDGET_S = int(float(os.environ.get("CRACK_BUDGET_S", "0") or 0))  # 0 = n
 AUTO_CRACK_MAX_BYTES = int(float(os.environ.get("AUTO_CRACK_MAX_MB", "1")) * 1024 * 1024)
 AUTO_CRACK_BUDGET_S = int(float(os.environ.get("AUTO_CRACK_BUDGET_S", "120") or 0))
 Z2H = "/opt/third_party/zip2hashcat.py"
-ARCHIVE_EXT = (".zip", ".7z", ".rar", ".gz", ".tgz", ".tar", ".bz2", ".xz", ".cab")
 PDF_EXT = (".pdf",)
 IMG_EXT = (".jpg", ".jpeg", ".bmp", ".wav", ".au")
 

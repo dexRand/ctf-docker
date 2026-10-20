@@ -25,8 +25,8 @@ except ImportError:  # pragma: no cover
 
 from .base import Analyzer, ToolContext, ToolResult, which
 from .registry import register
+from .util import AV_EXT
 
-AV_EXT = (".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".au", ".snd")
 
 SYNC_HZ = 1200.0
 BLACK_HZ = 1500.0

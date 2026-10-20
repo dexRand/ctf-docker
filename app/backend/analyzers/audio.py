@@ -6,8 +6,8 @@ import wave
 
 from .base import Analyzer, ToolContext, ToolResult, which, out_of
 from .registry import register
+from .util import AV_EXT
 
-AV_EXT = (".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac", ".mp4", ".mkv", ".avi", ".mov", ".webm")
 
 
 def _bits_to_text(bits: list[int]) -> str:
