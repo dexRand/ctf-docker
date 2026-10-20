@@ -76,3 +76,28 @@ def test_logs_and_transcript(client):
 def test_unknown_project_is_404(client):
     assert client.get("/api/v1/projects/nope/report").status_code == 404
     assert client.get("/api/v1/projects/%2e%2e/flags").status_code == 404
+
+
+def test_run_tools_on_a_file(client, tmp_path):
+    import time
+
+    from backend import storage as st
+    work = st.project_dir(PID)
+    (work / "uploads").mkdir(parents=True, exist_ok=True)
+    (work / "uploads" / "chall.zip").write_bytes(b"plain text with flag{rerun_ok} inside\n")
+    r = client.post(f"/api/v1/projects/{PID}/files/901/run", json={"tools": ["strings"]})
+    assert r.status_code == 202
+    for _ in range(50):
+        vals = {f["value"] for f in client.get(f"/api/v1/projects/{PID}/findings").json()}
+        if "flag{rerun_ok}" in vals:
+            break
+        time.sleep(0.1)
+    assert "flag{rerun_ok}" in vals
+    tools = [x["tool"] for x in client.get(f"/api/v1/projects/{PID}/runs?file_id=901").json()]
+    assert "strings" in tools
+
+
+def test_run_tools_rejects_unknown_tools(client):
+    r = client.post(f"/api/v1/projects/{PID}/files/901/run", json={"tools": ["nope"]})
+    assert r.status_code == 422
+    assert client.post(f"/api/v1/projects/{PID}/files/999999/run", json={"tools": ["strings"]}).status_code == 404

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import datetime as dt
 import traceback
 from pathlib import Path
 
@@ -28,6 +29,81 @@ from .tree import _store_extracted
 
 if TYPE_CHECKING:  # jobs imports this module: type-only import
     from .jobs import Job
+
+
+def run_analyzer(tool_name: str, path: Path, out_dir: Path,
+                 password: str | None = None) -> tuple[ToolResult, list[str]]:
+    """Run one analyzer on a file; never raises (errors become an error result).
+    Heavy tools share a global semaphore so CPU-bound runs don't pile up."""
+    analyzer = get_tool(tool_name)
+    logs: list[str] = []
+    if analyzer is None:
+        return ToolResult(tool_name, status="error", summary="unknown tool"), logs
+    tctx = ToolContext(input=path, workdir=out_dir, password=password, log=logs.append)
+    try:
+        if tool_name in _HEAVY_TOOLS:
+            with _HEAVY_SEM:
+                return analyzer.run(tctx), logs
+        return analyzer.run(tctx), logs
+    except Exception as exc:  # one broken analyzer must not kill the job
+        return ToolResult(tool_name, status="error",
+                          summary=f"{type(exc).__name__}: {exc}"[:500],
+                          output=traceback.format_exc()[-8000:]), logs
+
+
+def record_run(session: Session, pid: str, node: FileNode, tool_name: str,
+               result: ToolResult, logs: list[str] | None = None,
+               started: "dt.datetime | None" = None) -> ToolRun:
+    """Persist one analyzer run: output file, ToolRun, artifacts, flag hunt,
+    'password required' note, live event. Commits (short SQLite writes)."""
+    work = storage.project_dir(pid)
+    out_dir = work / "work" / str(node.id)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    content = result.output or ""
+    if logs:
+        content = "# commands:\n# " + "\n# ".join(logs) + "\n\n" + content
+    rel_out = None
+    if content:
+        op = out_dir / f"{tool_name}.out"
+        op.write_text(content, errors="replace")
+        rel_out = str(op.relative_to(work))
+    run = ToolRun(project_id=pid, file_id=node.id, tool=tool_name,
+                  status=result.status, needs_password=result.needs_password,
+                  exit_code=result.exit_code, summary=result.summary[:500],
+                  output_path=rel_out, started_at=started or _now(), finished_at=_now())
+    session.add(run)
+    session.flush()
+    # files moved into the tree as children must not stay as artifacts
+    # too (their old path would no longer exist)
+    moved = {str(x) for x in result.extracted}
+    for art in result.artifacts:
+        if str(art.get("path", "")) in moved:
+            continue
+        p = Path(str(art.get("path", "")))
+        try:
+            rel_art = str(p.relative_to(work))
+        except ValueError:
+            rel_art = str(art.get("name", ""))
+        session.add(Artifact(project_id=pid, run_id=run.id, file_id=node.id,
+                             name=str(art.get("name", p.name)),
+                             path=rel_art, size=int(art.get("size", 0))))
+    if result.output:
+        _hunt(session, pid, node.id, result.output, f"{tool_name}:{node.name}")
+    if result.needs_password:
+        note_val = f"password required: {node.name}"
+        exists = session.exec(select(Finding).where(Finding.project_id == pid)
+                              .where(Finding.kind == "note")
+                              .where(Finding.value == note_val)).first()
+        if not exists:
+            session.add(Finding(project_id=pid, file_id=node.id, kind="note",
+                                value=note_val, source=tool_name))
+    _emit(pid, {"type": "tool", "file_id": node.id, "name": node.name, "tool": tool_name,
+                "status": result.status, "needs_password": result.needs_password,
+                "summary": result.summary, "extracted": len(result.extracted)})
+    # persist now: keep the SQLite write transaction short so a long
+    # tool run never blocks other requests ("database is locked")
+    session.commit()
+    return run
 
 
 def _run(pid: str, job: Job) -> None:
@@ -74,60 +150,13 @@ def _run(pid: str, job: Job) -> None:
             except OSError:
                 pass
 
-            def record(tool_name: str, result, logs=None) -> None:
-                content = result.output or ""
-                if logs:
-                    content = "# commands:\n# " + "\n# ".join(logs) + "\n\n" + content
-                rel_out = None
-                if content:
-                    op = out_dir / f"{tool_name}.out"
-                    op.write_text(content, errors="replace")
-                    rel_out = str(op.relative_to(work))
-                run = ToolRun(project_id=pid, file_id=node.id, tool=tool_name,
-                              status=result.status, needs_password=result.needs_password,
-                              exit_code=result.exit_code, summary=result.summary[:500],
-                              output_path=rel_out, started_at=_now(), finished_at=_now())
-                session.add(run)
-                session.flush()
-                # files moved into the tree as children must not stay as artifacts
-                # too (their old path would no longer exist)
-                moved = {str(x) for x in result.extracted}
-                for art in result.artifacts:
-                    if str(art.get("path", "")) in moved:
-                        continue
-                    p = Path(str(art.get("path", "")))
-                    try:
-                        rel_art = str(p.relative_to(work))
-                    except ValueError:
-                        rel_art = str(art.get("name", ""))
-                    session.add(Artifact(project_id=pid, run_id=run.id, file_id=node.id,
-                                         name=str(art.get("name", p.name)),
-                                         path=rel_art, size=int(art.get("size", 0))))
-                if result.output:
-                    _hunt(session, pid, node.id, result.output, f"{tool_name}:{node.name}")
-                if result.needs_password:
-                    note_val = f"password required: {node.name}"
-                    exists = session.exec(select(Finding).where(Finding.project_id == pid)
-                                          .where(Finding.kind == "note")
-                                          .where(Finding.value == note_val)).first()
-                    if not exists:
-                        session.add(Finding(project_id=pid, file_id=node.id, kind="note",
-                                            value=note_val, source=tool_name))
-                _emit(pid, {"type": "tool", "file_id": node.id, "name": node.name, "tool": tool_name,
-                            "status": result.status, "needs_password": result.needs_password,
-                            "summary": result.summary, "extracted": len(result.extracted)})
-                # persist now: keep the SQLite write transaction short so a long
-                # tool run never blocks other requests ("database is locked")
-                session.commit()
-
             # detect type first, then build the plan (text files skip heavy carving)
             ftype = ""
-            file_analyzer = get_tool("file")
-            if file_analyzer:
-                file_logs: list[str] = []
-                r0 = file_analyzer.run(ToolContext(input=abs_path, workdir=out_dir, log=file_logs.append))
+            if get_tool("file"):
+                t0 = _now()
+                r0, file_logs = run_analyzer("file", abs_path, out_dir)
                 ftype = r0.output
-                record("file", r0, file_logs)
+                record_run(session, pid, node, "file", r0, file_logs, t0)
             is_text = any(k in ftype.lower() for k in ("text", "ascii", "unicode"))
             # if the name lies (PNG called .txt…), use the detected type for the plan
             detected = _detect_ext(ftype)
@@ -140,20 +169,9 @@ def _run(pid: str, job: Job) -> None:
                 if job.cancelled:
                     break
                 job.wait()
-                analyzer = get_tool(tool_name)
-                logs: list[str] = []
-                tctx = ToolContext(input=abs_path, workdir=out_dir, log=logs.append)
-                try:
-                    if tool_name in _HEAVY_TOOLS:  # bound concurrent heavy tools
-                        with _HEAVY_SEM:
-                            result = analyzer.run(tctx)
-                    else:
-                        result = analyzer.run(tctx)
-                except Exception as exc:  # one broken analyzer must not kill the job
-                    result = ToolResult(tool_name, status="error",
-                                        summary=f"{type(exc).__name__}: {exc}"[:500],
-                                        output=traceback.format_exc()[-8000:])
-                record(tool_name, result, logs)
+                t0 = _now()
+                result, logs = run_analyzer(tool_name, abs_path, out_dir)
+                record_run(session, pid, node, tool_name, result, logs, t0)
                 for src in result.extracted:
                     child = _store_extracted(session, pid, node, Path(src), tool=tool_name)
                     pending.append(child)
@@ -202,3 +220,26 @@ def _run(pid: str, job: Job) -> None:
         _event(session, pid, f"analysis {proj.status}", "warn" if job.cancelled else "info")
         session.commit()
         _emit(pid, {"type": "status", "status": proj.status})
+
+
+def run_tools_on_node(pid: str, file_id: int, tools: list[str],
+                      password: str | None = None) -> list[int]:
+    """Run the given analyzers on one file now (outside a job), record them and
+    store what they extract; returns the ids of the new child nodes."""
+    work = storage.project_dir(pid)
+    children: list[int] = []
+    with Session(engine) as session:
+        node = session.get(FileNode, file_id)
+        if not node or node.project_id != pid:
+            return children
+        abs_path = work / node.rel_path
+        out_dir = work / "work" / str(node.id)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for tool_name in tools:
+            t0 = _now()
+            result, logs = run_analyzer(tool_name, abs_path, out_dir, password=password)
+            record_run(session, pid, node, tool_name, result, logs, t0)
+            for src in result.extracted:
+                children.append(_store_extracted(session, pid, node, Path(src), tool=tool_name).id)
+            session.commit()
+    return children

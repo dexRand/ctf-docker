@@ -14,7 +14,7 @@ def reconcile_orphans() -> list[str]:
     """
     with Session(engine) as session:
         projects = session.exec(
-            select(Project).where(Project.status.in_(("running", "queued")))  # type: ignore[attr-defined]
+            select(Project).where(Project.status.in_(("running", "queued", "paused")))  # type: ignore[attr-defined]
         ).all()
         ids: list[str] = []
         for p in projects:

@@ -13,6 +13,7 @@ The implementation is split by concern:
 from __future__ import annotations
 
 from .crackflow import mark_unlocked, record_crack_run  # noqa: F401
+from .events import emit  # noqa: F401
 from .flaghunt import _hunt, custom_flag_matches  # noqa: F401
 from .jobs import JOBS, analyze_new, control, is_running, start, stop  # noqa: F401
 from .maintenance import dedupe_findings, reconcile_orphans  # noqa: F401

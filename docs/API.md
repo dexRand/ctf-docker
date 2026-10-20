@@ -45,7 +45,7 @@ curl -OJ "localhost:19014/api/v1/tooljobs/<job_id>/files/<artifact-name>"
 PID=$(curl -s -F mode=auto -F files=@a.png -F files=@b.jpg \
         localhost:19014/api/v1/projects | jq -r .id)
 
-# start / pause / resume / cancel
+# start / pause / resume / cancel (pause/resume show up as status paused/running)
 curl -X POST localhost:19014/api/v1/projects/$PID/start
 curl -X POST localhost:19014/api/v1/projects/$PID/cancel
 
@@ -61,6 +61,11 @@ curl -s "localhost:19014/api/v1/projects/$PID/report?lang=it"       # Markdown r
 curl -s "localhost:19014/api/v1/projects/$PID/report?format=json" | jq .
 curl -s localhost:19014/api/v1/projects/$PID/logs                   # event log + every run output
 curl -s localhost:19014/api/v1/projects/$PID/transcript             # context for an AI agent
+
+# re-run tools on one file (optionally with a password you found); 202, runs in background
+curl -X POST -H 'Content-Type: application/json' \
+     -d '{"tools":["steghide","outguess"],"password":"s3cret"}' \
+     localhost:19014/api/v1/projects/$PID/files/<fid>/run
 
 # file / artifact / tool output
 curl -OJ localhost:19014/api/v1/projects/$PID/files/<fid>/content
