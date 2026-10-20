@@ -71,46 +71,11 @@ const topTools = computed(() => stats.value.topTools)
 const historyLimit = ref(25)
 const visibleProjects = computed(() => projects.value.slice(0, historyLimit.value))
 
+// dashboard numbers come aggregated from the backend (one request)
 async function loadStats() {
-  const all = projects.value
-  const list = all.slice(0, STATS_WINDOW)
-  let flags = 0, passwords = 0, runs = 0
-  const perStatus = {}, perMode = {}, toolCount = {}
-  const detail = {}
-  for (const p of all) {
-    perStatus[p.status] = (perStatus[p.status] || 0) + 1
-    perMode[p.mode] = (perMode[p.mode] || 0) + 1
-  }
-  // all projects in parallel (was one project after the other)
-  const fetched = await Promise.all(list.map((p) => Promise.all([
-    api(`/projects/${p.id}/findings`),
-    api(`/projects/${p.id}/runs`),
-  ]).catch(() => [[], []])))   // keep zeros for a project that fails
-  for (const [i, p] of list.entries()) {
-    const [fd, rs] = fetched[i]
-    const flagsN = (fd || []).filter((f) => f.kind === 'flag').length
-    const cracked = new Set((fd || []).filter((f) => f.kind === 'password').map((f) => f.file_id))
-    const lockedN = new Set((rs || []).filter((r) => r.needs_password && !cracked.has(r.file_id)).map((r) => r.file_id)).size
-    flags += flagsN
-    passwords += (fd || []).filter((f) => f.kind === 'password').length
-    runs += (rs || []).length
-    for (const r of rs || []) toolCount[r.tool] = (toolCount[r.tool] || 0) + 1
-    detail[p.id] = { id: p.id, name: p.name, status: p.status, flagsN, lockedN }
-  }
-  const done = Object.values(detail).filter((d) => d.status === 'done').length
-  const solved = Object.values(detail).filter((d) => d.flagsN > 0).length
-  const blocked = Object.values(detail).filter((d) => d.lockedN > 0).length
-  perProject.value = detail
-  stats.value = {
-    projects: all.length,
-    files: all.reduce((s, p) => s + (p.files || 0), 0),
-    flags, passwords, runs,
-    active: (perStatus.running || 0) + (perStatus.queued || 0),
-    solved, done, blocked,
-    solveRate: done ? Math.round((solved / done) * 100) : 0,
-    perStatus, perMode,
-    topTools: Object.entries(toolCount).sort((a, b) => b[1] - a[1]).slice(0, 6),
-  }
+  const st = await api(`/stats?window=${STATS_WINDOW}`)
+  perProject.value = st.perProject
+  stats.value = { ...st, files: projects.value.reduce((n, p) => n + (p.files || 0), 0) }
 }
 
 // CTFs: one CTF groups its challenges (projects)

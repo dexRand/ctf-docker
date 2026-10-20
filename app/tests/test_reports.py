@@ -117,3 +117,10 @@ def test_waves_isolate_consumers():
     plan = ["file", "strings", "binwalk-scan", "nested-archive", "git", "7z", "office"]
     assert _waves(plan) == [["file", "strings", "binwalk-scan"], ["nested-archive"], ["git"],
                             ["7z", "office"]]
+
+
+def test_stats_aggregate(client):
+    st = client.get("/api/v1/stats?window=50").json()
+    assert st["projects"] >= 1 and isinstance(st["topTools"], list)
+    me = st["perProject"].get(PID)
+    assert me and me["flagsN"] >= 1

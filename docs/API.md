@@ -155,6 +155,9 @@ URL or base64), `autosolve`, `analyze`, `project_status`, `get_flags`,
 `get_report`, `get_transcript`, `read_file`, `list_tools`, `run_tools`,
 `locked_files`, `crack`, `crack_jobs`, `list_wordlists`, `set_challenge`, `toolbox_services`.
 
+`GET /api/v1/stats?window=20` returns the dashboard numbers (status/mode
+counts, flags, passwords, locked files, top tools) in one call.
+
 `GET /api/v1/services` lists the other web tools of the toolbox (CyberChef,
 ZAP, Wireshark, rev sandbox…) with their URL and whether they are up.
 
