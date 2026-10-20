@@ -246,7 +246,23 @@ Risultati (immagine nuova): pytest **214/214**, regressione **33/33**, reali **3
 (2963 s → 2675 s di analisi a parità di flag), verifica writeup **ALL CORRECT**.
 Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 
+### Ultimi interventi (20/10, dopo il primo push)
+- [x] Riquadro verde / prova per **ogni** flag: anche quelle decodificate (XOR, base64,
+      hex, rot13, OCR, FLAG_PATTERN) e quelle nei byte del file (hexdump all'offset).
+      Audit sullo storico: 0 flag senza prova.
+- [x] `pcap`: tunnel DNS per server di destinazione (shark2), porte sorgente (sow2),
+      base64 per pacchetto (ph4nt0m), flussi UDP/TCP (sow1); niente `foremost` sui pcap.
+- [x] Cracking: errori di hashcat non più presi come password; wordlist di contesto dai
+      metadati (EXIF Title/Comment…); per ogni wordlist hashcat **e poi** fcrackzip.
+- [x] `stepic` (150 MP in 2 s), `lsb-carve` sulle prime righe delle immagini enormi,
+      niente doppio carving dei frammenti ritagliati.
+- [x] Tempi per tool corretti con le ondate parallele.
+- Verifica in corso al momento della compattazione (`gate10`): 18 extra + regressione
+  + 35 reali + writeup. Push consentito solo se tutto verde (vedi memoria).
+
 ### Backlog
+- [ ] Push del commit CI `ci: consistency check…` (solo locale): serve un token GitHub
+      con scope `workflow`; finché manca si pusha il resto senza `ci.yml`.
 - [ ] Fase 6 — RevSuite (auto-triage binari + terminale per progetto) — da approvare.
 - [x] Coda di cracking con N worker (`CRACK_WORKERS`), crack per file, `GET/DELETE /cracks`.
 - [ ] Gap reali: evtx, PNG/BMP corrotti + OCR, SSTV→OCR, porte UDP, evil bit, GPP
