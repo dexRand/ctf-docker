@@ -104,6 +104,21 @@ def source_how(src: str) -> str:
     return tool + "".join(" + " + _SRC_DECODER.get(d, d) for d in dec)
 
 
+def _xor_operand(output: str, flag: str) -> str:
+    """For a flag found as the XOR of two quoted strings of the output (the
+    flag hunt's XOR rule), the first of the two strings."""
+    lits = list(dict.fromkeys(re.findall(r'"([^"]{8,4096})"|\'([^\']{8,4096})\'', output)))
+    strs = [a or b for a, b in lits][:64]
+    target = flag.encode("latin-1", "replace")
+    for i, a in enumerate(strs):
+        for b in strs[i + 1:]:
+            if len(a) == len(b):
+                x = bytes(p ^ q for p, q in zip(a.encode("latin-1", "replace"), b.encode("latin-1", "replace")))
+                if target in x:
+                    return a
+    return ""
+
+
 def _encoded_forms(value: str, decoders: list[str]) -> list[str]:
     """What a decoded flag looks like before decoding (for findings stored
     without the literal text): the rot13 twin, the middle of its base64 for
@@ -256,8 +271,10 @@ class ProjectView:
             run = next((r for r in self.runs_of(f.file_id) if r.tool == src), None)
             if run is not None:     # older findings without the literal text
                 o = self.output(run)
+                operand = _xor_operand(o, f.value) if "xor" in dec else ""
                 ev = {"run": run.id, "tool": run.tool, "command": (commands_of(o) or [""])[0],
-                      "lines": ctx, "decoded": how or None, "match": None}
+                      "lines": evidence_lines(o, operand) if operand else ctx,
+                      "decoded": how or None, "match": operand[:120] or None}
             elif src == "raw scan":
                 ev = self._raw_evidence(f, [literal] if literal else _encoded_forms(f.value, dec), ctx, how)
         self._evidence[f.id] = ev

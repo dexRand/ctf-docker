@@ -187,3 +187,13 @@ def test_hunt_stores_the_encoded_token_for_decoded_flags():
         f = s.exec(select(Finding).where(Finding.project_id == "ev-hunt")).first()
     assert f.value == "flag{b64_inside_out}" and f.source.startswith("b64:exiftool")
     assert split_context(f.context)[1] == tok
+
+
+def test_old_xor_finding_recovers_the_operand(tmp_path):
+    a = "flag{decoded_one}".encode()
+    key = b"K" * len(a)
+    x = bytes(p ^ q for p, q in zip(a, key)).decode("latin-1")
+    out = f'$m = "{x}"\n$k = "{key.decode()}"\n'
+    v, f = _view_with(tmp_path, out, "xor:psimage:duck.png", "«flag{decoded_one}»")
+    ev = v.evidence_for(f)
+    assert ev["run"] == 1 and ev["match"] in (x, key.decode()) and "$m" in ev["lines"]
