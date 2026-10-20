@@ -245,7 +245,7 @@ Everything comes from `.env` (created from `.env.example` on first run).
 | `*_PORT` | Host port of each service (19000+); links, dashboard and API follow them |
 | `STEGSUITE_API_KEY` | Require a key on the API/MCP (header, cookie or `?key=`) |
 | `FLAG_PATTERN` | Extra global flag regex (a CTF's own format is set per CTF) |
-| `MAX_DEPTH`, `HEAVY_TOOLS`, `MAX_UPLOAD_MB` | Recursion depth, concurrent heavy tools, upload cap |
+| `MAX_DEPTH`, `HEAVY_TOOLS`, `TOOL_WORKERS`, `MAX_UPLOAD_MB` | Recursion depth, concurrent heavy tools, analyzers run in parallel per file, upload cap |
 | `AUTO_CRACK_MAX_MB`, `AUTO_CRACK_BUDGET_S`, `CRACK_BUDGET_S`, `HASHCAT_RULES` | Cracking limits and rules |
 | `OCR_LANGS`, `OCR_EXTRA_LANGS`, `OCR_MAX_DIM` | OCR languages and downscaling |
 | `RETENTION_DAYS`, `RATE_LIMIT_RPM`, `RATE_LIMIT_BURST` | Auto-delete old projects, per-IP rate limit |

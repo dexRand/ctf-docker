@@ -110,3 +110,10 @@ def test_summary_for_the_gui(client):
     assert s["route_steps"][1]["flag"] is True
     assert 802 in s["solver_run_ids"] and "strings" in s["solver_tools"]
     assert "inner.txt" in s["route_tree"]
+
+
+def test_waves_isolate_consumers():
+    from backend.pipeline import _waves
+    plan = ["file", "strings", "binwalk-scan", "nested-archive", "git", "7z", "office"]
+    assert _waves(plan) == [["file", "strings", "binwalk-scan"], ["nested-archive"], ["git"],
+                            ["7z", "office"]]

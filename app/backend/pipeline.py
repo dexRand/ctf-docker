@@ -10,7 +10,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import datetime as dt
+import os
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from sqlmodel import Session, select
@@ -50,6 +52,38 @@ def run_analyzer(tool_name: str, path: Path, out_dir: Path,
         return ToolResult(tool_name, status="error",
                           summary=f"{type(exc).__name__}: {exc}"[:500],
                           output=traceback.format_exc()[-8000:]), logs
+
+
+# tools that may consume their input (the rest of the plan is skipped when they
+# do): each one closes a wave and runs alone
+CONSUMERS = {"nested-archive", "git"}
+TOOL_WORKERS = max(1, int(os.environ.get("TOOL_WORKERS", "3") or 1))
+_POOL = ThreadPoolExecutor(max_workers=TOOL_WORKERS, thread_name_prefix="tool")
+
+
+def _waves(plan: list[str]) -> list[list[str]]:
+    """Split the plan into groups that can run in parallel: a consumer runs
+    alone, after everything planned before it."""
+    waves: list[list[str]] = [[]]
+    for tool in plan:
+        if tool in CONSUMERS:
+            waves += [[tool], []]
+        else:
+            waves[-1].append(tool)
+    return [w for w in waves if w]
+
+
+def _run_wave(wave: list[str], path: Path, out_dir: Path):
+    """Run a wave's tools concurrently; yield (tool, start, result, logs) in plan order."""
+    def one(tool: str):
+        t0 = _now()
+        result, logs = run_analyzer(tool, path, out_dir)
+        return tool, t0, result, logs
+    if len(wave) == 1 or TOOL_WORKERS == 1:
+        for tool in wave:
+            yield one(tool)
+        return
+    yield from _POOL.map(one, wave)
 
 
 def record_run(session: Session, pid: str, node: FileNode, tool_name: str,
@@ -166,17 +200,23 @@ def _run(pid: str, job: Job) -> None:
                 plan_name = node.name + detected
             plan = _plan_for(plan_name, node.mime, is_text)
 
-            for tool_name in [t for t in plan if t != "file"]:
+            for wave in _waves([t for t in plan if t != "file"]):
                 if job.cancelled:
                     break
                 job.wait()
-                t0 = _now()
-                result, logs = run_analyzer(tool_name, abs_path, out_dir)
-                record_run(session, pid, node, tool_name, result, logs, t0)
-                for src in result.extracted:
-                    child = _store_extracted(session, pid, node, Path(src), tool=tool_name)
-                    pending.append(child)
-                if result.consumed:
+                consumed = False
+                # tools of a wave run in parallel; results are recorded in plan
+                # order, so the DB, the flag hunt and the children are the same
+                # as a sequential run
+                for tool_name, t0, result, logs in _run_wave(wave, abs_path, out_dir):
+                    record_run(session, pid, node, tool_name, result, logs, t0)
+                    for src in result.extracted:
+                        child = _store_extracted(session, pid, node, Path(src), tool=tool_name)
+                        pending.append(child)
+                    if result.consumed:
+                        consumed = True
+                        break
+                if consumed:
                     break
 
             job.processed += 1

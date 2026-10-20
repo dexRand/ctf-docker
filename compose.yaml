@@ -225,6 +225,7 @@ services:
     environment:
       - MAX_DEPTH=${MAX_DEPTH:-6}
       - HEAVY_TOOLS=${HEAVY_TOOLS:-1}
+      - TOOL_WORKERS=${TOOL_WORKERS:-3}
       - API_KEY=${STEGSUITE_API_KEY:-}
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-1024}
       - RATE_LIMIT_RPM=${RATE_LIMIT_RPM:-0}
