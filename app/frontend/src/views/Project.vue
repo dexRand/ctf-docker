@@ -3,9 +3,11 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, wsUrl, fmtSize, fmtDate, fmtTime } from '../api'
 import { toolLabel } from '../labels'
+import { ansiToHtml } from '../lib/ansi'
+import { usePaneResize } from '../composables/usePaneResize'
 import { t, lang } from '../i18n'
-import { mdToHtml } from '../md'
 import { notify } from '../toast'
+import TextModal from '../components/TextModal.vue'
 import Terminal from '../components/Terminal.vue'
 import GraphView from '../components/GraphView.vue'
 import Icon from '../components/Icon.vue'
@@ -44,71 +46,11 @@ function onMq() { if (mq) narrow.value = mq.matches }
 function mobileTabBtn(p) {
   return mobilePane.value === p ? 'bg-acc text-ink font-bold' : 'text-dim hover:text-fglite'
 }
-function loadW(key, def) {
-  try { const v = parseInt(localStorage.getItem('steg.pane.' + key) || '', 10); return isNaN(v) ? def : v } catch { return def }
-}
-const leftW = ref(loadW('left', 250))
-const rightW = ref(loadW('right', 380))
 const gridRef = ref(null)
 const treeScrollRef = ref(null)
 const logsRef = ref(null)
 const graphRef = ref(null)
-const logSplit = ref(loadW('logsplit', 300))
-function clamp(v, mn, mx) { return Math.min(mx, Math.max(mn, v)) }
-// Delta-based drag: we capture the sizes at pointerdown and apply the pointer
-// offset. No rect math during the move, so the panes never jump or fight.
-let drag = null
-function startDrag(kind, e) {
-  e.preventDefault()
-  e.stopPropagation()
-  const grid = gridRef.value?.getBoundingClientRect()
-  const logsBox = logsRef.value?.parentElement?.getBoundingClientRect()
-  drag = {
-    kind, x: e.clientX, y: e.clientY,
-    left: leftW.value, right: rightW.value, split: logSplit.value,
-    gw: grid ? grid.width : 1400, lh: logsBox ? logsBox.height : 800,
-  }
-  window.addEventListener('pointermove', onDrag)
-  window.addEventListener('pointerup', endDrag)
-  document.body.style.cursor = kind === 'logsplit' ? 'row-resize' : 'col-resize'
-  document.body.style.userSelect = 'none'
-}
-function onDrag(e) {
-  if (!drag) return
-  const dx = e.clientX - drag.x, dy = e.clientY - drag.y
-  if (drag.kind === 'left') {
-    leftW.value = clamp(drag.left + dx, 180, Math.max(220, Math.min(560, drag.gw - drag.right - 380)))
-  } else if (drag.kind === 'right') {
-    rightW.value = clamp(drag.right - dx, 300, Math.max(340, Math.min(820, drag.gw - drag.left - 380)))
-  } else if (drag.kind === 'logsplit') {
-    logSplit.value = clamp(drag.split + dy, 80, Math.max(120, drag.lh - 150))
-  }
-}
-function endDrag() {
-  if (!drag) return
-  drag = null
-  window.removeEventListener('pointermove', onDrag)
-  window.removeEventListener('pointerup', endDrag)
-  document.body.style.cursor = ''
-  document.body.style.userSelect = ''
-  savePanes()
-  window.dispatchEvent(new Event('resize'))
-}
-function savePanes() {
-  try {
-    localStorage.setItem('steg.pane.left', String(leftW.value))
-    localStorage.setItem('steg.pane.right', String(rightW.value))
-    localStorage.setItem('steg.pane.logsplit', String(logSplit.value))
-  } catch { /* private mode */ }
-}
-// Keyboard support for the separators (role=separator): arrow keys resize.
-function nudge(kind, delta) {
-  if (kind === 'left') leftW.value = clamp(leftW.value + delta, 180, 560)
-  else if (kind === 'right') rightW.value = clamp(rightW.value - delta, 300, 820)
-  else if (kind === 'logsplit') logSplit.value = clamp(logSplit.value + delta, 80, 640)
-  savePanes()
-  window.dispatchEvent(new Event('resize'))
-}
+const { leftW, rightW, logSplit, startDrag, endDrag, nudge } = usePaneResize(gridRef, logsRef)
 let ws = null
 let refreshTimer = null
 let logSeeded = false
@@ -470,7 +412,6 @@ async function buildReport(lng) {
   const text = await api(`/projects/${props.id}/report?format=md&lang=${lng}`)
   report.value = { open: true, text, busy: false }
 }
-function copyReport() { navigator.clipboard?.writeText(report.value.text) }
 const copied = ref('')
 async function copyText(text) {
   try {
@@ -483,13 +424,6 @@ async function copyAllFlags() {
   if (!flags.value.length) return
   await copyText(flags.value.map((f) => f.value).join('\n'))
   notify(t('toast.copied_flags', { n: flags.value.length }), 'ok')
-}
-function downloadReport() {
-  const blob = new Blob([report.value.text], { type: 'text/markdown' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `stegsuite-report-${props.id}.md`
-  a.click()
 }
 
 // --- transcript (for an AI agent: what the tool did, commands + outputs) ---
@@ -540,45 +474,7 @@ async function openTranscript() {
     transcript.value = { open: true, text: '⚠️ ' + String(e), busy: false }
   }
 }
-function copyTranscript() { navigator.clipboard?.writeText(transcript.value.text) }
-function downloadTranscript() {
-  const blob = new Blob([transcript.value.text], { type: 'text/markdown' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `stegsuite-transcript-${props.id}.md`
-  a.click()
-}
 
-const X16 = ['#000000', '#cd3131', '#0dbc79', '#e5e510', '#2472c8', '#bc3fbc', '#11a8cd', '#e5e5e5',
-  '#666666', '#f14c4c', '#23d18b', '#f5f543', '#3b8eea', '#d670d6', '#29b8db', '#ffffff']
-function xterm(n) {
-  n = Number(n)
-  if (n < 16) return X16[n]
-  if (n < 232) { const k = n - 16, r = Math.floor(k / 36), g = Math.floor((k % 36) / 6), b = k % 6; const v = (x) => (x ? x * 40 + 55 : 0); return `rgb(${v(r)},${v(g)},${v(b)})` }
-  const v = 8 + (n - 232) * 10; return `rgb(${v},${v},${v})`
-}
-function ansiToHtml(s) {
-  const esc = String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  let open = 0
-  return esc.replace(/\x1b\[([0-9;]*)m/g, (_m, codes) => {
-    const parts = codes.split(';').filter((x) => x !== '').map(Number)
-    const css = []
-    for (let i = 0; i < parts.length; i++) {
-      const c = parts[i]
-      if (c === 0) css.push('RESET')
-      else if (c === 1) css.push('font-weight:600')
-      else if (c >= 30 && c <= 37) css.push(`color:${X16[c - 30]}`)
-      else if (c >= 90 && c <= 97) css.push(`color:${X16[c - 90 + 8]}`)
-      else if (c >= 40 && c <= 47) css.push(`background:${X16[c - 40]}`)
-      else if (c >= 100 && c <= 107) css.push(`background:${X16[c - 100 + 8]}`)
-      else if (c === 38 && parts[i + 1] === 5) { css.push(`color:${xterm(parts[i + 2])}`); i += 2 }
-      else if (c === 48 && parts[i + 1] === 5) { css.push(`background:${xterm(parts[i + 2])}`); i += 2 }
-    }
-    if (css.includes('RESET')) { const n = open; open = 0; return '</span>'.repeat(n) }
-    open++
-    return `<span style="${css.join(';')}">`
-  }) + '</span>'.repeat(open)
-}
 
 watch(selected, (id) => { previewErr.value = false; if (id != null) loadPreview(id) })
 watch(reportLang, (l) => {
@@ -992,36 +888,22 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- report modal -->
-    <div v-if="report.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6" @click.self="report.open = false">
-      <div class="flex max-h-[88vh] w-[min(980px,calc(100vw-1.5rem))] flex-col rounded border border-edge bg-panel">
-        <div class="flex items-center gap-2 border-b border-edge bg-panel2 px-4 py-2 text-xs">
-          <Icon name="report" :size="14" class="text-acc" /><b>{{ t('report.title') }}</b><span v-if="report.busy" class="animate-blink text-acc">▋</span>
-          <label class="flex items-center gap-1.5 text-[10px] text-dim">
-            {{ t('report.lang') }}
-            <select v-model="reportLang" class="rounded border border-edge bg-ink px-1 py-0.5 text-[10px] uppercase focus:border-acc">
-              <option value="en">English</option>
-              <option value="it">Italiano</option>
-            </select>
-          </label>
-          <button @click="copyReport" class="kb ml-auto text-[10px]"><Icon name="copy" :size="11" />{{ t('report.copy') }}</button>
-          <button @click="downloadReport" class="kb text-[10px]"><Icon name="download" :size="11" />.md</button>
-          <button @click="report.open = false" class="kb text-[10px]" :aria-label="t('report.close')"><Icon name="close" :size="11" /></button>
-        </div>
-        <div class="md min-h-0 flex-1 overflow-auto p-5" v-html="mdToHtml(report.text)"></div>
-      </div>
-    </div>
+    <TextModal v-if="report.open" :title="t('report.title')" :text="report.text" :busy="report.busy"
+               markdown :filename="`stegsuite-report-${props.id}.md`" @close="report.open = false">
+      <template #controls>
+        <label class="flex items-center gap-1.5 text-[10px] text-dim">
+          {{ t('report.lang') }}
+          <select v-model="reportLang" class="rounded border border-edge bg-ink px-1 py-0.5 text-[10px] uppercase focus:border-acc">
+            <option value="en">English</option>
+            <option value="it">Italiano</option>
+          </select>
+        </label>
+      </template>
+    </TextModal>
 
     <!-- transcript modal (copy/paste into an AI agent) -->
-    <div v-if="transcript.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6" @click.self="transcript.open = false">
-      <div class="flex max-h-[88vh] w-[min(900px,calc(100vw-1.5rem))] flex-col rounded border border-edge bg-panel">
-        <div class="flex items-center gap-2 border-b border-edge bg-panel2 px-4 py-2 text-xs">
-          <Icon name="copy" :size="14" class="text-acc" /><b>{{ t('proj.transcript') }}</b><span v-if="transcript.busy" class="animate-blink text-acc">▋</span>
-          <button @click="copyTranscript" class="kb ml-auto text-[10px]"><Icon name="copy" :size="11" />{{ t('report.copy') }}</button>
-          <button @click="downloadTranscript" class="kb text-[10px]"><Icon name="download" :size="11" />.md</button>
-          <button @click="transcript.open = false" class="kb text-[10px]" :aria-label="t('report.close')"><Icon name="close" :size="11" /></button>
-        </div>
-        <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-4 text-[11px] leading-relaxed text-fglite">{{ transcript.text }}</pre>
-      </div>
-    </div>
+    <TextModal v-if="transcript.open" :title="t('proj.transcript')" icon="copy" :text="transcript.text"
+               :busy="transcript.busy" width="900px" :filename="`stegsuite-transcript-${props.id}.md`"
+               @close="transcript.open = false" />
   </div>
 </template>
