@@ -8,7 +8,6 @@ patches, all refs, reflog, stashes and every object including unreachable ones).
 from __future__ import annotations
 
 import zipfile
-from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, which, out_of
 from .registry import register

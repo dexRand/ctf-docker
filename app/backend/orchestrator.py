@@ -16,7 +16,6 @@ import threading
 import time
 import traceback
 import urllib.parse
-import uuid
 from pathlib import Path
 
 from sqlmodel import Session, func, select
@@ -25,7 +24,7 @@ from . import storage
 from .analyzers import get as get_tool
 from .bus import bus
 from .analyzers.base import ToolContext, ToolResult
-from .config import MAX_DEPTH, PROJECTS_DIR
+from .config import MAX_DEPTH
 from .db import engine
 from .models import Artifact, Event, FileNode, Finding, Project, ToolRun
 
@@ -275,7 +274,6 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     existing_norm = {v.replace(" ", "") for v in existing}
     canon_index = {_canon_flag(v): v for v in existing}
     head = source.split(":", 1)[0]
-    is_vision = head in VISION_SOURCES
     fuzzy_ok = head in FUZZY_SOURCES
     noisy = any(p in VISION_SOURCES or p in GENERIC_NOISY for p in source.split(":"))
     generic = [] if noisy else list(_GENERIC_RE)

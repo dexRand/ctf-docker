@@ -7,49 +7,23 @@ into them) and inlines the printable text so the flag hunt scans it directly.
 """
 from __future__ import annotations
 
-import base64
 import re
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
+from .util import TEXT_EXT, b64decode_loose, is_printable, magic_ext
 
-TEXT_EXT = (".txt", ".log", ".md", ".json", ".csv", ".dat", ".asc", ".b64", ".hex",
-            ".xml", ".yaml", ".yml", ".out")
 
 _B64 = re.compile(rb"[A-Za-z0-9+/]{64,}={0,2}")
 _HEX = re.compile(rb"(?:[0-9a-fA-F]{2}){32,}")
 _MIN = {"b64": 64, "hex": 32}
 
-# decoded blob -> file extension when it starts with a known magic
-_MAGIC = ((b"\x89PNG\r\n", ".png"), (b"\xff\xd8\xff", ".jpg"), (b"GIF8", ".gif"),
-          (b"PK\x03\x04", ".zip"), (b"%PDF", ".pdf"), (b"\x7fELF", ".elf"),
-          (b"RIFF", ".wav"), (b"BM", ".bmp"), (b"\x1f\x8b", ".gz"),
-          (b"7z\xbc\xaf\x27\x1c", ".7z"), (b"Rar!", ".rar"), (b"BZh", ".bz2"),
-          (b"\xfd7zXZ", ".xz"))
 
 _MAX_BLOBS = 400
 _MAX_DECODED = 8_000_000        # per blob
 _INLINE_PER = 600_000           # inline at most this much per blob
 _INLINE_TOTAL = 3_000_000       # ... and this much overall
-
-
-def _printable(blob: bytes) -> bool:
-    if not blob:
-        return False
-    good = sum(1 for c in blob if 32 <= c < 127 or c in (9, 10, 13))
-    return good / len(blob) >= 0.90
-
-
-def _magic_ext(blob: bytes) -> str:
-    for magic, ext in _MAGIC:
-        if blob.startswith(magic):
-            return ext
-    return ""
-
-
-def _b64(raw: bytes) -> bytes:
-    return base64.b64decode(raw + b"=" * ((4 - len(raw) % 4) % 4), validate=False)
 
 
 class BlobsAnalyzer(Analyzer):
@@ -75,13 +49,13 @@ class BlobsAnalyzer(Analyzer):
                 if len(raw) < _MIN[kind]:
                     continue
                 try:
-                    blob = _b64(raw) if kind == "b64" else bytes.fromhex(raw.decode())
+                    blob = b64decode_loose(raw) if kind == "b64" else bytes.fromhex(raw.decode())
                 except Exception:  # noqa: BLE001
                     continue
                 if not blob or len(blob) > _MAX_DECODED or blob in seen:
                     continue
                 seen.add(blob)
-                ext = _magic_ext(blob)
+                ext = magic_ext(blob)
                 if ext and len(extracted) < _MAX_BLOBS:
                     # a real file hidden in base64/hex: extract it (child, recursed)
                     dest = outdir / f"{len(extracted):03d}-{kind}{ext}"
@@ -90,7 +64,7 @@ class BlobsAnalyzer(Analyzer):
                         extracted.append(dest)
                     except OSError:
                         pass
-                elif _printable(blob) and inline_total < _INLINE_TOTAL:
+                elif is_printable(blob) and inline_total < _INLINE_TOTAL:
                     # printable text: inline it so the flag hunt scans it
                     chunk = blob[:_INLINE_PER].decode("latin-1", "replace")
                     inline.append(chunk)

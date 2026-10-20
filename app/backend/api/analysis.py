@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from .. import orchestrator, storage
 from ..db import get_session
-from ..models import Artifact, Event, FileNode, Finding, Project, ToolRun
+from ..models import Artifact, Event, Finding, Project, ToolRun
 
 router = APIRouter()
 

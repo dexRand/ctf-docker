@@ -128,13 +128,14 @@ def download(url: str, dest: Path) -> None:
         dest.write_bytes(r.read())
 
 
-def all_cases(extra: bool = False) -> list[tuple[str, list[tuple[str, str]], str]]:
+def all_cases(extra: bool = False, gaps: bool = False) -> list[tuple[str, list[tuple[str, str]], str]]:
     """Every case as (label, [(file name, url)], expected flag)."""
     cases = [(name, [(name, url)], expect) for name, url, expect in CASES]
     cases += [(label, files, expect) for label, files, expect in MULTI]
-    if extra:
-        from real_challenges_extra import EXTRA
-        cases += [(name, [(name, url)], expect) for name, url, expect in EXTRA]
+    if extra or gaps:
+        import real_challenges_extra as rx
+        for name, url, expect in (rx.EXTRA if extra else []) + (rx.GAPS if gaps else []):
+            cases.append((name, [(name, url)], expect))
     return cases
 
 
@@ -159,11 +160,15 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Real CTF challenges against a running StegSuite.")
     ap.add_argument("-k", dest="match", default="", help="only cases whose label contains this")
     ap.add_argument("-j", dest="jobs", type=int, default=1, help="cases analysed in parallel")
-    ap.add_argument("--extra", action="store_true", help="also run real_challenges_extra.py")
+    ap.add_argument("--extra", action="store_true", help="also run real_challenges_extra.EXTRA")
+    ap.add_argument("--gaps", action="store_true", help="also run the known-gap backlog (GAPS)")
+    ap.add_argument("--only-new", action="store_true", help="skip the core CASES/MULTI")
     ap.add_argument("--json-out", type=Path, help="write per-case results (timing included)")
     args = ap.parse_args(argv)
 
-    cases = [c for c in all_cases(args.extra) if args.match in c[0]]
+    core = len(all_cases())
+    cases = all_cases(args.extra, args.gaps)[core if args.only_new else 0:]
+    cases = [c for c in cases if args.match in c[0]]
     print(f"* {len(cases)} real challenges against {API} (jobs={args.jobs})", flush=True)
     with ThreadPoolExecutor(max(1, args.jobs)) as pool:
         results = list(pool.map(lambda c: run(*c), cases))

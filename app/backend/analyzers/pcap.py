@@ -12,7 +12,7 @@ from __future__ import annotations
 import base64
 from pathlib import Path
 
-from .base import Analyzer, ToolContext, ToolResult, list_files, out_of, which
+from .base import Analyzer, ToolContext, ToolResult, list_files, which
 from .registry import register
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")

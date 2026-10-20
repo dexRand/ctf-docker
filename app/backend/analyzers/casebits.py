@@ -10,38 +10,14 @@ from __future__ import annotations
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
+from .util import TEXT_EXT, bits_to_bytes, bits_to_ints, is_printable
 
-TEXT_EXT = (".txt", ".md", ".html", ".htm", ".js", ".py", ".c", ".csv", ".log",
-            ".xml", ".yaml", ".yml", ".srt", ".vtt")
 _BACON = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 _MIN_LETTERS = 32
 
 
-def _bytes_from_bits(bits: list[int], width: int = 8) -> bytes:
-    out = bytearray()
-    for i in range(0, len(bits) - len(bits) % width, width):
-        val = 0
-        for b in bits[i:i + width]:
-            val = (val << 1) | b
-        out.append(val & 0xFF)
-    return bytes(out)
-
-
-def _printable(blob: bytes) -> bool:
-    if not blob:
-        return False
-    good = sum(1 for c in blob if 32 <= c < 127 or c in (9, 10, 13))
-    return good / len(blob) >= 0.90
-
-
 def _bacon(bits: list[int]) -> str:
-    out = []
-    for i in range(0, len(bits) - len(bits) % 5, 5):
-        val = 0
-        for b in bits[i:i + 5]:
-            val = (val << 1) | b
-        out.append(_BACON[val] if val < 26 else "?")
-    return "".join(out)
+    return "".join(_BACON[v] if v < 26 else "?" for v in bits_to_ints(bits, 5))
 
 
 class CaseBitsAnalyzer(Analyzer):
@@ -63,8 +39,8 @@ class CaseBitsAnalyzer(Analyzer):
         results: list[str] = []
         for tag, bits in (("upper=1", [1 if c.isupper() else 0 for c in letters]),
                           ("lower=1", [0 if c.isupper() else 1 for c in letters])):
-            raw = _bytes_from_bits(bits)
-            if _printable(raw):
+            raw = bits_to_bytes(bits)
+            if is_printable(raw):
                 dec = raw.decode("latin-1", "replace")
                 if dec.strip():
                     results.append(f"[case {tag} / 8-bit] {dec[:4000]}")

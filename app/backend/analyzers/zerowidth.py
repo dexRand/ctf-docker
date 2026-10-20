@@ -13,28 +13,10 @@ from collections import Counter
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
+from .util import TEXT_EXT, bits_to_bytes, is_printable
 
-TEXT_EXT = (".txt", ".md", ".html", ".htm", ".js", ".py", ".c", ".cpp", ".csv",
-            ".json", ".srt", ".vtt", ".log", ".xml", ".yaml", ".yml")
 _ZW = ("\u200b", "\u200c", "\u200d", "\ufeff", "\u2060", "\u00ad", "\u180e")
 _MAX_OUT = 50_000
-
-
-def _bits_to_bytes(bits: list[int], width: int = 8) -> bytes:
-    out = bytearray()
-    for i in range(0, len(bits) - len(bits) % width, width):
-        val = 0
-        for b in bits[i:i + width]:
-            val = (val << 1) | b
-        out.append(val & 0xFF)
-    return bytes(out)
-
-
-def _printable(blob: bytes) -> bool:
-    if not blob:
-        return False
-    good = sum(1 for c in blob if 32 <= c < 127 or c in (9, 10, 13))
-    return good / len(blob) >= 0.90
 
 
 class ZeroWidthAnalyzer(Analyzer):
@@ -62,8 +44,8 @@ class ZeroWidthAnalyzer(Analyzer):
                 for zero, one in ((order[0], order[1]), (order[1], order[0])):
                     bits = [0 if c == zero else 1 for c in seq if c in (zero, one)]
                     for width in (8, 7):
-                        dec = _bits_to_bytes(bits, width).decode("latin-1", "replace")
-                        if _printable(dec.encode("latin-1")) and dec not in decodes:
+                        dec = bits_to_bytes(bits, width).decode("latin-1", "replace")
+                        if is_printable(dec.encode("latin-1")) and dec not in decodes:
                             decodes.append(dec)
                 for dec in decodes:
                     out.append(f"[zero-width {len(seq)} chars] " + dec[:_MAX_OUT])
@@ -73,8 +55,8 @@ class ZeroWidthAnalyzer(Analyzer):
             for ch in line[len(line.rstrip(" \t")):]:
                 tw.append(0 if ch == " " else 1)
         if len(tw) >= 16:
-            dec = _bits_to_bytes(tw)
-            if _printable(dec):
+            dec = bits_to_bytes(tw)
+            if is_printable(dec):
                 out.append(f"[trailing-whitespace {len(tw)} bits] "
                            + dec.decode("latin-1", "replace")[:_MAX_OUT])
 
