@@ -726,6 +726,9 @@ onBeforeUnmount(() => {
                 · <b class="text-fglite">{{ c.ev ? toolLabel(c.ev.tool) : c.f.how }}</b>
               </div>
               <div class="mt-1 break-all text-[10px] text-dim">{{ c.f.chain_text }}</div>
+              <div v-if="c.ev && c.ev.decoded" class="mt-1 break-all text-[10px] text-warn">
+                {{ t('proj.decoded_with') }} {{ c.ev.decoded }}<span v-if="c.ev.match">: <code class="text-fglite">{{ c.ev.match.slice(0, 120) }}</code></span>
+              </div>
               <pre v-if="c.ev" class="mt-1 max-h-28 overflow-auto whitespace-pre rounded border border-edge bg-ink p-1.5 text-[10px] text-fglite"># {{ c.ev.tool }}{{ c.ev.command ? '  —  ' + c.ev.command : '' }}
 {{ c.ev.lines }}</pre>
               <pre v-else-if="c.f.context" class="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded border border-edge bg-ink p-1.5 text-[10px] text-dim">{{ c.f.context }}</pre>

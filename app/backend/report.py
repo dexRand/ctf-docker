@@ -22,8 +22,16 @@ from .crackflow import locked_files
 from .models import Event, FileNode, Finding, Project, ToolRun
 
 # finding sources look like "[b64:|hex:|fuzzy:]*<tool>:<file>"
-_SRC_PREFIX = ("b64", "hex", "fuzzy")
-_SRC_DECODER = {"b64": "base64", "hex": "hex", "fuzzy": "fuzzy/OCR"}
+_SRC_PREFIX = ("b64", "hex", "fuzzy", "xor", "rot13", "custom")
+_SRC_DECODER = {"b64": "base64", "hex": "hex", "fuzzy": "fuzzy/OCR", "xor": "XOR of two strings",
+                "rot13": "ROT13", "custom": "FLAG_PATTERN"}
+MATCH_MARK = "\n[match] "     # flaghunt stores the literal text after this
+
+
+def split_context(context: str) -> tuple[str, str]:
+    """(excerpt shown to the user, literal text to find in the tool output)."""
+    ctx, _, literal = (context or "").partition(MATCH_MARK)
+    return ctx, literal
 _ORIGIN_RE = re.compile(r"^extracted:([^:]+):\d+$")
 
 TEXT = {
@@ -94,6 +102,41 @@ def source_parts(src: str) -> tuple[str, list[str]]:
 def source_how(src: str) -> str:
     tool, dec = source_parts(src)
     return tool + "".join(" + " + _SRC_DECODER.get(d, d) for d in dec)
+
+
+def _encoded_forms(value: str, decoders: list[str]) -> list[str]:
+    """What a decoded flag looks like before decoding (for findings stored
+    without the literal text): the rot13 twin, the middle of its base64 for
+    the 3 alignments, its hex."""
+    import base64
+    import codecs
+    forms = [value]
+    if "rot13" in decoders:
+        forms.append(codecs.encode(value, "rot13"))
+    if "b64" in decoders:
+        raw = value.encode("latin-1", "replace")
+        for pad in range(3):
+            enc = base64.b64encode(b"\0" * pad + raw).decode()
+            skip = (pad * 8 + 5) // 6 + 1          # chars touched by the padding
+            core = enc[skip:-4]
+            if len(core) >= 8:
+                forms.append(core)
+    if "hex" in decoders:
+        forms += [value.encode("latin-1", "replace").hex(), value.encode("latin-1", "replace").hex().upper()]
+    return forms
+
+
+def hexdump(data: bytes, offset: int, length: int, context_rows: int = 2) -> str:
+    """xxd-style rows covering data[offset:offset+length] plus a little context."""
+    start = max(0, (offset // 16 - context_rows) * 16)
+    end = min(len(data), ((offset + length) // 16 + context_rows + 1) * 16)
+    rows = []
+    for i in range(start, end, 16):
+        chunk = data[i:i + 16]
+        hexpart = " ".join(f"{b:02x}" for b in chunk).ljust(47)
+        text = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
+        rows.append(f"{i:08x}: {hexpart}  {text}")
+    return "\n".join(rows[:40])
 
 
 def commands_of(text: str) -> list[str]:
@@ -185,19 +228,67 @@ class ProjectView:
         return [n for n in self.nodes if n.id in ids]
 
     def evidence_for(self, f: Finding) -> dict | None:
-        """The run whose output really shows the flag (the source may be a
-        pseudo-tool like 'raw scan' that matches no run)."""
-        if f.id not in self._evidence:
-            self._evidence[f.id] = None
-            src, _ = source_parts(f.source)
+        """Where the flag is visible: the run whose output contains it (or the
+        encoded text it was decoded from), with the lines around it.
+
+        * flag in clear in an output   -> that run, lines around the flag
+        * decoded (base64/hex/XOR/rot13/OCR) -> the run whose output holds the
+          encoded text, lines around it, plus the decoding applied
+        * found in the file bytes ('raw scan') -> no run: the bytes excerpt
+        """
+        if f.id in self._evidence:
+            return self._evidence[f.id]
+        src, dec = source_parts(f.source)
+        ctx, literal = split_context(f.context)
+        how = " + ".join(_SRC_DECODER.get(d, d) for d in dec)
+        ev = None
+        for needle in [n for n in (literal, f.value) if n]:
             for r in sorted(self.runs_of(f.file_id), key=lambda r: r.tool != src):
                 o = self.output(r)
-                if o and f.value in o:
-                    self._evidence[f.id] = {"run": r.id, "tool": r.tool,
-                                            "command": (commands_of(o) or [""])[0],
-                                            "lines": evidence_lines(o, f.value)}
+                if o and needle in o:
+                    ev = {"run": r.id, "tool": r.tool, "command": (commands_of(o) or [""])[0],
+                          "lines": evidence_lines(o, needle), "decoded": how or None,
+                          "match": needle if needle != f.value else None}
                     break
-        return self._evidence[f.id]
+            if ev:
+                break
+        if ev is None:
+            run = next((r for r in self.runs_of(f.file_id) if r.tool == src), None)
+            if run is not None:     # older findings without the literal text
+                o = self.output(run)
+                ev = {"run": run.id, "tool": run.tool, "command": (commands_of(o) or [""])[0],
+                      "lines": ctx, "decoded": how or None, "match": None}
+            elif src == "raw scan":
+                ev = self._raw_evidence(f, [literal] if literal else _encoded_forms(f.value, dec), ctx, how)
+        self._evidence[f.id] = ev
+        return ev
+
+    def _raw_evidence(self, f: Finding, needles: list[str], ctx: str, how: str) -> dict:
+        """Flag found in the file's own bytes: a hexdump around its offset
+        (of the flag, or of the encoded form it was decoded from)."""
+        node = self.by_id.get(f.file_id)
+        dump, cmd, hit = "", "", None
+        data = b""
+        if node is not None:
+            try:
+                with open(storage.project_dir(self.project.id) / node.rel_path, "rb") as fh:
+                    data = fh.read(5_000_000)
+            except OSError:
+                pass
+        for needle in needles:
+            for enc in ("latin-1", "utf-16-le", "utf-16-be"):
+                raw = needle.encode(enc, "replace")
+                if enc != "latin-1":
+                    raw = raw[:-1]      # a UTF-16 file can end on the last char's first byte
+                off = data.find(raw) if raw else -1
+                if off >= 0:
+                    dump, cmd, hit = hexdump(data, off, len(raw)), f"offset 0x{off:x}", needle
+                    break
+            if hit:
+                break
+        return {"run": None, "tool": "file bytes", "command": cmd,
+                "lines": dump or ("found in the file's own bytes:\n" + ctx),
+                "decoded": how or None, "match": hit if hit and hit != f.value else None}
 
     def relevant_runs(self) -> list[ToolRun]:
         """The finder run of each flag + the runs that produced each file on its path."""
@@ -206,7 +297,7 @@ class ProjectView:
         for f in self.kind("flag"):
             wanted.add((f.file_id, source_parts(f.source)[0]))
             ev = self.evidence_for(f)
-            if ev:
+            if ev and ev["run"] is not None:
                 found.add(ev["run"])
             for n in self.chain_of(f.file_id):
                 if n.parent_id is not None and origin_tool(n) not in ("upload", "extracted"):
@@ -288,7 +379,7 @@ def flag_routes(v: ProjectView) -> list[dict]:
             "file": {"id": node.id, "name": node.name} if node else None,
             "how": ev["tool"] if ev else source_how(f.source),
             "evidence": ev,
-            "context": f.context,
+            "context": split_context(f.context)[0],
             "chain": [{"id": n.id, "name": n.name, "tool": origin_tool(n),
                        "password": (v.password_of(n.id).value if n.parent_id is not None
                                     and v.password_of(n.id) else None)}
@@ -306,7 +397,7 @@ def summary(v: ProjectView) -> dict:
     solver_runs: set[int] = set()
     for f in flags:
         ev = v.evidence_for(f)
-        if ev:
+        if ev and ev["run"] is not None:
             solver_runs.add(ev["run"])
         else:
             src, _ = source_parts(f.source)
@@ -356,8 +447,10 @@ def markdown(v: ProjectView, lang: str = "en") -> str:
                  + (f"  ·  [{T['open']}]({v.file_url(fn)})" if fn else ""))
         L.append(f"- {T['how']} {ev['tool'] if ev else source_how(f.source)}")
         L.append(f"- {T['chain']} `{v.chain_text(f, T['via'])}`")
+        if ev and ev.get("decoded"):
+            L.append(f"- decoded: {ev['decoded']}" + (f" of `{ev['match'][:120]}`" if ev.get("match") else ""))
         body = (f"# {ev['tool']}" + (f"  —  {ev['command']}" if ev["command"] else "")
-                + "\n" + ev["lines"]) if ev and ev["lines"] else (f.context or "")
+                + "\n" + ev["lines"]) if ev and ev["lines"] else split_context(f.context)[0]
         if body:
             L += ["```", body.replace("```", "'''"), "```"]
         L.append("")

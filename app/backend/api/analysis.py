@@ -11,6 +11,7 @@ from .. import orchestrator, pipeline, storage
 from ..analyzers import get as get_tool
 from ..db import get_session
 from ..models import Artifact, Event, FileNode, Finding, Project, ToolRun
+from ..report import split_context
 
 router = APIRouter()
 
@@ -101,8 +102,13 @@ def run_tools(pid: str, fid: int, payload: dict = Body(...),
 @router.get("/api/v1/projects/{pid}/findings")
 def project_findings(pid: str, session: Session = Depends(get_session)) -> list[dict]:
     rows = session.exec(select(Finding).where(Finding.project_id == pid).order_by(Finding.id)).all()
-    return [{"id": f.id, "file_id": f.file_id, "kind": f.kind, "value": f.value,
-             "source": f.source, "context": f.context, "created_at": f.created_at} for f in rows]
+    out = []
+    for f in rows:
+        ctx, match = split_context(f.context)
+        out.append({"id": f.id, "file_id": f.file_id, "kind": f.kind, "value": f.value,
+                    "source": f.source, "context": ctx, "match": match or None,
+                    "created_at": f.created_at})
+    return out
 
 
 @router.get("/api/v1/projects/{pid}/runs")

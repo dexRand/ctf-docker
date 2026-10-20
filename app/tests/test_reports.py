@@ -124,3 +124,66 @@ def test_stats_aggregate(client):
     assert st["projects"] >= 1 and isinstance(st["topTools"], list)
     me = st["perProject"].get(PID)
     assert me and me["flagsN"] >= 1
+
+
+def _view_with(tmp_path, output: str, finding_source: str, context: str):
+    from backend.models import FileNode, Finding, Project, ToolRun
+    from backend.report import ProjectView
+    out = tmp_path / "psimage.out"
+    out.write_text(output)
+    run = ToolRun(id=1, project_id="ev", file_id=10, tool="psimage", output_path=None)
+    f = Finding(id=5, project_id="ev", file_id=10, kind="flag", value="flag{decoded_one}",
+                source=finding_source, context=context)
+    v = ProjectView(project=Project(id="ev", name="ev"), nodes=[FileNode(id=10, project_id="ev", name="duck.png")],
+                    runs=[run], findings=[f], events=[], locked={})
+    v._outputs[1] = output
+    return v, f
+
+
+def test_evidence_of_a_decoded_flag_points_at_the_encoded_text(tmp_path):
+    from backend.report import MATCH_MARK
+    v, f = _view_with(tmp_path, '# commands:\n# psimage duck.png\n\n$a = "QUJDREVGR0hJSktMTU5PUA=="\n',
+                      "xor:psimage:duck.png", "«flag{decoded_one}»" + MATCH_MARK + "QUJDREVGR0hJSktMTU5PUA==")
+    ev = v.evidence_for(f)
+    assert ev["run"] == 1 and ev["tool"] == "psimage" and ev["decoded"] == "XOR of two strings"
+    assert "QUJDREVGR0hJSktMTU5PUA==" in ev["lines"]
+
+
+def test_evidence_falls_back_to_the_source_tool_run(tmp_path):
+    v, f = _view_with(tmp_path, "nothing literal here", "b64:psimage:duck.png", "«flag{decoded_one}»")
+    ev = v.evidence_for(f)
+    assert ev["run"] == 1 and ev["decoded"] == "base64"
+
+
+def test_raw_scan_evidence_is_a_hexdump_at_the_offset(tmp_path, monkeypatch):
+    from backend import storage
+    v, f = _view_with(tmp_path, "", "raw:duck.png", "xx «flag{decoded_one}» yy")
+    v.nodes[0].rel_path = "uploads/duck.png"
+    proj = tmp_path / "proj"
+    (proj / "uploads").mkdir(parents=True)
+    (proj / "uploads" / "duck.png").write_bytes(b"\x89PNG" + b"\x00" * 60 + b"flag{decoded_one}" + b"\x00" * 20)
+    monkeypatch.setattr(storage, "project_dir", lambda pid: proj)
+    ev = v.evidence_for(f)
+    assert ev["run"] is None and ev["tool"] == "file bytes" and ev["command"] == "offset 0x40"
+    assert "00000040: 66 6c 61 67" in ev["lines"]
+
+
+def test_hunt_stores_the_encoded_token_for_decoded_flags():
+    import base64
+
+    from sqlmodel import Session, select
+
+    from backend.db import engine, init_db
+    from backend.flaghunt import hunt
+    from backend.models import Finding, Project
+    from backend.report import split_context
+    init_db()
+    tok = base64.b64encode(b"here is flag{b64_inside_out}").decode()
+    with Session(engine) as s:
+        s.add(Project(id="ev-hunt", name="x", status="running"))
+        s.commit()
+        hunt(s, "ev-hunt", None, f"Comment: {tok}", "exiftool:x.jpg")
+        s.commit()
+        f = s.exec(select(Finding).where(Finding.project_id == "ev-hunt")).first()
+    assert f.value == "flag{b64_inside_out}" and f.source.startswith("b64:exiftool")
+    assert split_context(f.context)[1] == tok

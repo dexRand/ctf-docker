@@ -58,6 +58,15 @@ def _views(data: bytes) -> list[bytes]:
     return views
 
 
+# separates the shown context from the literal text to find in the output
+MATCH_MARK = "\n[match] "
+
+
+def _lit(view: bytes, start: int, end: int) -> str:
+    """The matched text exactly as it appears in the view."""
+    return view[start:end].decode("latin-1", "replace")
+
+
 def _snippet(view: bytes, start: int, end: int, width: int = 80) -> str:
     """A short, printable excerpt around a match (the flag is marked with «»)."""
     def clean(b: bytes) -> str:
@@ -79,7 +88,10 @@ def hunt(session: Session, project_id: str, file_id: int | None, text: str, sour
 
 
 def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
-          source: str, depth: int = 0) -> None:
+          source: str, depth: int = 0, origin: str = "") -> None:
+    """`origin` is the text as it appears in the tool output when `text` is a
+    decoded form of it (base64/hex token, XOR operand): stored with the flag so
+    the report can point at the exact place in the output."""
     if not text:
         return
     data = text.encode("latin-1", "replace")
@@ -132,7 +144,12 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     # the challenge's CTF flag format (e.g. DUCTF{...}) applies to every source
     ctf_re, ctf_is_prefix = format_regex(project_format(session, project_id))
 
-    def add(value: str, src: str, ctx: str = "") -> None:
+    def where(ctx: str, literal: str) -> str:
+        """Context + the literal text to look for in the tool output."""
+        lit = (origin or literal)[:300]
+        return f"{ctx}{MATCH_MARK}{lit}" if lit else ctx
+
+    def add(value: str, src: str, ctx: str = "", literal: str = "") -> None:
         if not _ok_flag(value) or value in existing:
             return
         # treat values that differ only by whitespace as the same flag
@@ -164,9 +181,9 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         existing_norm.add(norm)
         canon_index[canon] = value
         keep(Finding(project_id=project_id, file_id=file_id, kind="flag",
-                     value=value, source=src, context=ctx))
+                     value=value, source=src, context=where(ctx, literal or value)))
 
-    def add_raw(value: str, src: str, ctx: str = "") -> None:
+    def add_raw(value: str, src: str, ctx: str = "", literal: str = "") -> None:
         # for a user-provided FLAG_PATTERN: no brace heuristics, just dedupe
         if not value or value in existing:
             return
@@ -177,22 +194,23 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         existing_norm.add(norm)
         canon_index[_canon_flag(value)] = value
         keep(Finding(project_id=project_id, file_id=file_id, kind="flag",
-                     value=value, source=src, context=ctx))
+                     value=value, source=src, context=where(ctx, literal or value)))
 
     def scan(view: bytes, with_generic: bool) -> None:
         for val, s, e in custom_flag_matches(view):
-            add_raw(val, f"custom:{source}", _snippet(view, s, e))
+            add_raw(val, f"custom:{source}", _snippet(view, s, e), _lit(view, s, e))
         if ctf_re is not None:
             for m in ctf_re.finditer(view):
                 val = m.group(0).decode("latin-1", "replace")
                 if ctf_is_prefix:   # brace format: same sanity rules as known prefixes
-                    add(val, source, _snippet(view, m.start(), m.end()))
+                    add(val, source, _snippet(view, m.start(), m.end()), _lit(view, m.start(), m.end()))
                 else:
-                    add_raw(val, f"custom:{source}", _snippet(view, m.start(), m.end()))
+                    add_raw(val, f"custom:{source}", _snippet(view, m.start(), m.end()),
+                            _lit(view, m.start(), m.end()))
         for pat in _STRICT_RE:
             for m in pat.finditer(view):
                 add(m.group(0).decode("latin-1", "replace"), source,
-                    _snippet(view, m.start(), m.end()))
+                    _snippet(view, m.start(), m.end()), _lit(view, m.start(), m.end()))
         if with_generic:
             for pat in generic:
                 for m in pat.finditer(view):
@@ -201,13 +219,13 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
                     # `NPF_{…}` interface names, COM/registry keys), not a flag
                     if _GUID_BODY.fullmatch(val[val.find("{") + 1:-1]):
                         continue
-                    add(val, source, _snippet(view, m.start(), m.end()))
+                    add(val, source, _snippet(view, m.start(), m.end()), _lit(view, m.start(), m.end()))
         if fuzzy_ok:
             for m in _FUZZY_RE.finditer(view):
                 add((m.group(1) + b"{" + m.group(2) + b"}").decode("latin-1", "replace"),
-                    f"fuzzy:{source}", _snippet(view, m.start(), m.end()))
+                    f"fuzzy:{source}", _snippet(view, m.start(), m.end()), _lit(view, m.start(), m.end()))
         for val, s, e in _rot13_candidates(view):
-            add(val, f"rot13:{source}", _snippet(view, s, e))
+            add(val, f"rot13:{source}", _snippet(view, s, e), _lit(view, s, e))
 
     for view in views:
         scan(view, with_generic=True)
@@ -230,7 +248,8 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
                     continue
                 if b"{" in dec and _printable(dec):
                     _hunt(session, project_id, file_id, dec.decode("latin-1", "replace"),
-                          f"{name}:{source}", depth + 1)
+                          f"{name}:{source}", depth + 1,
+                          origin or m.group(0).decode("latin-1", "replace"))
     # Two equal-length quoted strings XORed together: a common script
     # obfuscation (e.g. the PowerShell "map" left behind by Invoke-PSImage).
     # This only *adds* a candidate, so existing findings are untouched.
@@ -252,4 +271,5 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
                     x = bytes(a ^ b for a, b in zip(group[i], group[j]))
                     if b"{" in x and _printable(x):
                         _hunt(session, project_id, file_id, x.decode("latin-1", "replace"),
-                              f"xor:{source}", depth + 1)
+                              f"xor:{source}", depth + 1,
+                              origin or group[i].decode("latin-1", "replace"))
