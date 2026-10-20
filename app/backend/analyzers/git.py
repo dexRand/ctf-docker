@@ -17,6 +17,15 @@ ARCHIVE_EXT = (".zip",)
 _MAX_FILES = 5000
 _MAX_BYTES = 256 * 1024 * 1024
 
+# The repo comes from an untrusted archive: its .git/config could point
+# fsmonitor/hooks/pager/diff drivers at arbitrary commands. Override every
+# config key git would execute and ignore system/global config entirely.
+_SAFE_CFG = ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null",
+             "-c", "core.pager=cat", "-c", "core.sshCommand=false",
+             "-c", "diff.external=", "-c", "uploadpack.packObjectsHook="]
+_SAFE_ENV = {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
+             "GIT_PAGER": "cat", "GIT_EXTERNAL_DIFF": "", "GIT_TERMINAL_PROMPT": "0"}
+
 
 class GitAnalyzer(Analyzer):
     name = "git"
@@ -53,17 +62,22 @@ class GitAnalyzer(Analyzer):
         if gitdir is None:
             return ToolResult(self.name, status="skipped", summary="no git repo")
         repo = gitdir.parent
-        base = ["git", "--git-dir", str(gitdir), "--work-tree", str(repo)]
+        base = ["git", *_SAFE_CFG, "--git-dir", str(gitdir), "--work-tree", str(repo)]
         logs: list[str] = []
+        cfg = gitdir / "config"
+        if cfg.is_file():  # remotes/user info can hold the flag: show it as text
+            logs.append("$ cat .git/config\n" + cfg.read_text("utf-8", "replace")[:8000])
         for c in (["branch", "-a"], ["tag", "-n"], ["log", "--all", "--oneline", "--decorate"],
-                  ["reflog", "--all"], ["stash", "list"], ["log", "--all", "-p"],
+                  ["reflog", "--all"], ["stash", "list"],
+                  ["log", "--all", "-p", "--no-ext-diff", "--no-textconv"],
                   ["fsck", "--unreachable", "--lost-found"]):
-            proc = ctx.run(base + c, timeout=120, cwd=repo)
+            proc = ctx.run(base + c, timeout=120, cwd=repo, env=_SAFE_ENV)
             out = out_of(proc)
             if out:
                 logs.append(f"$ git {' '.join(c)}\n{out}")
         # every object (blobs/commits/trees), including unreachable ones
-        proc = ctx.run(base + ["cat-file", "--batch-all-objects", "--batch"], timeout=180, cwd=repo)
+        proc = ctx.run(base + ["cat-file", "--batch-all-objects", "--batch"], timeout=180,
+                       cwd=repo, env=_SAFE_ENV)
         dump = out_of(proc)
         if dump:
             logs.append("$ git cat-file --batch-all-objects --batch\n" + dump)

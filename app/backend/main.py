@@ -13,10 +13,12 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import routers
+from .auth import authorized
 from .config import API_KEY, VERSION, rate_limit
 from .db import init_db
 from .ratelimit import client_ip, get_bucket
 from .retention import purge_old_projects
+from .storage import InvalidId
 from . import orchestrator
 
 app = FastAPI(
@@ -47,7 +49,7 @@ NEVER_THROTTLE = {HEALTH_PATH}
 @app.middleware("http")
 async def api_key_guard(request: Request, call_next):
     if API_KEY and request.url.path.startswith("/api") and request.url.path != HEALTH_PATH:
-        if request.headers.get("x-api-key") != API_KEY:
+        if not authorized(request.headers, request.query_params, request.cookies):
             return JSONResponse({"detail": "invalid or missing X-API-Key"}, status_code=401)
     return await call_next(request)
 
@@ -64,6 +66,11 @@ async def rate_limit_guard(request: Request, call_next):
             headers={"Retry-After": str(max(1, round(1 / refill))) if refill else "60"},
         )
     return await call_next(request)
+
+
+@app.exception_handler(InvalidId)
+async def _invalid_id(_request: Request, _exc: InvalidId):
+    return JSONResponse({"detail": "not found"}, status_code=404)
 
 
 for _router in routers:

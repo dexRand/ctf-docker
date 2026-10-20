@@ -14,8 +14,8 @@ import termios
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from .. import storage
+from ..auth import authorized
 from ..bus import bus
-from ..config import API_KEY
 
 router = APIRouter()
 
@@ -24,11 +24,8 @@ RC = "/etc/stegsuite/term.bashrc"
 
 
 def _ws_authorized(ws: WebSocket) -> bool:
-    """When API_KEY is set, protect the WebSockets too (header or ?key=)."""
-    if not API_KEY:
-        return True
-    return (ws.headers.get("x-api-key") == API_KEY
-            or ws.query_params.get("key") == API_KEY)
+    """When API_KEY is set, protect the WebSockets too (header, cookie or ?key=)."""
+    return authorized(ws.headers, ws.query_params, ws.cookies)
 
 
 @router.websocket("/ws/projects/{pid}")
@@ -60,8 +57,11 @@ async def ws_terminal(ws: WebSocket, pid: str) -> None:
     if not _ws_authorized(ws):
         await ws.close(code=1008)
         return
-    cwd = storage.project_dir(pid)
-    if not cwd.is_dir():
+    try:
+        cwd = storage.project_dir(pid)
+    except storage.InvalidId:
+        cwd = None
+    if cwd is None or not cwd.is_dir():
         await ws.send_json({"type": "error", "message": "project not found"})
         await ws.close()
         return

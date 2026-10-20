@@ -1,13 +1,21 @@
 // Minimal, dependency-free Markdown -> HTML (headings, tables, code, lists,
 // bold, inline code). HTML is escaped first, so tool output is safe.
+// The report embeds attacker-controlled text (file names, flags, tool output),
+// so quotes are escaped too and links only keep http(s) or same-origin targets.
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+const SAFE_HREF = /^(https?:\/\/|\/(?!\/))/i
+function link(_m, text, href) {
+  if (!SAFE_HREF.test(href)) return text
+  return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`
 }
 function inline(s) {
   return esc(s)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, link)
 }
 
 export function mdToHtml(md) {

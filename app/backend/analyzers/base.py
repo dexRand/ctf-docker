@@ -1,6 +1,7 @@
 """Analyzer framework: ToolResult, ToolContext, Analyzer base + factory."""
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -43,13 +44,16 @@ class ToolContext:
         d.mkdir(parents=True, exist_ok=True)
         return d
 
-    def run(self, cmd: list, timeout: int = 300, cwd: Optional[Path] = None) -> subprocess.CompletedProcess:
+    def run(self, cmd: list, timeout: int = 300, cwd: Optional[Path] = None,
+            env: Optional[dict] = None) -> subprocess.CompletedProcess:
+        """Run a command; `env` entries are added on top of the inherited environment."""
         self.log("$ " + " ".join(str(c) for c in cmd))
         try:
             return subprocess.run(
                 [str(c) for c in cmd], capture_output=True, text=True, errors="replace",
                 timeout=timeout, stdin=subprocess.DEVNULL,
                 cwd=str(cwd) if cwd else None,
+                env={**os.environ, **env} if env else None,
             )
         except subprocess.TimeoutExpired:
             return subprocess.CompletedProcess(cmd, 124, "", "timeout")

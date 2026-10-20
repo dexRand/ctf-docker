@@ -28,8 +28,23 @@ def sanitize_name(name: str) -> str:
     return name or "file"
 
 
+# project / tool-job ids: `new_project_id()` output (and legacy hand-made ids);
+# never a path component like "..", so ids can't escape their base directory
+_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+
+
+class InvalidId(ValueError):
+    """An id that is not a plain project/job identifier (answered as 404)."""
+
+
+def check_id(value: str) -> str:
+    if not _ID_RE.match(value or ""):
+        raise InvalidId(value)
+    return value
+
+
 def project_dir(pid: str) -> Path:
-    return PROJECTS_DIR / pid
+    return PROJECTS_DIR / check_id(pid)
 
 
 def init_project(pid: str) -> None:
