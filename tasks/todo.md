@@ -213,3 +213,41 @@ stable. Verificato: 13/13 presenti (`-addonlist`) + webswing risponde su
 - [x] Ogni servizio risponde a runtime (9/9 → HTTP 200)
 - [x] Dashboard mostra tutti i tool con descrizione e stato
 - [x] README allineato (EN principale + IT)
+
+## Refactor 2026-10 (audit completo) — vedi `tasks/plan-refactor.md`
+Stato: **Fasi 0–5 fatte**, Fase 6 (RevSuite) in attesa di approvazione.
+- [x] **Fase 0 — sicurezza e bug**: path traversal su `/tooljobs` (DB scaricabile,
+      confermato), RCE da `.git/config` (confermato), XSS nel report, porte su
+      `127.0.0.1`, password cancellate dal dedupe, `/tmp` condiviso fra crack, budget
+      di crack, collisioni di `order_index`, delete con job attivo, worker crack senza
+      errori, bug analyzer (OCR fallback, zTXt, numpy opzionale, steghide), bug SPA
+      (`out()`, race `load()`, WS/terminale), API key via cookie/`?key=`, Dockerfile.
+- [x] **Fase 1 — API-first**: report/log/transcript/flag-route/summary nel backend,
+      `POST /files/{fid}/run`, pausa visibile; `docs/API.md` aggiornato.
+- [x] **Fase 1b — CTF/autosolver/IA**: modello `Ctf` (migrazione 0003), formato flag
+      per CTF → `solved`, autosolver, vista CTF nella SPA, **server MCP** (18 tool),
+      `/services`, `./ctf up` pronto all'uso + `./ctf mcp`.
+- [x] **Fase 2 — modularità**: `orchestrator.py` diviso in 9 moduli, `analyzers/util.py`
+      (bit/printable/base64/magic/estensioni), `run_cmd` unico con kill del gruppo,
+      `ctx.siblings()`, `apply_crack_result` condiviso, codice morto rimosso.
+- [x] **Fase 3 — efficienza** (senza perdere flag, verificato): GIF OCR una volta,
+      `lsb-carve` in numpy (97 s → 0,9 s su Gab-chan, byte identici a zsteg), morse
+      vettorizzato, letture limitate, line-count wordlist in cache, N+1 rimossi.
+- [x] **Fase 4 — frontend**: `Project.vue` 1385 → ~900 righe (summary dal backend,
+      `ansi.js`, `usePaneResize`, `TextModal`), i18n/icone morte rimosse, leak chiusi.
+- [x] **Fase 5 — infra/doc**: compose con ancora `x-base`, cpus, healthcheck, link
+      dashboard da `.env`, **immagini pinnate per digest** (`tools/pin_images.py`),
+      `tools/check_consistency.py` in CI, README EN/IT riscritti, SPEC/AGENTS aggiornati.
+- [x] **Nuove tecniche dai test reali**: whitespace a due simboli, flussi UDP/TCP,
+      base64 un token per pacchetto, testo di SVG/HTML, bit alto, prefissi CTF comuni
+      (`DUCTF`, `ictf`, `tjctf`, `lactf`, …), niente flag fasulle dagli hex dump.
+
+Risultati (immagine nuova): pytest **214/214**, regressione **33/33**, reali **35/35**
+(2963 s → 2675 s di analisi a parità di flag), verifica writeup **ALL CORRECT**.
+Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
+
+### Backlog
+- [ ] Fase 6 — RevSuite (auto-triage binari + terminale per progetto) — da approvare.
+- [ ] Coda di cracking con N worker (`CRACK_WORKERS`), crack per file.
+- [ ] Gap reali: evtx, PNG/BMP corrotti + OCR, SSTV→OCR, porte UDP, evil bit, GPP
+      cpassword, SAM, Chef, QOI, zstd IDAT, palette PNG, QR sfocato, pcap corrotto, ASK/SAME.
