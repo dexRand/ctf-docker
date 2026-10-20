@@ -12,10 +12,12 @@ import urllib.parse
 # The prefix must not be preceded by an alphanumeric/underscore, otherwise
 # `CTF{...}` would match inside `picoCTF{...}` and produce a truncated flag.
 _LB = r"(?<![0-9A-Za-z_])"
-STRICT_PATTERNS = [
-    _LB + p + r"\{[^}\n]{1,200}\}"
-    for p in ("ITS", "flag", "FLAG", "CTF", "ctf", "HTB", "picoCTF")
-]
+# Flag prefixes searched everywhere, even in noisy sources (raw bytes, strings,
+# pcap). Matching is case-insensitive. A CTF's own format (Ctf.flag_format)
+# is added per challenge; FLAG_PATTERN adds a global one.
+FLAG_PREFIXES = ("picoCTF", "ITS", "flag", "CTF", "HTB", "DUCTF", "ictf", "tjctf", "lactf",
+                 "uiuctf", "SEKAI", "corctf", "dice", "csawctf", "actf", "idek", "wctf", "SusCTF")
+STRICT_PATTERNS = [_LB + p + r"\{[^}\n]{1,200}\}" for p in FLAG_PREFIXES]
 GENERIC_PATTERNS = [_LB + r"[0-9A-Za-z_]{2,32}\{[A-Za-z0-9_\-!?.,:;@#$%^&*+=/ ]{1,120}\}"]
 _STRICT_RE = [re.compile(p.encode(), re.IGNORECASE) for p in STRICT_PATTERNS]
 _GENERIC_RE = [re.compile(p.encode(), re.IGNORECASE) for p in GENERIC_PATTERNS]
@@ -54,18 +56,18 @@ def _ok_flag(value: str) -> bool:
 
 # A flag found in a different encoding (typically rot13 of the whole value,
 # e.g. `VGF{...}` for `ITS{...}`) should collapse to a single finding.
-KNOWN_PREFIXES = {"ITS", "flag", "FLAG", "ctf", "CTF", "HTB", "picoCTF"}
+KNOWN_PREFIXES = {p.lower() for p in FLAG_PREFIXES}
 
 
 def _is_known_prefix(value: str) -> bool:
-    return value.split("{", 1)[0] in KNOWN_PREFIXES
+    return value.split("{", 1)[0].lower() in KNOWN_PREFIXES
 
 
 # Flags hidden as their rot13 twin (e.g. `VGF{...}` for `ITS{...}`) are common
 # in tool outputs; on noisy sources (strings/hex) the generic pattern is skipped
 # so we look for the rot13 form of the known prefixes explicitly.
 _ROT13_PREFIXES = tuple(sorted({codecs.encode(p, "rot13") for p in KNOWN_PREFIXES}))
-_ROT13_RE = [re.compile((_LB + re.escape(p) + r"\{[^}\n]{1,200}\}").encode())
+_ROT13_RE = [re.compile((_LB + re.escape(p) + r"\{[^}\n]{1,200}\}").encode(), re.IGNORECASE)
              for p in _ROT13_PREFIXES]
 
 # inline URL-encoding: any %XX escape triggers a de-quoted view

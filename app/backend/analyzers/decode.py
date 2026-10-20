@@ -35,6 +35,11 @@ def candidates(data: bytes) -> dict[str, bytes]:
                 out[name] = d
         except Exception:
             pass
+    # every byte with the high bit set (`c | 0x80`, LA CTF "extended"): strip it
+    if len(s) >= 4 and sum(b >= 0x80 for b in s) >= 0.8 * len(s):
+        d = bytes(b & 0x7F for b in s)
+        if _ok(d):
+            out["high-bit"] = d
     h = re.sub(rb"[^0-9a-fA-F]", b"", s)
     if len(h) >= 4 and len(h) % 2 == 0:
         try:
@@ -102,7 +107,8 @@ class DecodeAnalyzer(Analyzer):
     display_order = 125
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        lines = chain(ctx.input.read_bytes())
+        with open(ctx.input, "rb") as fh:   # encoded text is small; don't load huge files
+            lines = chain(fh.read(2_000_000))
         return ToolResult(self.name, status="done", output="\n".join(lines[:300]),
                           summary=f"{len(lines)} decode(s)")
 

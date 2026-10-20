@@ -198,3 +198,20 @@ def test_hex_dump_lines_are_not_glued_into_a_flag() -> None:
             "00000080: 5f66 6c61 675f 327d 0000 ffdb 0043 0008  _flag_2}.....C..\n")
     out = _hunt_values("fp-xxd", dump, "xxd:exif.jpg")
     assert not any("00000080" in v for v in out)
+
+
+def test_common_ctf_prefixes_are_found_even_in_noisy_sources() -> None:
+    out = _hunt_values("fp-prefix", "\x00\x01junk ictf{th4t_isn7_chin3se} more DUCTF{x_1_y} tjctf{a_b_c}",
+                       "strings:bom.txt")
+    assert {"ictf{th4t_isn7_chin3se}", "DUCTF{x_1_y}", "tjctf{a_b_c}"} <= out
+
+
+def test_rot13_twin_still_collapses_to_the_known_prefix() -> None:
+    out = _hunt_values("fp-rot13b", "VGF{ebg_guvegrra}", "strings:x")
+    assert "ITS{rot_thirteen}" in out
+
+
+def test_decode_strips_the_high_bit() -> None:
+    from backend.analyzers.decode import candidates
+    data = bytes(b | 0x80 for b in b"lactf{high_bit_set}")
+    assert candidates(data)["high-bit"] == b"lactf{high_bit_set}"
