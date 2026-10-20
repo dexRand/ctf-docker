@@ -54,7 +54,6 @@ Repo infrastrutturale: la "suite" è la verifica a runtime.
 ## Porte (fascia 19000+, scelta anti-collisione)
 | Porta | Servizio | Uso |
 |------:|----------|-----|
-| 19000 | *(libero — AperiSolve rimosso)* | — |
 | 19001 | Homepage | dashboard |
 | 19002 | CyberChef | encoding/crypto |
 | 19003 | mitmweb UI | GUI proxy HTTP(S) |
@@ -70,17 +69,23 @@ Repo infrastrutturale: la "suite" è la verifica a runtime.
 | 19014 | StegSuite | workbench stego + GUI + API (solo localhost) |
 | 19015 / 19016 | Hashtopolis | backend / frontend crack distribuito (profilo `crack`) |
 | 19017 | Whisper-WebUI | trascrizione audio → testo/SRT con timestamp (profilo `audio`) |
-| 19018 | Sandbox ELF | analisi attiva di binari (gdb/strace/pwntools/qemu, rete isolata) — profilo `rev` |
+| 19018 | rev sandbox | reversing/pwn ELF/PE/APK da terminale web (Ghidra headless, radare2, gdb, strace/ltrace, apktool, jadx, pwntools, qemu; rete isolata) — profilo `rev` |
+| 19019 | Dork generator | query per motori di ricerca da un target |
+| 19050 | OSINT (override `osint/`) | area di un altro sviluppatore, fuori dal core |
+
+Tutte le porte sono pubblicate su `BIND_ADDR` (default `127.0.0.1`: solo locale).
 
 ## StegSuite (workbench stego/forensics)
-App tutto-in-uno (porta 19014, solo localhost) che ha **sostituito** il vecchio
-deep triage (CLI + GUI su 19013) e AperiSolve. Due modalità: **Auto** (fa tutto e
-prova le wordlist) e **Check** (scansiona, poi scegli cosa attaccare). Analisi
-ricorsiva e ordinata su **41 tool** (metadati, testo, stego, immagini/OCR,
-audio/SSTV, pcap, estrazione archivi) + flag hunt configurabile (`FLAG_PATTERN`)
-+ estrazione ricorsiva (7z/binwalk/foremost) + cracking (stegseek, fcrackzip,
-hashcat+zip2hashcat, pdfcrack, bkcrack). Risultati via GUI/API; i report stanno
-in `./data/` e si consultano con FileBrowser Quantum (noauth).
+App tutto-in-uno (porta 19014) per stego/forensics, **API-first**: tutto ciò che
+fa la GUI è disponibile via REST e via **MCP** (per un'IA). Lavora **a progetto**:
+una **CTF** raggruppa le sue **challenge**, il formato flag della CTF guida la
+ricerca e segna le challenge risolte; l'**autosolver** analizza tutte quelle aperte.
+Due modalità per challenge: **Auto** (fa tutto e prova le wordlist) e **Check**
+(scansiona, poi scegli cosa attaccare). Analisi ricorsiva e ordinata su **55 tool**
+(metadati, testo/esolang, stego, immagini/OCR, audio/SSTV/DTMF, pcap/TLS, ELF,
+email, git, archivi) + flag hunt + cracking (stegseek, fcrackzip, hashcat+zip2hashcat,
+pdfcrack, bkcrack). Report, log e transcript sono generati dal backend; i file
+stanno in `./data/` e si sfogliano con FileBrowser Quantum (noauth).
 
 ## Boundaries
 - **Always:** verificare che la porta sia libera prima di aggiungere un servizio;
@@ -92,10 +97,11 @@ in `./data/` e si consultano con FileBrowser Quantum (noauth).
 
 ## Success Criteria
 - [ ] `docker compose config -q` passa senza errori.
-- [ ] `./ctf up` avvia dashboard + tool core, tutte le porte sono `9000+`.
+- [ ] `./ctf up` avvia dashboard + tool core e attende che siano pronti; tutte le porte sono `19000+` su `127.0.0.1`.
 - [ ] La dashboard elenca **tutti** i tool ordinati per fase, con descrizione e stato.
 - [ ] Ogni tool incluso è un'immagine upstream reale e verificata (le sole
-      eccezioni documentate sono i build `app/Dockerfile` per StegSuite e `zap/Dockerfile`).
+      eccezioni documentate sono i build `app/Dockerfile` (StegSuite), `zap/Dockerfile`
+      e `rev/Dockerfile` (sandbox reversing)).
 - [ ] README spiega avvio, profili e a cosa serve ogni tool.
 - [ ] StegSuite (`./ctf up`, porta 19014) analizza ricorsivamente, caccia le flag
       e, sui file bloccati, fa scegliere la wordlist; report in FileBrowser Quantum.

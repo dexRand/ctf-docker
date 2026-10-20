@@ -21,7 +21,7 @@ appdata/
 app/frontend/node_modules/
 app/frontend/dist/
 
-# Deep triage: dati di lavoro e wordlist pesanti
+# dati di lavoro (progetti StegSuite, pull, rev) e wordlist pesanti
 data/
 wordlists/*
 !wordlists/.gitkeep
