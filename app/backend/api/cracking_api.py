@@ -7,10 +7,10 @@ import traceback
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session, select
 
-from .. import cracking, orchestrator, storage
+from .. import crackflow, cracking, orchestrator, storage
 from ..bus import bus
 from ..db import engine, get_session
-from ..models import Event, FileNode, Finding, ToolRun
+from ..models import Event, FileNode, Finding
 
 router = APIRouter()
 CRACK_JOBS: dict[str, str] = {}
@@ -33,22 +33,13 @@ def upload_wordlist(file: UploadFile = File(...)) -> dict:
 
 @router.get("/api/v1/projects/{pid}/locked")
 def locked_files(pid: str, session: Session = Depends(get_session)) -> list[dict]:
-    cracked = {f.file_id for f in session.exec(
-        select(Finding).where(Finding.project_id == pid)
-        .where(Finding.kind == "password")).all()}
-    runs = session.exec(select(ToolRun).where(ToolRun.project_id == pid)
-                        .where(ToolRun.needs_password == True)).all()  # noqa: E712
-    seen: dict[int, str] = {}
-    for r in runs:
-        if r.file_id in cracked:
-            continue
-        seen.setdefault(r.file_id, r.tool)
-    out = []
-    for fid, tool in seen.items():
-        n = session.get(FileNode, fid)
-        if n:
-            out.append({"file_id": fid, "name": n.name, "kind": tool, "size": n.size})
-    return out
+    locked = crackflow.locked_files(session, pid)
+    if not locked:
+        return []
+    nodes = session.exec(select(FileNode).where(FileNode.id.in_(list(locked)))).all()  # type: ignore[attr-defined]
+    by_id = {n.id: n for n in nodes}
+    return [{"file_id": fid, "name": by_id[fid].name, "kind": tool, "size": by_id[fid].size}
+            for fid, tool in locked.items() if fid in by_id]
 
 
 def _crack_worker(pid: str, fid: int, names, opts: dict) -> None:
@@ -69,28 +60,8 @@ def _crack_worker(pid: str, fid: int, names, opts: dict) -> None:
             else:
                 res = cracking.crack_file(path, names, log=lines.append,
                                           **{k: v for k, v in opts.items() if k != "bkcrack"})
-            orchestrator.record_crack_run(s, pid, fid, work, res, lines)
-            if res["password"]:
-                wl_hit = res.get("wordlist_hit") or ""
-                bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid,
-                                               "status": "found", "password": res["password"],
-                                               "wordlist": wl_hit or None})
-                s.add(Finding(project_id=pid, file_id=fid, kind="password",
-                              value=res["password"], source=f"crack:{res['kind']}",
-                              context=wl_hit))
-                orchestrator.mark_unlocked(s, pid, fid)
-                s.add(Event(project_id=pid, level="info",
-                            message=f"password found for {node.name}: {res['password']}"
-                                    + (f" via {wl_hit}" if wl_hit else "")))
-                if res["extracted"]:
-                    orchestrator.import_children(s, pid, fid, res["extracted"])
-                s.commit()
-                if res["extracted"]:
-                    orchestrator.analyze_new(pid)
-            else:
-                bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid, "status": "not_found"})
-                s.add(Event(project_id=pid, level="warn", message=f"password not found for {node.name}"))
-                s.commit()
+            if crackflow.apply_crack_result(s, pid, node, work, res, lines):
+                orchestrator.analyze_new(pid)
     except Exception as exc:  # the UI waits for a final crack event: always send one
         bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid, "status": "error",
                                        "error": f"{type(exc).__name__}: {exc}"[:300]})

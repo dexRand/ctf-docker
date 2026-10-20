@@ -3,17 +3,17 @@ from __future__ import annotations
 
 import codecs
 
-from backend.orchestrator import (
+from backend.flaghunt import _snippet
+from backend.flagpatterns import (
     _GENERIC_RE,
     _STRICT_RE,
     _canon_flag,
-    _detect_ext,
     _is_known_prefix,
     _ok_flag,
     _rot13_candidates,
-    _snippet,
     _url_decoded,
 )
+from backend.planner import _detect_ext
 
 
 def search(data: bytes) -> set[str]:
@@ -97,9 +97,9 @@ def test_rot13_candidates_ignore_unrelated_text() -> None:
 def test_custom_flag_pattern_with_braces(monkeypatch):
     import re
 
-    from backend import orchestrator
+    from backend import flagpatterns, orchestrator
 
-    monkeypatch.setattr(orchestrator, "_CUSTOM_FLAG_RE", re.compile(rb"DUCTF\{[^}]+\}"))
+    monkeypatch.setattr(flagpatterns, "_CUSTOM_FLAG_RE", re.compile(rb"DUCTF\{[^}]+\}"))
     out = [v for v, _, _ in orchestrator.custom_flag_matches(b"xx DUCTF{custom_1} yy")]
     assert out == ["DUCTF{custom_1}"]
 
@@ -107,17 +107,17 @@ def test_custom_flag_pattern_with_braces(monkeypatch):
 def test_custom_flag_pattern_without_braces(monkeypatch):
     import re
 
-    from backend import orchestrator
+    from backend import flagpatterns, orchestrator
 
-    monkeypatch.setattr(orchestrator, "_CUSTOM_FLAG_RE", re.compile(rb"FLAG-[0-9a-f]{8}"))
+    monkeypatch.setattr(flagpatterns, "_CUSTOM_FLAG_RE", re.compile(rb"FLAG-[0-9a-f]{8}"))
     out = [v for v, _, _ in orchestrator.custom_flag_matches(b"here FLAG-deadbeef end")]
     assert out == ["FLAG-deadbeef"]
 
 
 def test_no_custom_pattern_matches_nothing(monkeypatch):
-    from backend import orchestrator
+    from backend import flagpatterns, orchestrator
 
-    monkeypatch.setattr(orchestrator, "_CUSTOM_FLAG_RE", None)
+    monkeypatch.setattr(flagpatterns, "_CUSTOM_FLAG_RE", None)
     assert orchestrator.custom_flag_matches(b"anything") == []
 
 
