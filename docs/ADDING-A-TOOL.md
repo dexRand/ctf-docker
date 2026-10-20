@@ -15,7 +15,7 @@ from .registry import register, subprocess_analyzer
 subprocess_analyzer(
     "my-tool",                     # tool name (API + GUI)
     ["my-tool", "--flag", "{input}"],
-    "steg",                        # category: metadata|text|hex|extract|steg|png|vision|radio|audio
+    "steg",                        # category: metadata|text|hex|decode|extract|steg|vision|radio|audio|network|elf|forensics
     "What it does (one line).",
     accepts=(".png", ".jpg"),      # () = every file; or extensions
     order=300,                     # display/execution order
@@ -50,21 +50,22 @@ register(MyAnalyzer())
 
 ## 2. Register the module
 
-Add it to `app/backend/analyzers/__init__.py` imports:
-
-```python
-from . import metadata, text, hex, decode, extract, steg, png, image, gif, vision, morse, audio, <name>
-```
+Add `<name>` to the import line in `app/backend/analyzers/__init__.py`.
 
 ## 3. (Optional) add it to the default pipeline
 
-`app/backend/orchestrator.py` → `DEFAULT_PLAN` (only tools that should run
-automatically). Tools not in the plan are still available via
-`POST /api/v1/tools/{tool}`.
+`app/backend/planner.py` → `DEFAULT_PLAN` (only tools that should run
+automatically; order matters: metadata → text → steg → extract). Tools not in
+the plan are still available via `POST /api/v1/tools/{tool}` and
+`POST /api/v1/projects/{pid}/files/{fid}/run`.
 
 ## 4. Test
 
 ```bash
+# unit test (inside the StegSuite image, mounts your working copy)
+app/tests/run_unit.sh -q
+# a real challenge it solves: add (file, url, flag) to app/tests/real_challenges.py
+./ctf test -j 3 -k <file>
 # rebuild + restart
 docker compose build stegsuite && docker compose up -d --force-recreate stegsuite
 # catalog must list it
@@ -75,9 +76,17 @@ curl -s -F file=@sample.png localhost:19014/api/v1/tools/my-tool | python3 -m js
 
 ## Conventions
 
+- **Reuse the shared helpers** in `analyzers/util.py` instead of writing your own:
+  `bits_to_bytes`/`bits_to_ints`, `printable_ratio`/`is_printable`,
+  `b64decode_loose`, `MAGICS`/`magic_ext`, and the extension groups
+  `TEXT_EXT`, `IMG_EXT`, `AV_EXT`, `ARCHIVE_EXT`.
+- **Commands** go through `ctx.run(...)` (or `base.run_cmd`, `binary=True` for
+  bytes): logged in the run, timeout kills the whole process group.
+- **Other files of the challenge** (keys, keylogs, password hints):
+  `ctx.siblings(head_bytes)` — reads only the head of each file.
 - **Command wrappers**: use `subprocess_analyzer(...)`; automatic skip if the
   binary is missing.
-- **Status**: `done` | `error` | `skipped` | `needs_password`.
+- **Status**: `done` | `error` | `skipped` (nothing to do / nothing found) | `needs_password`.
 - **`extracted` vs `artifacts`**: anything that should be analysed again →
   `extracted`; visualisations (bit planes, frames, spectrograms) → `artifacts`.
 - **Bound the work**: cap output size and set a `timeout`; skip too-large inputs.

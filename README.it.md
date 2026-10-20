@@ -1,11 +1,10 @@
 <h1 align="center">CTF Toolbox</h1>
 
 <p align="center">
-  Cassetta degli attrezzi <strong>self-hosted</strong> e browser-based per
-  <strong>risolvere le CTF</strong>.
+  Banco di lavoro self-hosted, tutto da browser, per <strong>risolvere le CTF</strong> —
+  a mano, in automatico, o pilotato da un'IA.
   <br>
-  Una sola dashboard, i tool essenziali con GUI web e un unico
-  <code>docker compose up</code>.
+  Un <code>./ctf up</code>, una dashboard, ogni tool con interfaccia web.
 </p>
 
 <p align="center">
@@ -13,278 +12,321 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/dexRand/ctf-docker/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/dexRand/ctf-docker/actions/workflows/ci.yml/badge.svg"></a>
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker Compose">
-  <img src="https://img.shields.io/badge/ports-19000%2B-6E56CF" alt="Ports 19000+">
-  <img src="https://img.shields.io/badge/images-upstream--only-informational" alt="Upstream images only">
-  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
+  <img src="https://img.shields.io/badge/porte-19000%2B%20%C2%B7%20localhost-6E56CF" alt="Porte 19000+, localhost">
+  <img src="https://img.shields.io/badge/API-REST%20%2B%20MCP-0A7" alt="REST + MCP">
+  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="Licenza: MIT">
 </p>
 
 ---
 
-**CTF Toolbox** è uno stack Docker Compose che raccoglie i tool realmente usati
-durante una Capture The Flag — steganalisi, encoding/crypto, intercettazione web,
-OSINT, forensics e password — ognuno con **interfaccia web**, dietro un'unica
-dashboard che li elenca **ordinati per fase di lavoro**, con una breve
-descrizione e lo stato live.
+**CTF Toolbox** è uno stack Docker Compose con i tool che si usano davvero in
+una Capture The Flag — steganalisi, forensics, encoding/crypto, web, OSINT,
+reversing, cracking di password — ognuno con **interfaccia web**, dietro una
+dashboard che li elenca per fase di lavoro.
 
-È pensato per convivere con altre app self-hosted: ogni servizio gira sulla
-**fascia 19000+**, così non collide con i soliti noti (8080, 9000, 5432, …), e i
-tool pesanti stanno dietro **profili** Compose opzionali.
+Il cuore è **StegSuite**, un banco di analisi che prende i file della challenge,
+esegue **55 analyzer** in modo ricorsivo, cerca la flag, cracca ciò che è
+bloccato e ti dice **come** ci è arrivato. Lavora **per CTF**: crei l'evento,
+carichi le sue challenge, lasci che l'**autosolver** risolva quelle facili e
+continui sulle altre — da solo, o tramite un'**IA** collegata via **MCP**.
 
-## ✨ Funzionalità
+## Indice
 
-- **Una sola dashboard** ([Homepage](https://gethomepage.dev)) con tutti i tool,
-  raggruppati per fase CTF, con descrizione e indicatore up/down.
-- **GUI web ovunque** — niente X11 forwarding, niente desktop da installare.
-- **Solo immagini upstream** — nessun build custom da mantenere; ogni immagine è
-  un progetto reale e attivamente usato, verificato prima di essere aggiunto.
-- **Tool pesanti opzionali** (ZAP, Wireshark, SageMath, SpiderFoot) dietro
-  profili Compose, così `./ctf up` resta leggero.
-- **Nessuna collisione di porte** — tutto su 19000+, modificabile da `.env`.
-- **Stack isolato** — project name `ctf`, nessun `container_name` fisso; il
-  MySQL di Hashtopolis (profilo `crack`) è interno e non pubblica porte.
+- [Caratteristiche](#-caratteristiche) · [Avvio rapido](#-avvio-rapido) · [Come funziona](#-come-funziona)
+- [Lavorare su una CTF](#-lavorare-su-una-ctf) · [IA (MCP)](#-ia-mcp) · [Tool](#-tool)
+- [StegSuite](#-stegsuite) · [CLI](#%EF%B8%8F-cli) · [API](#-api) · [Configurazione](#%EF%B8%8F-configurazione)
+- [Sicurezza](#-sicurezza) · [Test su CTF reali](#-test-su-ctf-reali)
+- [Problemi comuni](#-problemi-comuni) · [Struttura](#-struttura) · [Contribuire](#-contribuire)
 
-## 🧰 Tool
+## ✨ Caratteristiche
 
-| Fase | Tool | URL | A cosa serve | Profilo |
-| --- | --- | --- | --- | --- |
-| Dashboard | Homepage | http://localhost:19001 | Panoramica e stato di tutti i tool | core |
-| Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashing, JWT e molto altro | core |
-| Web | **mitmproxy** | http://localhost:19003 | Intercetta e modifica HTTP(S) · proxy su `:19004` | core |
-| Utility | IT-Tools | http://localhost:19011 | Encoder, converter, hash, regex e simili | core |
-| Recon | Dork generator | http://localhost:19019 | Dork curati + **Google Hacking Database** (exploit-db): query Google/Bing/DuckDuckGo/GitHub/Shodan da un target (nessuno scraping) · sync con `./ctf dork --update` · export .md/.json | core |
-| Stego workbench | **StegSuite** | http://localhost:19014 | Analisi ricorsiva auto su 52 tool (stego, forensics, vision/OCR, audio/SSTV/network, email, blob base64/hex, zero-width, Whitespace esolang), albero file, log live, terminale, API REST | core |
-| Web | **OWASP ZAP** | http://localhost:19005/zap | Scanner di sicurezza web con GUI nel browser · proxy su `:19006` · add-on extra (regole alpha/beta, accessControl, fuzzdb, ptk…) | `web` |
-| Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | OSINT automation: domini, IP, email, leak | `recon` |
-| Crypto | SageMath | http://localhost:19010 | Notebook Python/Sage per crypto e matematica | `crypto` |
-| Forensics | Wireshark | http://localhost:19008 | Analisi pacchetti/pcap con GUI web | `forensics` |
-| Audio | **Whisper-WebUI** | http://localhost:19017 | Trascrizione audio→testo con timestamp (SRT/VTT/…) via Whisper · output in `./data/whisper/outputs` | `audio` |
-| Pwn/Rev | **ELF sandbox** | http://localhost:19018 | Esegui/debugga/decompila binari sconosciuti da terminale web — **ELF, PE e APK** (Ghidra headless, radare2, upx, apktool, jadx, gdb, strace, ltrace, pwntools, qemu-user) · rete isolata | `rev` |
-
-> Esclusi di proposito perché senza immagine GUI upstream affidabile:
-> Burp Suite, Ghidra, Autopsy, Volatility, hashcat/john (tool CLI, già su Kali).
-> Il cracking distribuito (Hashtopolis) è nel profilo `crack`.
+- **Pronto all'avvio** — `./ctf up` crea `.env`, avvia il core, aspetta che
+  StegSuite sia pronto e ti dice dove andare.
+- **Una CTF = un progetto** — la CTF contiene le sue challenge e il formato
+  flag; una flag in quel formato segna la challenge **risolta**; uno scoreboard le mostra tutte.
+- **Autosolver** — analizza tutte le challenge aperte, poche alla volta.
+- **55 analyzer** ricorsivi: metadati, stringhe/encoding/esolang, stego su
+  immagini (LSB, steghide, outguess, zsteg…), OCR/QR, audio (spettrogramma,
+  morse, DTMF, SSTV, LSB/livelli WAV), rete (tshark, TLS con chiavi/keylog,
+  flussi, tunnel DNS), archivi/office/email/git, ELF.
+- **Cracking integrato** — ZIP (ZipCrypto + AES via hashcat), PDF, steghide,
+  known-plaintext (`bkcrack`), wordlist dalla più piccola alla più grande, regole e maschere.
+- **Spiega la soluzione** — ogni flag ha la catena di file che porta a lei e
+  l'output del tool che la mostra; report Markdown (EN/IT) e transcript per
+  un'IA, per continuare a mano.
+- **API-first** — tutto ciò che fa la GUI è un endpoint REST; la stessa
+  superficie è un **server MCP** per le IA.
+- **Isolato** — tutto su `127.0.0.1`, porte `19000+` da `.env`, tool pesanti
+  dietro profili Compose, la sandbox di reversing non ha internet.
 
 ## 🚀 Avvio rapido
 
 ```bash
 git clone https://github.com/dexRand/ctf-docker.git
 cd ctf-docker
-cp .env.example .env      # opzionale: ./ctf lo crea da solo
 ./ctf up
 ```
 
-Poi apri la dashboard: **http://localhost:19001**
+```text
+[*] Attendo che StegSuite sia pronto.... ok
 
-### Con Docker Compose puro
-
-```bash
-docker compose up -d                              # tool core
-docker compose --profile web up -d                # core + OWASP ZAP
-docker compose --profile web --profile recon up -d
-docker compose --profile crack up -d              # core + Hashtopolis (hashcat)
-docker compose --profile audio up -d              # core + Whisper-WebUI (trascrizione audio)
-docker compose --profile rev up -d                # core + sandbox ELF (reversing attivo)
-docker compose down                               # ferma tutto
+  Pronto. Da qui:
+    Dashboard   http://localhost:19001/
+    StegSuite   http://localhost:19014/     crea una CTF e trascina gli allegati
+    API         http://localhost:19014/api/docs
+    IA (MCP)    ./ctf mcp
 ```
 
-## 🎛️ CLI
+Il primo avvio costruisce StegSuite una volta (qualche minuto). Aggiungi tool
+con i profili, es. `./ctf up web rev` (ZAP + sandbox di reversing).
+`./ctf urls` elenca tutto.
 
-Il piccolo wrapper `ctf` è un livello leggibile sopra Compose:
+## 🧭 Come funziona
 
-```bash
-./ctf up                  # tool core
-./ctf up web              # core + un profilo
-./ctf up web forensics    # combina più profili
-./ctf up-all              # tutto (pesante: diversi GB di immagini)
-./ctf status              # stato container
-./ctf logs wireshark      # segui i log di un servizio
-./ctf reports             # sfoglia ./data (progetti, estratti, wordlist)
-./ctf pull <url>          # scarica un file (es. allegato di una challenge) in ./data/pull
-./ctf scan <file>         # analizza un file con StegSuite e stampa le flag
-./ctf down                # ferma e rimuove i container
+```mermaid
+flowchart LR
+  tu([Tu]) -->|browser| dash[Dashboard Homepage]
+  tu -->|browser| ss[GUI StegSuite]
+  ia([IA]) -->|MCP| api
+  cli([./ctf scan / script]) -->|REST| api
+  ss --> api[API StegSuite]
+  api --> pipe[pipeline di analisi<br/>55 analyzer · caccia alla flag · cracking]
+  pipe --> data[(./data<br/>progetti · file · report)]
+  api --> svc[catalogo servizi]
+  svc -.-> tools[CyberChef · ZAP · Wireshark · SageMath ·<br/>SpiderFoot · Whisper · sandbox rev · …]
 ```
 
-### Dork generator (facile)
+StegSuite percorre l'albero dei file nell'ordine di scoperta: per ogni file
+esegue gli analyzer adatti (in base al tipo reale, non al nome), salva l'output,
+ci cerca le flag, aggiunge i file estratti come figli e ricorre. In modalità
+**auto** poi cracca i file bloccati con le wordlist piccole e analizza ciò che sbloccano.
 
-Query Google/Bing/DuckDuckGo/GitHub/Shodan da un target — **nessuno scraping**:
-genera solo la query e il link pronto. La pagina su **http://localhost:19019**
-mostra i preset curati *e* tutta la **Google Hacking Database** (exploit-db),
-sincronizzata da sola al primo uso.
+## 🏁 Lavorare su una CTF
+
+1. **Crea la CTF** nella home di StegSuite: nome + formato flag
+   (`DUCTF{...}`, oppure una regex come `FLAG-[0-9a-f]{8}`).
+2. **Aggiungi le challenge**: un upload (uno o più file) = una challenge, con
+   categoria opzionale. Viene analizzata subito.
+3. **Autosolve**: un clic analizza tutte le challenge aperte, 2 alla volta.
+   Una flag nel formato della CTF segna la challenge ✓ risolta.
+4. **Continua** su quelle aperte: la pagina della challenge mostra l'albero dei
+   file, l'output di ogni tool, i file bloccati (scegli wordlist, regole,
+   maschera o un plaintext noto), un terminale nella cartella del progetto, il
+   grafo del percorso della flag, il report e il transcript per l'IA. Rilancia
+   qualsiasi tool su qualsiasi file, anche con una password trovata.
+
+Anche senza CTF, la home accetta file e li analizza come un singolo progetto
+(`--auto` fa tutto, `--check` aspetta te prima di craccare).
+
+## 🤖 IA (MCP)
+
+StegSuite è un server [MCP](https://modelcontextprotocol.io) su
+`/api/v1/mcp` (Streamable HTTP). Con Claude Code:
 
 ```bash
-./ctf dork                          # sync GHDB (primo avvio) + apre la pagina web
-./ctf dork example.com              # stampa gli URL dei dork, pronti da aprire
-./ctf dork example.com --ghdb camera     # cerca nella GHDB (con target la limita con site:)
-./ctf dork --update                 # aggiorna la cache GHDB (config/dork/ghdb.json)
-./ctf dork-test                     # self-test del generator
+./ctf mcp      # stampa il comando esatto, es.
+claude mcp add --transport http ctf http://127.0.0.1:19014/api/v1/mcp
 ```
 
-I plugin sono semplici file JSON: i motori in `config/dork/providers/` (uno per
-motore) e i dork in `config/dork/dorks/` (uno per gruppo, `{name, presets:[…]}`).
-Aggiungi un file e lancia `./ctf dork --build` — senza toccare il codice.
+L'IA ha 18 tool: creare/elencare CTF, scoreboard, aggiungere challenge (file da
+URL o base64), autosolve, analizzare, stato, flag con il loro percorso, report,
+transcript, leggere un file, eseguire analyzer su un file, file bloccati,
+craccare, wordlist, modificare una challenge, e l'elenco degli altri servizi
+del toolbox (`toolbox_services`) con URL e stato. Ciclo tipico:
 
-## 🧪 Analisi
+```
+create_ctf → add_challenge(start) → project_status … → get_flags
+           ↘ nessuna flag: get_transcript → run_tools / crack / read_file
+```
 
-Usa **StegSuite** (sotto) per la pipeline steg/forense ricorsiva, la caccia alle
-flag e il cracking — sostituisce il vecchio `triage` (CLI/GUI). Le wordlist in
-`./wordlists/` (montate su `/wordlists`) sono provate dalla più piccola alla più
-grande; la `rockyou.txt` completa è inclusa nell'immagine.
+## 🧰 Tool
 
-| Profilo | Aggiunge |
+| Fase | Tool | URL | A cosa serve | Profilo |
+| --- | --- | --- | --- | --- |
+| Dashboard | Homepage | http://localhost:19001 | Tutti i tool per fase, con stato in tempo reale | core |
+| Analisi | **StegSuite** | http://localhost:19014 | CTF/challenge, 55 analyzer, flag, cracking, report, REST + MCP | core |
+| Analisi | FileBrowser | http://localhost:19012 | Sfoglia `./data`: progetti, estratti, report | core |
+| Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hash, JWT e molto altro | core |
+| Web | **mitmproxy** | http://localhost:19003 | Intercetta e modifica HTTP(S) · proxy su `:19004` | core |
+| Utility | IT-Tools | http://localhost:19011 | Encoder, convertitori, hash, regex | core |
+| Recon | Dork generator | http://localhost:19019 | Dork curati + Google Hacking Database, da un target (niente scraping) | core |
+| Web | **OWASP ZAP** | http://localhost:19005/zap | Scanner web con GUI nel browser · proxy su `:19006` · add-on extra | `web` |
+| Recon | SpiderFoot | http://localhost:19007/spiderfoot/ | Automazione OSINT | `recon` |
+| Crypto | SageMath | http://localhost:19010 | Notebook Jupyter per crypto e matematica | `crypto` |
+| Forensics | Wireshark | http://localhost:19008 | Analisi pacchetti con GUI web | `forensics` |
+| Cracking | Hashtopolis | http://localhost:19016 | hashcat distribuito (agent via voucher) | `crack` |
+| Audio | **Whisper-WebUI** | http://localhost:19017 | Trascrizione con timestamp (SRT/VTT) | `audio` |
+| Rev/Pwn | **sandbox rev** | http://localhost:19018 | Terminale web per ELF/PE/APK: Ghidra headless, radare2, gdb, strace/ltrace, upx, apktool, jadx, pwntools, qemu-user · senza internet | `rev` |
+
+Tre immagini sono costruite in locale (tutto il resto è upstream): StegSuite
+(`app/Dockerfile`), ZAP con add-on extra (`zap/Dockerfile`) e la sandbox rev
+(`rev/Dockerfile`).
+
+## 🔬 StegSuite
+
+| Area | Analyzer |
 | --- | --- |
-| *(core)* | Homepage, CyberChef, mitmproxy, IT-Tools, Dork generator, StegSuite, FileBrowser |
-| `web` | OWASP ZAP |
-| `recon` | SpiderFoot |
-| `crypto` | SageMath |
-| `forensics` | Wireshark |
-| `crack` | Hashtopolis (hashcat distribuito) |
-| `audio` | Whisper-WebUI (trascrizione audio con timestamp) |
-| `rev` | Sandbox ELF (reversing attivo: gdb/strace/pwntools/qemu) |
+| Identificazione / metadati | `file`, `exiftool`, `identify`, `ffprobe`, `pdfinfo`, `pdfid` |
+| Testo ed encoding | `strings`, `xxd`/`hexyl`/`hexdump`, `decode` (base64/32/85, hex, binario, rot13, URL, bit alto, annidati), `blobs` (blocchi base64/hex → file/testo), `pdftotext`, `morse-text` |
+| Stego su testo ed esolang | `zero-width` (caratteri ZW, whitespace a due simboli, spazi finali), `whitespace` (interprete), `case-bits` (binario + Bacon), `homoglyph` |
+| Stego su immagini | `zsteg`, `lsb-carve`, `psimage`, `steghide`, `outguess`, `jsteg`, `openstego`, `png-chunks`, `png-pixels`, `bit-planes`, `channel-remap`, `image-enhance` |
+| Vision | `ocr` (tesseract, EN + fallback IT), `qr`, `gif-frames` (frame, differenze, bit nei ritardi) |
+| Audio / radio | `spectrogram`, `waveform`, `wav-lsb`, `wav-levels`, `morse`, `dtmf`, `sstv` (Scottie S1/S2) |
+| Rete | `pcap` (protocolli, campi HTTP/DNS, commenti, flussi UDP/TCP ricomposti, tunnel DNS, oggetti HTTP, TLS con chiave o keylog TLS 1.3, HTTP/2) |
+| Archivi e documenti | `7z`, `nested-archive`, `binwalk` (scan/estrazione), `foremost`, `office` (OOXML/ODF + macro), `eml`, `git` (storia, reflog, tutti gli oggetti) |
+| Riparazione | `pngcheck`, `png-repair`, `image-repair` (header JPEG/BMP/GIF, prefisso spazzatura) |
+| Binari | `elf` (sezioni, info dinamiche, checksec), `readelf`, `objdump` |
 
-Per le challenge audio attiva il profilo `audio` e apri **Whisper-WebUI**
-(http://localhost:19017): carica un file audio/video (o usa un link YouTube / il
-microfono) e ottieni una trascrizione con timestamp in SRT/VTT/…. Su CPU il
-modello default è `small` (cambialo dal menu Model); modelli scaricati e output
-restano in `./data/whisper/` e si vedono in FileBrowser.
+**Caccia alla flag** — ogni output è scansionato in più viste (grezzo, UTF-16,
+URL-decoded, senza spazi, un livello di base64/hex inline, XOR fra coppie di
+stringhe) cercando i prefissi CTF comuni (`picoCTF`, `flag`, `CTF`, `HTB`,
+`DUCTF`, `ictf`, `tjctf`, `lactf`, `SEKAI`, …), i gemelli rot13, le graffe
+rovinate dall'OCR, il **formato della CTF** e un `FLAG_PATTERN` globale
+opzionale. Duplicati, gemelli rot13 e frammenti di una flag più lunga diventano una sola flag.
 
-## 🔌 Porte
+**Cracking** — `fcrackzip`, hashcat (`zip2hashcat`, ZipCrypto + AES, regole,
+maschere), `pdfcrack`, `stegseek`, `bkcrack` (known plaintext). Wordlist da
+`./wordlists` (montata), upload (persistenti) e `rockyou.txt` completa
+nell'immagine, dalla più piccola alla più grande. In modalità auto usa solo le
+liste ≤ `AUTO_CRACK_MAX_MB` entro `AUTO_CRACK_BUDGET_S`, così un falso "bloccato"
+non ferma la challenge. Un suggerimento di password in un file fratello (`psw: …`) viene provato da solo.
 
-Tutte le porte host stanno nella **fascia 19000+** e sono configurabili in `.env`:
+**GUI** — tema terminale, EN/IT, albero dei file, output per tool con colori
+ANSI, anteprime immagine/audio/video, log live (WebSocket), terminale integrato
+(xterm.js), grafo del percorso della flag, report e transcript, responsive.
 
-| Porta | Servizio |
-| ---: | --- |
-| 19000 | *(libero — AperiSolve rimosso)* |
-| 19001 | Homepage (dashboard) |
-| 19002 | CyberChef |
-| 19003 / 19004 | mitmweb UI / mitmproxy |
-| 19005 / 19006 | ZAP UI (`/zap`) / ZAP proxy |
-| 19007 | SpiderFoot |
-| 19008 / 19009 | Wireshark HTTP / HTTPS |
-| 19010 | SageMath (Jupyter) |
-| 19011 | IT-Tools |
-| 19012 | FileBrowser Quantum (sfoglia ./data, senza login, solo localhost) |
-| 19014 | StegSuite workbench + API (solo localhost) |
-| 19015 / 19016 | Hashtopolis backend / frontend (profilo `crack`) |
-| 19017 | Whisper-WebUI trascrizione audio (profilo `audio`) |
-| 19018 | Sandbox ELF (reversing attivo, profilo `rev`) |
-| 19019 | Dork generator (query Google/GitHub/Shodan) |
+<p align="center">
+  <img src="docs/screenshots/stegsuite-project.png" alt="Un progetto risolto" width="820">
+</p>
+
+## ⌨️ CLI
+
+```bash
+./ctf up [profilo…]     # core (+ profili), aspetta che sia pronto
+./ctf up-all            # tutti i profili (diversi GB di immagini)
+./ctf down | status | logs <servizio> | list
+./ctf urls              # ogni servizio e il suo URL (porte da .env)
+./ctf open <servizio>   # apre nel browser (stegsuite, zap, rev, wireshark…)
+./ctf mcp               # collega un'IA
+./ctf pull <url>…       # scarica gli allegati di una challenge in ./data/pull
+./ctf scan <file>…      # analizza con StegSuite e stampa le flag (exit 1 su errore)
+./ctf reports           # sfoglia ./data con FileBrowser
+./ctf dork [target]     # dork generator (--update sincronizza la GHDB)
+./ctf test [-j 3]       # regressione + challenge CTF reali (vedi sotto)
+./ctf ui-smoke          # smoke test della SPA con browser headless
+```
+
+## 🔌 API
+
+OpenAPI/Swagger su **http://localhost:19014/api/docs**; la guida con gli esempi
+è [`docs/API.md`](docs/API.md). In breve:
+
+| | |
+| --- | --- |
+| CTF | `GET/POST /ctfs` · `GET/PATCH/DELETE /ctfs/{cid}` · `POST /ctfs/{cid}/challenges` · `POST/GET/DELETE /ctfs/{cid}/autosolve` |
+| Challenge | `POST /projects` · `GET/PATCH/DELETE /projects/{pid}` · `POST /projects/{pid}/start|pause|resume|cancel` |
+| Risultati | `/findings` · `/runs` · `/events` · `/flags` (catena + prova) · `/summary` · `/report?format=md|json&lang=en|it` · `/logs` · `/transcript` |
+| Lavoro | `POST /projects/{pid}/files/{fid}/run` (rilancia tool, password opzionale) · `/locked` · `POST /crack` · `/wordlists` |
+| Stateless | `GET /tools` · `POST /tools/{tool}` (un tool su un file) |
+| Toolbox | `GET /services` (altri tool: URL + stato) · `POST /mcp` |
+
+Un client stdlib è in [`tools/stegsuite_client.py`](tools/stegsuite_client.py).
+
+## ⚙️ Configurazione
+
+Tutto arriva da `.env` (creato da `.env.example` al primo avvio).
+
+| Variabile | A cosa serve |
+| --- | --- |
+| `BIND_ADDR` | Interfaccia su cui sono pubblicate le porte — default `127.0.0.1` (solo locale) |
+| `*_PORT` | Porta host di ogni servizio (19000+); link, dashboard e API le seguono |
+| `STEGSUITE_API_KEY` | Chiave richiesta su API/MCP (header, cookie o `?key=`) |
+| `FLAG_PATTERN` | Regex flag globale in più (il formato di una CTF si imposta sulla CTF) |
+| `MAX_DEPTH`, `HEAVY_TOOLS`, `MAX_UPLOAD_MB` | Profondità di ricorsione, tool pesanti in parallelo, limite upload |
+| `AUTO_CRACK_MAX_MB`, `AUTO_CRACK_BUDGET_S`, `CRACK_BUDGET_S`, `HASHCAT_RULES` | Limiti e regole del cracking |
+| `OCR_LANGS`, `OCR_EXTRA_LANGS`, `OCR_MAX_DIM` | Lingue OCR e ridimensionamento |
+| `RETENTION_DAYS`, `RATE_LIMIT_RPM`, `RATE_LIMIT_BURST` | Pulizia progetti vecchi, rate limit per IP |
+| `MITMWEB_PASSWORD`, `HASHTOPOLIS_*`, `PUID`/`PGID`/`TZ` | Altri servizi |
+
+Memoria: il core gira bene con ~4 GB liberi. I limiti `mem_limit` sommano
+~6 GB per il core e ~25 GB con tutti i profili (whisper 6 GB, rev e StegSuite
+4 GB ciascuno): avvia i profili quando servono.
+
+## 🔒 Sicurezza
+
+- **Locale di default**: ogni porta è pubblicata su `127.0.0.1` (`BIND_ADDR`).
+  Diversi tool (ZAP, Wireshark, mitmweb, la dashboard col socket Docker) non
+  hanno autenticazione forte: esponili solo su una rete di cui ti fidi.
+- **File non fidati**: gli analyzer girano nel container StegSuite con timeout
+  che terminano l'intero gruppo di processi; i repo git dagli archivi girano con
+  la config neutralizzata; il report fa escape di tutto e tiene solo link http(s)/stessa origine.
+- **Eseguire binari**: solo nella sandbox **rev** — rete interna senza uscita,
+  `cap_drop: ALL` (+ `SYS_PTRACE`), `no-new-privileges`, limiti di pid/memoria.
+- **API key** (opzionale) protegge REST, WebSocket e MCP; i segreti stanno in
+  `.env` (ignorato da git) e StegSuite riceve solo le variabili che le servono.
+
+## 🧪 Test su CTF reali
+
+Ogni modifica è verificata su challenge vere, non solo con i test unitari:
+
+```bash
+app/tests/run_unit.sh          # 200+ test pytest dentro l'immagine StegSuite
+./ctf test -j 3                # 33 casi fixture + 35 challenge reali + verifica writeup
+./ctf test -j 3 --extra        # + altre 14 reali (picoCTF 2019–2025, TJCTF, LA CTF, ImaginaryCTF…)
+./ctf test --only-new --gaps   # lacune note: il backlog delle tecniche da aggiungere
+```
+
+Le challenge reali arrivano da archivi pubblici e writeup (picoCTF,
+OliCyber/ITS, SekaiCTF, DownUnderCTF, TJCTF, ImaginaryCTF, LA CTF, UIUCTF…)
+con le flag documentate — vedi [`docs/CHALLENGES.md`](docs/CHALLENGES.md).
+`--json-out` registra i tempi per challenge, per confrontare le prestazioni.
+
+## 🩺 Problemi comuni
+
+| Sintomo | Soluzione |
+| --- | --- |
+| `./ctf up` aspetta e StegSuite non risponde | `./ctf logs stegsuite`; la prima build richiede qualche minuto |
+| Un tool risulta *down* in dashboard | il suo profilo non è avviato: `./ctf up <profilo>` |
+| Porta già occupata | cambia quel `*_PORT` in `.env`; i link si adeguano da soli |
+| `401` dalle API | è impostata `STEGSUITE_API_KEY`: la GUI la chiede una volta; gli script la leggono da `.env` |
+| SageMath chiede un token | `./ctf logs sagemath` |
+| Login di mitmweb | password `MITMWEB_PASSWORD` (default `mitm`) |
+| Memoria esaurita | ferma i profili pesanti (`whisper`, `rev`, `forensics`), abbassa `HEAVY_TOOLS` |
 
 ## 📂 Struttura
 
 ```
-compose.yaml            definizione servizi (project name: ctf)
-ctf                     wrapper CLI (up / up-all / down / status / logs)
-.env.example            porte e configurazione
-config/homepage/        configurazione dashboard (services / settings / widgets)
-config/zap/             working dir ZAP (certificati)
-config/whisper/         config default Whisper-WebUI (profilo `audio`)
-rev/                    sandbox analisi attiva ELF (ttyd + Ghidra headless + gdb/qemu, profilo `rev`)
-osint/                  area OSINT del collega + override compose (vedi osint/README.md)
-SPEC.md                 specifica
-tasks/                  plan.md + todo.md
-.opencode/              Agent Skills (MIT — vedi ATTRIBUTION.md)
+compose.yaml          servizi (progetto "ctf"), profili, ancora x-base
+ctf                   wrapper CLI
+.env.example          porte e configurazione
+app/                  StegSuite: backend/ (FastAPI), frontend/ (Vue 3), tests/, Dockerfile
+  backend/analyzers/  un modulo per analyzer + util.py (funzioni condivise)
+  backend/            pipeline, jobs, flaghunt, crackflow, report, ctfs, mcp_server, api/
+config/               dashboard homepage, dork generator, filebrowser, whisper, zap
+rev/                  immagine della sandbox di reversing (ttyd + Ghidra headless + tool)
+zap/                  immagine ZAP con add-on extra
+tools/                stegsuite_client, scan, check_consistency, dork, photo-geolocate
+osint/                area OSINT separata (override compose, README proprio)
+docs/                 API.md, ADDING-A-TOOL.md, CHALLENGES.md, screenshot
+tasks/                piani e stato
 ```
 
-## 🧪 StegSuite (workbench stego)
+## 🤝 Contribuire
 
-**StegSuite** è l'app tutto-in-uno per stego/forensics (il sostituto di AperiSolve):
-http://localhost:19014 (solo localhost).
-
-- Modalità **Auto / Check**: Auto fa tutto e prova tutte le wordlist; Check
-  scansiona e poi ti fa scegliere cosa attaccare.
-- Analisi **ricorsiva e ordinata** su **48 tool**: `file`, `exiftool`,
-  `identify`, `ffprobe`, `pdfinfo`, `strings`, `xxd`/`hexdump`/`hexyl`,
-  `decode`, `pdfid`, `pdftotext`, `binwalk` (scan + `binwalk -e`), `foremost`,
-  `nested-archive` (catene di archivi annidati), `7z`, `git` (storia/reflog/oggetti
-  di un repo), `office` (unzip parti
-  Office/OpenDocument + base64 separato da spazi), `pngcheck`, `png-repair`,
-  `image-repair` (JPEG/BMP header/altezza),
-  `qr`, `pcap` (con decifratura TLS se fornita la chiave **o un keylog TLS 1.3**,
-  header HTTP/2, commenti pcapng), `zsteg`,
-  `psimage` (Invoke-PSImage LSB di B/G), `lsb-carve` (estrae un file nascosto dai
-  piani LSB), `elf`/`readelf`/`objdump` (struttura ELF,
-  checksec, disassemblaggio), `steghide`,
-  `outguess`, `jsteg`, `png-chunks`, `openstego`, `bit-planes`,
-  `channel-remap`, `image-enhance`, `gif-frames` (split + frame-diff +
-  decodifica delay + OCR per frame), `ocr` (tesseract), `morse`,
-  `morse-text`, `dtmf`, `spectrogram`, `waveform`, `wav-lsb`, `wav-levels` (campioni quantizzati → hex), `sstv` (Scottie S1/S2).
-- **GUI**: tema terminale, **inglese di default** con switch **EN/IT** in
-  qualsiasi momento (scelta memorizzata), albero file, output per tool, figli
-  estratti, anteprime immagini/audio, **progresso live** per file, **toast**,
-  log live via WebSocket, **terminale** integrato (xterm.js) e **report**
-  Markdown con selettore lingua dedicato; **responsive** su mobile (un pannello
-  alla volta).
-- **Flag hunt + cracking**: ZIP (anche AES via hashcat) con **rules/mask + budget
-  CPU** di hashcat, **known-plaintext ZipCrypto (`bkcrack`)**, steghide, PDF;
-  upload di nuove **wordlist** (persistite). Formati flag custom via regex
-  **`FLAG_PATTERN`** (applicata a tutte le sorgenti, anche senza graffe).
-- **Ops/sicurezza**: migrazioni di schema con **Alembic**, **rate limiting**
-  per IP opt-in (`RATE_LIMIT_RPM`) e **retention** dei progetti
-  (`RETENTION_DAYS`), `X-API-Key` opzionale.
-- **API REST** (OpenAPI su `/api/docs`), incluso il singolo tool stateless:
-  `POST /api/v1/tools/{tool}`.
-
-## 📸 Screenshot
-
-**Home — trascina una challenge e lancia l'analisi:**
-
-![StegSuite home](docs/screenshots/stegsuite-home.png)
-
-**Un progetto risolto — flag, catena solver, password craccata e percorso flag:**
-
-![Progetto risolto](docs/screenshots/stegsuite-project.png)
-
-**Responsive — un pannello alla volta su mobile:**
-
-<img src="docs/screenshots/stegsuite-mobile.png" alt="Layout mobile" width="300">
-
-## ⚙️ Configurazione
-
-Tutto è guidato da `.env` (creato da `.env.example`):
-
-| Variabile | Scopo |
-| --- | --- |
-| `*_PORT` | Porta host di ogni servizio (tutte in 19000+) |
-| `BIND_ADDR` | Interfaccia su cui vengono pubblicate tutte le porte (default `127.0.0.1` = solo locale; `0.0.0.0` espone in LAN tool senza autenticazione) |
-| `HOMEPAGE_ALLOWED_HOSTS` | Host ammessi verso la dashboard (aggiungi l'IP LAN per accesso remoto) |
-| `MITMWEB_PASSWORD` | Password per la GUI di mitmweb (l'utente è ignorato) |
-| `PUID` / `PGID` / `TZ` | Mappatura utente e timezone per Wireshark |
-| `HASHTOPOLIS_*` | Credenziali admin/DB di Hashtopolis (profilo `crack`) |
-
-## 📝 Note
-
-- **Primo avvio**: scarica immagini pesanti (ZAP, Wireshark, SageMath), servono
-  alcuni minuti. Eseguire *tutti* i profili insieme richiede circa **8 GB di RAM libera**.
-- **SageMath** stampa il token d'accesso a Jupyter nei log:
-  `./ctf logs sagemath`.
-- **mitmproxy** richiede una password: la pagina di login usa `MITMWEB_PASSWORD`
-  (default `mitm`). Lo stato in dashboard controlla un endpoint senza auth.
-- **I tool con profilo** risultano *down* in dashboard finché non avvii il
-  profilo — è normale.
-- L'immagine **StegSuite** è costruita in locale da una base stego pinnata; il
-  primo `./ctf up` la compila una volta.
-- **FileBrowser Quantum** (il fork mantenuto del FileBrowser archiviato) è
-  esposto solo su `127.0.0.1` e gira **senza login** (`auth.methods.noauth`).
-- La **dashboard** monta il socket Docker **read-only** per mostrare stato dei
-  container e CPU/RAM/disk host. Homepage è su `127.0.0.1`; se la esponi, togli
-  quel mount (il socket è privilegiato).
-
-## 🤖 Agent Skills
-
-Le skill in `.opencode/skills/` provengono da
-[`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills) (MIT).
-Vedi [`.opencode/ATTRIBUTION.md`](.opencode/ATTRIBUTION.md) e
-[`AGENTS.md`](AGENTS.md).
-
-## 📚 Documentazione
-
-- Specifica: [`SPEC.md`](SPEC.md)
-- Piano e task: [`tasks/plan.md`](tasks/plan.md) · [`tasks/todo.md`](tasks/todo.md)
-- Guida per agenti: [`AGENTS.md`](AGENTS.md)
+- Nuovo analyzer: [`docs/ADDING-A-TOOL.md`](docs/ADDING-A-TOOL.md) — un modulo
+  in `app/backend/analyzers/`, funzioni condivise da `util.py`, un test unitario
+  e, se possibile, una challenge reale in `app/tests/real_challenges.py`.
+- Nuovo servizio: aggiorna `compose.yaml`, `.env.example`, la dashboard
+  (`config/homepage/services.yaml`), la tabella `SERVICES` in `ctf`, il catalogo
+  in `app/backend/services.py` e questo README —
+  `python3 tools/check_consistency.py` ti dice cosa manca (la CI lo esegue).
+- Convenzioni e regole per gli agent: [`AGENTS.md`](AGENTS.md).
 
 ## 📄 Licenza
 
-MIT — vedi [`LICENSE`](LICENSE) per il progetto e
-[`.opencode/LICENSE-agent-skills`](.opencode/LICENSE-agent-skills) per le Agent
-Skills importate.
+MIT — vedi [`LICENSE`](LICENSE). Le Agent Skills in `.opencode/skills/` vengono
+da [`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills)
+(MIT, vedi [`.opencode/ATTRIBUTION.md`](.opencode/ATTRIBUTION.md));
+`third_party/zip2hashcat.py` mantiene la sua nota MIT.

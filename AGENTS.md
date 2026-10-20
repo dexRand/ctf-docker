@@ -15,7 +15,15 @@ più una dashboard **Homepage** che li elenca ordinati per fase di lavoro.
   **rev** (`rev/Dockerfile`, sandbox ELF: pwntools + ttyd + qemu).
   Per il resto niente build custom.
 - Aggiorna insieme queste cose quando cambi un servizio:
-  `compose.yaml`, `.env.example`, `config/homepage/services.yaml`, `README.md`.
+  `compose.yaml`, `.env.example`, `config/homepage/services.yaml`, la tabella
+  `SERVICES` in `ctf`, `app/backend/services.py`, `README.md` + `README.it.md`.
+  `python3 tools/check_consistency.py` controlla che siano allineati (anche in CI).
+- **API-first**: ogni funzione di StegSuite deve esistere come endpoint REST
+  (e, se utile a un'IA, come tool MCP in `app/backend/mcp_server.py`); la SPA
+  consuma solo le API. Documenta in `docs/API.md`.
+- **Solo localhost**: le porte si pubblicano su `${BIND_ADDR:-127.0.0.1}`.
+- **Niente duplicati**: le funzioni condivise degli analyzer stanno in
+  `app/backend/analyzers/util.py` e `base.py` (`run_cmd`, `ctx.siblings`).
 
 ## Comandi
 
@@ -27,6 +35,8 @@ più una dashboard **Homepage** che li elenca ordinati per fase di lavoro.
 ./ctf status
 ./ctf logs <servizio>
 docker compose config -q  # valida il compose
+app/tests/run_unit.sh     # test pytest nell'immagine StegSuite
+./ctf test -j 3           # regressione + challenge CTF reali
 ```
 
 ## Convenzioni
@@ -40,7 +50,9 @@ docker compose config -q  # valida il compose
 ## Definition of Done
 
 1. `docker compose config -q` passa senza errori.
-2. I servizi toccati partono e rispondono a runtime (`./ctf up` + check URL).
+2. I servizi toccati partono e rispondono a runtime (`./ctf up` + check URL);
+   per StegSuite: `app/tests/run_unit.sh` + `./ctf test -j 3` senza regressioni
+   (stesse challenge risolte o di più).
 3. Dashboard e `README.md` coerenti con il compose.
 4. Nessun segreto committato (`.env` è in `.gitignore`).
 5. Stato aggiornato in `tasks/todo.md` e `tasks/plan.md`.
