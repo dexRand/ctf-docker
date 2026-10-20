@@ -1,20 +1,14 @@
 """Cracking: wordlists, locked files, crack jobs."""
 from __future__ import annotations
 
-import threading
-import traceback
-
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session, select
 
-from .. import crackflow, cracking, orchestrator, storage
-from ..bus import bus
-from ..db import engine, get_session
-from ..models import Event, FileNode, Finding
+from .. import crackflow, cracking, crackqueue
+from ..db import get_session
+from ..models import FileNode, Finding
 
 router = APIRouter()
-CRACK_JOBS: dict[str, str] = {}
-_CRACK_LOCK = threading.Lock()
 
 
 @router.get("/api/v1/wordlists")
@@ -42,38 +36,6 @@ def locked_files(pid: str, session: Session = Depends(get_session)) -> list[dict
             for fid, tool in locked.items() if fid in by_id]
 
 
-def _crack_worker(pid: str, fid: int, names, opts: dict) -> None:
-    try:
-        with Session(engine) as s:
-            node = s.get(FileNode, fid)
-            if not node or node.project_id != pid:
-                return
-            path = storage.project_dir(pid) / node.rel_path
-            work = storage.project_dir(pid)
-            bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid,
-                                           "name": node.name, "status": "running"})
-            lines: list[str] = []
-            bk = opts.get("bkcrack")
-            if bk:
-                res = cracking.bkcrack_attack(path, bk.get("name", ""),
-                                              bk.get("plaintext", ""), log=lines.append)
-            else:
-                res = cracking.crack_file(path, names, log=lines.append,
-                                          **{k: v for k, v in opts.items() if k != "bkcrack"})
-            if crackflow.apply_crack_result(s, pid, node, work, res, lines):
-                orchestrator.analyze_new(pid)
-    except Exception as exc:  # the UI waits for a final crack event: always send one
-        bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid, "status": "error",
-                                       "error": f"{type(exc).__name__}: {exc}"[:300]})
-        with Session(engine) as s:
-            s.add(Event(project_id=pid, level="error",
-                        message="crack failed: " + traceback.format_exc()[-800:]))
-            s.commit()
-    finally:
-        with _CRACK_LOCK:
-            CRACK_JOBS.pop(pid, None)
-
-
 @router.post("/api/v1/projects/{pid}/crack")
 def crack(pid: str, payload: dict = Body(...), session: Session = Depends(get_session)) -> dict:
     fid = payload.get("file_id")
@@ -99,14 +61,33 @@ def crack(pid: str, payload: dict = Body(...), session: Session = Depends(get_se
     bk = payload.get("bkcrack")
     if isinstance(bk, dict):
         opts["bkcrack"] = {"name": bk.get("name", ""), "plaintext": bk.get("plaintext", "")}
-    with _CRACK_LOCK:
-        if pid in CRACK_JOBS:
-            raise HTTPException(409, "cracking already running")
-        CRACK_JOBS[pid] = node.name
-    threading.Thread(target=_crack_worker, args=(pid, fid, names, opts), daemon=True).start()
-    return {"started": pid, "file_id": fid}
+    try:
+        job = crackqueue.submit(pid, fid, node.name, names, opts)
+    except crackqueue.AlreadyQueued as exc:
+        raise HTTPException(409, str(exc))
+    return {"started": pid, "file_id": fid, "job": job.id, "queued_before": crackqueue.position(job)}
 
 
 @router.get("/api/v1/projects/{pid}/crack/status")
 def crack_status(pid: str) -> dict:
-    return {"running": pid in CRACK_JOBS, "file": CRACK_JOBS.get(pid)}
+    """Crack jobs of the project (queued/running first)."""
+    js = crackqueue.jobs(pid)
+    active = [j for j in js if j.status in ("queued", "running")]
+    return {"running": bool(active), "file": active[0].name if active else None,
+            "jobs": [j.as_dict() for j in js]}
+
+
+@router.get("/api/v1/cracks")
+def list_cracks(project_id: str = "") -> list[dict]:
+    """Every crack job (newest first): status, password and wordlist when found."""
+    return [j.as_dict() for j in crackqueue.jobs(project_id or None)]
+
+
+@router.delete("/api/v1/cracks/{job_id}")
+def cancel_crack(job_id: int) -> dict:
+    """Cancel a queued crack (a running one can't be interrupted)."""
+    if not crackqueue.get(job_id):
+        raise HTTPException(404, "crack job not found")
+    if not crackqueue.cancel(job_id):
+        raise HTTPException(409, "only queued jobs can be cancelled")
+    return {"cancelled": job_id}

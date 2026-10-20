@@ -225,7 +225,7 @@ Stato: **Fasi 0–5 fatte**, Fase 6 (RevSuite) in attesa di approvazione.
 - [x] **Fase 1 — API-first**: report/log/transcript/flag-route/summary nel backend,
       `POST /files/{fid}/run`, pausa visibile; `docs/API.md` aggiornato.
 - [x] **Fase 1b — CTF/autosolver/IA**: modello `Ctf` (migrazione 0003), formato flag
-      per CTF → `solved`, autosolver, vista CTF nella SPA, **server MCP** (18 tool),
+      per CTF → `solved`, autosolver, vista CTF nella SPA, **server MCP** (19 tool),
       `/services`, `./ctf up` pronto all'uso + `./ctf mcp`.
 - [x] **Fase 2 — modularità**: `orchestrator.py` diviso in 9 moduli, `analyzers/util.py`
       (bit/printable/base64/magic/estensioni), `run_cmd` unico con kill del gruppo,
@@ -248,6 +248,6 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 
 ### Backlog
 - [ ] Fase 6 — RevSuite (auto-triage binari + terminale per progetto) — da approvare.
-- [ ] Coda di cracking con N worker (`CRACK_WORKERS`), crack per file.
+- [x] Coda di cracking con N worker (`CRACK_WORKERS`), crack per file, `GET/DELETE /cracks`.
 - [ ] Gap reali: evtx, PNG/BMP corrotti + OCR, SSTV→OCR, porte UDP, evil bit, GPP
       cpassword, SAM, Chef, QOI, zstd IDAT, palette PNG, QR sfocato, pcap corrotto, ASK/SAME.

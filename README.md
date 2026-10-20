@@ -129,7 +129,7 @@ StegSuite is an [MCP](https://modelcontextprotocol.io) server at
 claude mcp add --transport http ctf http://127.0.0.1:19014/api/v1/mcp
 ```
 
-The agent gets 18 tools: create/list CTFs, scoreboard, add challenges (files
+The agent gets 19 tools: create/list CTFs, scoreboard, add challenges (files
 by URL or base64), autosolve, analyze, status, flags with their route, report,
 transcript, read a file, run analyzers on a file, locked files, crack,
 wordlists, edit a challenge, and the list of the other toolbox services
@@ -229,7 +229,7 @@ is [`docs/API.md`](docs/API.md). Highlights:
 | CTFs | `GET/POST /ctfs` · `GET/PATCH/DELETE /ctfs/{cid}` · `POST /ctfs/{cid}/challenges` · `POST/GET/DELETE /ctfs/{cid}/autosolve` |
 | Challenges | `POST /projects` · `GET/PATCH/DELETE /projects/{pid}` · `POST /projects/{pid}/start|pause|resume|cancel` |
 | Results | `/findings` · `/runs` · `/events` · `/flags` (chain + evidence) · `/summary` · `/report?format=md|json&lang=en|it` · `/logs` · `/transcript` |
-| Work | `POST /projects/{pid}/files/{fid}/run` (re-run tools, optional password) · `/locked` · `POST /crack` · `/wordlists` |
+| Work | `POST /projects/{pid}/files/{fid}/run` (re-run tools, optional password) · `/locked` · `POST /crack` (queued per file) · `GET /cracks` · `DELETE /cracks/{id}` · `/wordlists` |
 | Stateless | `GET /tools` · `POST /tools/{tool}` (one tool on one file) |
 | Toolbox | `GET /services` (other tools: URL + up) · `POST /mcp` |
 
@@ -247,6 +247,7 @@ Everything comes from `.env` (created from `.env.example` on first run).
 | `FLAG_PATTERN` | Extra global flag regex (a CTF's own format is set per CTF) |
 | `MAX_DEPTH`, `HEAVY_TOOLS`, `TOOL_WORKERS`, `MAX_UPLOAD_MB` | Recursion depth, concurrent heavy tools, analyzers run in parallel per file, upload cap |
 | `AUTO_CRACK_MAX_MB`, `AUTO_CRACK_BUDGET_S`, `CRACK_BUDGET_S`, `HASHCAT_RULES` | Cracking limits and rules |
+| `CRACK_WORKERS` | Manual cracks run at the same time; the rest wait in the crack queue |
 | `OCR_LANGS`, `OCR_EXTRA_LANGS`, `OCR_MAX_DIM` | OCR languages and downscaling |
 | `RETENTION_DAYS`, `RATE_LIMIT_RPM`, `RATE_LIMIT_BURST` | Auto-delete old projects, per-IP rate limit |
 | `MITMWEB_PASSWORD`, `HASHTOPOLIS_*`, `PUID`/`PGID`/`TZ` | Other services |

@@ -130,7 +130,7 @@ StegSuite è un server [MCP](https://modelcontextprotocol.io) su
 claude mcp add --transport http ctf http://127.0.0.1:19014/api/v1/mcp
 ```
 
-L'IA ha 18 tool: creare/elencare CTF, scoreboard, aggiungere challenge (file da
+L'IA ha 19 tool: creare/elencare CTF, scoreboard, aggiungere challenge (file da
 URL o base64), autosolve, analizzare, stato, flag con il loro percorso, report,
 transcript, leggere un file, eseguire analyzer su un file, file bloccati,
 craccare, wordlist, modificare una challenge, e l'elenco degli altri servizi
@@ -230,7 +230,7 @@ OpenAPI/Swagger su **http://localhost:19014/api/docs**; la guida con gli esempi
 | CTF | `GET/POST /ctfs` · `GET/PATCH/DELETE /ctfs/{cid}` · `POST /ctfs/{cid}/challenges` · `POST/GET/DELETE /ctfs/{cid}/autosolve` |
 | Challenge | `POST /projects` · `GET/PATCH/DELETE /projects/{pid}` · `POST /projects/{pid}/start|pause|resume|cancel` |
 | Risultati | `/findings` · `/runs` · `/events` · `/flags` (catena + prova) · `/summary` · `/report?format=md|json&lang=en|it` · `/logs` · `/transcript` |
-| Lavoro | `POST /projects/{pid}/files/{fid}/run` (rilancia tool, password opzionale) · `/locked` · `POST /crack` · `/wordlists` |
+| Lavoro | `POST /projects/{pid}/files/{fid}/run` (rilancia tool, password opzionale) · `/locked` · `POST /crack` (in coda, per file) · `GET /cracks` · `DELETE /cracks/{id}` · `/wordlists` |
 | Stateless | `GET /tools` · `POST /tools/{tool}` (un tool su un file) |
 | Toolbox | `GET /services` (altri tool: URL + stato) · `POST /mcp` |
 
@@ -248,6 +248,7 @@ Tutto arriva da `.env` (creato da `.env.example` al primo avvio).
 | `FLAG_PATTERN` | Regex flag globale in più (il formato di una CTF si imposta sulla CTF) |
 | `MAX_DEPTH`, `HEAVY_TOOLS`, `TOOL_WORKERS`, `MAX_UPLOAD_MB` | Profondità di ricorsione, tool pesanti in parallelo, analyzer in parallelo per file, limite upload |
 | `AUTO_CRACK_MAX_MB`, `AUTO_CRACK_BUDGET_S`, `CRACK_BUDGET_S`, `HASHCAT_RULES` | Limiti e regole del cracking |
+| `CRACK_WORKERS` | Crack manuali eseguiti insieme; gli altri aspettano nella coda di cracking |
 | `OCR_LANGS`, `OCR_EXTRA_LANGS`, `OCR_MAX_DIM` | Lingue OCR e ridimensionamento |
 | `RETENTION_DAYS`, `RATE_LIMIT_RPM`, `RATE_LIMIT_BURST` | Pulizia progetti vecchi, rate limit per IP |
 | `MITMWEB_PASSWORD`, `HASHTOPOLIS_*`, `PUID`/`PGID`/`TZ` | Altri servizi |

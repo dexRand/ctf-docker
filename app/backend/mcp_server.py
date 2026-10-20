@@ -212,12 +212,19 @@ def _locked(a):
     return _call(f"/projects/{a['project_id']}/locked")
 
 
-@tool("crack", "Crack a locked file with wordlists (names from list_wordlists), rules or a mask.",
+@tool("crack", "Queue a crack of a locked file with wordlists (names from list_wordlists), rules "
+      "or a mask; follow it with crack_jobs.",
       {"project_id": S, "file_id": I, "wordlists": {"type": "array", "items": S},
        "mask": S, "budget_s": I}, ("project_id", "file_id"))
 def _crack(a):
     body = {k: a[k] for k in ("file_id", "wordlists", "mask", "budget_s") if k in a}
     return _call(f"/projects/{a['project_id']}/crack", "POST", body)
+
+
+@tool("crack_jobs", "Crack queue: status of every job (password and wordlist when found).",
+      {"project_id": S})
+def _crack_jobs(a):
+    return _call("/cracks" + (f"?project_id={a['project_id']}" if a.get("project_id") else ""))
 
 
 @tool("list_wordlists", "Wordlists available for cracking (smallest first).")

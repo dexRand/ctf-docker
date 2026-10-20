@@ -113,7 +113,11 @@ curl -s localhost:19014/api/v1/projects/$PID/locked
 curl -X POST -H 'Content-Type: application/json' \
      -d '{"file_id":<fid>,"wordlists":["passwords.txt","rockyou-75.txt"]}' \
      localhost:19014/api/v1/projects/$PID/crack
-curl -s localhost:19014/api/v1/projects/$PID/crack/status
+curl -s localhost:19014/api/v1/projects/$PID/crack/status   # this project's crack jobs
+# the crack queue: one job per file, CRACK_WORKERS at a time (several files of
+# the same project can be queued; the same file can't be queued twice)
+curl -s localhost:19014/api/v1/cracks | jq '.[] | {id,name,status,password}'
+curl -X DELETE localhost:19014/api/v1/cracks/<job id>         # cancel a queued job
 
 # delete one project, or the whole history (all projects + files)
 curl -X DELETE localhost:19014/api/v1/projects/$PID
@@ -145,7 +149,7 @@ claude mcp add --transport http ctf http://127.0.0.1:19014/api/v1/mcp
 Tools: `list_ctfs`, `create_ctf`, `ctf_scoreboard`, `add_challenge` (files by
 URL or base64), `autosolve`, `analyze`, `project_status`, `get_flags`,
 `get_report`, `get_transcript`, `read_file`, `list_tools`, `run_tools`,
-`locked_files`, `crack`, `list_wordlists`, `set_challenge`, `toolbox_services`.
+`locked_files`, `crack`, `crack_jobs`, `list_wordlists`, `set_challenge`, `toolbox_services`.
 
 `GET /api/v1/services` lists the other web tools of the toolbox (CyberChef,
 ZAP, Wireshark, rev sandbox…) with their URL and whether they are up.
