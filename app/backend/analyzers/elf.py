@@ -311,7 +311,8 @@ class ElfAnalyzer(Analyzer):
 
     def run(self, ctx: ToolContext) -> ToolResult:
         try:
-            head = ctx.input.read_bytes()[:8_000_000]
+            with open(ctx.input, "rb") as fh:   # headers/sections live in the first MBs
+                head = fh.read(8_000_000)
         except OSError as exc:
             return ToolResult(self.name, status="error", summary=f"cannot read: {exc}")
         info = elf_summary(head)

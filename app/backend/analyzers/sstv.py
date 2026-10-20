@@ -76,6 +76,15 @@ MODES = {
 # signal processing
 # ---------------------------------------------------------------------------
 
+def _is_pcm16_wav(path: Path) -> bool:
+    import wave
+    try:
+        with wave.open(str(path), "rb") as w:
+            return w.getsampwidth() == 2
+    except Exception:
+        return False
+
+
 def _read_wav(path: Path) -> tuple[np.ndarray, int]:
     """Read a mono PCM WAV as float in [-1, 1] (raises on failure)."""
     import wave
@@ -261,11 +270,8 @@ class SstvAnalyzer(Analyzer):
 
     def _to_wav(self, ctx: ToolContext) -> Path:
         """Return a WAV path, converting with ffmpeg when the input is not PCM."""
-        try:
-            _read_wav(ctx.input)
+        if _is_pcm16_wav(ctx.input):   # header only: decode_sstv reads the samples once
             return ctx.input
-        except Exception:
-            pass
         if not which("ffmpeg"):
             return ctx.input
         out = ctx.sub(self.name) / "input.wav"

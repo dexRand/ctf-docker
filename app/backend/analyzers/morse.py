@@ -50,14 +50,11 @@ def decode_morse(samples, rate: int) -> tuple[str, list]:
         return "", []
     on = env > 0.2 * peak
     # runs of on/off
-    runs: list[tuple[bool, float]] = []
-    i, n = 0, len(on)
-    while i < n:
-        j = i
-        while j < n and on[j] == on[i]:
-            j += 1
-        runs.append((bool(on[i]), (j - i) / rate))
-        i = j
+    # run-length encoding, vectorised (was a per-sample Python loop)
+    edges = np.flatnonzero(np.diff(on.astype(np.int8))) + 1
+    starts = np.concatenate(([0], edges))
+    lengths = np.diff(np.concatenate((starts, [len(on)])))
+    runs: list[tuple[bool, float]] = [(bool(on[s]), int(n) / rate) for s, n in zip(starts, lengths)]
     # drop leading/trailing silence
     while runs and not runs[0][0]:
         runs.pop(0)
