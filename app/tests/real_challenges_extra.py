@@ -66,6 +66,8 @@ EXTRA += [
     # DUCTF 2024 Bad Policies: GPP cpassword in Groups.xml (published AES key)
     ("badpolicies.zip", f"{DU24}/forensics/badpolicies/publish/badpolicies.zip",
      "DUCTF{D0n7_Us3_P4s5w0rds_1n_Gr0up_P0l1cy}"),
+    # TJCTF 2024 pals: palette entries with the same colour hide the text
+    ("pals.png", f"{TJ24}/pals/pals.png", "tjctf{not_very_palatable_9623c1c9}"),
 ]
 
 # Known gaps: techniques not implemented yet (backlog, see tasks/plan-refactor.md)
@@ -87,7 +89,6 @@ GAPS = [
      "DUCTF{BRINGBACKTHETREES}"),                                                       # morse over music
     ("robot.wav", f"{TJ23}/beep-boop-robot/robot.wav", "tjctf{thisisallonewordlmao}"),   # morse, bare text
     ("miniscule.png", f"{TJ23}/miniscule/miniscule.png", "tjctf{zlib_compression_bad_9c8b342}"),  # zstd IDAT
-    ("pals.png", f"{TJ24}/pals/pals.png", "tjctf{not_very_palatable_9623c1c9}"),         # palette remap + OCR
     ("out.qoi", f"{TJ24}/purified/out.qoi", "tjctf{r1bbit_ribb1t_69bb0e1d}"),            # QOI recursion
     ("blurry.png", f"{IC23}/blurry/challenge/chall.png", "ictf{blurR1ng_is_n0_m4tch_4_u_2ab140c2}"),  # damaged QR
     ("ictf23_forensics.zip", f"{IC23}/forensics/forensics.zip",

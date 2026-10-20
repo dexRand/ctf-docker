@@ -173,7 +173,7 @@ build più nuove e `--write` le aggiorna. Tre immagini sono costruite in locale:
 | Identificazione / metadati | `file`, `exiftool`, `identify`, `ffprobe`, `pdfinfo`, `pdfid` |
 | Testo ed encoding | `strings`, `markup-text` (testo di SVG/HTML/XML), `xxd`/`hexyl`/`hexdump`, `decode` (base64/32/85, hex, binario, rot13, URL, bit alto, annidati), `blobs` (blocchi base64/hex → file/testo), `pdftotext`, `morse-text` |
 | Stego su testo ed esolang | `zero-width` (caratteri ZW, whitespace a due simboli, spazi finali), `whitespace` (interprete), `case-bits` (binario + Bacon), `homoglyph` |
-| Stego su immagini | `zsteg`, `lsb-carve`, `psimage`, `steghide`, `outguess`, `jsteg`, `openstego`, `png-chunks`, `png-pixels`, `bit-planes`, `channel-remap`, `image-enhance` |
+| Stego su immagini | `zsteg`, `lsb-carve`, `psimage`, `steghide`, `outguess`, `jsteg`, `openstego`, `png-chunks`, `png-pixels`, `bit-planes`, `channel-remap` (+ ricolorazione per indice di palette), `image-enhance` |
 | Vision | `ocr` (tesseract, EN + fallback IT), `qr`, `gif-frames` (frame, differenze, bit nei ritardi) |
 | Audio / radio | `spectrogram`, `waveform`, `wav-lsb`, `wav-levels`, `morse`, `dtmf`, `sstv` (Scottie S1/S2) |
 | Rete | `pcap` (protocolli, campi HTTP/DNS, commenti, flussi UDP/TCP ricomposti, base64 spezzato un token per pacchetto, testo nelle porte sorgente, tunnel DNS, oggetti HTTP, TLS con chiave o keylog TLS 1.3, HTTP/2) |

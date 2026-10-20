@@ -172,7 +172,7 @@ sandbox (`rev/Dockerfile`).
 | Identify / metadata | `file`, `exiftool`, `identify`, `ffprobe`, `pdfinfo`, `pdfid` |
 | Text & encodings | `strings`, `markup-text` (SVG/HTML/XML text nodes), `xxd`/`hexyl`/`hexdump`, `decode` (base64/32/85, hex, binary, rot13, URL, high-bit, nested), `blobs` (base64/hex blocks → files/text), `pdftotext`, `morse-text` |
 | Text stego & esolangs | `zero-width` (ZW chars, two-symbol whitespace, trailing spaces), `whitespace` (interpreter), `case-bits` (binary + Bacon), `homoglyph` |
-| Image stego | `zsteg`, `lsb-carve`, `psimage`, `steghide`, `outguess`, `jsteg`, `openstego`, `png-chunks`, `png-pixels`, `bit-planes`, `channel-remap`, `image-enhance` |
+| Image stego | `zsteg`, `lsb-carve`, `psimage`, `steghide`, `outguess`, `jsteg`, `openstego`, `png-chunks`, `png-pixels`, `bit-planes`, `channel-remap` (+ palette-index repaint), `image-enhance` |
 | Vision | `ocr` (tesseract, EN + IT fallback), `qr`, `gif-frames` (frames, diffs, delay bits) |
 | Audio / radio | `spectrogram`, `waveform`, `wav-lsb`, `wav-levels`, `morse`, `dtmf`, `sstv` (Scottie S1/S2) |
 | Network | `pcap` (protocols, HTTP/DNS fields, comments, reassembled UDP/TCP streams, base64 split one token per packet, text in source ports, DNS tunnels, HTTP objects, TLS with a key or a TLS 1.3 keylog, HTTP/2) |
