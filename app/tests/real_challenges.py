@@ -9,14 +9,18 @@ Run against a running StegSuite:
 """
 from __future__ import annotations
 
+import argparse
 import json
-import os
-import time
+import sys
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-API = os.environ.get("STEGSUITE", "http://localhost:19014") + "/api/v1"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+import stegsuite_client as ss  # noqa: E402
+
+API = ss.API
 DEST = Path("/tmp/realch")
 
 B19 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2019/master/Forensics"
@@ -117,90 +121,58 @@ MULTI = [
 def download(url: str, dest: Path) -> None:
     if dest.exists() and dest.stat().st_size > 0:
         return
+    dest.parent.mkdir(parents=True, exist_ok=True)
     encoded = urllib.parse.quote(url, safe=":/")
-    with urllib.request.urlopen(encoded, timeout=120) as r:
+    req = urllib.request.Request(encoded, headers={"User-Agent": "stegsuite-dev"})
+    with urllib.request.urlopen(req, timeout=120) as r:  # noqa: S310
         dest.write_bytes(r.read())
 
 
-def _multipart(path: Path, mode: str) -> tuple[bytes, str]:
-    return _multipart_many([path], mode)
+def all_cases(extra: bool = False) -> list[tuple[str, list[tuple[str, str]], str]]:
+    """Every case as (label, [(file name, url)], expected flag)."""
+    cases = [(name, [(name, url)], expect) for name, url, expect in CASES]
+    cases += [(label, files, expect) for label, files, expect in MULTI]
+    if extra:
+        from real_challenges_extra import EXTRA
+        cases += [(name, [(name, url)], expect) for name, url, expect in EXTRA]
+    return cases
 
 
-def _multipart_many(paths: list[Path], mode: str) -> tuple[bytes, str]:
-    b = "----stegreal"
-    body = (f'--{b}\r\nContent-Disposition: form-data; name="mode"\r\n\r\n{mode}\r\n').encode()
-    for path in paths:
-        body += (f'--{b}\r\nContent-Disposition: form-data; name="files"; filename="{path.name}"\r\n'
-                 f'Content-Type: application/octet-stream\r\n\r\n').encode() + path.read_bytes() + b"\r\n"
-    body += f"--{b}--\r\n".encode()
-    return body, b
-
-
-def post(path: str, data: bytes = b"", ctype=None):
-    req = urllib.request.Request(API + path, data=data, method="POST")
-    if ctype:
-        req.add_header("Content-Type", ctype)
-    with urllib.request.urlopen(req, timeout=120) as r:
-        raw = r.read()
-    return json.loads(raw) if raw[:1] in (b"{", b"[") else raw.decode()
-
-
-def get(path: str):
-    with urllib.request.urlopen(API + path, timeout=120) as r:
-        return json.loads(r.read())
-
-
-def run_case(name: str, url: str, expect: str) -> bool:
-    DEST.mkdir(parents=True, exist_ok=True)
-    p = DEST / name
-    download(url, p)
-    body, b = _multipart(p, "auto")
-    proj = post("/projects", body, f"multipart/form-data; boundary={b}")
-    post(f"/projects/{proj['id']}/start")
-    status = "?"
-    for _ in range(300):
-        status = get(f"/projects/{proj['id']}")["status"]
-        if status in ("done", "error", "cancelled"):
-            break
-        time.sleep(3)
-    flags = [f["value"] for f in get(f"/projects/{proj['id']}/findings") if f["kind"] == "flag"]
+def run(label: str, files: list[tuple[str, str]], expect: str) -> dict:
+    d = DEST / label if len(files) > 1 else DEST
+    paths = []
+    for name, url in files:
+        download(url, d / name)
+        paths.append(d / name)
+    res = ss.analyze(paths, "auto")
+    flags = res["flags"]
     # a flag must never be a fragment of a longer one (e.g. CTF{x} in picoCTF{x})
     fragments = [fl for fl in flags if any(fl != o and fl in o for o in flags)]
     ok = any(expect in fl for fl in flags) and not fragments
     extra = f" fragments={fragments}" if fragments else ""
-    print(f"  [{'PASS' if ok else 'FAIL'}] {name:<15} status={status} expect={expect} got={flags[:3]}{extra}")
-    return ok
+    print(f"  [{'PASS' if ok else 'FAIL'}] {label:<18} {res['seconds']:>6}s status={res['status']} "
+          f"expect={expect} got={flags[:3]}{extra}", flush=True)
+    return {"label": label, "ok": ok, "expect": expect, **res}
 
 
-def run_multi(label: str, files: list[tuple[str, str]], expect: str) -> bool:
-    d = DEST / label
-    d.mkdir(parents=True, exist_ok=True)
-    paths: list[Path] = []
-    for name, url in files:
-        p = d / name
-        download(url, p)
-        paths.append(p)
-    body, b = _multipart_many(paths, "auto")
-    proj = post("/projects", body, f"multipart/form-data; boundary={b}")
-    post(f"/projects/{proj['id']}/start")
-    status = "?"
-    for _ in range(300):
-        status = get(f"/projects/{proj['id']}")["status"]
-        if status in ("done", "error", "cancelled"):
-            break
-        time.sleep(3)
-    flags = [f["value"] for f in get(f"/projects/{proj['id']}/findings") if f["kind"] == "flag"]
-    ok = any(expect in fl for fl in flags)
-    print(f"  [{'PASS' if ok else 'FAIL'}] {label:<15} status={status} expect={expect} got={flags[:3]}")
-    return ok
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description="Real CTF challenges against a running StegSuite.")
+    ap.add_argument("-k", dest="match", default="", help="only cases whose label contains this")
+    ap.add_argument("-j", dest="jobs", type=int, default=1, help="cases analysed in parallel")
+    ap.add_argument("--extra", action="store_true", help="also run real_challenges_extra.py")
+    ap.add_argument("--json-out", type=Path, help="write per-case results (timing included)")
+    args = ap.parse_args(argv)
 
-
-def main() -> int:
-    print(f"* real picoCTF challenges against {API}")
-    results = [run_case(*c) for c in CASES]
-    results += [run_multi(*c) for c in MULTI]
-    print(f"* {sum(results)}/{len(results)} passed")
-    return 0 if all(results) else 1
+    cases = [c for c in all_cases(args.extra) if args.match in c[0]]
+    print(f"* {len(cases)} real challenges against {API} (jobs={args.jobs})", flush=True)
+    with ThreadPoolExecutor(max(1, args.jobs)) as pool:
+        results = list(pool.map(lambda c: run(*c), cases))
+    passed = sum(r["ok"] for r in results)
+    total_s = round(sum(r["seconds"] for r in results), 1)
+    print(f"* {passed}/{len(results)} passed · {total_s}s of analysis")
+    if args.json_out:
+        args.json_out.write_text(json.dumps(results, indent=2, ensure_ascii=False))
+    return 0 if passed == len(results) else 1
 
 
 if __name__ == "__main__":

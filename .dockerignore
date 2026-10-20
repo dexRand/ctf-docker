@@ -3,3 +3,15 @@ data
 appdata
 **/__pycache__
 **/*.pyc
+app/frontend/node_modules
+app/frontend/dist
+**/.pytest_cache
+.opencode
+.github
+docs
+tasks
+wordlists
+osint
+rev
+zap
+tools

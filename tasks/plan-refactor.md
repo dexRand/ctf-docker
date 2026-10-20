@@ -192,6 +192,36 @@ frontend** (`Project.vue` `buildReport` :619, `buildFullLogs` :738,
   - e2e con un health loop che fallisce davvero
   - script di coerenza compose ↔ services.yaml ↔ README
 
+## Fase 6 (in coda, dopo l'overhaul): RevSuite, rev "a progetto" con auto-analisi
+**Problema:** oggi `rev` è un terminale ttyd con un menu di comandi; serve sapere già cosa
+lanciare. **Obiettivo:** carichi il binario, l'analisi iniziale la fa lui, poi continui dal
+terminale *dentro il progetto*, con tutto già pronto. Stesso modello di StegSuite: una CTF
+contiene le challenge, ogni challenge ha i suoi file.
+
+1. **Servizio `rev` con API** (FastAPI piccolo dentro il container `rev`, sempre senza
+   internet, `cap_drop`): `POST /api/v1/rev/projects` (upload), `GET .../report`,
+   `POST .../run` (comando nel sandbox con timeout), WS `.../terminal` con cwd = progetto.
+   StegSuite, quando trova un ELF/PE/APK/.NET, lo **inoltra** a rev (stesso id challenge),
+   così la challenge resta una sola.
+2. **Auto-triage** (pipeline in passi, ognuno con output salvato e flag hunt condiviso):
+   - identificazione: `file`, arch, packer (UPX → `upx -d` automatico), linguaggio
+     (Go/Rust/.NET/Python-PyInstaller → `pyinstxtractor` + decompyle), checksec;
+   - statico: strings + flag hunt, import/export, `main` e le funzioni "interessanti"
+     (strcmp/memcmp/strncmp, crypto, `flag`), **decompilazione Ghidra** di main e delle
+     funzioni chiamate, salvata come `.c` leggibile; per APK: jadx + ricerca stringhe/risorse;
+   - dinamico (sandbox): run con input vuoto/di prova, `ltrace` per intercettare i
+     confronti `strcmp(input, "flag{...}")`, `strace` per i file e le syscall;
+   - **auto-solver crackme**: angr (find "Correct"/avoid "Wrong") con un tempo massimo;
+     XOR e encoding costanti trovati nei dati; pwn: solo report (checksec, gadget, offset
+     con cyclic), niente exploit automatico.
+3. **Report "da principiante"**: cosa è il binario, cosa fa main (pseudo-C), dove sono i
+   confronti, flag candidate, e **i prossimi comandi suggeriti** (già pronti da copiare,
+   es. `gdb -ex 'b *0x401234'`). Lo stesso report è esposto via API per l'IA.
+4. **Terminale nel progetto**: `cwd` = cartella del progetto, file già decompilati
+   (`dec/`, `strings.txt`, `ltrace.txt`), alias del menu, history per progetto. Nella SPA
+   è una scheda "Rev" accanto a Analisi/Terminale.
+5. Test: crackme reali (picoCTF, DUCTF *All Father's Wisdom*, …) in `real_challenges.py`.
+
 ## Ordine di esecuzione proposto
-Fase 0 → 2 → 1 → 1b → 3 → 4 → 5. Il motivo: la Fase 2 crea i moduli dove vanno a vivere gli
+Fase 0 → 2 → 1 → 1b → 3 → 4 → 5 → **6 (RevSuite)**. Il motivo: la Fase 2 crea i moduli dove vanno a vivere gli
 endpoint della Fase 1. Un commit per punto, con test e gate a fine fase.

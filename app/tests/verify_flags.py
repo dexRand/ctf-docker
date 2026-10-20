@@ -16,12 +16,11 @@ Run against a running StegSuite:
 from __future__ import annotations
 
 import re
-import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from real_challenges import API, DEST, download, get, post, _multipart
+from real_challenges import API, DEST, download, ss
 
 B19 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2019/master/Forensics"
 B21 = "https://raw.githubusercontent.com/HHousen/PicoCTF-2021/master/Forensics"
@@ -64,15 +63,7 @@ def found_flags(label: str, artifact_url: str) -> set[str]:
     base = Path(urllib.parse.urlparse(artifact_url).path).name
     dest = DEST / f"verify_{label.replace(' ', '_')}_{base}"
     download(artifact_url, dest)
-    body, boundary = _multipart(dest, "auto")
-    proj = post("/projects", body, f"multipart/form-data; boundary={boundary}")
-    post(f"/projects/{proj['id']}/start")
-    for _ in range(300):
-        status = get(f"/projects/{proj['id']}")["status"]
-        if status in ("done", "error", "cancelled"):
-            break
-        time.sleep(3)
-    return {f["value"] for f in get(f"/projects/{proj['id']}/findings") if f["kind"] == "flag"}
+    return set(ss.analyze([dest], "auto")["flags"])
 
 
 def main() -> int:

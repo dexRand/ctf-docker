@@ -37,12 +37,19 @@ EOF
 
 all_profiles=(web recon crypto forensics crack audio rev)
 
-# port VARNAME default  ->  value from .env (or the default)
-port() {
+# envget VARNAME default  ->  value from .env (or the default); strips quotes
+# and trailing comments, keeps any '=' inside the value
+envget() {
   local v=""
-  [ -f .env ] && v="$(grep -E "^$1=" .env 2>/dev/null | tail -1 | cut -d= -f2 || true)"
+  [ -f .env ] && v="$(grep -E "^$1=" .env 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+  v="${v%%[[:space:]]#*}"; v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
   echo "${v:-$2}"
 }
+port() { envget "$@"; }
+
+# StegSuite API for scan/test (port and key from .env)
+export STEGSUITE="${STEGSUITE:-http://127.0.0.1:$(port STEGSUITE_PORT 19014)}"
+export STEGSUITE_API_KEY="${STEGSUITE_API_KEY:-$(envget STEGSUITE_API_KEY "")}"
 
 case "${1:-up}" in
   up)
