@@ -101,3 +101,12 @@ def test_run_tools_rejects_unknown_tools(client):
     r = client.post(f"/api/v1/projects/{PID}/files/901/run", json={"tools": ["nope"]})
     assert r.status_code == 422
     assert client.post(f"/api/v1/projects/{PID}/files/999999/run", json={"tools": ["strings"]}).status_code == 404
+
+
+def test_summary_for_the_gui(client):
+    s = client.get(f"/api/v1/projects/{PID}/summary").json()
+    assert s["route_ids"] == [901, 902]
+    assert [x["name"] for x in s["route_steps"]] == ["chall.zip", "inner.txt"]
+    assert s["route_steps"][1]["flag"] is True
+    assert 802 in s["solver_run_ids"] and "strings" in s["solver_tools"]
+    assert "inner.txt" in s["route_tree"]

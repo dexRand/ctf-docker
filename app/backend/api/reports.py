@@ -30,6 +30,13 @@ def project_flags(pid: str, session: Session = Depends(get_session)) -> list[dic
     return report.flag_routes(_view(session, pid))
 
 
+@router.get("/api/v1/projects/{pid}/summary")
+def project_summary(pid: str, session: Session = Depends(get_session)) -> dict:
+    """The solution at a glance (what the GUI highlights): flags with chain and
+    evidence, route ids/steps/tree, solver and route runs, tools involved."""
+    return report.summary(_view(session, pid))
+
+
 @router.get("/api/v1/projects/{pid}/report")
 def project_report(pid: str, format: Literal["md", "json"] = "md",
                    lang: Literal["en", "it"] = "en", session: Session = Depends(get_session)):

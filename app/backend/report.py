@@ -298,6 +298,40 @@ def flag_routes(v: ProjectView) -> list[dict]:
     return out
 
 
+def summary(v: ProjectView) -> dict:
+    """Everything the GUI highlights about the solution, in one payload:
+    flags (with chain + evidence), the route through the tree, the runs that
+    found or produced it, and the tools involved."""
+    flags = v.kind("flag")
+    solver_runs: set[int] = set()
+    for f in flags:
+        ev = v.evidence_for(f)
+        if ev:
+            solver_runs.add(ev["run"])
+        else:
+            src, _ = source_parts(f.source)
+            solver_runs.update(r.id for r in v.runs_of(f.file_id) if r.tool == src)
+    steps, seen = [], set()
+    for f in flags:
+        for n in v.chain_of(f.file_id):
+            if n.id in seen:
+                continue
+            seen.add(n.id)
+            pw = v.password_of(n.id) if n.parent_id is not None else None
+            steps.append({"id": n.id, "name": n.name, "tool": origin_tool(n),
+                          "flag": n.id == f.file_id, "password": pw.value if pw else None})
+    return {
+        "flags": flag_routes(v),
+        "route_ids": [n.id for n in v.route_nodes()],
+        "route_steps": steps,
+        "route_tree": v.ascii_route_tree(),
+        "relevant_run_ids": [r.id for r in v.relevant_runs()],
+        "solver_run_ids": sorted(solver_runs),
+        "flag_tools": v.flag_tools(),
+        "solver_tools": sorted(v.solver_tools()),
+    }
+
+
 def markdown(v: ProjectView, lang: str = "en") -> str:
     T = TEXT.get(lang, TEXT["en"])
     P = v.project

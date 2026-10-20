@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, wsUrl, fmtSize, fmtDate, fmtTime } from '../api'
 import { toolLabel } from '../labels'
-import { t, tt, lang } from '../i18n'
+import { t, lang } from '../i18n'
 import { mdToHtml } from '../md'
 import { notify } from '../toast'
 import Terminal from '../components/Terminal.vue'
@@ -215,23 +215,11 @@ const graphLinks = computed(() => tree.value.filter((n) => n.parent_id != null)
     target: n.id,
     route: routeIdSet.value.has(n.id) && routeIdSet.value.has(n.parent_id),
   })))
-// ordered route from the upload down to each flag (deduped), for the timeline
-const routeSteps = computed(() => {
-  const seen = new Set()
-  const steps = []
-  for (const f of flags.value) {
-    for (const n of chainOf(f.file_id)) {
-      if (seen.has(n.id)) continue
-      seen.add(n.id)
-      const isUpload = n.parent_id == null
-      steps.push({
-        id: n.id, name: n.name, tool: isUpload ? 'upload' : originTool(n),
-        flag: f.file_id === n.id, pwd: isUpload ? null : pwdOf(n.id),
-      })
-    }
-  }
-  return steps
-})
+// the solution as computed by the backend (/summary): flags with chain and
+// evidence, the route through the tree, solver/route runs, tools involved
+const summary = ref({ flags: [], route_ids: [], route_steps: [], route_tree: '',
+  relevant_run_ids: [], solver_run_ids: [], flag_tools: [], solver_tools: [] })
+const routeSteps = computed(() => summary.value.route_steps)
 // clicking a graph node (or a timeline step) selects that file on the left,
 // so the details stay in one place (tree + overview/extracted)
 function selectFile(id) {
@@ -255,58 +243,16 @@ function selectFile(id) {
 }
 function shortName(s) { s = String(s); return s.length > 18 ? s.slice(0, 17) + '…' : s }
 const notes = computed(() => findings.value.filter((f) => f.kind === 'note'))
-const routeTreeText = computed(() => (routeNodes().length ? asciiRouteTree() : ''))
-const routeIdSet = computed(() => new Set(routeNodes().map((n) => n.id)))
-// only the runs that actually took part: the finder tool + the tools that
-// produced each file on the path to the flag (not every tool that ran)
-const relevantRuns = computed(() => {
-  const wanted = new Set()
-  const found = new Set()
-  for (const f of flags.value) {
-    wanted.add(`${f.file_id}:${sourceTool(f.source)}`)
-    // the source can be a pseudo-tool ("raw scan") matching no run; the run that
-    // really showed the flag is found from its output
-    const ev = evidenceFor(f)
-    if (ev && ev.run) found.add(ev.run)
-    let cur = f.file_id
-    while (cur && treeById.value[cur]) {
-      const n = treeById.value[cur]
-      if (n.parent_id != null) {
-        const t = originTool(n)
-        if (t && t !== 'upload' && t !== 'extracted') wanted.add(`${n.parent_id}:${t}`)
-      }
-      cur = n.parent_id
-    }
-  }
-  return runs.value.filter((r) => found.has(r.id) || wanted.has(`${r.file_id}:${r.tool}`))
-})
-// run ids that actually produced a flag. The finding source names a tool, but
-// it can be a pseudo-source ("raw scan") that matches no run at all: the flag
-// may have surfaced in some other tool's output (exiftool Artist, png-chunks
-// tEXt, ...). So prefer the run whose output really contains the flag value,
-// and fall back to the tool named in the source.
-const solverRuns = computed(() => {
-  const s = new Set()
-  for (const f of flags.value) {
-    const ev = evidenceFor(f)
-    if (ev && ev.run) { s.add(ev.run); continue }
-    const src = sourceTool(f.source)
-    for (const r of runsByFile.value[f.file_id] || []) if (r.tool === src) s.add(r.id)
-  }
-  return s
-})
-// tools that solved a flag, for the "tool usati per la flag" chip row
-const solverTools = computed(() => {
-  const s = new Set()
-  for (const f of flags.value) {
-    const ev = evidenceFor(f)
-    if (ev && ev.run) s.add(ev.tool)
-    else s.add(sourceTool(f.source))
-  }
-  return s
-})
-// each flag paired with the real tool output that shows it
-const flagCards = computed(() => flags.value.map((f) => ({ f, ev: evidenceFor(f) })))
+const routeTreeText = computed(() => summary.value.route_tree)
+const routeIdSet = computed(() => new Set(summary.value.route_ids))
+const routeNodes = () => tree.value.filter((n) => routeIdSet.value.has(n.id))
+const solverRuns = computed(() => new Set(summary.value.solver_run_ids))
+const solverTools = computed(() => new Set(summary.value.solver_tools))
+const flagTools = () => summary.value.flag_tools
+// each flag paired with the tool output that shows it
+const flagCards = computed(() => summary.value.flags.map((f) => ({
+  f: { ...f, file_id: f.file ? f.file.id : null }, ev: f.evidence,
+})))
 // files "near" the flag path: siblings and children of route nodes
 const nearIdSet = computed(() => {
   const s = new Set()
@@ -372,12 +318,13 @@ async function load() {
   const seq = ++loadSeq
   const id = props.id
   try {
-    const [proj, fnd, lck, wls, rns] = await Promise.all([
+    const [proj, fnd, lck, wls, rns, sum] = await Promise.all([
       api(`/projects/${id}`),
       api(`/projects/${id}/findings`),
       api(`/projects/${id}/locked`),
       api('/wordlists'),
       api(`/projects/${id}/runs`),
+      api(`/projects/${id}/summary`),
     ])
     if (seq !== loadSeq) return
     for (const l of lck) {
@@ -388,6 +335,7 @@ async function load() {
     locked.value = lck
     wordlists.value = wls
     runs.value = rns
+    summary.value = sum
     // seed the live log from persisted events so the Logs tab is not empty on
     // projects that were analysed in a previous session (only once, and only if
     // no live event has arrived yet)
@@ -399,11 +347,6 @@ async function load() {
           log.value = (evs || []).map((e) => ({ type: 'event', level: e.level, message: e.message, ts: e.ts }))
         }
       } catch { /* no history */ }
-    }
-    // preload outputs of tools that ran on files containing a flag, so the
-    // evidence excerpt (tool output with the flag) is available immediately
-    for (const f of findings.value.filter((x) => x.kind === 'flag')) {
-      for (const r of runs.value.filter((x) => x.file_id === f.file_id)) out(r.id)
     }
     if (selected.value == null && tree.value.length) selected.value = tree.value[0].id
     // refresh the full-logs view if the user is looking at it
@@ -510,123 +453,6 @@ async function loadPreview(id) {
   if (outputs.value[key] != null) return
   try { outputs.value[key] = await api(`/projects/${props.id}/files/${id}/content`) }
   catch (e) { outputs.value[key] = String(e) }
-}
-
-function commandsOf(text) {
-  return String(text || '').split('\n').filter((l) => l.startsWith('# '))
-    .map((l) => l.slice(2)).filter((c) => c && c !== 'commands:')
-}
-// excerpt of a tool output around the flag (the evidence of where it was)
-function evidenceLines(text, flag, width = 3) {
-  const lines = String(text).split('\n')
-  const idx = lines.findIndex((l) => l.includes(flag))
-  if (idx < 0) return ''
-  const from = Math.max(0, idx - width)
-  const to = Math.min(lines.length, idx + width + 1)
-  return lines.slice(from, to).join('\n').slice(0, 900)
-}
-function evidenceFor(f) {
-  const src = sourceTool(f.source)
-  const cands = (runsByFile.value[f.file_id] || []).slice()
-    .sort((a, b) => ((a.tool === src) ? -1 : 0) - ((b.tool === src) ? -1 : 0))
-  for (const r of cands) {
-    const o = outputs.value[r.id]
-    if (o && String(o).includes(f.value)) {
-      return { run: r.id, tool: r.tool, command: commandsOf(o)[0] || '', lines: evidenceLines(String(o), f.value) }
-    }
-  }
-  return null
-}
-
-// --- ASCII tree (box drawing) ---
-function childrenMap(nodes) {
-  const m = {}
-  for (const n of nodes) { (m[n.parent_id ?? 0] ||= []).push(n) }
-  for (const k in m) m[k].sort((a, b) => a.order_index - b.order_index)
-  return m
-}
-const SRC_PREFIX = ['b64', 'hex', 'fuzzy']
-const SRC_DECODER = { b64: 'base64', hex: 'hex', fuzzy: 'fuzzy/OCR' }
-function sourceParts(src) {
-  const parts = String(src || '').split(':').filter(Boolean)
-  const dec = []
-  while (parts.length > 1 && SRC_PREFIX.includes(parts[0])) dec.push(parts.shift())
-  const tool = parts[0] === 'raw' ? 'raw scan' : (parts[0] || '?')
-  return { tool, dec }
-}
-function sourceTool(src) { return sourceParts(src).tool }
-function sourceHow(src, lng) {
-  const { tool, dec } = sourceParts(src)
-  const name = toolLabel(tool, lng)
-  return dec.length ? name + ' + ' + dec.map((d) => SRC_DECODER[d] || d).join(' + ') : name
-}
-function chainOf(fileId) {
-  const chain = []
-  let cur = fileId
-  while (cur && treeById.value[cur]) { chain.unshift(treeById.value[cur]); cur = treeById.value[cur].parent_id }
-  return chain
-}
-function pwdVia(p) { return p && p.context ? ` (via ${p.context})` : '' }
-function chainText(f, lng) {
-  const parts = []
-  const ev = evidenceFor(f)
-  const via = lng ? tt(lng, 'proj.via') : t('proj.via')
-  chainOf(f.file_id).forEach((n, i) => {
-    const ot = originTool(n)
-    if (i === 0) parts.push(n.name)
-    else {
-      const pw = passwords.value.find((p) => p.file_id === n.id)
-      parts.push(`${n.name} (${via} ${toolLabel(ot, lng)}${pw ? ', pwd ' + pw.value + pwdVia(pw) : ''})`)
-    }
-  })
-  parts.push(`[${ev && ev.run ? toolLabel(ev.tool, lng) : sourceHow(f.source, lng)}]`)
-  return parts.join('  ->  ')
-}
-function flagTools() {
-  const s = new Set()
-  for (const f of flags.value) {
-    const ev = evidenceFor(f)
-    s.add(ev && ev.run ? ev.tool : sourceTool(f.source))
-    for (const n of chainOf(f.file_id)) {
-      const t = originTool(n)
-      if (t && t !== 'upload' && t !== 'extracted') s.add(t)
-    }
-  }
-  for (const r of relevantRuns.value) s.add(r.tool)
-  return [...s].sort()
-}
-function routeLabel(n) {
-  const fl = flags.value.filter((f) => f.file_id === n.id).map((f) => f.value)
-  const pw = passwords.value.filter((p) => p.file_id === n.id).map((p) => p.value)
-  const ot = originTool(n)
-  let s = n.name
-  if (ot && ot !== 'upload' && ot !== 'extracted') s += `   (${ot})`
-  if (fl.length) s += `   <-- FLAG: ${fl.join(', ')}`
-  else if (pw.length) s += `   <-- password: ${pw.join(', ')}`
-  return s
-}
-function asciiRouteTree() {
-  const m = childrenMap(routeNodes())
-  const lines = []
-  const walk = (pid, prefix) => {
-    const kids = m[pid] || []
-    kids.forEach((k, i) => {
-      const last = i === kids.length - 1
-      lines.push(prefix + (last ? '└── ' : '├── ') + routeLabel(k))
-      walk(k.id, prefix + (last ? '    ' : '│   '))
-    })
-  }
-  walk(0, '')
-  return lines.join('\n')
-}
-function routeNodes() {
-  const ids = new Set()
-  for (const f of flags.value) {
-    let cur = f.file_id
-    while (cur && treeById.value[cur]) { ids.add(cur); cur = treeById.value[cur].parent_id }
-  }
-  // keep the ancestry order (tree is already sorted by discovery)
-  return tree.value.filter((n) => ids.has(n.id))
 }
 
 async function openReport() {
@@ -1001,9 +827,9 @@ onBeforeUnmount(() => {
               <div class="mt-1 text-[11px] text-dim">
                 {{ t('proj.in') }}
                 <button class="text-fg hover:text-acc hover:underline" @click="c.f.file_id && (selected = c.f.file_id)">{{ (treeById[c.f.file_id] || {}).name || '?' }}</button>
-                · <b class="text-fglite">{{ c.ev && c.ev.run ? toolLabel(c.ev.tool) : sourceHow(c.f.source) }}</b>
+                · <b class="text-fglite">{{ c.ev ? toolLabel(c.ev.tool) : c.f.how }}</b>
               </div>
-              <div class="mt-1 break-all text-[10px] text-dim">{{ chainText(c.f) }}</div>
+              <div class="mt-1 break-all text-[10px] text-dim">{{ c.f.chain_text }}</div>
               <pre v-if="c.ev" class="mt-1 max-h-28 overflow-auto whitespace-pre rounded border border-edge bg-ink p-1.5 text-[10px] text-fglite"># {{ c.ev.tool }}{{ c.ev.command ? '  —  ' + c.ev.command : '' }}
 {{ c.ev.lines }}</pre>
               <pre v-else-if="c.f.context" class="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded border border-edge bg-ink p-1.5 text-[10px] text-dim">{{ c.f.context }}</pre>
@@ -1141,7 +967,7 @@ onBeforeUnmount(() => {
                   <button type="button" @click="selectFile(s.id)" class="truncate text-left hover:underline"
                           :class="selected === s.id ? 'text-acc' : (s.flag ? 'font-bold text-acc' : 'text-fglite')">{{ s.name }}</button>
                   <span class="shrink-0 rounded bg-panel2 px-1 py-0.5 text-[9px] text-dim">{{ toolLabel(s.tool) }}</span>
-                  <span v-if="s.pwd" class="shrink-0 text-[9px] text-warn" :title="s.pwd.context">🔑{{ s.pwd.value }}</span>
+                  <span v-if="s.password" class="shrink-0 text-[9px] text-warn">🔑{{ s.password }}</span>
                   <span v-if="s.flag" class="shrink-0 text-[9px] text-acc">★</span>
                 </li>
               </ol>
