@@ -87,13 +87,16 @@ def _try_decodes(joined: str) -> list[tuple[str, str]]:
     return out
 
 
-def dns_tunnel_candidates(queries: list[str]) -> list[str]:
+def dns_tunnel_candidates(queries: list[str],
+                          by_server: dict[str, list[str]] | None = None) -> list[str]:
     """Try to reassemble DNS-exfiltrated plaintext from query names.
 
     Two heuristics feed the same printable-gated base32/base64 decode:
     (A) queries sharing a fixed base domain (last 1-2 labels) leak one chunk
         per query in their varying prefix labels;
-    (B) a fixed label position across all queries.
+    (B) a fixed label position across all queries;
+    (C) the same, per DNS server the queries were sent to: the exfil often goes
+        to its own server, hidden among random lookups (picoCTF "shark2").
     Case is preserved: base32 is decoded case-insensitively, base64 needs it.
     """
     names = list(dict.fromkeys((q or "").rstrip(".") for q in queries if q))
@@ -118,6 +121,18 @@ def dns_tunnel_candidates(queries: list[str]) -> list[str]:
         for base, prefixes in groups.items():
             if len(prefixes) >= 2:
                 consider(f"base {base}", "".join(prefixes))
+    for server, qs in (by_server or {}).items():   # (C) per destination server
+        uniq = list(dict.fromkeys(q.rstrip(".") for q in qs))
+        if len(uniq) < 2 or len(uniq) == len(names):
+            continue
+        groups2: dict[str, list[str]] = {}
+        for n in uniq:
+            parts = n.split(".")
+            if len(parts) > 2:
+                groups2.setdefault(".".join(parts[-2:]), []).append("".join(parts[:-2]))
+        for base, prefixes in groups2.items():
+            if len(prefixes) >= 2:
+                consider(f"server {server} base {base}", "".join(prefixes))
     max_parts = max(len(n.split(".")) for n in names)
     for pos in range(max_parts):  # (B) fixed label position
         consider(f"label[{pos}]",
@@ -293,13 +308,21 @@ class PcapAnalyzer(Analyzer):
         if streams:
             parts.append("== streams ==\n" + streams)
         # DNS tunneling: chunk-per-query exfiltration (ExtractionD'ADNs style)
-        proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields",
-                        "-e", "dns.qry.name"], timeout=180)
-        queries = [l.strip() for l in (proc.stdout or "").splitlines() if l.strip()]
+        proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields", "-E", "separator=\t",
+                        "-e", "ip.dst", "-e", "dns.qry.name", "-e", "dns.flags.response"], timeout=180)
+        queries: list[str] = []
+        by_server: dict[str, list[str]] = {}
+        for line in (proc.stdout or "").splitlines():
+            dst, name, resp = (line.split("\t") + ["", "", ""])[:3]
+            if not name.strip():
+                continue
+            queries.append(name.strip())
+            if resp.strip() in ("0", "False"):          # a query, sent to `dst`
+                by_server.setdefault(dst.strip(), []).append(name.strip())
         if queries:
             parts.append("== dns queries ==\n"
                          + "\n".join(dict.fromkeys(queries))[:12000])
-        tunnel = dns_tunnel_candidates(queries)
+        tunnel = dns_tunnel_candidates(queries, by_server)
         if tunnel:
             parts.append("== DNS tunneling ==\n" + "\n".join(tunnel))
         # export HTTP objects (become children to recurse into)

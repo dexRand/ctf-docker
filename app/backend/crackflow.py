@@ -1,10 +1,10 @@
 """Cracking inside the analysis flow: record crack runs, auto-crack locked files."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
+import re
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
@@ -109,6 +109,47 @@ def apply_crack_result(session: Session, pid: str, node: FileNode, work: Path,
     return ids
 
 
+# metadata fields that CTF authors use to leave a password around
+_HINT_KEYS = re.compile(r"(?i)title|comment|author|artist|description|subject|keyword|copyright|"
+                        r"caption|creator|note|password|passwd|hint|label|headline|rights|instruction")
+_EXIF_LINE = re.compile(r"^([A-Za-z][A-Za-z0-9 /_-]{1,40}?)\s*:\s(.+)$")
+_CHUNK_LINE = re.compile(r"^(?:tEXt|iTXt|zTXt): (.+)$")
+
+
+def context_wordlist(session: Session, pid: str, work: Path) -> Path | None:
+    """Password candidates from the challenge itself: descriptive metadata
+    fields (exiftool) and PNG text chunks of every file of the project, whole
+    values and their words. Written to work/crack-context.txt (tried first)."""
+    cands: list[str] = []
+    runs = session.exec(select(ToolRun).where(ToolRun.project_id == pid)
+                        .where(ToolRun.tool.in_(("exiftool", "png-chunks")))).all()  # type: ignore[attr-defined]
+    for r in runs:
+        if not r.output_path:
+            continue
+        try:
+            text = (work / r.output_path).read_text("utf-8", "replace")
+        except OSError:
+            continue
+        for line in text.splitlines():
+            m = _EXIF_LINE.match(line.strip()) if r.tool == "exiftool" else _CHUNK_LINE.match(line.strip())
+            if not m:
+                continue
+            if r.tool == "exiftool":
+                if not _HINT_KEYS.search(m.group(1)):
+                    continue
+                value = m.group(2).strip()
+            else:
+                value = re.split(r"[\x00=]", m.group(1), maxsplit=1)[-1].strip()
+            if 3 <= len(value) <= 200:
+                cands += [value] + [w for w in re.split(r"[\s,;]+", value) if 3 <= len(w) <= 64]
+    cands = list(dict.fromkeys(cands))[:2000]
+    if not cands:
+        return None
+    path = work / "crack-context.txt"
+    path.write_text("\n".join(cands) + "\n")
+    return path
+
+
 def _auto_crack(session: Session, pid: str, work: Path, job: Job) -> list[FileNode]:
     """Auto mode: try the *small* wordlists on the locked files; return unlocked
     nodes. Bounded by ``AUTO_CRACK_MAX_MB`` (per list) and ``AUTO_CRACK_BUDGET_S``
@@ -140,7 +181,8 @@ def _auto_crack(session: Session, pid: str, work: Path, job: Job) -> list[FileNo
         _emit(pid, {"type": "crack", "file_id": fid, "name": node.name, "status": "running"})
         lines: list[str] = []
         budget = max(1, int(deadline - time.time())) if deadline else None
-        res = cracking.crack_file(work / node.rel_path, names, log=lines.append, budget_s=budget)
+        res = cracking.crack_file(work / node.rel_path, names, log=lines.append, budget_s=budget,
+                                  extra_wordlists=[c for c in [context_wordlist(session, pid, work)] if c])
         for i in apply_crack_result(session, pid, node, work, res, lines):
             nn = session.get(FileNode, i)
             if nn:

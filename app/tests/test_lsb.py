@@ -36,3 +36,23 @@ def test_carves_a_zip_hidden_in_the_lsb(tmp_path):
     res = LsbCarveAnalyzer().run(ToolContext(input=p, workdir=tmp_path / "w"))
     carved = [f for f in res.extracted if f.endswith(".zip")]
     assert carved and open(carved[0], "rb").read().startswith(payload[:64])
+
+
+def _stepic_encode(img: Image.Image, data: bytes) -> Image.Image:
+    """Reference stepic encoder (3 pixels per byte, last LSB = end marker)."""
+    px = np.asarray(img.convert("RGB")).copy().reshape(-1, 3)
+    for i, byte in enumerate(data):
+        vals = px[i * 3:i * 3 + 3].reshape(-1)
+        bits = [(byte >> (7 - k)) & 1 for k in range(8)] + [1 if i == len(data) - 1 else 0]
+        vals[:] = (vals & 0xFE) | np.array(bits, dtype=np.uint8)
+        px[i * 3:i * 3 + 3] = vals.reshape(3, 3)
+    return Image.fromarray(px.reshape(np.asarray(img).shape[0], -1, 3), "RGB")
+
+
+def test_stepic_decodes(tmp_path):
+    from backend.analyzers.lsb import StepicAnalyzer
+    base = Image.fromarray(np.random.default_rng(3).integers(0, 256, (40, 60, 3), dtype=np.uint8), "RGB")
+    p = tmp_path / "s.png"
+    _stepic_encode(base, b"picoCTF{fl4g_st3pic}").save(p)
+    res = StepicAnalyzer().run(ToolContext(input=p, workdir=tmp_path / "w"))
+    assert res.output == "picoCTF{fl4g_st3pic}"

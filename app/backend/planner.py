@@ -14,13 +14,16 @@ DEFAULT_PLAN = [
     "binwalk-scan",
     "decode", "blobs", "zero-width", "whitespace", "case-bits", "homoglyph", "morse-text",
     "ocr", "qr",
-    "zsteg", "lsb-carve", "psimage", "png-chunks", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
+    "zsteg", "lsb-carve", "stepic", "psimage", "png-chunks", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
     "pixel-bytes", "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
     "pcap", "evtx",
     "nested-archive", "git", "7z", "office", "eml", "binwalk-extract", "foremost", "pngcheck",
     "png-repair", "image-repair", "byte-swap",
 ]
+# signature scans and binary/image repairs: nothing to do on a file `file`
+# already reports as text (a pcap's HTTP objects can be hundreds of them)
+BINARY_ONLY = {"binwalk-scan", "png-repair", "image-repair", "byte-swap", "pngcheck"}
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}
 # cap how many heavy tools run at once across all projects (CPU bound)
 _HEAVY_TOOLS = set(HEAVY_EXTRACT) | {"7z", "steghide", "outguess", "jsteg", "openstego", "sstv"}
@@ -55,6 +58,8 @@ def _plan_for(name: str, mime: str | None, is_text: bool) -> list[str]:
         if not a or not a.matches(mime, name):
             continue
         if tool in HEAVY_EXTRACT and is_text and not name.lower().endswith(ARCHIVE_EXT):
+            continue
+        if tool in BINARY_ONLY and is_text:
             continue
         plan.append(tool)
     return plan

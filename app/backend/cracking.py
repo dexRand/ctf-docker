@@ -252,11 +252,15 @@ def _crack_zip_hashcat(path: Path, log, *, wl: Optional[Path] = None,
 
 def _pot_password(show: str, hash_line: str) -> Optional[str]:
     """Password from `hashcat --show` (`<hash>:<password>`; the password may hold `:`)."""
+    # only a line that *is* our hash counts: hashcat also prints warnings and
+    # errors ("Hashfile …: Hash contains unsupported compression type") that
+    # contain ':' and used to be taken as the password
+    kind = hash_line.split("*", 1)[0]          # e.g. "$pkzip2$1", "$zip2$"
     for line in show.splitlines():
         if line.startswith(hash_line + ":"):
             return line[len(hash_line) + 1:]
-        if ":" in line:
-            return line.rsplit(":", 1)[1]
+        if kind.startswith("$") and line.startswith(kind) and ":" in line:
+            return line.rsplit(":", 1)[1]      # hashcat may print the hash normalised
     return None
 
 
@@ -395,8 +399,11 @@ def _extract_with(path: Path, kind: str, password: str, outdir: Path, log) -> li
 def crack_file(path: Path, wordlist_names: Optional[list[str]] = None,
                log: Optional[Callable[[str], None]] = None, *,
                rules: Optional[str] = None, mask: Optional[str] = None,
-               budget_s: Optional[int] = None) -> dict:
-    wls = resolve_wordlists(wordlist_names)
+               budget_s: Optional[int] = None,
+               extra_wordlists: Optional[list[Path]] = None) -> dict:
+    """`extra_wordlists` (e.g. passwords suggested by the challenge's own
+    metadata) are tried before the regular lists."""
+    wls = [p for p in (extra_wordlists or []) if p.is_file()] + resolve_wordlists(wordlist_names)
     kind = _kind(path)
     no_hit = {"password": None, "kind": kind, "extracted": [],
               "wordlist_hit": None, "wordlists": [w.name for w in wls]}

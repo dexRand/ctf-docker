@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, run_cmd, which
+from .util import magic_ext, printable_ratio
 from .registry import register
 
 # bit 1/2 of the low channels, both bit orders, plus one deeper plane
@@ -38,17 +39,26 @@ def lsb_stream(arr, spec: str) -> bytes:
     return np.packbits(bits, bitorder="big" if order == "lsb" else "little").tobytes()
 
 
-def _streams(path: Path):
-    """(spec, stream) for every spec: numpy for RGB/RGBA images, zsteg otherwise."""
-    arr = None
+def _rgba_head(path: Path, max_pixels: int = _MAX_NUMPY_PIXELS):
+    """RGBA array of an RGB/RGBA image; for a huge image only its first rows
+    (hidden data starts at the beginning of the stream). None otherwise."""
     try:
         from PIL import Image
         import numpy as np
+        Image.MAX_IMAGE_PIXELS = None               # big challenge images are legitimate
         with Image.open(path) as im:
-            if im.mode in ("RGB", "RGBA") and im.width * im.height <= _MAX_NUMPY_PIXELS:
-                arr = np.asarray(im.convert("RGBA"))
+            if im.mode not in ("RGB", "RGBA"):
+                return None
+            rows = max(1, min(im.height, max_pixels // max(1, im.width)))
+            head = im.crop((0, 0, im.width, rows)) if rows < im.height else im
+            return np.asarray(head.convert("RGBA"))
     except Exception:
-        arr = None
+        return None
+
+
+def _streams(path: Path):
+    """(spec, stream) for every spec: numpy for RGB/RGBA images, zsteg otherwise."""
+    arr = _rgba_head(path)
     for spec in _SPECS:
         if arr is not None:
             yield spec, lsb_stream(arr, spec)
@@ -99,3 +109,43 @@ class LsbCarveAnalyzer(Analyzer):
 
 
 register(LsbCarveAnalyzer())
+
+
+class StepicAnalyzer(Analyzer):
+    """stepic (Python stego library): every 3 pixels hide one byte — the LSBs of
+    the first 8 of their 9 RGB values, MSB first; the 9th LSB is 1 on the last
+    byte (picoCTF 2025 "flags are stepic", a 150 MP PNG). Only the beginning of
+    the image is read."""
+    name = "stepic"
+    category = "steg"
+    description = "Decode stepic LSB stego (3 pixels per byte, end marker)."
+    accepts = (".png", ".bmp")
+    display_order = 337
+    MAX_BYTES = 1_000_000
+
+    def run(self, ctx: ToolContext) -> ToolResult:
+        import numpy as np
+        arr = _rgba_head(ctx.input, max_pixels=3 * self.MAX_BYTES)
+        if arr is None:
+            return ToolResult(self.name, status="skipped", summary="not an RGB image")
+        rgb = arr[:, :, :3].reshape(-1, 3)
+        n = len(rgb) // 3
+        if n == 0:
+            return ToolResult(self.name, status="skipped", summary="image too small")
+        groups = (rgb[: n * 3].reshape(n, 9) & 1).astype(np.uint8)
+        ends = np.flatnonzero(groups[:, 8])
+        if not len(ends):
+            return ToolResult(self.name, status="skipped", summary="no stepic end marker")
+        data = np.packbits(groups[: ends[0] + 1, :8], axis=1).reshape(-1).tobytes()
+        if len(data) < 4 or (printable_ratio(data) < 0.9 and not magic_ext(data)):
+            return ToolResult(self.name, status="skipped", summary="no stepic payload")
+        out = ctx.sub(self.name) / f"{ctx.input.stem}.stepic{magic_ext(data) or '.txt'}"
+        out.write_bytes(data)
+        text = data.decode("latin-1") if printable_ratio(data) >= 0.9 else ""
+        return ToolResult(self.name, status="done", summary=f"{len(data)} byte(s) decoded",
+                          output=text[:200_000],
+                          extracted=[str(out)] if magic_ext(data) else [],
+                          artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
+
+
+register(StepicAnalyzer())

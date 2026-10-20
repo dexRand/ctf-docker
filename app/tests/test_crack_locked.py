@@ -127,3 +127,23 @@ def test_runs_expose_started_and_finished_timestamps(client):
         s.commit()
     run = client.get(f"/api/v1/projects/{pid}/runs").json()[0]
     assert run["started_at"] and run["finished_at"]
+
+
+def test_context_wordlist_from_metadata(tmp_path):
+    from sqlmodel import Session
+
+    from backend import crackflow
+    from backend.db import engine, init_db
+    from backend.models import Project, ToolRun
+    init_db()
+    out = tmp_path / "work" / "1"
+    out.mkdir(parents=True)
+    (out / "exiftool.out").write_text("File Size : 14 kB\nTitle                           : panda_d02b3ab3\n"
+                                      "Image Width : 10\nComment : the key is hunter2\n")
+    with Session(engine) as s:
+        s.add(Project(id="ctxwl", name="x"))
+        s.add(ToolRun(project_id="ctxwl", file_id=1, tool="exiftool", output_path="work/1/exiftool.out"))
+        s.commit()
+        p = crackflow.context_wordlist(s, "ctxwl", tmp_path)
+    words = p.read_text().split("\n")
+    assert "panda_d02b3ab3" in words and "hunter2" in words and "14" not in words

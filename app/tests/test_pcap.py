@@ -160,3 +160,20 @@ def test_text_hidden_in_source_ports(monkeypatch, tmp_path):
     out = pcap._port_text(ctx)
     assert any("picoCTF{p0rts}" in o for o in out)
     assert not any("dst 53" in o for o in out)        # a constant port is not data
+
+
+def test_dns_exfil_grouped_by_destination_server():
+    import base64
+    import random
+
+    from backend.analyzers.pcap import dns_tunnel_candidates
+    tok = base64.b64encode(b"picoCTF{dns_3xf1l_ftw}").decode()
+    chunks = [tok[i:i + 8] for i in range(0, len(tok), 8)]
+    rnd = random.Random(1)
+    noise = ["".join(rnd.choice("abcdefghijklmnopqrstuvwxyzABCDEFGH0123456789+/") for _ in range(8))
+             for _ in range(60)]
+    exfil = [f"{c}.redherring.com" for c in chunks]
+    junk = [f"{n}.redherring.com" for n in noise]
+    queries = junk[:30] + exfil + junk[30:]
+    out = dns_tunnel_candidates(queries, {"8.8.8.8": junk, "18.217.1.57": exfil})
+    assert any("picoCTF{dns_3xf1l_ftw}" in o for o in out)

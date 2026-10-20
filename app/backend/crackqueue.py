@@ -152,7 +152,9 @@ def _run(job: CrackJob) -> None:
             res = cracking.bkcrack_attack(path, bk.get("name", ""), bk.get("plaintext", ""),
                                           log=lines.append)
         else:
+            ctx_wl = crackflow.context_wordlist(s, job.project_id, work)
             res = cracking.crack_file(path, job.wordlists, log=lines.append,
+                                      extra_wordlists=[ctx_wl] if ctx_wl else None,
                                       **{k: v for k, v in job.opts.items() if k != "bkcrack"})
         job.status = "found" if res["password"] else "not_found"
         job.password, job.wordlist = res["password"], res.get("wordlist_hit")

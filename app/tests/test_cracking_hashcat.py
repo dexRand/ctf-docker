@@ -64,3 +64,9 @@ def test_each_crack_gets_its_own_scratch_dir():
         assert a != b and a.is_dir() and b.is_dir()
     finally:
         a.rmdir(); b.rmdir()
+
+
+def test_pot_password_ignores_hashcat_errors():
+    h = "$pkzip2$1*1*2*0*c*0*abc*$/pkzip2$"
+    err = "Hashfile '/tmp/x/hash' on line 1 ($pkzip...zip2$): Hash contains unsupported compression type for current mode"
+    assert cracking._pot_password(err + "\n", h) is None

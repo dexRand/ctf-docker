@@ -74,11 +74,11 @@ def _waves(plan: list[str]) -> list[list[str]]:
 
 
 def _run_wave(wave: list[str], path: Path, out_dir: Path):
-    """Run a wave's tools concurrently; yield (tool, start, result, logs) in plan order."""
+    """Run a wave's tools concurrently; yield (tool, start, end, result, logs) in plan order."""
     def one(tool: str):
         t0 = _now()
         result, logs = run_analyzer(tool, path, out_dir)
-        return tool, t0, result, logs
+        return tool, t0, _now(), result, logs
     if len(wave) == 1 or TOOL_WORKERS == 1:
         for tool in wave:
             yield one(tool)
@@ -88,7 +88,8 @@ def _run_wave(wave: list[str], path: Path, out_dir: Path):
 
 def record_run(session: Session, pid: str, node: FileNode, tool_name: str,
                result: ToolResult, logs: list[str] | None = None,
-               started: "dt.datetime | None" = None) -> ToolRun:
+               started: "dt.datetime | None" = None,
+               finished: "dt.datetime | None" = None) -> ToolRun:
     """Persist one analyzer run: output file, ToolRun, artifacts, flag hunt,
     'password required' note, live event. Commits (short SQLite writes)."""
     work = storage.project_dir(pid)
@@ -105,7 +106,7 @@ def record_run(session: Session, pid: str, node: FileNode, tool_name: str,
     run = ToolRun(project_id=pid, file_id=node.id, tool=tool_name,
                   status=result.status, needs_password=result.needs_password,
                   exit_code=result.exit_code, summary=result.summary[:500],
-                  output_path=rel_out, started_at=started or _now(), finished_at=_now())
+                  output_path=rel_out, started_at=started or _now(), finished_at=finished or _now())
     session.add(run)
     session.flush()
     # files moved into the tree as children must not stay as artifacts
@@ -212,8 +213,8 @@ def _run(pid: str, job: Job) -> None:
                 # tools of a wave run in parallel; results are recorded in plan
                 # order, so the DB, the flag hunt and the children are the same
                 # as a sequential run
-                for tool_name, t0, result, logs in _run_wave(wave, abs_path, out_dir):
-                    record_run(session, pid, node, tool_name, result, logs, t0)
+                for tool_name, t0, t1, result, logs in _run_wave(wave, abs_path, out_dir):
+                    record_run(session, pid, node, tool_name, result, logs, t0, t1)
                     for src in result.extracted:
                         child = _store_extracted(session, pid, node, Path(src), tool=tool_name)
                         pending.append(child)
