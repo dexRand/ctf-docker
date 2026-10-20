@@ -50,3 +50,15 @@ def test_zero_width_7bit_with_separator() -> None:
     res = _run(doc.encode("utf-8"))
     assert res.status == "done"
     assert hidden in res.output
+
+
+def test_two_symbol_whitespace_text(tmp_path):
+    # picoCTF WhitePages: em-space = 0, space = 1, nothing else in the file
+    msg = "flag{two_symbols}"
+    bits = "".join(f"{b:08b}" for b in msg.encode())
+    p = tmp_path / "white.txt"
+    p.write_text("".join(" " if b == "0" else " " for b in bits), encoding="utf-8")
+    from backend.analyzers.base import ToolContext
+    from backend.analyzers.zerowidth import ZeroWidthAnalyzer
+    res = ZeroWidthAnalyzer().run(ToolContext(input=p, workdir=tmp_path / "w"))
+    assert "flag{two_symbols}" in res.output

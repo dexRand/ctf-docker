@@ -19,10 +19,26 @@ _ZW = ("\u200b", "\u200c", "\u200d", "\ufeff", "\u2060", "\u00ad", "\u180e")
 _MAX_OUT = 50_000
 
 
+def _decode_two_symbols(seq: list[str]) -> list[str]:
+    """The two most frequent symbols are the bits (a 3rd one is usually a
+    separator, ignored). Both 0/1 assignments, 8- and 7-bit; printable only."""
+    order = [c for c, _ in Counter(seq).most_common(3)]
+    if len(order) < 2:
+        return []
+    decodes: list[str] = []
+    for zero, one in ((order[0], order[1]), (order[1], order[0])):
+        bits = [0 if c == zero else 1 for c in seq if c in (zero, one)]
+        for width in (8, 7):
+            dec = bits_to_bytes(bits, width).decode("latin-1", "replace")
+            if is_printable(dec.encode("latin-1")) and dec not in decodes:
+                decodes.append(dec[:_MAX_OUT])
+    return decodes
+
+
 class ZeroWidthAnalyzer(Analyzer):
     name = "zero-width"
     category = "steg"
-    description = "Decode zero-width (ZWSP/ZWNJ/ZWJ) and trailing-whitespace stego."
+    description = "Decode zero-width (ZWSP/ZWNJ/ZWJ), two-symbol whitespace and trailing-whitespace stego."
     accepts = TEXT_EXT + ("text/",)
     display_order = 128
 
@@ -36,19 +52,16 @@ class ZeroWidthAnalyzer(Analyzer):
 
         seq = [c for c in text if c in _ZW]
         if len(seq) >= 16:
-            # the two most frequent symbols are the bits; a 3rd char is usually a
-            # separator (ignored). Try both 0/1 assignments and 8/7-bit widths.
-            order = [c for c, _ in Counter(seq).most_common(3)]
-            if len(order) >= 2:
-                decodes: list[str] = []
-                for zero, one in ((order[0], order[1]), (order[1], order[0])):
-                    bits = [0 if c == zero else 1 for c in seq if c in (zero, one)]
-                    for width in (8, 7):
-                        dec = bits_to_bytes(bits, width).decode("latin-1", "replace")
-                        if is_printable(dec.encode("latin-1")) and dec not in decodes:
-                            decodes.append(dec)
-                for dec in decodes:
-                    out.append(f"[zero-width {len(seq)} chars] " + dec[:_MAX_OUT])
+            out += [f"[zero-width {len(seq)} chars] " + d for d in _decode_two_symbols(seq)]
+
+        # a whole text written with two symbols only (e.g. em-space / space,
+        # picoCTF "WhitePages"): the symbols are the bits
+        body = [c for c in text if c not in "\r\n"]
+        top = Counter(body).most_common(3)
+        if len(body) >= 64 and len(top) >= 2 and top[0][1] + top[1][1] >= 0.98 * len(body):
+            pair = f"U+{ord(top[0][0]):04X}/U+{ord(top[1][0]):04X}"
+            out += [f"[two-symbol {pair} {len(body)} chars] " + d
+                    for d in _decode_two_symbols(body)]
 
         tw: list[int] = []
         for line in text.split("\n"):
