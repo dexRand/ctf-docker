@@ -1,10 +1,19 @@
 # StegSuite API
 
 Base: `http://localhost:19014/api/v1` · OpenAPI/Swagger: `/api/docs`
-If `API_KEY` (env `STEGSUITE_API_KEY`) is set, send header `X-API-Key: <key>`
-on every `/api` request. WebSockets (`/ws/...`) are protected too: send the same
-header or append `?key=<key>`. In the GUI store it with
-`localStorage.setItem('stegsuite_api_key','<key>')`.
+Everything the GUI does is available here: the SPA only calls these endpoints.
+
+**Auth.** If `API_KEY` (env `STEGSUITE_API_KEY`) is set, every `/api` request
+(except `/api/v1/health`) needs the key, as any of:
+
+| Where | For |
+|---|---|
+| header `X-API-Key: <key>` | scripts, other containers, agents |
+| cookie `stegsuite_key=<key>` | browser loads (`<img>`, downloads); the GUI sets it |
+| query `?key=<key>` | WebSockets, quick links |
+
+The GUI asks for the key on the first `401`. `./ctf scan` / `./ctf test` read it
+from `.env`. Everything listens on `127.0.0.1` by default (`BIND_ADDR`).
 
 ## Use a single tool from another project (stateless)
 
@@ -46,6 +55,13 @@ curl -s localhost:19014/api/v1/projects/$PID/findings   | jq .      # flags/pass
 curl -s localhost:19014/api/v1/projects/$PID/runs       | jq .      # per-tool runs + artifacts
 curl -s localhost:19014/api/v1/projects/$PID/events     | jq .      # log
 
+# reports (built server-side: the same text the GUI shows)
+curl -s localhost:19014/api/v1/projects/$PID/flags      | jq .      # each flag: chain of files + evidence
+curl -s "localhost:19014/api/v1/projects/$PID/report?lang=it"       # Markdown report (lang=en|it)
+curl -s "localhost:19014/api/v1/projects/$PID/report?format=json" | jq .
+curl -s localhost:19014/api/v1/projects/$PID/logs                   # event log + every run output
+curl -s localhost:19014/api/v1/projects/$PID/transcript             # context for an AI agent
+
 # file / artifact / tool output
 curl -OJ localhost:19014/api/v1/projects/$PID/files/<fid>/content
 curl -OJ localhost:19014/api/v1/projects/$PID/artifacts/<aid>/content
@@ -62,6 +78,17 @@ curl -s localhost:19014/api/v1/projects/$PID/crack/status
 curl -X DELETE localhost:19014/api/v1/projects/$PID
 curl -X DELETE localhost:19014/api/v1/projects
 ```
+
+### For AI agents
+
+1. `POST /projects` (multipart `files`, `mode=auto`) → `id`
+2. `POST /projects/{id}/start`, then poll `GET /projects/{id}` until `status` is
+   `done`/`error`/`cancelled` (or follow the WebSocket)
+3. `GET /projects/{id}/flags` for the answer and how it was found; if there is
+   none, `GET /projects/{id}/transcript` gives the full context to continue from
+4. still locked files: `GET /projects/{id}/locked` → `POST /projects/{id}/crack`
+
+A stdlib client is in [`../tools/stegsuite_client.py`](../tools/stegsuite_client.py).
 
 ## Live updates & terminal (WebSocket)
 

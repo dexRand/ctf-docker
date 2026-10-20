@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, wsUrl, fmtSize, fmtDate, fmtTime, STATUS_COLOR } from '../api'
+import { api, wsUrl, fmtSize, fmtDate, fmtTime } from '../api'
 import { toolLabel } from '../labels'
 import { t, tt, lang } from '../i18n'
 import { mdToHtml } from '../md'
@@ -638,81 +638,11 @@ async function openReport() {
     report.value = { open: true, text: '⚠️ ' + String(e), busy: false }
   }
 }
+// report, full logs and transcript are built by the backend (API-first:
+// the same text is available to scripts and AI agents)
 async function buildReport(lng) {
-  const g = (k, p) => tt(lng, k, p)
-  const P = project.value
-  const L = []
-  L.push(`# ${g('report.title_line', { name: P.name })}`)
-  L.push('')
-  L.push(g('report.status_line', { status: P.status, mode: P.mode, files: P.files, date: fmtDate(P.created_at) }))
-  L.push('')
-  if (passwords.value.length) {
-    L.push('## ' + g('report.passwords'))
-    L.push(g('report.passwords_head'))
-    L.push('|---|---|---|')
-    for (const p of passwords.value) L.push(`| \`${p.value}\` | ${p.source} | ${p.context ? `\`${p.context}\`` : '—'} |`)
-  }
-  if (notes.value.length) {
-    L.push(''); L.push('## ' + g('report.notes')); L.push(g('report.notes_head')); L.push('|---|---|')
-    for (const n of notes.value) L.push(`| ${n.value} | ${n.source} |`)
-  }
-  L.push(''); L.push('## ' + g('report.how_header'))
-  if (flagCards.value.length) {
-    for (const { f, ev } of flagCards.value) {
-      const fn = treeById.value[f.file_id]
-      L.push(`### \`${f.value}\``)
-      L.push(`- ${g('report.where')} ${fn ? fn.name : '?'}${fn ? `  ·  [${g('report.open_link')}](${fileUrl(fn)})` : ''}`)
-      L.push(`- ${g('report.how')} ${ev && ev.run ? toolLabel(ev.tool, lng) : sourceHow(f.source, lng)}`)
-      L.push(`- ${g('report.chain')} \`${chainText(f, lng)}\``)
-      if (ev && ev.lines) {
-        L.push('```')
-        L.push(`# ${ev.tool}${ev.command ? '  —  ' + ev.command : ''}`)
-        L.push(ev.lines.replace(/```/g, "'''"))
-        L.push('```')
-      } else if (f.context) {
-        L.push('```')
-        L.push(String(f.context).replace(/```/g, "'''"))
-        L.push('```')
-      }
-      L.push('')
-    }
-  } else L.push(g('report.no_flag_how'))
-  L.push(`## ${g('report.tools_header_prefix')} (${flagTools().length})`)
-  L.push(flagTools().map((t) => `\`${t}\`${solverTools.value.has(t) ? ' ' + g('report.solved_tag') : ''}`).join(', ') || '_—_')
-  L.push(''); L.push('## ' + g('report.path_header'))
-  L.push('```')
-  L.push(routeNodes().length ? asciiRouteTree() : g('report.no_path'))
-  L.push('```')
-  const rel = relevantRuns.value
-  if (rel.length) {
-    L.push(''); L.push(`## ${g('report.route_runs', { n: rel.length })}`)
-    L.push(g('report.run_head'))
-    L.push('|---|---|---|---|')
-    for (const r of rel) {
-      const f = treeById.value[r.file_id]
-      L.push(`| ${f ? f.name : '?'} | ${r.tool} | ${r.status} | ${(r.summary || '').replace(/\|/g, '\\|')} |`)
-    }
-    const blocks = []
-    for (const r of rel) {
-      const o = outputs.value[r.id] != null ? outputs.value[r.id] : await out(r.id)
-      const cmds = commandsOf(o)
-      if (cmds.length) {
-        blocks.push('```\n# ' + (treeById.value[r.file_id] || {}).name + ' — ' + r.tool + '\n' + cmds.join('\n') + '\n```')
-      }
-    }
-    if (blocks.length) { L.push(''); L.push('## ' + g('report.commands')); L.push(...blocks) }
-  }
-  const routeFiles = routeNodes().filter((n) => n.parent_id != null)
-  if (routeFiles.length) {
-    L.push(''); L.push(`## ${g('report.route_files', { n: routeFiles.length })}`)
-    L.push(g('report.route_files_head'))
-    L.push('|---|---|---|---|')
-    for (const n of routeFiles) L.push(`| ${n.name} | ${fmtSize(n.size)} | ${originTool(n)} | [${g('report.open_link')}](${fileUrl(n)}) |`)
-  }
-  const noise = tree.value.length - routeNodes().length
-  L.push('')
-  L.push(g('report.footer', { files: tree.value.length, runs: runs.value.length, noise }))
-  report.value = { open: true, text: L.join('\n'), busy: false }
+  const text = await api(`/projects/${props.id}/report?format=md&lang=${lng}`)
+  report.value = { open: true, text, busy: false }
 }
 function copyReport() { navigator.clipboard?.writeText(report.value.text) }
 const copied = ref('')
@@ -758,19 +688,7 @@ const logView = ref('runs')
 const fullLogs = ref('')
 const fullLogsBusy = ref(false)
 async function buildFullLogs() {
-  const P = project.value || {}
-  const L = [`# StegSuite full logs — ${P.name} (${P.id})`, '', '## Event log', plainLog() || '(none)', '', '## Runs']
-  const byFile = {}
-  for (const r of runs.value) (byFile[r.file_id] ||= []).push(r)
-  for (const n of tree.value) {
-    for (const r of (byFile[n.id] || [])) {
-      L.push('')
-      L.push(`### ${n.name} — ${r.tool} — ${effStatus(r)} (exit ${r.exit_code ?? '-'}) — ${fmtDate(r.finished_at || r.started_at)}`)
-      const raw = outputs.value[r.id] != null ? outputs.value[r.id] : await out(r.id)
-      L.push(String(raw ?? '(no output)'))
-    }
-  }
-  return L.join('\n')
+  return api(`/projects/${props.id}/logs`)
 }
 async function showFullLogs() {
   logView.value = 'full'
@@ -785,141 +703,8 @@ async function copyFullLogs() {
   }
   navigator.clipboard?.writeText(fullLogs.value)
 }
-function fileTreeText() {
-  const lines = []
-  const walk = (pid, depth) => {
-    for (const n of (childrenByParent.value[pid] || [])) {
-      const tool = n.parent_id == null ? 'upload' : originTool(n)
-      lines.push('  '.repeat(depth) + `- ${n.name}  [${tool}]  ${fmtSize(n.size)}`
-        + (n.sha256 ? `  sha256:${n.sha256.slice(0, 16)}…` : ''))
-      walk(n.id, depth + 1)
-    }
-  }
-  walk(0, 0)
-  return lines.join('\n') || '(empty)'
-}
-function xmlAttr(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/\n/g, ' ')
-}
-function cdata(s) {
-  return '<![CDATA[' + String(s ?? '').replace(/\]\]>/g, ']]]]><![CDATA[>') + ']]>'
-}
-function flagFormat() {
-  const f = flags.value[0]
-  if (!f) return ''
-  const m = String(f.value).match(/^([A-Za-z0-9_]+)\{/)
-  return m ? m[1] + '{...}' : ''
-}
 async function buildTranscript() {
-  const P = project.value || {}
-  const L = []
-  // Long, high-signal context first; the actual task goes at the very end
-  // (per Anthropic long-context guidance: data on top, query at the bottom).
-  L.push('You are a CTF assistant. The transcript below is the machine log of an')
-  L.push('automated steganography/forensics tool run on a challenge. If the flag is')
-  L.push('not present or the tool stopped early, continue from this transcript.')
-  L.push('')
-  L.push('<transcript>')
-  L.push(`<challenge name="${xmlAttr(P.name)}" id="${xmlAttr(P.id)}" status="${xmlAttr(P.status)}" mode="${xmlAttr(P.mode)}">`)
-  L.push(`  <files_count>${P.files}</files_count>`)
-  L.push(`  <created>${xmlAttr(fmtDate(P.created_at))}</created>`)
-  const fmt = flagFormat()
-  if (fmt) L.push(`  <flag_format>${xmlAttr(fmt)}</flag_format>`)
-  L.push('</challenge>')
-  L.push('')
-
-  L.push('<findings>')
-  L.push('  <flags>')
-  for (const f of flags.value) {
-    L.push(`    <flag value="${xmlAttr(f.value)}" file="${xmlAttr((treeById.value[f.file_id] || {}).name || '?')}" how="${xmlAttr(sourceHow(f.source))}"/>`)
-  }
-  L.push('  </flags>')
-  L.push('  <passwords>')
-  for (const p of passwords.value) {
-    L.push(`    <password value="${xmlAttr(p.value)}" source="${xmlAttr(p.source)}"`
-      + `${p.context ? ` wordlist="${xmlAttr(p.context)}"` : ''} file="${xmlAttr((treeById.value[p.file_id] || {}).name || '?')}"/>`)
-  }
-  L.push('  </passwords>')
-  L.push('  <notes>')
-  for (const n of notes.value) L.push(`    <note>${xmlAttr(n.value)} (${xmlAttr(n.source)})</note>`)
-  L.push('  </notes>')
-  if (locked.value.length) {
-    L.push('  <still_locked>')
-    for (const l of locked.value) L.push(`    <locked file="${xmlAttr(l.name)}" tool="${xmlAttr(l.kind)}"/>`)
-    L.push('  </still_locked>')
-  }
-  L.push('</findings>')
-  L.push('')
-
-  L.push('<flag_path>')
-  L.push(routeNodes().length ? asciiRouteTree() : '(no path to a flag yet)')
-  L.push('</flag_path>')
-  if (routeSteps.value.length) {
-    L.push('')
-    L.push('<timeline>')
-    routeSteps.value.forEach((s, i) => L.push(
-      `${i + 1}. ${s.name} [${s.tool}]${s.pwd ? ' pwd=' + s.pwd.value : ''}${s.flag ? ' <-- FLAG' : ''}`))
-    L.push('</timeline>')
-  }
-  L.push('')
-
-  L.push('<files>')
-  const walk = (pid, depth) => {
-    for (const n of (childrenByParent.value[pid] || [])) {
-      const tool = n.parent_id == null ? 'upload' : originTool(n)
-      const mark = graphFlagIds.value.has(n.id) ? ' flag="true"'
-        : pwdOf(n.id) ? ' cracked="true"' : lockedIds.value.has(n.id) ? ' locked="true"' : ''
-      L.push(`${'  '.repeat(depth + 1)}<file name="${xmlAttr(n.name)}" tool="${xmlAttr(tool)}" size="${fmtSize(n.size)}"`
-        + `${n.sha256 ? ` sha256="${n.sha256.slice(0, 16)}"` : ''}${mark}/>`)
-      walk(n.id, depth + 1)
-    }
-  }
-  walk(0, 0)
-  L.push('</files>')
-  L.push('')
-
-  // commands for every run (cheap, high-signal); outputs truncated, with more
-  // room for the runs that are on the flag path
-  L.push('<runs>')
-  const byFile = {}
-  for (const r of runs.value) (byFile[r.file_id] ||= []).push(r)
-  for (const n of tree.value) {
-    for (const r of (byFile[n.id] || [])) {
-      const raw = outputs.value[r.id] != null ? outputs.value[r.id] : await out(r.id)
-      const text = String(raw ?? '')
-      const cap = relevantRuns.value.some((x) => x.id === r.id) ? 3000 : 1200
-      const cmds = commandsOf(text)
-      L.push(`  <run file="${xmlAttr(n.name)}" tool="${xmlAttr(r.tool)}" status="${xmlAttr(effStatus(r))}" exit="${r.exit_code ?? '-'}" at="${xmlAttr(fmtDate(r.finished_at || r.started_at))}">`)
-      if (r.summary) L.push(`    <summary>${xmlAttr(r.summary)}</summary>`)
-      L.push('    <commands>')
-      if (cmds.length) for (const c of cmds) L.push(`      <cmd>${xmlAttr(c)}</cmd>`)
-      else L.push('      <cmd>(none recorded)</cmd>')
-      L.push('    </commands>')
-      if (text) {
-        const body = text.replace(/^# commands:\n(?:# .*\n)*\n?/, '').slice(0, cap)
-        L.push(`    <output>${cdata(body)}${text.length > cap ? `\n… [truncated ${text.length - cap} chars]` : ''}</output>`)
-      }
-      L.push('  </run>')
-    }
-  }
-  L.push('</runs>')
-  L.push('')
-  L.push('<event_log>')
-  L.push(cdata(plainLog() || '(none)'))
-  L.push('</event_log>')
-  L.push('</transcript>')
-  L.push('')
-  L.push('<task>')
-  L.push('The automated tool may have stopped early or missed the flag. Using the transcript above:')
-  L.push('1. Summarize what has already been done and what is still unsolved (see <still_locked>).')
-  L.push('2. Give the exact next commands (tool + file paths) to finish the challenge and obtain the flag.')
-  if (flags.value.length) L.push('A flag is already present in <findings><flags>: verify it and, if valid, confirm it.')
-  else L.push('No flag has been found yet, so propose the next steps to find it.')
-  L.push('Explain briefly why each command is the right next step.')
-  L.push('</task>')
-  return L.join('\n')
+  return api(`/projects/${props.id}/transcript`)
 }
 async function openTranscript() {
   transcript.value = { open: true, text: '', busy: true }
