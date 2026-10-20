@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import signal
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -48,17 +49,45 @@ class ToolContext:
             env: Optional[dict] = None) -> subprocess.CompletedProcess:
         """Run a command; `env` entries are added on top of the inherited environment."""
         self.log("$ " + " ".join(str(c) for c in cmd))
-        try:
-            return subprocess.run(
-                [str(c) for c in cmd], capture_output=True, text=True, errors="replace",
-                timeout=timeout, stdin=subprocess.DEVNULL,
-                cwd=str(cwd) if cwd else None,
-                env={**os.environ, **env} if env else None,
-            )
-        except subprocess.TimeoutExpired:
-            return subprocess.CompletedProcess(cmd, 124, "", "timeout")
-        except FileNotFoundError as exc:
-            return subprocess.CompletedProcess(cmd, 127, "", f"not found: {exc}")
+        return run_cmd(cmd, timeout=timeout, cwd=cwd, env=env)
+
+
+def run_cmd(cmd: list, timeout: int = 300, cwd: Optional[Path | str] = None,
+            env: Optional[dict] = None, binary: bool = False) -> subprocess.CompletedProcess:
+    """Run a command with captured text output and a hard timeout.
+
+    The command gets its own process group, so on timeout the whole tree is
+    killed: a grandchild holding the pipes open (binwalk, 7z helpers, hashcat
+    workers…) can't make the call hang past its deadline.
+    Exit codes: 124 = timeout, 127 = not found. `binary=True` returns bytes.
+    """
+    args = [str(c) for c in cmd]
+    empty = b"" if binary else ""
+    text_kw = {} if binary else {"text": True, "errors": "replace"}
+    try:
+        proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                stdin=subprocess.DEVNULL, **text_kw,
+                                cwd=str(cwd) if cwd else None,
+                                env={**os.environ, **env} if env else None,
+                                start_new_session=True)
+    except (FileNotFoundError, PermissionError) as exc:
+        msg = f"not found: {exc}"
+        return subprocess.CompletedProcess(args, 127, empty, msg.encode() if binary else msg)
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _kill_group(proc)
+        out, err = proc.communicate()
+        tail = b"\ntimeout" if binary else "\ntimeout"
+        return subprocess.CompletedProcess(args, 124, out or empty, (err or empty) + tail)
+    return subprocess.CompletedProcess(args, proc.returncode, out, err)
+
+
+def _kill_group(proc: subprocess.Popen) -> None:
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        proc.kill()
 
 
 def which(tool: str) -> Optional[str]:

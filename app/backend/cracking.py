@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 from typing import BinaryIO, Callable, Optional
 
+from .analyzers.base import run_cmd
 from .config import DATA_DIR
 
 # user-uploaded lists live under /data (persisted); the rest come from the image
@@ -140,13 +141,7 @@ def save_wordlist(filename: str, src: BinaryIO) -> dict:
 def _run(cmd: list[str], timeout: int = 3600, cwd: str | None = None,
          log: Optional[Callable[[str], None]] = None) -> subprocess.CompletedProcess:
     _log(log, "$ " + " ".join(map(str, cmd)))
-    try:
-        return subprocess.run([str(c) for c in cmd], capture_output=True, text=True,
-                              errors="replace", timeout=timeout, stdin=subprocess.DEVNULL, cwd=cwd)
-    except subprocess.TimeoutExpired:
-        return subprocess.CompletedProcess(cmd, 124, "", "timeout")
-    except FileNotFoundError as exc:
-        return subprocess.CompletedProcess(cmd, 127, "", str(exc))
+    return run_cmd(cmd, timeout=timeout, cwd=cwd)
 
 
 def _kind(path: Path) -> str:

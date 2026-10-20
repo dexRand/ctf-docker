@@ -112,3 +112,20 @@ def test_tools_catalog_endpoint_matches_the_registry(client):
 
 def test_get_returns_none_for_an_unknown_name():
     assert get_tool("definitely-not-a-tool") is None
+
+def test_run_cmd_timeout_kills_the_whole_process_group():
+    # a grandchild keeping stdout open used to make subprocess.run hang past
+    # its timeout; run_cmd kills the group and returns 124 on time
+    import time
+
+    from backend.analyzers.base import run_cmd
+    t0 = time.monotonic()
+    r = run_cmd(["sh", "-c", "sleep 30 & sleep 30"], timeout=1)
+    assert r.returncode == 124
+    assert time.monotonic() - t0 < 10
+
+
+def test_run_cmd_binary_and_missing_binary():
+    from backend.analyzers.base import run_cmd
+    assert run_cmd(["printf", "\\x00\\x01"], binary=True).stdout == b"\x00\x01"
+    assert run_cmd(["definitely-not-a-binary-xyz"]).returncode == 127

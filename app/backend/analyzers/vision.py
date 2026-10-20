@@ -4,10 +4,10 @@ from __future__ import annotations
 import os
 import re
 import shutil
-import subprocess
+import tempfile
 from pathlib import Path
 
-from .base import Analyzer, ToolContext, ToolResult
+from .base import Analyzer, ToolContext, ToolResult, run_cmd
 from ..config import OCR_EXTRA_LANGS, OCR_LANGS, OCR_MAX_DIM
 from .registry import register
 
@@ -29,15 +29,15 @@ def _combined_langs(base: str, extra: str) -> str:
 
 def _tess(img, psm: int, timeout: int, langs: str | None = None) -> str:
     lang = OCR_LANGS if langs is None else langs
-    tmp = Path("/tmp") / f"ocr_{os.getpid()}_{abs(hash(img.tobytes())) % 100000}_{psm}.png"
+    fd, name = tempfile.mkstemp(prefix="stegsuite-ocr-", suffix=".png")  # unique per call/thread
+    os.close(fd)
+    tmp = Path(name)
     try:
         img.save(tmp)
-        r = subprocess.run(_tess_cmd(tmp, psm, lang),
-                           capture_output=True, text=True, errors="replace", timeout=timeout)
+        r = run_cmd(_tess_cmd(tmp, psm, lang), timeout=timeout)
         if r.returncode != 0 and lang != "eng":
             # e.g. the extra language pack is not installed in this environment
-            r = subprocess.run(_tess_cmd(tmp, psm, "eng"),
-                               capture_output=True, text=True, errors="replace", timeout=timeout)
+            r = run_cmd(_tess_cmd(tmp, psm, "eng"), timeout=timeout)
         return (r.stdout or "").strip()
     except Exception:
         return ""

@@ -6,10 +6,9 @@ a few common specs and carve any embedded file magic found in the stream.
 """
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
-from .base import Analyzer, ToolContext, ToolResult, which
+from .base import Analyzer, ToolContext, ToolResult, run_cmd, which
 from .registry import register
 
 # bit 1/2 of the low channels, both bit orders, plus one deeper plane
@@ -35,11 +34,8 @@ class LsbCarveAnalyzer(Analyzer):
         produced: list[Path] = []
         seen: set[tuple] = set()
         for spec in _SPECS:
-            try:
-                proc = subprocess.run(["zsteg", "-e", spec, str(ctx.input)],
-                                      capture_output=True, timeout=120,
-                                      stdin=subprocess.DEVNULL)
-            except (OSError, subprocess.TimeoutExpired):
+            proc = run_cmd(["zsteg", "-e", spec, ctx.input], timeout=120, binary=True)
+            if proc.returncode in (124, 127):
                 continue
             data = proc.stdout or b""
             if len(data) < _MIN:
