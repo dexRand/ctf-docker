@@ -51,7 +51,14 @@ def _detect_ext(ftype: str) -> str:
     return ""
 
 
-def _plan_for(name: str, mime: str | None, is_text: bool) -> list[str]:
+# Carving a file that a carver cut out of its parent finds nothing new:
+# whatever it contains was inside the parent too, which was carved already.
+CARVERS = {"binwalk-scan", "binwalk-extract", "foremost"}
+
+
+def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "") -> list[str]:
+    """Analyzers for one file, in plan order. `made_by` is the tool that
+    extracted it ('' for uploads)."""
     plan = []
     for tool in DEFAULT_PLAN:
         a = get_tool(tool)
@@ -60,6 +67,8 @@ def _plan_for(name: str, mime: str | None, is_text: bool) -> list[str]:
         if tool in HEAVY_EXTRACT and is_text and not name.lower().endswith(ARCHIVE_EXT):
             continue
         if tool in BINARY_ONLY and is_text:
+            continue
+        if tool in CARVERS and made_by in CARVERS:
             continue
         plan.append(tool)
     return plan

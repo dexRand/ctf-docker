@@ -203,7 +203,8 @@ def _run(pid: str, job: Job) -> None:
             plan_name = node.name
             if detected and not node.name.lower().endswith(detected):
                 plan_name = node.name + detected
-            plan = _plan_for(plan_name, node.mime, is_text)
+            made_by = node.origin.split(":")[1] if node.origin.startswith("extracted:") and node.origin.count(":") >= 2 else ""
+            plan = _plan_for(plan_name, node.mime, is_text, made_by)
 
             for wave in _waves([t for t in plan if t != "file"]):
                 if job.cancelled:

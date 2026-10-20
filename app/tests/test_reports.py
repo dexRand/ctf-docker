@@ -197,3 +197,14 @@ def test_old_xor_finding_recovers_the_operand(tmp_path):
     v, f = _view_with(tmp_path, out, "xor:psimage:duck.png", "«flag{decoded_one}»")
     ev = v.evidence_for(f)
     assert ev["run"] == 1 and ev["match"] in (x, key.decode()) and "$m" in ev["lines"]
+
+
+def test_carved_files_are_not_carved_again():
+    from backend.planner import _plan_for
+    up = _plan_for("x.bin", None, False)
+    carved = _plan_for("x.bin", None, False, made_by="foremost")
+    from_archive = _plan_for("x.bin", None, False, made_by="7z")
+    assert {"binwalk-scan", "binwalk-extract", "foremost"} <= set(up)
+    assert not {"binwalk-scan", "binwalk-extract", "foremost"} & set(carved)
+    assert set(from_archive) == set(up)
+    assert "strings" in carved and "7z" in _plan_for("x.zip", None, False, made_by="foremost")
