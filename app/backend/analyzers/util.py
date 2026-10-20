@@ -13,7 +13,7 @@ import re
 TEXT_EXT = (".txt", ".md", ".csv", ".log", ".dat", ".asc", ".b64", ".hex", ".out",
             ".json", ".xml", ".yaml", ".yml", ".html", ".htm", ".js", ".py", ".c",
             ".cpp", ".srt", ".vtt")
-IMG_EXT = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".ppm")
+IMG_EXT = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".ppm", ".qoi")
 AV_EXT = (".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".au", ".snd",
           ".mp4", ".mkv", ".avi", ".mov", ".webm")
 ARCHIVE_EXT = (".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".tbz", ".tbz2", ".bz2",

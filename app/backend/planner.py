@@ -15,7 +15,7 @@ DEFAULT_PLAN = [
     "decode", "blobs", "zero-width", "whitespace", "case-bits", "homoglyph", "morse-text",
     "ocr", "qr",
     "zsteg", "lsb-carve", "psimage", "png-chunks", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
-    "bit-planes", "channel-remap", "image-enhance", "gif-frames",
+    "pixel-bytes", "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
     "pcap", "evtx",
     "nested-archive", "git", "7z", "office", "eml", "binwalk-extract", "foremost", "pngcheck",
@@ -34,7 +34,7 @@ def _detect_ext(ftype: str) -> str:
     for key, ext in (
         ("elf 64-bit", ".elf"), ("elf 32-bit", ".elf"),
         ("png image", ".png"), ("jpeg image", ".jpg"), ("gif image", ".gif"),
-        ("bmp image", ".bmp"), ("tiff image", ".tiff"), ("web/p image", ".webp"),
+        ("bmp image", ".bmp"), ("qoi image", ".qoi"), ("tiff image", ".tiff"), ("web/p image", ".webp"),
         ("webp", ".webp"), ("pdf document", ".pdf"), ("zip archive", ".zip"),
         ("rfc 822", ".eml"), ("mail message", ".eml"),
         ("7-zip archive", ".7z"), ("rar archive", ".rar"), ("tar archive", ".tar"),
