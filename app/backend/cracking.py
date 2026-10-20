@@ -11,11 +11,13 @@ Wordlists are tried smallest -> largest; the first success wins.
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 from typing import BinaryIO, Callable, Optional
@@ -45,12 +47,23 @@ def _log(log: Optional[Callable[[str], None]], msg: str) -> None:
         log(msg)
 
 
+def _scratch(prefix: str) -> Path:
+    """A private temp dir per crack: concurrent cracks never share files."""
+    return Path(tempfile.mkdtemp(prefix=f"stegsuite-{prefix}-"))
+
+
 def _expand(p: Path) -> Path:
     if p.suffix == ".gz":
-        plain = Path("/tmp") / p.stem
+        # cache keyed by source path + mtime; written to a temp name and renamed
+        # so a crash mid-gunzip never leaves a truncated list behind
+        st = p.stat()
+        key = hashlib.sha1(f"{p}:{st.st_mtime_ns}".encode()).hexdigest()[:12]
+        plain = Path(tempfile.gettempdir()) / f"stegsuite-wl-{key}-{p.stem}"
         if not plain.exists():
-            with gzip.open(p, "rb") as src, open(plain, "wb") as out:
+            tmp = plain.with_suffix(plain.suffix + ".part")
+            with gzip.open(p, "rb") as src, open(tmp, "wb") as out:
                 shutil.copyfileobj(src, out)
+            tmp.replace(plain)
         return plain
     return p
 
@@ -165,6 +178,12 @@ def _remaining(deadline: Optional[float]) -> Optional[int]:
     return max(1, int(deadline - time.time()))
 
 
+def _tool_timeout(deadline: Optional[float], default: int = 3600) -> int:
+    """Per-process timeout: the default, capped by what is left of the budget."""
+    left = _remaining(deadline)
+    return default if left is None else min(default, left)
+
+
 def hashcat_args(mode: int, hashfile: str, *, wordlist: Optional[str] = None,
                  rules_file: Optional[Path] = None, mask: Optional[str] = None,
                  runtime: Optional[int] = None, potfile: Optional[str] = None) -> list[str]:
@@ -209,28 +228,35 @@ def _crack_zip_hashcat(path: Path, log, *, wl: Optional[Path] = None,
     if not got or not got[1]:
         return None
     mode, h = got
-    hf, wf, pf = "/tmp/hc.hash", "/tmp/hc.wordlist", "/tmp/hc.pot"
-    Path(hf).write_text(h + "\n")
-    if wl is not None:
-        try:
-            with open(wf, "wb") as out:
-                with open(wl, "rb") as src:
-                    shutil.copyfileobj(src, out)
-                out.write(b"\n")
-        except OSError:
-            return None
+    tmp = _scratch("hashcat")
+    hf, wf, pf = tmp / "hash", tmp / "wordlist", tmp / "pot"
     try:
-        Path(pf).unlink()
-    except OSError:
-        pass
-    args = hashcat_args(mode, hf, wordlist=wf if wl is not None else None,
-                        rules_file=rules_file, mask=mask, runtime=runtime, potfile=pf)
-    _run(args, timeout=(runtime + 120 if runtime else 7200), log=log)
-    show = _run(["hashcat", "-m", str(mode), hf, "--potfile-path", pf, "--show", "--quiet"],
-                timeout=120, log=log).stdout
+        hf.write_text(h + "\n")
+        if wl is not None:
+            try:
+                with open(wf, "wb") as out:
+                    with open(wl, "rb") as src:
+                        shutil.copyfileobj(src, out)
+                    out.write(b"\n")   # a last line without newline is skipped by hashcat
+            except OSError:
+                return None
+        args = hashcat_args(mode, str(hf), wordlist=str(wf) if wl is not None else None,
+                            rules_file=rules_file, mask=mask, runtime=runtime, potfile=str(pf))
+        _run(args, timeout=(runtime + 120 if runtime else 7200), log=log)
+        show = _run(["hashcat", "-m", str(mode), str(hf), "--potfile-path", str(pf),
+                     "--show", "--quiet"], timeout=120, log=log).stdout
+        return _pot_password(show, h)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _pot_password(show: str, hash_line: str) -> Optional[str]:
+    """Password from `hashcat --show` (`<hash>:<password>`; the password may hold `:`)."""
     for line in show.splitlines():
+        if line.startswith(hash_line + ":"):
+            return line[len(hash_line) + 1:]
         if ":" in line:
-            return line.rsplit(":", 1)[1].strip()
+            return line.rsplit(":", 1)[1]
     return None
 
 
@@ -263,7 +289,8 @@ def _crack_zip(path: Path, wls: list[Path], log, rules_file: Optional[Path] = No
         for wl in wls:
             if deadline and time.time() > deadline:
                 break
-            r = _run(["fcrackzip", "-u", "-D", "-p", str(wl), str(path)], timeout=3600, log=log)
+            r = _run(["fcrackzip", "-u", "-D", "-p", str(wl), str(path)],
+                     timeout=_tool_timeout(deadline), log=log)
             m = re.search(r"pw\s*==\s*(\S+)", r.stdout)
             if m:
                 return m.group(1), wl.name
@@ -291,23 +318,27 @@ def bkcrack_attack(path: Path, known_name: str, plaintext, log=None) -> dict:
         return miss
     if isinstance(plaintext, str):
         plaintext = plaintext.encode("latin-1", "replace")
-    pf = Path("/tmp") / "bkcrack_plain.bin"
-    pf.write_bytes(plaintext or b"")
-    r = _run(["bkcrack", "-C", str(path), "-c", str(known_name), "-p", str(pf)],
+    tmp = _scratch("bkcrack")
+    try:
+        pf = tmp / "plain.bin"
+        pf.write_bytes(plaintext or b"")
+        r = _run(["bkcrack", "-C", str(path), "-c", str(known_name), "-p", str(pf)],
+                 timeout=600, log=log)
+        keys = _parse_bkcrack_keys((r.stdout or "") + "\n" + (r.stderr or ""))
+        if not keys:
+            return miss
+        out = tmp / "decrypted.zip"
+        # `-k` takes the three keys as separate arguments
+        _run(["bkcrack", "-C", str(path), "-k", *keys.split(), "-D", str(out)],
              timeout=600, log=log)
-    keys = _parse_bkcrack_keys((r.stdout or "") + "\n" + (r.stderr or ""))
-    if not keys:
-        return miss
-    out = Path("/tmp") / f"bkcrack-{int(time.time())}.zip"
-    # `-k` takes the three keys as separate arguments
-    _run(["bkcrack", "-C", str(path), "-k", *keys.split(), "-D", str(out)],
-         timeout=600, log=log)
-    extracted: list[str] = []
-    if out.is_file():
-        dest = Path("/tmp") / f"bkcrack-out-{int(time.time())}"
-        _run(["7z", "x", "-y", f"-o{dest}", str(out)], timeout=600, log=log)
-        if dest.exists():
+        extracted: list[str] = []
+        if out.is_file():
+            # the caller moves these into the project, so they live outside `tmp`
+            dest = _scratch("bkcrack-out")
+            _run(["7z", "x", "-y", f"-o{dest}", str(out)], timeout=600, log=log)
             extracted = [str(p) for p in dest.rglob("*") if p.is_file()]
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     return {"password": "(known-plaintext)", "kind": kind, "extracted": extracted,
             "wordlist_hit": "bkcrack", "wordlists": []}
 
@@ -319,7 +350,8 @@ def _crack_pdf(path: Path, wls: list[Path], log,
     for wl in wls:
         if deadline and time.time() > deadline:
             break
-        r = _run(["pdfcrack", "-f", str(path), "-w", str(wl)], timeout=3600, log=log)
+        r = _run(["pdfcrack", "-f", str(path), "-w", str(wl)],
+                 timeout=_tool_timeout(deadline), log=log)
         m = re.search(r"found (?:user|owner)-password:\s*'([^']+)'", r.stdout)
         if m:
             return m.group(1), wl.name
@@ -330,16 +362,20 @@ def _crack_image(path: Path, wls: list[Path], log,
                  deadline: Optional[float] = None) -> tuple[Optional[str], Optional[str]]:
     if not shutil.which("stegseek"):
         return None, None
-    outfile = Path("/tmp") / (path.name + ".stegseek.out")
-    for wl in wls:
-        if deadline and time.time() > deadline:
-            break
-        r = _run(["stegseek", "-sf", str(path), "-wl", str(wl), "-xf", str(outfile), "-f"],
-                 timeout=3600, log=log)
-        m = re.search(r'passphrase:\s*"?([^"\n]+?)"?\s*$', r.stdout + r.stderr, re.I | re.M)
-        if m:
-            return m.group(1).strip(), wl.name
-    return None, None
+    tmp = _scratch("stegseek")
+    try:
+        outfile = tmp / "out"
+        for wl in wls:
+            if deadline and time.time() > deadline:
+                break
+            r = _run(["stegseek", "-sf", str(path), "-wl", str(wl), "-xf", str(outfile), "-f"],
+                     timeout=_tool_timeout(deadline), log=log)
+            m = re.search(r'passphrase:\s*"?([^"\n]+?)"?\s*$', r.stdout + r.stderr, re.I | re.M)
+            if m:
+                return m.group(1).strip(), wl.name
+        return None, None
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def _extract_with(path: Path, kind: str, password: str, outdir: Path, log) -> list[Path]:
@@ -382,7 +418,7 @@ def crack_file(path: Path, wordlist_names: Optional[list[str]] = None,
         pw, wl_hit = _crack_image(path, wls, log, deadline=deadline)
     if not pw:
         return no_hit
-    outdir = Path("/tmp") / f"cracked-{int(time.time())}"
+    outdir = _scratch("cracked")   # the caller moves these files into the project
     extracted = _extract_with(path, kind, pw, outdir, log)
     return {"password": pw, "kind": kind, "extracted": [str(p) for p in extracted],
             "wordlist_hit": wl_hit, "wordlists": [w.name for w in wls]}

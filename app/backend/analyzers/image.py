@@ -130,7 +130,8 @@ class ImageEnhanceAnalyzer(Analyzer):
         try:
             from .vision import ocr_image
         except Exception:
-            ocr_image = lambda _p: ""
+            def ocr_image(_p, **_kw) -> str:
+                return ""
         for name, v in variants.items():
             fn = outdir / f"{ctx.input.stem}_{name}.png"
             v.save(fn)

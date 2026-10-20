@@ -19,7 +19,7 @@ services:
         max-size: "10m"
         max-file: "3"
     ports:
-      - "127.0.0.1:${OSINT_PORT:-19050}:8000"
+      - "${BIND_ADDR:-127.0.0.1}:${OSINT_PORT:-19050}:8000"
     volumes:
       - ./osint:/work
     networks: [ctfnet]

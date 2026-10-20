@@ -87,10 +87,7 @@ def delete_all_projects(session: Session = Depends(get_session)) -> dict:
     from .. import orchestrator
     ids = [p.id for p in session.exec(select(Project)).all()]
     for pid in ids:
-        try:
-            orchestrator.control(pid, "cancel")
-        except Exception:
-            pass
+        orchestrator.stop(pid)
         delete_project_rows(session, pid)
     session.commit()
     for pid in ids:
@@ -103,6 +100,8 @@ def delete_project(pid: str, session: Session = Depends(get_session)) -> dict:
     p = session.get(Project, pid)
     if not p:
         raise HTTPException(404, "project not found")
+    from .. import orchestrator
+    orchestrator.stop(pid)  # a running job would keep writing into deleted rows
     delete_project_rows(session, pid)
     session.commit()
     storage.delete_project(pid)

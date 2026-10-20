@@ -17,6 +17,10 @@ def _first(d: Path) -> list[Path]:
     return list_files(d)
 
 
+# steghide errors meaning the carrier itself is unusable (never worth cracking)
+_STEGHIDE_UNREADABLE = ("is not supported", "premature end of file", "could not open")
+
+
 class SteghideAnalyzer(Analyzer):
     name = "steghide"
     category = "steg"
@@ -36,10 +40,13 @@ class SteghideAnalyzer(Analyzer):
                               extracted=[str(out)],
                               artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
         blob = out_of(proc)
-        needs = "passphrase" in blob.lower() or proc.returncode != 0
-        return ToolResult(self.name, status="needs_password" if needs else "done",
+        # steghide can't tell "wrong passphrase" from "no data", so any other
+        # failure stays a crack candidate; files it can't even parse do not
+        unreadable = any(m in blob.lower() for m in _STEGHIDE_UNREADABLE)
+        needs = proc.returncode != 0 and not unreadable
+        return ToolResult(self.name, status="needs_password" if needs else "skipped",
                           needs_password=needs, output=blob[-8000:], exit_code=proc.returncode,
-                          summary="password required" if needs else "no data")
+                          summary="password required" if needs else "unsupported or corrupt carrier")
 
 
 class OutguessAnalyzer(Analyzer):

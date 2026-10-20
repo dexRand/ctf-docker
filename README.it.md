@@ -246,6 +246,7 @@ Tutto è guidato da `.env` (creato da `.env.example`):
 | Variabile | Scopo |
 | --- | --- |
 | `*_PORT` | Porta host di ogni servizio (tutte in 19000+) |
+| `BIND_ADDR` | Interfaccia su cui vengono pubblicate tutte le porte (default `127.0.0.1` = solo locale; `0.0.0.0` espone in LAN tool senza autenticazione) |
 | `HOMEPAGE_ALLOWED_HOSTS` | Host ammessi verso la dashboard (aggiungi l'IP LAN per accesso remoto) |
 | `MITMWEB_PASSWORD` | Password per la GUI di mitmweb (l'utente è ignorato) |
 | `PUID` / `PGID` / `TZ` | Mappatura utente e timezone per Wireshark |

@@ -365,26 +365,37 @@ function rightTabBtn(t) {
   return rightTab.value === t ? 'bg-acc text-ink font-bold' : 'text-dim hover:text-fglite'
 }
 
+// every load() gets a sequence number: a slow response for a previous project
+// (or an older refresh) must never overwrite newer data
+let loadSeq = 0
 async function load() {
+  const seq = ++loadSeq
+  const id = props.id
   try {
-    project.value = await api(`/projects/${props.id}`)
-    ;[findings.value, locked.value, wordlists.value] = await Promise.all([
-      api(`/projects/${props.id}/findings`),
-      api(`/projects/${props.id}/locked`),
+    const [proj, fnd, lck, wls, rns] = await Promise.all([
+      api(`/projects/${id}`),
+      api(`/projects/${id}/findings`),
+      api(`/projects/${id}/locked`),
       api('/wordlists'),
+      api(`/projects/${id}/runs`),
     ])
-    for (const l of locked.value) {
-      try { l._wl = localStorage.getItem(`steg.wl.${props.id}.${l.file_id}`) || '' } catch { l._wl = '' }
+    if (seq !== loadSeq) return
+    for (const l of lck) {
+      try { l._wl = localStorage.getItem(`steg.wl.${id}.${l.file_id}`) || '' } catch { l._wl = '' }
     }
-    runs.value = await api(`/projects/${props.id}/runs`)
+    project.value = proj
+    findings.value = fnd
+    locked.value = lck
+    wordlists.value = wls
+    runs.value = rns
     // seed the live log from persisted events so the Logs tab is not empty on
     // projects that were analysed in a previous session (only once, and only if
     // no live event has arrived yet)
     if (!logSeeded) {
       logSeeded = true
       try {
-        const evs = await api(`/projects/${props.id}/events`)
-        if (!log.value.length) {
+        const evs = await api(`/projects/${id}/events`)
+        if (seq === loadSeq && !log.value.length) {
           log.value = (evs || []).map((e) => ({ type: 'event', level: e.level, message: e.message, ts: e.ts }))
         }
       } catch { /* no history */ }
@@ -398,11 +409,21 @@ async function load() {
     // refresh the full-logs view if the user is looking at it
     fullLogs.value = ''
     if (logView.value === 'full') showFullLogs()
-  } catch (e) { err.value = String(e) }
+  } catch (e) { if (seq === loadSeq) err.value = String(e) }
 }
 
+// live events; reconnects (backend restart, network blip) until unmounted
+let disposed = false
+let reconnectTimer = null
 function connect() {
-  ws = new WebSocket(wsUrl(`/ws/projects/${props.id}`))
+  clearTimeout(reconnectTimer)
+  if (ws) { ws.onclose = null; try { ws.close() } catch {} }
+  const id = props.id
+  ws = new WebSocket(wsUrl(`/ws/projects/${id}`))
+  ws.onclose = () => {
+    if (disposed || id !== props.id) return
+    reconnectTimer = setTimeout(() => { connect(); load() }, 2000)
+  }
   ws.onmessage = (ev) => {
     let m; try { m = JSON.parse(ev.data) } catch { return }
     if (m.type === 'ping') return
@@ -466,6 +487,7 @@ async function out(rid) {
   const fid = (runs.value.find((r) => r.id === rid) || {}).file_id
   try { outputs.value[rid] = await api(`/projects/${props.id}/files/${fid}/runs/${rid}`) }
   catch (e) { outputs.value[rid] = String(e) }
+  return outputs.value[rid]
 }
 async function toggle(rid) {
   if (expanded.value[rid]) { delete expanded.value[rid]; return }
@@ -959,7 +981,7 @@ watch(rightTab, async () => { await nextTick(); window.dispatchEvent(new Event('
 watch(() => props.id, () => {
   selected.value = null; outputs.value = {}; expanded.value = {}; log.value = []; logSeeded = false
   progress.value = { processed: 0, total: 0 }; currentFile.value = ''
-  load()
+  load(); connect()
 })
 onMounted(() => {
   mq = window.matchMedia('(max-width: 900px)')
@@ -970,7 +992,10 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (mq) mq.removeEventListener('change', onMq)
   endDrag()
-  try { ws && ws.close() } catch {}
+  disposed = true
+  clearTimeout(refreshTimer)
+  clearTimeout(reconnectTimer)
+  if (ws) { ws.onclose = null; try { ws.close() } catch {} }
 })
 </script>
 
@@ -1240,7 +1265,7 @@ onBeforeUnmount(() => {
         <!-- terminal -->
         <div v-show="rightTab === 'terminal'" class="flex min-h-0 flex-1 flex-col">
           <div class="flex items-center bg-panel2 px-3 py-1 text-left text-[10px] text-dim">{{ t('proj.terminal_label') }}</div>
-          <div class="min-h-0 flex-1"><Terminal :pid="props.id" /></div>
+          <div class="min-h-0 flex-1"><Terminal :key="props.id" :pid="props.id" /></div>
         </div>
 
         <!-- logs: live events on top, all runs below -->

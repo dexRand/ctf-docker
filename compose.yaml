@@ -22,7 +22,7 @@ services:
     mem_limit: 512m
     logging: *default-logging
     ports:
-      - "${HOMEPAGE_PORT:-19001}:3000"
+      - "${BIND_ADDR:-127.0.0.1}:${HOMEPAGE_PORT:-19001}:3000"
     volumes:
       - ./config/homepage:/app/config
       # favicon "hacker": impostato in settings.yaml e sovrascrivendo i default di Homepage
@@ -44,7 +44,7 @@ services:
     mem_limit: 256m
     logging: *default-logging
     ports:
-      - "${CYBERCHEF_PORT:-19002}:8080"
+      - "${BIND_ADDR:-127.0.0.1}:${CYBERCHEF_PORT:-19002}:8080"
     networks: [ctfnet]
 
   sagemath:
@@ -55,7 +55,7 @@ services:
     cpus: 1.5
     logging: *default-logging
     ports:
-      - "${SAGEMATH_PORT:-19010}:8888"
+      - "${BIND_ADDR:-127.0.0.1}:${SAGEMATH_PORT:-19010}:8888"
     volumes:
       - sagemath-home:/home/sage
     profiles: [crypto]
@@ -69,8 +69,8 @@ services:
     logging: *default-logging
     command: mitmweb --web-host 0.0.0.0 --listen-host 0.0.0.0 --set web_password=${MITMWEB_PASSWORD:-mitm}
     ports:
-      - "${MITMPROXY_PORT:-19004}:8080"   # proxy HTTP(S)
-      - "${MITMWEB_UI_PORT:-19003}:8081"  # GUI web (mitmweb)
+      - "${BIND_ADDR:-127.0.0.1}:${MITMPROXY_PORT:-19004}:8080"   # proxy HTTP(S)
+      - "${BIND_ADDR:-127.0.0.1}:${MITMWEB_UI_PORT:-19003}:8081"  # GUI web (mitmweb)
     volumes:
       - mitmproxy:/home/mitmproxy/.mitmproxy
     networks: [ctfnet]
@@ -87,8 +87,8 @@ services:
     logging: *default-logging
     command: zap-webswing.sh
     ports:
-      - "${ZAP_UI_PORT:-19005}:8080"      # GUI web -> http://localhost:19005/zap
-      - "${ZAP_PROXY_PORT:-19006}:8090"   # proxy HTTP(S)
+      - "${BIND_ADDR:-127.0.0.1}:${ZAP_UI_PORT:-19005}:8080"      # GUI web -> http://localhost:19005/zap
+      - "${BIND_ADDR:-127.0.0.1}:${ZAP_PROXY_PORT:-19006}:8090"   # proxy HTTP(S)
     volumes:
       - ./config/zap:/zap/wrk:rw
     profiles: [web]
@@ -102,7 +102,7 @@ services:
     cpus: 1
     logging: *default-logging
     ports:
-      - "${SPIDERFOOT_PORT:-19007}:8080"
+      - "${BIND_ADDR:-127.0.0.1}:${SPIDERFOOT_PORT:-19007}:8080"
     volumes:
       - spiderfoot-data:/var/lib/spiderfoot
     healthcheck:
@@ -126,8 +126,8 @@ services:
       PGID: ${PGID:-1000}
       TZ: ${TZ:-Europe/Rome}
     ports:
-      - "${WIRESHARK_HTTP_PORT:-19008}:3000"   # GUI web http
-      - "${WIRESHARK_HTTPS_PORT:-19009}:3001"  # GUI web https
+      - "${BIND_ADDR:-127.0.0.1}:${WIRESHARK_HTTP_PORT:-19008}:3000"   # GUI web http
+      - "${BIND_ADDR:-127.0.0.1}:${WIRESHARK_HTTPS_PORT:-19009}:3001"  # GUI web https
     volumes:
       - wireshark-config:/config
     shm_size: "1gb"
@@ -151,7 +151,7 @@ services:
     logging: *default-logging
     entrypoint: ["sh", "-c", "cp -f /opt/whisper/default_parameters.yaml /Whisper-WebUI/configs/default_parameters.yaml && exec python app.py --server_name 0.0.0.0 --server_port 7860 --inbrowser false"]
     ports:
-      - "127.0.0.1:${WHISPER_PORT:-19017}:7860"
+      - "${BIND_ADDR:-127.0.0.1}:${WHISPER_PORT:-19017}:7860"
     volumes:
       - ./config/whisper/default_parameters.yaml:/opt/whisper/default_parameters.yaml:ro
       - ./data/whisper/models:/Whisper-WebUI/models
@@ -166,7 +166,7 @@ services:
     mem_limit: 128m
     logging: *default-logging
     ports:
-      - "${ITTOOLS_PORT:-19011}:80"
+      - "${BIND_ADDR:-127.0.0.1}:${ITTOOLS_PORT:-19011}:80"
     networks: [ctfnet]
 
   # Dork generator: pagina statica (nginx upstream, nessuna build custom) che
@@ -178,7 +178,7 @@ services:
     mem_limit: 64m
     logging: *default-logging
     ports:
-      - "${DORK_PORT:-19019}:80"
+      - "${BIND_ADDR:-127.0.0.1}:${DORK_PORT:-19019}:80"
     volumes:
       - ./config/dork:/usr/share/nginx/html:ro
     networks: [ctfnet]
@@ -192,7 +192,7 @@ services:
     mem_limit: 512m
     logging: *default-logging
     ports:
-      - "127.0.0.1:${FILEBROWSER_PORT:-19012}:80"
+      - "${BIND_ADDR:-127.0.0.1}:${FILEBROWSER_PORT:-19012}:80"
     volumes:
       - ./data:/srv
       - ./config/filebrowser/config.yaml:/config/config.yaml:ro
@@ -212,7 +212,7 @@ services:
     cpus: 3
     logging: *default-logging
     ports:
-      - "127.0.0.1:${STEGSUITE_PORT:-19014}:19014"
+      - "${BIND_ADDR:-127.0.0.1}:${STEGSUITE_PORT:-19014}:19014"
     environment:
       - MAX_DEPTH=${MAX_DEPTH:-6}
       - HEAVY_TOOLS=${HEAVY_TOOLS:-1}
@@ -275,7 +275,7 @@ services:
     volumes:
       - hashtopolis-backend:/usr/local/share/hashtopolis
     ports:
-      - "127.0.0.1:${HASHTOPOLIS_BACKEND_PORT:-19015}:80"
+      - "${BIND_ADDR:-127.0.0.1}:${HASHTOPOLIS_BACKEND_PORT:-19015}:80"
     profiles: [crack]
     networks: [ctfnet]
 
@@ -289,7 +289,7 @@ services:
     environment:
       HASHTOPOLIS_BACKEND_URL: ${HASHTOPOLIS_BACKEND_URL:-http://localhost:19015}
     ports:
-      - "127.0.0.1:${HASHTOPOLIS_FRONTEND_PORT:-19016}:80"
+      - "${BIND_ADDR:-127.0.0.1}:${HASHTOPOLIS_FRONTEND_PORT:-19016}:80"
     profiles: [crack]
     networks: [ctfnet]
 
@@ -330,7 +330,7 @@ services:
     depends_on: [rev]
     command: ["TCP-LISTEN:7681,fork,reuseaddr", "TCP:rev:7681"]
     ports:
-      - "127.0.0.1:${REV_PORT:-19018}:7681"
+      - "${BIND_ADDR:-127.0.0.1}:${REV_PORT:-19018}:7681"
     profiles: [rev]
     networks: [ctfnet, revnet]
 

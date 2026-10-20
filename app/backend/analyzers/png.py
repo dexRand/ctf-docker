@@ -41,9 +41,11 @@ class PngChunksAnalyzer(Analyzer):
             pos += 12 + length
             if ctype in TEXT_CHUNKS:
                 if ctype == "zTXt":
-                    body = cdata.split(b"\x00", 1)[1]
+                    # keyword \0 method byte, then zlib data (a bad chunk may lack the NUL)
+                    key, _, rest = cdata.partition(b"\x00")
                     try:
-                        text = zlib.decompress(body).decode("utf-8", "replace")
+                        text = (key.decode("latin-1") + " = "
+                                + zlib.decompress(rest[1:]).decode("utf-8", "replace"))
                     except Exception:
                         text = cdata.decode("utf-8", "replace")
                 else:

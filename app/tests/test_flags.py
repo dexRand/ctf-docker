@@ -167,3 +167,25 @@ def test_escaped_newline_before_flag_is_not_glued() -> None:
     out = _hunt_values("fp-esc", "the flag is\\nSEKAI{esc_ok}", "decode:x.txt")
     assert "SEKAI{esc_ok}" in out
     assert not any(v == "nSEKAI{esc_ok}" for v in out)
+
+
+def test_a_flag_never_deletes_a_password_it_contains() -> None:
+    # a cracked password (`s3cret`) is a substring of the flag `flag{s3cret}`;
+    # the "drop shorter fragments" dedupe used to delete it, re-locking the file
+    from sqlmodel import Session, select
+
+    from backend.db import engine, init_db
+    from backend.models import Finding, Project
+    from backend.orchestrator import _hunt
+
+    pid = "pwd-keep"
+    init_db()
+    with Session(engine) as s:
+        s.add(Project(id=pid, name=pid, status="running"))
+        s.add(Finding(project_id=pid, kind="password", value="s3cret", source="crack"))
+        s.commit()
+        _hunt(s, pid, None, "flag{s3cret}", "strings:x")
+        s.commit()
+        kinds = {(f.kind, f.value) for f in s.exec(select(Finding).where(Finding.project_id == pid))}
+    assert ("password", "s3cret") in kinds
+    assert ("flag", "flag{s3cret}") in kinds

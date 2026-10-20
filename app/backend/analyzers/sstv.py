@@ -18,7 +18,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
+try:  # optional: a missing numpy must only disable SSTV, not the whole registry
+    import numpy as np
+except ImportError:  # pragma: no cover
+    np = None
 
 from .base import Analyzer, ToolContext, ToolResult, which
 from .registry import register
@@ -271,9 +274,7 @@ class SstvAnalyzer(Analyzer):
         return out if out.exists() else ctx.input
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        try:
-            import numpy  # noqa: F401
-        except Exception:
+        if np is None:
             return ToolResult(self.name, status="skipped", summary="numpy not installed")
         result = decode_sstv(self._to_wav(ctx))
         if result is None:

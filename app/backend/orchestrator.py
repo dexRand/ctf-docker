@@ -19,7 +19,7 @@ import urllib.parse
 import uuid
 from pathlib import Path
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from . import storage
 from .analyzers import get as get_tool
@@ -168,6 +168,8 @@ class Job:
         self.gate.set()
         self.thread: threading.Thread | None = None
         self.processed = 0
+        self.only_new = False   # analyze only nodes that have no tool runs yet
+        self.requeue = False    # new files arrived meanwhile: run again when done
 
     def wait(self) -> None:
         self.gate.wait()
@@ -266,7 +268,10 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         collapsed = re.sub(rb"\s+", b"", data)
         if collapsed != data:
             collapsed_views.append(collapsed)
-    existing = {f.value for f in session.exec(select(Finding).where(Finding.project_id == project_id)).all()}
+    # only flags take part in flag dedupe: a cracked password that happens to be
+    # a substring of a flag must never be deleted as a "shorter fragment"
+    flag_q = select(Finding).where(Finding.project_id == project_id).where(Finding.kind == "flag")
+    existing = {f.value for f in session.exec(flag_q).all()}
     existing_norm = {v.replace(" ", "") for v in existing}
     canon_index = {_canon_flag(v): v for v in existing}
     head = source.split(":", 1)[0]
@@ -287,8 +292,7 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         prev = canon_index.get(canon)
         if prev is not None and prev != value:
             if _is_known_prefix(value) and not _is_known_prefix(prev):
-                old = session.exec(select(Finding).where(Finding.project_id == project_id)
-                                   .where(Finding.value == prev)).first()
+                old = session.exec(flag_q.where(Finding.value == prev)).first()
                 if old:
                     session.delete(old)
                 existing.discard(prev)
@@ -302,8 +306,7 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         # and remove shorter fragments already stored in favour of this one
         for ex in list(existing):
             if ex != value and ex in value:
-                old = session.exec(select(Finding).where(Finding.project_id == project_id)
-                                   .where(Finding.value == ex)).first()
+                old = session.exec(flag_q.where(Finding.value == ex)).first()
                 if old:
                     session.delete(old)
                 existing.discard(ex)
@@ -425,17 +428,38 @@ def _plan_for(name: str, mime: str | None, is_text: bool) -> list[str]:
     return plan
 
 
-def _store_extracted(session: Session, pid: str, parent: FileNode, src: Path, order: int,
+def _next_order(session: Session, pid: str) -> int:
+    """Next discovery index, read from the DB: the job thread and a manual crack
+    (another session) both add nodes, so a cached counter would hand out duplicates."""
+    last = session.exec(select(func.max(FileNode.order_index))
+                        .where(FileNode.project_id == pid)).one()
+    return (last if last is not None else -1) + 1
+
+
+def _store_extracted(session: Session, pid: str, parent: FileNode, src: Path,
                      tool: str | None = None) -> FileNode:
     name = storage.sanitize_name(src.name)
+    # a re-run re-extracts the same children: reuse the node instead of duplicating it
+    sha, md5, size = storage.hashes_of(src)
+    same = session.exec(select(FileNode).where(FileNode.project_id == pid)
+                        .where(FileNode.parent_id == parent.id)
+                        .where(FileNode.sha256 == sha)
+                        .where(FileNode.name == name)).first()
+    if same:
+        src.unlink(missing_ok=True)
+        return same
+    order = _next_order(session, pid)
     rel = f"files/{order:04d}__{name}"
+    n = 1
+    while (storage.project_dir(pid) / rel).exists():  # never overwrite another node
+        rel = f"files/{order:04d}-{n}__{name}"
+        n += 1
     dest = storage.project_dir(pid) / rel
     dest.parent.mkdir(parents=True, exist_ok=True)
     try:
         shutil.move(str(src), str(dest))
     except (OSError, shutil.Error):
         shutil.copy2(src, dest)
-    sha, md5, size = storage.hashes_of(dest)
     origin = f"extracted:{tool}:{parent.id}" if tool else f"extracted:{parent.id}"
     node = FileNode(project_id=pid, parent_id=parent.id, name=name, rel_path=rel,
                     size=size, mime=None, sha256=sha, md5=md5, depth=parent.depth + 1,
@@ -460,13 +484,14 @@ def _run(pid: str, job: Job) -> None:
 
         nodes = session.exec(select(FileNode).where(FileNode.project_id == pid)
                              .order_by(FileNode.order_index, FileNode.id)).all()
+        if job.only_new:
+            seen = set(session.exec(select(ToolRun.file_id).where(ToolRun.project_id == pid)).all())
+            nodes = [n for n in nodes if n.id not in seen]
         pending: list[FileNode] = list(nodes)
-        order = max((n.order_index for n in nodes), default=-1) + 1
         processed: set[str] = set()
         depth_limit = MAX_DEPTH  # nested archives (Matryoshka doll) can be several levels deep
 
         def analyze(node: FileNode) -> None:
-            nonlocal order
             if node.depth >= depth_limit or (node.sha256 and node.sha256 in processed):
                 return
             if node.sha256:
@@ -569,8 +594,7 @@ def _run(pid: str, job: Job) -> None:
                                         output=traceback.format_exc()[-8000:])
                 record(tool_name, result, logs)
                 for src in result.extracted:
-                    child = _store_extracted(session, pid, node, Path(src), order, tool=tool_name)
-                    order += 1
+                    child = _store_extracted(session, pid, node, Path(src), tool=tool_name)
                     pending.append(child)
                 if result.consumed:
                     break
@@ -600,6 +624,7 @@ def _run(pid: str, job: Job) -> None:
                 pending.extend(new_nodes)
                 rounds += 1
         except Exception:  # never leave a project spinning in "running"
+            session.rollback()  # the failing statement may have poisoned the session
             _event(session, pid, "analysis failed: " + traceback.format_exc()[-800:], "error")
             proj = session.get(Project, pid) or proj
             proj.status = "error"
@@ -607,8 +632,6 @@ def _run(pid: str, job: Job) -> None:
             session.add(proj)
             session.commit()
             _emit(pid, {"type": "status", "status": "error"})
-            with _JOBS_LOCK:
-                JOBS.pop(pid, None)
             return
 
         proj = session.get(Project, pid) or proj
@@ -618,8 +641,6 @@ def _run(pid: str, job: Job) -> None:
         _event(session, pid, f"analysis {proj.status}", "warn" if job.cancelled else "info")
         session.commit()
         _emit(pid, {"type": "status", "status": proj.status})
-    with _JOBS_LOCK:
-        JOBS.pop(pid, None)
 
 
 def mark_unlocked(session: Session, pid: str, file_id: int) -> None:
@@ -746,28 +767,61 @@ def import_children(session: Session, pid: str, parent_id: int, paths: list[str]
     parent = session.get(FileNode, parent_id)
     if not parent:
         return []
-    last = session.exec(select(FileNode).where(FileNode.project_id == pid)
-                        .order_by(FileNode.order_index.desc())).first()
-    order = (last.order_index if last else -1) + 1
     ids: list[int] = []
     for src in paths:
-        child = _store_extracted(session, pid, parent, Path(src), order, tool=tool)
-        order += 1
-        ids.append(child.id)
+        ids.append(_store_extracted(session, pid, parent, Path(src), tool=tool).id)
     session.flush()
     return ids
 
 
-def start(pid: str) -> Job:
+def start(pid: str, only_new: bool = False) -> Job:
     with _JOBS_LOCK:
         if pid in JOBS:
             raise RuntimeError("already running")
         job = Job(pid)
+        job.only_new = only_new
         JOBS[pid] = job
-    t = threading.Thread(target=_run, args=(pid, job), daemon=True)
+    t = threading.Thread(target=_job_main, args=(pid, job), daemon=True)
     job.thread = t
     t.start()
     return job
+
+
+def _job_main(pid: str, job: Job) -> None:
+    """Thread entry: whatever happens in `_run`, the job is unregistered."""
+    try:
+        _run(pid, job)
+    finally:
+        with _JOBS_LOCK:
+            if JOBS.get(pid) is job:
+                JOBS.pop(pid)
+    if job.requeue and not job.cancelled:
+        analyze_new(pid)
+
+
+def analyze_new(pid: str) -> None:
+    """Analyze files added after the last run (e.g. by a crack). If a job is
+    running, it picks them up in a follow-up pass once it finishes."""
+    with _JOBS_LOCK:
+        job = JOBS.get(pid)
+        if job:
+            job.requeue = True
+            return
+    try:
+        start(pid, only_new=True)
+    except RuntimeError:  # started by someone else in between: let it requeue
+        analyze_new(pid)
+
+
+def stop(pid: str, wait_s: float = 15.0) -> None:
+    """Cancel a running job and wait for its thread (before deleting a project)."""
+    with _JOBS_LOCK:
+        job = JOBS.get(pid)
+    if not job:
+        return
+    job.cancel()
+    if job.thread and job.thread is not threading.current_thread():
+        job.thread.join(wait_s)
 
 
 def control(pid: str, action: str) -> bool:

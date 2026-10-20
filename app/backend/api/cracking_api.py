@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import threading
+import traceback
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session, select
@@ -13,6 +14,7 @@ from ..models import Event, FileNode, Finding, ToolRun
 
 router = APIRouter()
 CRACK_JOBS: dict[str, str] = {}
+_CRACK_LOCK = threading.Lock()
 
 
 @router.get("/api/v1/wordlists")
@@ -84,16 +86,21 @@ def _crack_worker(pid: str, fid: int, names, opts: dict) -> None:
                     orchestrator.import_children(s, pid, fid, res["extracted"])
                 s.commit()
                 if res["extracted"]:
-                    try:
-                        orchestrator.start(pid)
-                    except RuntimeError:
-                        pass
+                    orchestrator.analyze_new(pid)
             else:
                 bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid, "status": "not_found"})
                 s.add(Event(project_id=pid, level="warn", message=f"password not found for {node.name}"))
                 s.commit()
+    except Exception as exc:  # the UI waits for a final crack event: always send one
+        bus.publish(f"project:{pid}", {"type": "crack", "file_id": fid, "status": "error",
+                                       "error": f"{type(exc).__name__}: {exc}"[:300]})
+        with Session(engine) as s:
+            s.add(Event(project_id=pid, level="error",
+                        message="crack failed: " + traceback.format_exc()[-800:]))
+            s.commit()
     finally:
-        CRACK_JOBS.pop(pid, None)
+        with _CRACK_LOCK:
+            CRACK_JOBS.pop(pid, None)
 
 
 @router.post("/api/v1/projects/{pid}/crack")
@@ -108,19 +115,23 @@ def crack(pid: str, payload: dict = Body(...), session: Session = Depends(get_se
                            .where(Finding.kind == "password")).first()
     if already:
         raise HTTPException(409, "file already cracked")
-    if pid in CRACK_JOBS:
-        raise HTTPException(409, "cracking already running")
     opts: dict = {}
     if "rules" in payload:
         opts["rules"] = payload.get("rules")
     if payload.get("mask"):
         opts["mask"] = str(payload["mask"])
     if payload.get("budget_s") is not None:
-        opts["budget_s"] = int(payload["budget_s"])
+        try:
+            opts["budget_s"] = int(payload["budget_s"])
+        except (TypeError, ValueError):
+            raise HTTPException(422, "budget_s must be an integer (seconds)")
     bk = payload.get("bkcrack")
     if isinstance(bk, dict):
         opts["bkcrack"] = {"name": bk.get("name", ""), "plaintext": bk.get("plaintext", "")}
-    CRACK_JOBS[pid] = node.name
+    with _CRACK_LOCK:
+        if pid in CRACK_JOBS:
+            raise HTTPException(409, "cracking already running")
+        CRACK_JOBS[pid] = node.name
     threading.Thread(target=_crack_worker, args=(pid, fid, names, opts), daemon=True).start()
     return {"started": pid, "file_id": fid}
 

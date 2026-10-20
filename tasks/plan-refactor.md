@@ -92,6 +92,12 @@ frontend** (`Project.vue` `buildReport` :619, `buildFullLogs` :738,
    - Il server MCP parte con lo stack, così l'IA lo usa subito.
 5. Test: una CTF di prova con le challenge reali di `real_challenges.py`; autosolve ≥ i risultati attuali.
 
+5. **Coda di cracking** (`crackqueue.py`): N worker configurabili (`CRACK_WORKERS`, default 1),
+   crack **per file** (anche più crack nello stesso progetto), priorità, annullamento.
+   API: `GET /api/v1/cracks`, `POST /api/v1/projects/{pid}/crack` (lo accoda),
+   `DELETE /api/v1/cracks/{id}`. Backend opzionale **Hashtopolis** (profilo `crack`)
+   per i carichi distribuiti.
+
 ## Fase 2: backend modulare (rimuovere le duplicazioni)
 1. **`analyzers/util.py`**: le funzioni copiate in più moduli:
    - `printable_ratio` (6+ copie)
