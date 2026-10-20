@@ -7,7 +7,11 @@ import { ref } from 'vue'
 export const LANGUAGES = ['en', 'it']
 const KEY = 'stegsuite-lang'
 
-export const lang = ref(localStorage.getItem(KEY) || 'en')
+function stored() {
+  try { return localStorage.getItem(KEY) } catch { return null }   // storage may be blocked
+}
+
+export const lang = ref(stored() || 'en')
 
 // keep <html lang> in sync with the UI language (a11y: screen-reader pronunciation)
 function syncHtmlLang() {
@@ -215,6 +219,32 @@ const en = {
   'report.route_files_head': '| File | Size | Produced by | Open |',
   'report.open_link': 'open',
   'report.footer': '> Analysed {files} files and {runs} tool runs; above only what leads to the flag. The other {noise} files are in the GUI.',
+  'ctf.section': 'CTFs',
+  'ctf.new': 'new CTF',
+  'ctf.name': 'CTF name',
+  'ctf.format': 'flag format (DUCTF{...} or regex)',
+  'ctf.create': 'create',
+  'ctf.none': 'no CTF yet: create one to group its challenges',
+  'ctf.solved_of': '{s}/{n} solved',
+  'ctf.challenges': 'challenges',
+  'ctf.add': 'add challenge',
+  'ctf.category': 'category',
+  'ctf.chal_name': 'challenge name',
+  'ctf.autosolve': 'autosolve',
+  'ctf.autosolve_stop': 'stop',
+  'ctf.autosolve_running': 'autosolve: {f}/{t} done, {r} running, {q} queued',
+  'ctf.flag': 'flag',
+  'ctf.solved': 'solved',
+  'ctf.unsolved': 'open',
+  'ctf.mark_solved': 'mark solved',
+  'ctf.mark_open': 'reopen',
+  'ctf.delete': 'delete CTF',
+  'ctf.delete_confirm': 'Delete this CTF? Its challenges are kept.',
+  'ctf.empty': 'no challenges: drop the attachments of a challenge above',
+  'ctf.in_ctf': 'in CTF',
+  'ctf.no_ctf': '— no CTF —',
+  'ctf.save': 'save',
+  'ctf.start_now': 'analyze now',
 }
 
 const it = {
@@ -411,23 +441,41 @@ const it = {
   'report.route_files_head': '| File | Dim | Prodotto da | Apri |',
   'report.open_link': 'apri',
   'report.footer': '> Analizzati {files} file e {runs} esecuzioni di tool; qui solo ciò che porta alla flag. Gli altri {noise} file sono nella GUI.',
+  'ctf.section': 'CTF',
+  'ctf.new': 'nuova CTF',
+  'ctf.name': 'nome della CTF',
+  'ctf.format': 'formato flag (DUCTF{...} o regex)',
+  'ctf.create': 'crea',
+  'ctf.none': 'nessuna CTF: creane una per raggruppare le sue challenge',
+  'ctf.solved_of': '{s}/{n} risolte',
+  'ctf.challenges': 'challenge',
+  'ctf.add': 'aggiungi challenge',
+  'ctf.category': 'categoria',
+  'ctf.chal_name': 'nome della challenge',
+  'ctf.autosolve': 'autosolve',
+  'ctf.autosolve_stop': 'ferma',
+  'ctf.autosolve_running': 'autosolve: {f}/{t} finite, {r} in corso, {q} in coda',
+  'ctf.flag': 'flag',
+  'ctf.solved': 'risolta',
+  'ctf.unsolved': 'aperta',
+  'ctf.mark_solved': 'segna risolta',
+  'ctf.mark_open': 'riapri',
+  'ctf.delete': 'elimina CTF',
+  'ctf.delete_confirm': 'Eliminare questa CTF? Le challenge restano.',
+  'ctf.empty': 'nessuna challenge: trascina qui sopra gli allegati di una challenge',
+  'ctf.in_ctf': 'nella CTF',
+  'ctf.no_ctf': '— nessuna CTF —',
+  'ctf.save': 'salva',
+  'ctf.start_now': 'analizza subito',
 }
 
 const LABELS = { en, it }
 
-function resolve(key, params) {
-  let v = LABELS[lang.value]?.[key] ?? LABELS.en[key]
-  if (v == null) return key
-  if (params) for (const [k, val] of Object.entries(params)) v = String(v).replaceAll(`{${k}}`, String(val))
-  return v
-}
-
 export function t(key, params) {
-  return resolve(key, params)
+  return tt(lang.value, key, params)
 }
 
-// translate with an explicit locale (used by report building, which must be
-// independent of the current UI language)
+// translate with an explicit locale (independent of the current UI language)
 export function tt(l, key, params) {
   let v = LABELS[l]?.[key] ?? LABELS.en[key]
   if (v == null) return key
@@ -438,6 +486,6 @@ export function tt(l, key, params) {
 export function setLang(l) {
   if (!LABELS[l] || l === lang.value) return
   lang.value = l
-  localStorage.setItem(KEY, l)
+  try { localStorage.setItem(KEY, l) } catch { /* storage blocked */ }
   syncHtmlLang()
 }

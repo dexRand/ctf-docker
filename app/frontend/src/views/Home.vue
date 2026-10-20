@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, uploadFile, fmtDate, STATUS_COLOR } from '../api'
+import { api, uploadFile, fmtDate, fmtSize, STATUS_COLOR } from '../api'
 import { notify } from '../toast'
 import { t } from '../i18n'
 import Icon from '../components/Icon.vue'
@@ -32,10 +32,6 @@ const STATUS_BAR = {
   paused: 'rgb(var(--info))', error: 'rgb(var(--danger))',
   created: 'rgb(var(--edge2))', cancelled: 'rgb(var(--edge2))',
 }
-const STATUS_TEXT = {
-  queued: 'text-warn', running: 'text-warn', done: 'text-acc',
-  paused: 'text-info', error: 'text-danger', created: 'text-dim', cancelled: 'text-dim',
-}
 
 const statCells = computed(() => [
   { label: t('home.stat_projects'), value: stats.value.projects, color: 'text-fglite' },
@@ -61,7 +57,7 @@ const statusRows = computed(() => {
     ...r,
     pct: Math.max(4, Math.round((r.count / total) * 100)),
     bar: STATUS_BAR[r.status],
-    text: STATUS_TEXT[r.status] || 'text-dim',
+    text: STATUS_COLOR[r.status] || 'text-dim',
   }))
 })
 
@@ -85,14 +81,13 @@ async function loadStats() {
     perStatus[p.status] = (perStatus[p.status] || 0) + 1
     perMode[p.mode] = (perMode[p.mode] || 0) + 1
   }
-  for (const p of list) {
-    let fd = [], rs = []
-    try {
-      ;[fd, rs] = await Promise.all([
-        api(`/projects/${p.id}/findings`),
-        api(`/projects/${p.id}/runs`),
-      ])
-    } catch { /* keep zeros for this project */ }
+  // all projects in parallel (was one project after the other)
+  const fetched = await Promise.all(list.map((p) => Promise.all([
+    api(`/projects/${p.id}/findings`),
+    api(`/projects/${p.id}/runs`),
+  ]).catch(() => [[], []])))   // keep zeros for a project that fails
+  for (const [i, p] of list.entries()) {
+    const [fd, rs] = fetched[i]
     const flagsN = (fd || []).filter((f) => f.kind === 'flag').length
     const cracked = new Set((fd || []).filter((f) => f.kind === 'password').map((f) => f.file_id))
     const lockedN = new Set((rs || []).filter((r) => r.needs_password && !cracked.has(r.file_id)).map((r) => r.file_id)).size
@@ -118,11 +113,27 @@ async function loadStats() {
   }
 }
 
+// CTFs: one CTF groups its challenges (projects)
+const ctfs = ref([])
+const ctfId = ref('')            // CTF the next upload goes into ('' = none)
+const newCtf = ref({ name: '', flag_format: '' })
+
 async function load() {
   try {
-    projects.value = await api('/projects')
+    ;[projects.value, ctfs.value] = await Promise.all([api('/projects'), api('/ctfs')])
     await loadStats()
   } catch (e) { err.value = String(e) }
+}
+
+async function createCtf() {
+  if (!newCtf.value.name.trim()) return
+  try {
+    const c = await api('/ctfs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newCtf.value),
+    })
+    newCtf.value = { name: '', flag_format: '' }
+    router.push(`/ctf/${c.id}`)
+  } catch (e) { notify(String(e), 'error') }
 }
 onMounted(load)
 
@@ -140,6 +151,7 @@ async function start() {
     const fd = new FormData()
     fd.append('mode', mode.value)
     if (name.value) fd.append('name', name.value)
+    if (ctfId.value) fd.append('ctf_id', ctfId.value)
     for (const f of files.value) fd.append('files', f)
     const p = await uploadFile('/projects', fd, (pct) => { uploadPct.value = pct })
     uploadPct.value = 1
@@ -150,11 +162,6 @@ async function start() {
   } catch (e) { err.value = String(e); notify(String(e), 'error') } finally { busy.value = false; uploadPct.value = 0 }
 }
 
-function fmtKb(n) {
-  if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + 'M'
-  if (n >= 1024) return (n / 1024).toFixed(1) + 'K'
-  return n + 'B'
-}
 
 async function del(id, e) {
   e.stopPropagation()
@@ -218,7 +225,7 @@ function open(id) { router.push(`/p/${id}`) }
               <tr v-for="f in files" :key="f.name">
                 <td class="pr-3 text-acc">[+]</td>
                 <td class="max-w-[36ch] truncate pr-6">{{ f.name }}</td>
-                <td class="text-right text-dim">{{ fmtKb(f.size) }}</td>
+                <td class="text-right text-dim">{{ fmtSize(f.size) }}</td>
               </tr>
             </tbody>
           </table>
@@ -245,6 +252,11 @@ function open(id) { router.push(`/p/${id}`) }
             </button>
             <p class="max-w-[38ch] text-[11px] leading-4 text-dim">{{ t('home.mode_' + m.id) }}</p>
           </div>
+          <select v-if="ctfs.length" v-model="ctfId" :aria-label="t('ctf.in_ctf')"
+                  class="rounded border border-edge bg-ink px-2 py-1.5 text-xs">
+            <option value="">{{ t('ctf.no_ctf') }}</option>
+            <option v-for="c in ctfs" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
           <input v-model="name" :placeholder="t('home.name_placeholder')"
                  :aria-label="t('home.name_placeholder')"
                  class="min-w-[180px] rounded border border-edge bg-ink px-2.5 py-1.5 text-xs placeholder:text-dim focus:border-acc" />
@@ -257,6 +269,32 @@ function open(id) { router.push(`/p/${id}`) }
         <pre v-if="echo" class="mt-3 whitespace-pre-wrap rounded border border-edge bg-ink px-3 py-2 text-[11px] text-acc">{{ echo }}</pre>
         <p v-if="err" class="mt-2 text-xs text-danger">[!] {{ err }}</p>
       </div>
+    </section>
+
+    <!-- CTFs -->
+    <section class="mt-4 animate-fadeUp rounded border border-edge bg-panel">
+      <div class="flex items-center gap-2 border-b border-edge bg-panel2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-dim">
+        <Icon name="flag" :size="12" /> {{ t('ctf.section') }}
+        <span class="ml-auto">{{ ctfs.length }}</span>
+      </div>
+      <div class="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3">
+        <RouterLink v-for="c in ctfs" :key="c.id" :to="`/ctf/${c.id}`"
+                    class="flex items-center gap-2 rounded border border-edge bg-ink px-2.5 py-2 text-[11px] transition hover:border-acc/70">
+          <span class="min-w-0 flex-1 truncate text-fglite">{{ c.name }}</span>
+          <span class="shrink-0 text-dim">{{ c.flag_format }}</span>
+          <span class="shrink-0" :class="c.solved && c.solved === c.challenges ? 'text-acc' : 'text-warn'">
+            {{ t('ctf.solved_of', { s: c.solved, n: c.challenges }) }}
+          </span>
+        </RouterLink>
+        <p v-if="!ctfs.length" class="text-[11px] text-dim sm:col-span-2 lg:col-span-3">{{ t('ctf.none') }}</p>
+      </div>
+      <form class="flex flex-wrap items-center gap-2 border-t border-edge px-3 py-2 text-xs" @submit.prevent="createCtf">
+        <input v-model="newCtf.name" :placeholder="t('ctf.name')" :aria-label="t('ctf.name')"
+               class="min-w-[160px] rounded border border-edge bg-ink px-2 py-1 text-xs" />
+        <input v-model="newCtf.flag_format" :placeholder="t('ctf.format')" :aria-label="t('ctf.format')"
+               class="min-w-[220px] rounded border border-edge bg-ink px-2 py-1 text-xs" />
+        <button class="kb kb-acc text-[10px]" :disabled="!newCtf.name.trim()"><Icon name="flag" :size="11" />{{ t('ctf.new') }}</button>
+      </form>
     </section>
 
     <!-- analytics strip -->

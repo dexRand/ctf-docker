@@ -789,11 +789,16 @@ onBeforeUnmount(() => {
     <h1 class="sr-only">{{ project?.name }}</h1>
     <!-- action bar -->
     <div class="flex flex-wrap items-center gap-2 border-b border-edge bg-panel px-3 py-1.5 text-xs">
-      <button @click="router.push('/')" class="kb px-2" :aria-label="t('proj.back_home')"><Icon name="chevronR" class="rotate-180" :size="12" /></button>
+      <button @click="router.push(project?.ctf_id ? `/ctf/${project.ctf_id}` : '/')" class="kb px-2" :aria-label="t('proj.back_home')"><Icon name="chevronR" class="rotate-180" :size="12" /></button>
       <span class="font-bold text-fgx">{{ project?.name }}</span>
       <span class="rounded border px-2 py-0.5 text-[10px]" :class="statusChip(project?.status)">
         {{ project?.status }}
       </span>
+      <span v-if="project?.solved" class="rounded border border-acc/50 bg-acc/10 px-2 py-0.5 text-[10px] text-acc"
+            :title="project.flag">✓ {{ t('ctf.solved') }}</span>
+      <RouterLink v-if="project?.ctf_id" :to="`/ctf/${project.ctf_id}`" class="text-[10px] text-dim underline hover:text-acc">
+        {{ t('ctf.in_ctf') }} {{ project.category ? '· ' + project.category : '' }}
+      </RouterLink>
       <span class="hidden text-[10px] text-dim lg:inline">
         --{{ project?.mode }} · {{ project?.files }} {{ t('proj.files') }} · {{ fmtDate(project?.created_at) }}
       </span>
