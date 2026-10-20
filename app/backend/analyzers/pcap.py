@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, list_files, which
 from .registry import register
+from .util import printable_ratio
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
 
@@ -155,6 +156,40 @@ def _expand_http_response(line: str) -> str:
     return "\n".join([url.strip()] + [f"  {h}" for h in headers])
 
 
+_MAX_STREAM = 1_000_000      # bytes kept per conversation
+_MAX_STREAMS_OUT = 200
+
+
+def _streams_text(ctx: ToolContext, tls: list[str]) -> str:
+    """Payload of every UDP/TCP conversation joined in order, shown as text
+    (non-printables as '.') when it reads like text or holds a brace."""
+    proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-T", "fields", "-E", "separator=\t",
+                    "-e", "udp.stream", "-e", "udp.payload", "-e", "tcp.stream", "-e", "tcp.payload"],
+                   timeout=180)
+    joined: dict[tuple[str, str], bytearray] = {}
+    for line in (proc.stdout or "").splitlines():
+        cols = line.split("\t") + ["", "", "", ""]
+        for proto, sid, payload in (("udp", cols[0], cols[1]), ("tcp", cols[2], cols[3])):
+            if not sid or not payload:
+                continue
+            buf = joined.setdefault((proto, sid), bytearray())
+            if len(buf) < _MAX_STREAM:
+                try:
+                    buf += bytes.fromhex(payload.replace(":", "").split(",")[0])
+                except ValueError:
+                    pass
+    out = []
+    for (proto, sid), buf in joined.items():
+        if len(buf) < 4:
+            continue
+        if b"{" in buf or printable_ratio(bytes(buf)) >= 0.7:
+            text = "".join(chr(b) if 32 <= b < 127 or b in (9, 10) else "." for b in buf)
+            out.append(f"[{proto} stream {sid}, {len(buf)} B] {text[:4000]}")
+        if len(out) >= _MAX_STREAMS_OUT:
+            break
+    return "\n".join(out)
+
+
 class PcapAnalyzer(Analyzer):
     name = "pcap"
     category = "network"
@@ -209,6 +244,11 @@ class PcapAnalyzer(Analyzer):
         fields = " ".join(line for line in (proc.stdout or "").splitlines() if line.strip())
         if fields:
             parts.append("== fields ==\n" + fields[:20000])
+        # reassembled UDP/TCP conversations: a flag sent one char per packet
+        # ("follow UDP stream") only appears when the payloads are joined
+        streams = _streams_text(ctx, tls)
+        if streams:
+            parts.append("== streams ==\n" + streams)
         # DNS tunneling: chunk-per-query exfiltration (ExtractionD'ADNs style)
         proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields",
                         "-e", "dns.qry.name"], timeout=180)
