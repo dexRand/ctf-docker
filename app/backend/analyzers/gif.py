@@ -1,6 +1,7 @@
 """Animated GIF analysis: frames, frame-diff, and frame-delay decoding (vision)."""
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult
@@ -83,16 +84,20 @@ class GifFramesAnalyzer(Analyzer):
         except Exception:
             pass
 
-        # OCR each frame so a flag shown in a frame is captured automatically
+        # Frames analysed as children get the full pipeline (OCR included), so
+        # here only the frames that are NOT exported are OCR'd (quick pass):
+        # every frame is read once, none twice. Identical frames are exported
+        # once (the tree dedupes by hash anyway; this avoids the work upfront).
+        exported = self._pick_exported(frames, diffs)
         lines_ocr: list[tuple[int, str]] = []
-        try:
+        exported_set = set(exported)
+        rest = [i for i, f in enumerate(frames) if f not in exported_set]
+        if rest:
             from .vision import ocr_image
-            for i, f in enumerate(frames):
-                text = ocr_image(f)
+            for i in rest:
+                text = ocr_image(frames[i], thorough=False)
                 if text:
                     lines_ocr.append((i, text))
-        except Exception:
-            pass
 
         lines = [f"frames: {len(frames)}", f"durations(ms): {durations}"]
         for i, text in lines_ocr:
@@ -108,20 +113,31 @@ class GifFramesAnalyzer(Analyzer):
 
         artifacts = [{"name": str(f.relative_to(ctx.workdir)), "path": str(f),
                       "size": f.stat().st_size} for f in sorted(outdir.glob("*.png"))]
-        # analyse every frame as a normal child (bit-planes, zsteg, channel-remap,
-        # image-enhance, OCR): a flag can be drawn or hidden in a single frame.
-        # Above MAX_NODES, sample evenly plus the most-changed frames.
-        if len(frames) <= MAX_NODES:
-            exported = list(frames)
-        else:
-            step = len(frames) / MAX_NODES
-            keep = sorted({int(i * step) for i in range(MAX_NODES)}
-                          | {i for _, i in sorted(diffs, reverse=True)[:10]})
-            exported = [frames[i] for i in keep if 0 <= i < len(frames)]
         return ToolResult(self.name, status="done",
                           summary=f"{len(frames)} frame, {len(exported)} analysed",
                           output="\n".join(lines), artifacts=artifacts,
                           extracted=[str(f) for f in exported])
+
+
+    @staticmethod
+    def _pick_exported(frames: list[Path], diffs: list[tuple[float, int]]) -> list[Path]:
+        """Frames analysed as normal children (bit-planes, zsteg, channel-remap,
+        image-enhance, OCR): a flag can be drawn or hidden in a single frame.
+        Distinct frames only; above MAX_NODES, an even sample plus the
+        most-changed frames."""
+        seen: set[str] = set()
+        distinct: list[int] = []
+        for i, f in enumerate(frames):
+            h = hashlib.sha1(f.read_bytes()).hexdigest()
+            if h not in seen:
+                seen.add(h)
+                distinct.append(i)
+        if len(distinct) > MAX_NODES:
+            step = len(distinct) / MAX_NODES
+            keep = {distinct[int(k * step)] for k in range(MAX_NODES)}
+            keep |= {i for _, i in sorted(diffs, reverse=True)[:10]}
+            distinct = sorted(keep)
+        return [frames[i] for i in distinct]
 
 
 register(GifFramesAnalyzer())
