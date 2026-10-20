@@ -232,3 +232,21 @@ def test_guid_in_braces_is_not_a_flag_unless_known_prefix() -> None:
     out = _hunt_values("fp-guid", r"Interface \Device\NPF_{EE54A6A6-8BD8-498A-995A-DE0B78012FBE} "
                        "and flag{EE54A6A6-8BD8-498A-995A-DE0B78012FBE}", "exiftool:x.pcapng")
     assert out == {"flag{EE54A6A6-8BD8-498A-995A-DE0B78012FBE}"}
+
+
+def test_hunt_without_autoflush_still_drops_fragments() -> None:
+    # pending (unflushed) findings must be replaced too: `CTF{x_y_z}` seen first,
+    # then `picoCTF{x_y_z}` in the same text -> only the long one is stored
+    from sqlmodel import Session, select
+
+    from backend.db import engine, init_db
+    from backend.flaghunt import hunt
+    from backend.models import Finding, Project
+    init_db()
+    with Session(engine) as s:
+        s.add(Project(id="fp-noflush", name="x", status="running"))
+        s.commit()
+        hunt(s, "fp-noflush", None, "CTF{x_y_z} and later picoCTF{x_y_z}", "strings:a")
+        s.commit()
+        vals = {f.value for f in s.exec(select(Finding).where(Finding.project_id == "fp-noflush"))}
+    assert vals == {"picoCTF{x_y_z}"}

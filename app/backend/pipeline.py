@@ -25,7 +25,7 @@ from .crackflow import _auto_crack
 from .ctfs import update_solved
 from .db import engine
 from .events import emit as _emit, event as _event, now as _now
-from .flaghunt import _hunt
+from .flaghunt import hunt
 from .models import Artifact, FileNode, Finding, Project, ToolRun
 from .planner import _HEAVY_SEM, _HEAVY_TOOLS, _detect_ext, _plan_for
 from .tree import _store_extracted
@@ -122,8 +122,11 @@ def record_run(session: Session, pid: str, node: FileNode, tool_name: str,
         session.add(Artifact(project_id=pid, run_id=run.id, file_id=node.id,
                              name=str(art.get("name", p.name)),
                              path=rel_art, size=int(art.get("size", 0))))
+    # end the write transaction before the (slow) flag hunt: other projects
+    # run in parallel and SQLite has a single writer
+    session.commit()
     if result.output:
-        _hunt(session, pid, node.id, result.output, f"{tool_name}:{node.name}")
+        hunt(session, pid, node.id, result.output, f"{tool_name}:{node.name}")
     if result.needs_password:
         note_val = f"password required: {node.name}"
         exists = session.exec(select(Finding).where(Finding.project_id == pid)
@@ -181,7 +184,8 @@ def _run(pid: str, job: Job) -> None:
             # hunt the raw file content too (catches UTF-16 flags, inline encodings…)
             try:
                 raw = abs_path.read_bytes()[:5_000_000]
-                _hunt(session, pid, node.id, raw.decode("latin-1", "replace"), f"raw:{node.name}")
+                hunt(session, pid, node.id, raw.decode("latin-1", "replace"), f"raw:{node.name}")
+                session.commit()
             except OSError:
                 pass
 

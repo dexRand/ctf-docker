@@ -71,6 +71,13 @@ def _snippet(view: bytes, start: int, end: int, width: int = 80) -> str:
 
 
 
+def hunt(session: Session, project_id: str, file_id: int | None, text: str, source: str) -> None:
+    """Flag hunt without holding SQLite's write lock while scanning: pending
+    findings are only flushed by the caller's commit (one short write)."""
+    with session.no_autoflush:
+        _hunt(session, project_id, file_id, text, source)
+
+
 def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
           source: str, depth: int = 0) -> None:
     if not text:
@@ -102,6 +109,20 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
     # a substring of a flag must never be deleted as a "shorter fragment"
     flag_q = select(Finding).where(Finding.project_id == project_id).where(Finding.kind == "flag")
     existing = {f.value for f in session.exec(flag_q).all()}
+    pending: dict[str, Finding] = {}   # added by this hunt, not flushed yet
+
+    def drop(value: str) -> None:
+        """Remove a stored or pending flag (pending ones are invisible to queries)."""
+        if value in pending:
+            session.expunge(pending.pop(value))
+            return
+        old = session.exec(flag_q.where(Finding.value == value)).first()
+        if old:
+            session.delete(old)
+
+    def keep(f: Finding) -> None:
+        pending[f.value] = f
+        session.add(f)
     existing_norm = {v.replace(" ", "") for v in existing}
     canon_index = {_canon_flag(v): v for v in existing}
     head = source.split(":", 1)[0]
@@ -123,9 +144,7 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         prev = canon_index.get(canon)
         if prev is not None and prev != value:
             if _is_known_prefix(value) and not _is_known_prefix(prev):
-                old = session.exec(flag_q.where(Finding.value == prev)).first()
-                if old:
-                    session.delete(old)
+                drop(prev)
                 existing.discard(prev)
                 existing_norm.discard(prev.replace(" ", ""))
                 canon_index.pop(canon, None)
@@ -137,17 +156,15 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         # and remove shorter fragments already stored in favour of this one
         for ex in list(existing):
             if ex != value and ex in value:
-                old = session.exec(flag_q.where(Finding.value == ex)).first()
-                if old:
-                    session.delete(old)
+                drop(ex)
                 existing.discard(ex)
                 existing_norm.discard(ex.replace(" ", ""))
                 canon_index.pop(_canon_flag(ex), None)
         existing.add(value)
         existing_norm.add(norm)
         canon_index[canon] = value
-        session.add(Finding(project_id=project_id, file_id=file_id, kind="flag",
-                            value=value, source=src, context=ctx))
+        keep(Finding(project_id=project_id, file_id=file_id, kind="flag",
+                     value=value, source=src, context=ctx))
 
     def add_raw(value: str, src: str, ctx: str = "") -> None:
         # for a user-provided FLAG_PATTERN: no brace heuristics, just dedupe
@@ -159,8 +176,8 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         existing.add(value)
         existing_norm.add(norm)
         canon_index[_canon_flag(value)] = value
-        session.add(Finding(project_id=project_id, file_id=file_id, kind="flag",
-                            value=value, source=src, context=ctx))
+        keep(Finding(project_id=project_id, file_id=file_id, kind="flag",
+                     value=value, source=src, context=ctx))
 
     def scan(view: bytes, with_generic: bool) -> None:
         for val, s, e in custom_flag_matches(view):
