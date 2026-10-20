@@ -14,7 +14,7 @@ import re
 from sqlmodel import Session, select
 
 from . import flagpatterns as fp
-from .flagpatterns import (_FUZZY_RE, _GENERIC_RE, _STRICT_RE, FUZZY_SOURCES, GENERIC_NOISY,
+from .flagpatterns import (_FUZZY_RE, _GENERIC_RE, _STRICT_GLUED_RE, _STRICT_RE, FUZZY_SOURCES, GENERIC_NOISY,
                            VISION_SOURCES, _canon_flag, _is_known_prefix, _ok_flag,
                            _rot13_candidates, _url_decoded)
 from .ctfs import format_regex, project_format
@@ -207,7 +207,7 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
                 else:
                     add_raw(val, f"custom:{source}", _snippet(view, m.start(), m.end()),
                             _lit(view, m.start(), m.end()))
-        for pat in _STRICT_RE:
+        for pat in (_STRICT_RE if with_generic else _STRICT_GLUED_RE):
             for m in pat.finditer(view):
                 add(m.group(0).decode("latin-1", "replace"), source,
                     _snippet(view, m.start(), m.end()), _lit(view, m.start(), m.end()))

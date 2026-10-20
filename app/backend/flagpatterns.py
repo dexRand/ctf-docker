@@ -20,6 +20,11 @@ FLAG_PREFIXES = ("picoCTF", "ITS", "flag", "CTF", "HTB", "DUCTF", "ictf", "tjctf
 STRICT_PATTERNS = [_LB + p + r"\{[^}\n]{1,200}\}" for p in FLAG_PREFIXES]
 GENERIC_PATTERNS = [_LB + r"[0-9A-Za-z_]{2,32}\{[A-Za-z0-9_\-!?.,:;@#$%^&*+=/ ]{1,120}\}"]
 _STRICT_RE = [re.compile(p.encode(), re.IGNORECASE) for p in STRICT_PATTERNS]
+# for the whitespace-collapsed view: collapsing glues the previous word to the
+# prefix ("svg+xml p i c o C T F {" -> "xmlpicoCTF{"), so no look-behind there;
+# a shorter twin (CTF{…} inside picoCTF{…}) is dropped by the fragment dedupe
+_STRICT_GLUED_RE = [re.compile((p + r"\{[^}\n]{1,200}\}").encode(), re.IGNORECASE)
+                    for p in FLAG_PREFIXES]
 _GENERIC_RE = [re.compile(p.encode(), re.IGNORECASE) for p in GENERIC_PATTERNS]
 # sources where the generic "<word>{...}" pattern is skipped (noisy OCR / raw bytes)
 VISION_SOURCES = ("ocr", "bit-planes", "channel-remap", "image-enhance",

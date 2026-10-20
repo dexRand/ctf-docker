@@ -68,6 +68,8 @@ EXTRA += [
      "DUCTF{D0n7_Us3_P4s5w0rds_1n_Gr0up_P0l1cy}"),
     # TJCTF 2024 pals: palette entries with the same colour hide the text
     ("pals.png", f"{TJ24}/pals/pals.png", "tjctf{not_very_palatable_9623c1c9}"),
+    # ImaginaryCTF 2024 packed: Packet Tracer .pkz (zip) with the flag in an image (OCR)
+    ("routed.pkz", f"{IC24}/packed/routed.pkz", "ictf{ab4697882634d4aeb6f21141ea2724d0}"),
 ]
 
 # Known gaps: techniques not implemented yet (backlog, see tasks/plan-refactor.md)
@@ -99,7 +101,6 @@ GAPS = [
      "ictf{1_sl33py_NaYuKi_alarm_2a634dc1bb2}"),                                        # ASK demod
     ("elves.bmp", f"{IC24}/elf in front of a sunset/togive/elves.bmp",
      "ictf{elf_waifus_best_waifus_2h12lntka}"),                                         # BMP height + ELF
-    ("routed.pkz", f"{IC24}/packed/routed.pkz", "ictf{ab4697882634d4aeb6f21141ea2724d0}"),  # pkz + OCR
     ("EBE.pcap", f"{LA}/2023/misc/ebe/EBE.pcap",
      "lactf{3V1L_817_3xf1l7R4710N_4_7H3_W1N_51D43c8000034d0c}"),                        # evil-bit filter
     ("warning.wav", f"{UI23}/misc/tornado_warning/warning.wav",

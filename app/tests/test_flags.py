@@ -250,3 +250,9 @@ def test_hunt_without_autoflush_still_drops_fragments() -> None:
         s.commit()
         vals = {f.value for f in s.exec(select(Finding).where(Finding.project_id == "fp-noflush"))}
     assert vals == {"picoCTF{x_y_z}"}
+
+
+def test_collapsed_view_finds_a_spaced_flag_glued_to_a_word() -> None:
+    out = _hunt_values("fp-glued", "[text] image/svg+xml p i c o C T F { 3 n h 4 n c 3 d _ a a b 7 2 9 d d }",
+                       "markup-text:drawing.flag.svg")
+    assert out == {"picoCTF{3nh4nc3d_aab729dd}"}
