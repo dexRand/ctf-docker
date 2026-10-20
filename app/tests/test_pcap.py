@@ -146,3 +146,17 @@ def test_base64_tokens_one_per_packet_are_joined_in_time_order():
     from backend.analyzers.pcap import _b64_per_packet
     timed = [(3.0, b"fQ=="), (1.0, b"cGljb0NURg=="), (2.0, b"ezF0X3c0cw=="), (0.5, b"J4auZMY=")]
     assert _b64_per_packet(timed) == "picoCTF{1t_w4s}"
+
+
+def test_text_hidden_in_source_ports(monkeypatch, tmp_path):
+    import subprocess
+
+    from backend.analyzers import pcap
+    from backend.analyzers.base import ToolContext
+    msg = "picoCTF{p0rts}"
+    rows = "\n".join(f"{5000 + ord(c)}\t22\t\t" for c in msg) + "\n" + "\n".join("53000\t53\t\t" for _ in range(9))
+    ctx = ToolContext(input=tmp_path / "x.pcap", workdir=tmp_path / "w")
+    monkeypatch.setattr(ctx, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, rows, ""))
+    out = pcap._port_text(ctx)
+    assert any("picoCTF{p0rts}" in o for o in out)
+    assert not any("dst 53" in o for o in out)        # a constant port is not data

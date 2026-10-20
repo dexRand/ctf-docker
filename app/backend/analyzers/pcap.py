@@ -196,7 +196,32 @@ def _streams_text(ctx: ToolContext, tls: list[str]) -> str:
     tokens = _b64_per_packet(timed)
     if tokens:
         out.append(f"[base64 per packet, time order] {tokens}")
+    out += _port_text(ctx)
     return "\n".join(out)
+
+
+def _port_text(ctx: ToolContext) -> list[str]:
+    """Data hidden in UDP/TCP source ports (port = base + ASCII code, picoCTF
+    "shark on wire 2"): per destination port, ports minus their base as text."""
+    proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields", "-E", "separator=\t",
+                    "-e", "udp.srcport", "-e", "udp.dstport", "-e", "tcp.srcport", "-e", "tcp.dstport"],
+                   timeout=180)
+    by_dst: dict[str, list[int]] = {}
+    for line in (proc.stdout or "").splitlines():
+        cols = (line.split("\t") + ["", "", "", ""])[:4]
+        for src, dst in ((cols[0], cols[1]), (cols[2], cols[3])):
+            if src.isdigit() and dst.isdigit():
+                by_dst.setdefault(dst, []).append(int(src))
+    out = []
+    for dst, ports in by_dst.items():
+        if len(ports) < 8:
+            continue
+        base = min(ports) // 1000 * 1000
+        vals = [p - base for p in ports]
+        text = "".join(chr(v) for v in vals if 32 <= v < 127)
+        if len(text) >= 8 and len(text) >= 0.8 * len(vals) and len(set(text)) > 3:
+            out.append(f"[source ports - {base} -> dst {dst}] {text}")
+    return out
 
 
 def _b64_per_packet(timed: list[tuple[float, bytes]]) -> str:

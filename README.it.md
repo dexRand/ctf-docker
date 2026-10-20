@@ -176,7 +176,7 @@ build più nuove e `--write` le aggiorna. Tre immagini sono costruite in locale:
 | Stego su immagini | `zsteg`, `lsb-carve`, `psimage`, `steghide`, `outguess`, `jsteg`, `openstego`, `png-chunks`, `png-pixels`, `bit-planes`, `channel-remap`, `image-enhance` |
 | Vision | `ocr` (tesseract, EN + fallback IT), `qr`, `gif-frames` (frame, differenze, bit nei ritardi) |
 | Audio / radio | `spectrogram`, `waveform`, `wav-lsb`, `wav-levels`, `morse`, `dtmf`, `sstv` (Scottie S1/S2) |
-| Rete | `pcap` (protocolli, campi HTTP/DNS, commenti, flussi UDP/TCP ricomposti, base64 spezzato un token per pacchetto, tunnel DNS, oggetti HTTP, TLS con chiave o keylog TLS 1.3, HTTP/2) |
+| Rete | `pcap` (protocolli, campi HTTP/DNS, commenti, flussi UDP/TCP ricomposti, base64 spezzato un token per pacchetto, testo nelle porte sorgente, tunnel DNS, oggetti HTTP, TLS con chiave o keylog TLS 1.3, HTTP/2) |
 | Archivi e documenti | `7z`, `nested-archive`, `binwalk` (scan/estrazione), `foremost`, `office` (OOXML/ODF + macro), `eml`, `git` (storia, reflog, tutti gli oggetti) |
 | Windows | `evtx` (log eventi come testo, pezzi base64 riuniti nella flag), `cpassword` GPP decifrata (in `markup-text`) |
 | Riparazione | `pngcheck`, `png-repair`, `image-repair` (header JPEG/BMP/GIF, prefisso spazzatura) |

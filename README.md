@@ -175,7 +175,7 @@ sandbox (`rev/Dockerfile`).
 | Image stego | `zsteg`, `lsb-carve`, `psimage`, `steghide`, `outguess`, `jsteg`, `openstego`, `png-chunks`, `png-pixels`, `bit-planes`, `channel-remap`, `image-enhance` |
 | Vision | `ocr` (tesseract, EN + IT fallback), `qr`, `gif-frames` (frames, diffs, delay bits) |
 | Audio / radio | `spectrogram`, `waveform`, `wav-lsb`, `wav-levels`, `morse`, `dtmf`, `sstv` (Scottie S1/S2) |
-| Network | `pcap` (protocols, HTTP/DNS fields, comments, reassembled UDP/TCP streams, base64 split one token per packet, DNS tunnels, HTTP objects, TLS with a key or a TLS 1.3 keylog, HTTP/2) |
+| Network | `pcap` (protocols, HTTP/DNS fields, comments, reassembled UDP/TCP streams, base64 split one token per packet, text in source ports, DNS tunnels, HTTP objects, TLS with a key or a TLS 1.3 keylog, HTTP/2) |
 | Archives & documents | `7z`, `nested-archive`, `binwalk` (scan/extract), `foremost`, `office` (OOXML/ODF + macros), `eml`, `git` (history, reflog, every object) |
 | Windows | `evtx` (event logs as text, base64 pieces joined into the flag), GPP `cpassword` decrypted (in `markup-text`) |
 | Repair | `pngcheck`, `png-repair`, `image-repair` (JPEG/BMP/GIF headers, junk prefix) |
