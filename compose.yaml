@@ -393,7 +393,7 @@ services:
   # GUI di emulazione: inoltra la porta 19020 (localhost) al web server dentro
   # `rev`. Stesso schema del terminale — il sandbox resta senza egress.
   rev-web-proxy:
-    image: alpine/socat:latest
+    image: alpine/socat:latest@sha256:22d77becaeeea8ef56b8c4bb2312323acafe85354be6a85714ff5050e3537842
     restart: unless-stopped
     mem_limit: 64m
     cpus: 0.5
@@ -401,7 +401,7 @@ services:
     depends_on: [rev]
     command: ["TCP-LISTEN:8080,fork,reuseaddr", "TCP:rev:8080"]
     ports:
-      - "127.0.0.1:${REV_WEB_PORT:-19020}:8080"
+      - "${BIND_ADDR:-127.0.0.1}:${REV_WEB_PORT:-19020}:8080"
     profiles: [rev]
     networks: [ctfnet, revnet]
 

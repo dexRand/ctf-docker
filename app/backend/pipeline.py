@@ -28,7 +28,7 @@ from .events import emit as _emit, event as _event, now as _now
 from .flaghunt import hunt
 from .models import Artifact, FileNode, Finding, Project, ToolRun
 from .planner import (_HEAVY_SEM, _HEAVY_TOOLS, _detect_ext, _plan_for,
-                      origin_tool, STEG_DECODERS)
+                      origin_tool, unreliable_lock)
 from .tree import _store_extracted
 
 if TYPE_CHECKING:  # jobs imports this module: type-only import
@@ -104,12 +104,8 @@ def record_run(session: Session, pid: str, node: FileNode, tool_name: str,
         op = out_dir / f"{tool_name}.out"
         op.write_text(content, errors="replace")
         rel_out = str(op.relative_to(work))
-    # steghide/outguess cannot tell "no payload" from "wrong passphrase"; on a
-    # node a stego decoder just produced, that "needs password" is a false
-    # positive — don't mark it locked (it would also waste the auto-crack budget).
-    unreliable = (tool_name in ("steghide", "outguess")
-                  and origin_tool(node.origin) in STEG_DECODERS)
-    needs = result.needs_password and not unreliable
+    # a false "needs password" would also waste the auto-crack budget
+    needs = result.needs_password and not unreliable_lock(tool_name, node.origin)
     run = ToolRun(project_id=pid, file_id=node.id, tool=tool_name,
                   status=result.status, needs_password=needs,
                   exit_code=result.exit_code, summary=result.summary[:500],
@@ -210,7 +206,7 @@ def _run(pid: str, job: Job) -> None:
             plan_name = node.name
             if detected and not node.name.lower().endswith(detected):
                 plan_name = node.name + detected
-            made_by = node.origin.split(":")[1] if node.origin.startswith("extracted:") and node.origin.count(":") >= 2 else ""
+            made_by = origin_tool(node.origin)
             plan = _plan_for(plan_name, node.mime, is_text, made_by)
 
             for wave in _waves([t for t in plan if t != "file"]):

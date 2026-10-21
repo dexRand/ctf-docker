@@ -73,8 +73,15 @@ IMG_DECODERS = {"zsteg", "bit-planes", "png-pixels", "lsb-carve", "channel-remap
 
 def origin_tool(origin: str) -> str:
     """Tool that extracted a node ('extracted:<tool>:<parent>' -> '<tool>')."""
-    parts = (origin or "").split(":")
+    origin = origin or ""
+    parts = origin.split(":")
     return parts[1] if origin.startswith("extracted:") and len(parts) >= 3 else ""
+
+
+def unreliable_lock(tool: str, origin: str) -> bool:
+    """steghide/outguess can't tell "no payload" from "wrong passphrase": on a
+    node a stego decoder produced, their "needs password" is a false positive."""
+    return tool in ("steghide", "outguess") and origin_tool(origin) in STEG_DECODERS
 
 
 def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "") -> list[str]:
