@@ -44,6 +44,11 @@
         href: http://localhost:{{HOMEPAGE_VAR_REV_WEB_PORT}}
         description: Workbench rev — emulate (Unicorn) · brute del 1° argomento · report di primo passaggio (Ghidra/checksec/stringhe) — profilo rev
         container: ctf-rev-web-proxy-1
+    - Shell (terminale):
+        icon: mdi-console
+        href: http://localhost:{{HOMEPAGE_VAR_SHELL_PORT}}
+        description: Terminale puro con pane e tab (zellij) e tutti i tool del sandbox rev — Alt+n split, Alt+t tab, sessione persistente — profilo rev
+        container: ctf-shell-1
 
 - Recon (OSINT):
     - SpiderFoot:

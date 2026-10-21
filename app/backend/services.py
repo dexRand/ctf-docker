@@ -37,6 +37,8 @@ SERVICES = [
      "REV_PORT", 19018, "/", "rev-proxy:7681"),
     ("rev-web", "rev workbench", "browser workbench: auto report, Unicorn emulation, brute", "rev",
      "REV_WEB_PORT", 19020, "/", "rev-web-proxy:8080"),
+    ("shell", "shell", "pure terminal with panes/tabs (zellij), every sandbox tool", "rev",
+     "SHELL_PORT", 19021, "/", "shell:7681"),
 ]
 
 

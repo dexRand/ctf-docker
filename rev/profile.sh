@@ -1,5 +1,9 @@
 # rev sandbox: banner + scorciatoie per l'analisi sfida (ELF / PE / APK).
-# Copiato in /etc/profile.d/rev.sh (sorgente per le login shell di ttyd).
+# Sorgente sia da /etc/profile.d (login shell) sia da ~/.bashrc, cosi' vale
+# anche nelle pane di zellij (non-login): il guard evita il doppio banner.
+[ -n "${REV_PROFILE_LOADED:-}" ] && return 0
+REV_PROFILE_LOADED=1
+export REV_PROFILE_LOADED
 
 menu() {
   cat <<'EOF'
@@ -26,8 +30,10 @@ menu() {
   qemu-x86_64 BIN   qemu-aarch64 BIN   qemu-riscv64 BIN
   python3                  pwntools + unicorn + capstone + z3 gia' importabili
   menu | help-rev          rimostra questo aiuto
-============================================================
 EOF
+  [ -n "${REV_MUX:-}" ] && printf '%s\n' \
+    '  Terminale: Alt+n split · Alt+t nuova tab · Alt+frecce focus · Ctrl+o sessioni'
+  echo '============================================================'
 }
 
 # scorciatoie
@@ -41,7 +47,12 @@ sym()  { angr-run "$@"; }
 help-rev() { menu; }
 alias rev-help='menu'
 
-# mostra il menu all'apertura di una shell interattiva
+# all'apertura: menu completo nel terminale semplice, banner compatto in zellij
 case "$-" in
-  *i*) menu ;;
+  *i*)
+    if [ -n "${REV_MUX:-}" ]; then
+      printf '\033[38;5;79mrev sandbox\033[0m · ELF/PE/APK · isolata · \033[2mAlt+n\033[0m split · \033[2mAlt+t\033[0m tab · \033[2mmenu\033[0m tool\n'
+    else
+      menu
+    fi ;;
 esac

@@ -408,3 +408,6 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 - [x] Rev workbench registrato in `ctf` SERVICES, `app/backend/services.py` e
       Homepage (`HOMEPAGE_VAR_REV_WEB_PORT`); `check_consistency` 0 problemi.
 - [ ] Regressione `./ctf test` dopo il merge e push (chiedere prima).
+- [x] `shell` (`:19021`): terminale puro con zellij (pane/tab/persistenza) e
+      tutti i tool del sandbox rev; `:19018` resta il terminale con menu.
+      zellij 0.45.1, banner/scorciatoie anche nelle pane non-login, tema della casa.

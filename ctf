@@ -59,6 +59,7 @@ hashtopolis|hashcat|Hashtopolis|HASHTOPOLIS_FRONTEND_PORT|19016|/|crack
 whisper|audio stt|Whisper-WebUI|WHISPER_PORT|19017|/|audio
 rev|elf pe apk|rev sandbox (terminale)|REV_PORT|19018|/|rev
 rev-web|workbench|rev workbench (browser)|REV_WEB_PORT|19020|/|rev
+shell|term|shell (terminale con pane)|SHELL_PORT|19021|/|rev
 osint||OSINT (override osint/)|OSINT_PORT|19050|/|osint
 "
 

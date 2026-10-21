@@ -61,6 +61,7 @@ services:
       HOMEPAGE_VAR_WHISPER_PORT: ${WHISPER_PORT:-19017}
       HOMEPAGE_VAR_REV_PORT: ${REV_PORT:-19018}
       HOMEPAGE_VAR_REV_WEB_PORT: ${REV_WEB_PORT:-19020}
+      HOMEPAGE_VAR_SHELL_PORT: ${SHELL_PORT:-19021}
       HOMEPAGE_VAR_DORK_PORT: ${DORK_PORT:-19019}
 
   # -------------------------------------------------------------- CRYPTO/ENCODING
@@ -345,6 +346,35 @@ services:
     working_dir: /work
     profiles: [rev]
     networks: [revnet]
+
+  # Terminale "puro" del sandbox: stessa immagine di `rev`, solo ttyd + zellij
+  # (Alt+n split, Alt+t tab, sessione persistente) e tutti i tool del container.
+  # Non avvia rev-web. Rete ctfnet (con egress) per il lavoro manuale.
+  shell:
+    <<: *base
+    build:
+      context: ./rev
+      dockerfile: Dockerfile
+    image: ctf-rev
+    mem_limit: 4g
+    cpus: 2
+    pids_limit: 512
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SYS_PTRACE        # gdb/debug di processi figli
+    volumes:
+      - ./data/rev:/work
+    working_dir: /work
+    environment:
+      REV_MUX: zellij
+      REV_WEB_ENABLE: "0"
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${SHELL_PORT:-19021}:7681"
+    profiles: [rev]
+    networks: [ctfnet]
 
   # Unico punto d'accesso al sandbox: inoltra la porta 19018 (localhost) a
   # `rev` sulla rete interna. `rev` NON è pubblicato, quindi non ha egress.

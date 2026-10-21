@@ -160,6 +160,7 @@ create_ctf → add_challenge(start) → project_status … → get_flags
 | Audio | **Whisper-WebUI** | http://localhost:19017 | Trascrizione con timestamp (SRT/VTT) | `audio` |
 | Rev/Pwn | **sandbox rev** | http://localhost:19018 | Terminale web per ELF/PE/APK: Ghidra headless, radare2, gdb, strace/ltrace, upx, apktool, jadx, pwntools, qemu-user · senza internet | `rev` |
 | Rev/Pwn | **rev workbench** | http://localhost:19020 | Workbench da browser: report automatico (`rev-report`), emulazione Unicorn + brute (`emulate`), esecuzione simbolica con angr | `rev` |
+| Rev/Pwn | **shell** | http://localhost:19021 | Terminale puro nel sandbox rev: pane e tab (zellij), tutti i tool (pwntools, gdb, radare2, Ghidra, z3, angr) · `Alt+n` split, `Alt+t` tab | `rev` |
 
 Ogni immagine upstream è fissata per digest (`tag@sha256:…`): una macchina nuova
 esegue esattamente ciò che è stato testato; `python3 tools/pin_images.py` mostra le
@@ -203,6 +204,19 @@ ANSI, anteprime immagine/audio/video, log live (WebSocket), terminale integrato
 
 <p align="center">
   <img src="docs/screenshots/stegsuite-project.png" alt="Un progetto risolto" width="820">
+</p>
+
+## 🐞 Rev sandbox
+
+Tre modi per entrare nella stessa sandbox isolata ELF/PE/APK (profilo `rev`):
+
+- **terminale** (`:19018`) — shell web semplice con il menu dei tool (`menu`), senza internet
+- **shell** (`:19021`) — gli stessi tool in una sessione zellij: `Alt+n` divide un pane, `Alt+t` apre una tab, la sessione sopravvive al reload della pagina
+- **workbench** (`:19020`) — carichi un binario e parte `rev-report`; emuli una funzione con Unicorn (anche brute-force del primo argomento) o la risolvi con angr
+
+<p align="center">
+  <img src="docs/screenshots/shell-zellij.png" alt="Shell con due pane" width="820">
+  <img src="docs/screenshots/rev-workbench.png" alt="Rev workbench" width="820">
 </p>
 
 ## ⌨️ CLI
@@ -310,7 +324,7 @@ app/                  StegSuite: backend/ (FastAPI), frontend/ (Vue 3), tests/, 
   backend/analyzers/  un modulo per analyzer + util.py (funzioni condivise)
   backend/            pipeline, jobs, flaghunt, crackflow, report, ctfs, mcp_server, api/
 config/               dashboard homepage, dork generator, filebrowser, whisper, zap
-rev/                  immagine della sandbox di reversing (ttyd + Ghidra headless + tool) + rev-report/emulate/angr e il workbench web
+rev/                  immagine della sandbox di reversing (ttyd + zellij + Ghidra headless + tool) + rev-report/emulate/angr e il workbench web
 zap/                  immagine ZAP con add-on extra
 tools/                stegsuite_client, scan, check_consistency, dork, photo-geolocate
 osint/                area OSINT separata (override compose, README proprio)
