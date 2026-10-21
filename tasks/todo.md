@@ -412,7 +412,8 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       tutti i tool del sandbox rev; `:19018` resta il terminale con menu.
       zellij 0.45.1, banner/scorciatoie anche nelle pane non-login, tema della casa.
 - [x] **Terminale StegSuite (:19022)**: code-server 4.141.0 nell'immagine StegSuite,
-      tema della suite, AI/chat e git disattivati, hex editor (Open VSX), progetti
+      tema della suite, AI/chat e git disattivati, estensioni Open VSX (hex, asm, smali,
+      solidity, verilog, jinja, toml, proto, pdf, sqlite, csv, icone), progetti
       per data. Profili terminale `stegsuite` (tutti i tool, `cdp`) e `rev`
       (`docker exec` via `term-proxy`: solo GET + exec, `run`/`stop` → Forbidden).
       Su un altro host impostare `DOCKER_GID` in `.env`. Profilo `rev` con rev

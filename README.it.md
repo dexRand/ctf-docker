@@ -147,7 +147,7 @@ create_ctf → add_challenge(start) → project_status … → get_flags
 | --- | --- | --- | --- | --- |
 | Dashboard | Homepage | http://localhost:19001 | Tutti i tool per fase, con stato in tempo reale | core |
 | Analisi | **StegSuite** | http://localhost:19014 | CTF/challenge, 60 analyzer, flag, cracking, report, REST + MCP | core |
-| Analisi | **Terminale** | http://localhost:19022 | VS Code nel browser (code-server, tema della suite) su `./data/projects`: albero file, hex editor, anteprime, terminali `stegsuite` (tutti i tool, `cdp <progetto>`) e `rev` (sandbox) · `` Ctrl+` `` terminale | core |
+| Analisi | **Terminale** | http://localhost:19022 | VS Code nel browser (code-server, tema della suite) su `./data/projects`: albero file, hex editor, viewer PDF/SQLite, sintassi asm/smali/solidity, terminali `stegsuite` (tutti i tool, `cdp <progetto>`) e `rev` (sandbox) · `` Ctrl+` `` terminale | core |
 | Analisi | FileBrowser | http://localhost:19012 | Sfoglia `./data`: progetti, estratti, report | core |
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hash, JWT e molto altro | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercetta e modifica HTTP(S) · proxy su `:19004` | core |

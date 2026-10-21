@@ -81,7 +81,13 @@ RUN case "$(uname -m)" in aarch64|arm64) a=arm64; d=aarch64 ;; *) a=amd64; d=x86
  && curl -fsSL "https://download.docker.com/linux/static/stable/${d}/docker-${DOCKER_CLI_VER}.tgz" \
       | tar -xz -C /usr/local/bin --strip-components=1 docker/docker \
  && chmod +x /usr/local/bin/docker \
- && code-server --install-extension ms-vscode.hexeditor \
+# estensioni (Open VSX): hex editor, sintassi che VS Code non ha di suo
+ # (asm x86, smali, solidity, verilog, jinja, toml, protobuf), viewer
+ # (pdf, sqlite, csv a colori) e icone per tipo di file
+ && for e in ms-vscode.hexeditor 13xforever.language-x86-64-assembly LoyieKing.smalise \
+             JuanBlanco.solidity mshr-h.VerilogHDL wholroyd.jinja tamasfe.even-better-toml \
+             zxh404.vscode-proto3 tomoki1207.pdf qwtel.sqlite-viewer mechatroner.rainbow-csv \
+             PKief.material-icon-theme; do code-server --install-extension "$e" || exit 1; done \
  && code-server --version && docker --version
 COPY app/term/settings.json /root/.local/share/code-server/User/settings.json
 COPY app/term/entry.sh /usr/local/bin/ctf-term

@@ -87,7 +87,10 @@
   },
   "workbench.editorAssociations": {
     "*.bin": "hexEditor.hexedit",
-    "*.dat": "hexEditor.hexedit"
+    "*.dat": "hexEditor.hexedit",
+    "*.db": "sqlite-viewer.view",
+    "*.sqlite": "sqlite-viewer.view",
+    "*.pdf": "pdf.preview"
   },
   "security.workspace.trust.enabled": false,
   "telemetry.telemetryLevel": "off",
@@ -99,5 +102,18 @@
   "git.enabled": false,
   "git.autoRepositoryDetection": false,
   "outline.showVariables": false,
-  "workbench.layoutControl.enabled": false
+  "workbench.layoutControl.enabled": false,
+  "workbench.iconTheme": "material-icon-theme",
+  "files.associations": {
+    "*.out": "log",
+    "*.asm": "asm-intel-x86-generic",
+    "*.s": "asm-intel-x86-generic",
+    "*.S": "asm-intel-x86-generic",
+    "*.smali": "smali",
+    "*.sol": "solidity",
+    "*.j2": "jinja",
+    "*.ps1": "powershell",
+    "*.vbs": "vb",
+    "*.eml": "log"
+  }
 }
