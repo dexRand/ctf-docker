@@ -371,8 +371,8 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 
 ### Backlog
 - [x] CI spostata in `.github/workflows/ci.yml` (compose+consistency, scripts,
-      backend, frontend, e2e). Il push richiede un token con scope `workflow`:
-      finché manca si pusha il resto.
+      backend, frontend, e2e) e pushato tutto su `origin/main` con un token
+      con scope `workflow`.
 - [ ] Fase 6 — RevSuite (auto-triage binari + terminale per progetto) — da approvare.
 - [x] Coda di cracking con N worker (`CRACK_WORKERS`), crack per file, `GET/DELETE /cracks`.
 - [ ] Gap reali: evtx, PNG/BMP corrotti + OCR, SSTV→OCR, porte UDP, evil bit, GPP
@@ -381,7 +381,7 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 ### Prossima sessione (da fare)
 
 - [x] **CI spostata al suo posto**: `git mv ci/ci.yml .github/workflows/ci.yml`
-      (fatto, sovrascritta la vecchia). Resta il push con token scope `workflow`.
+      (fatto, sovrascritta la vecchia) e pushato.
 - [ ] **Coda di crack visuale** nella SPA: elenco job in coda/in corso/finiti per
       file, con stato e progresso (API `crackqueue` già esistente → endpoint + vista).
 - [ ] **Job di nuovo `running`** quando si avvia un crack su un progetto fermo
