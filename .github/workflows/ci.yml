@@ -12,10 +12,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate compose file
+      - name: Validate compose file (all profiles + osint override)
         run: |
           cp .env.example .env
           docker compose config -q
+          docker compose -f compose.yaml -f osint/compose.yaml --profile '*' config -q
+      - name: compose / .env / dashboard / ./ctf in sync
+        run: python3 tools/check_consistency.py
+
+  scripts:
+    name: shell + tools
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck ctf app/tests/ui_smoke.sh
+      - name: dork generator self-test
+        run: python3 tools/dork/test_dork.py
+      - name: tools compile
+        run: python3 -m py_compile tools/scan.py tools/stegsuite_client.py tools/check_consistency.py
 
   backend:
     name: backend (compile + unit tests)
@@ -61,10 +76,12 @@ jobs:
         run: |
           mkdir -p /tmp/ssdata
           docker run -d --name ss -p 19014:19014 -v /tmp/ssdata:/data stegsuite:ci
+          ok=""
           for i in $(seq 1 60); do
-            curl -sf http://localhost:19014/api/v1/health && break
+            curl -sf http://localhost:19014/api/v1/health && { ok=1; break; }
             sleep 2
           done
+          [ -n "$ok" ] || { docker logs ss; exit 1; }
           docker cp app/tests/ctf_regression.py ss:/tmp/ctf_regression.py
           docker cp app/tests/fixtures ss:/tmp/fixtures
           docker exec -e FIXTURES_DIR=/tmp/fixtures ss \
