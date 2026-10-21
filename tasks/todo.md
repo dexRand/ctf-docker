@@ -411,10 +411,11 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 - [x] `shell` (`:19021`): terminale puro con zellij (pane/tab/persistenza) e
       tutti i tool del sandbox rev; `:19018` resta il terminale con menu.
       zellij 0.45.1, banner/scorciatoie anche nelle pane non-login, tema della casa.
-- [x] **Terminale CTF (:19022)**: ttyd + zellij sull'immagine StegSuite, tema SPA,
-      tab `ctf` (tool + `cdp`) e `rev` (`docker exec` via `term-proxy`, che consente
-      solo GET + exec: `run`/`stop` → Forbidden, verificato). Dozzle rimosso.
-      Su un altro host impostare `DOCKER_GID` in `.env`.
-- [ ] Terminale: rifinire i colori delle ribbon inattive di zellij (tema nuovo formato).
+- [x] **Terminale StegSuite (:19022)**: code-server 4.141.0 nell'immagine StegSuite,
+      tema della suite, AI/chat e git disattivati, hex editor (Open VSX), progetti
+      per data. Profili terminale `stegsuite` (tutti i tool, `cdp`) e `rev`
+      (`docker exec` via `term-proxy`: solo GET + exec, `run`/`stop` → Forbidden).
+      Su un altro host impostare `DOCKER_GID` in `.env`. Profilo `rev` con rev
+      acceso non ancora provato.
 - [ ] Prima del push: build StegSuite + `run_unit.sh` + regressione + reali
       (anche per le regole planner di opencode `IMG_DECODERS`/`STEG_DECODERS`).

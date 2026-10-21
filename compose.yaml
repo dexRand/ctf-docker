@@ -197,9 +197,9 @@ services:
     volumes:
       - ./config/dork:/usr/share/nginx/html:ro
 
-  # Terminale CTF: pagina web tutta terminale (ttyd + zellij, tema StegSuite).
-  # Tab `ctf`: stessa immagine di StegSuite (tutti i tool, `cdp <progetto>`);
-  # tab `rev`: `docker exec` nel sandbox rev passando da `term-proxy`.
+  # Terminale StegSuite: code-server (VS Code nel browser, tema della suite) su
+  # ./data/projects. Stessa immagine di StegSuite: il terminale ha tutti i tool
+  # (`cdp <progetto>`); profilo `rev`: `docker exec` nel sandbox via `term-proxy`.
   term:
     <<: *base
     build:
@@ -217,12 +217,12 @@ services:
     volumes:
       - ./data:/data
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:7681/"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3
     ports:
-      - "${BIND_ADDR:-127.0.0.1}:${TERM_PORT:-19022}:7681"
+      - "${BIND_ADDR:-127.0.0.1}:${TERM_PORT:-19022}:8080"
 
   # Socket proxy con allowlist a regex: GET (lista/inspect) + exec, solo da `term`.
   term-proxy:

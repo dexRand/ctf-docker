@@ -68,22 +68,22 @@ RUN python3 -m venv /opt/stegsuite/venv \
 COPY app/backend/ /opt/stegsuite/backend/
 COPY third_party/ /opt/third_party/
 COPY app/term.bashrc /etc/stegsuite/term.bashrc
-# ---- Terminale CTF (:19022, servizio `term`): ttyd + zellij + docker CLI ----
-# Stessa immagine di StegSuite (tutti i tool); la tab `rev` entra nel sandbox
-# con `docker exec` passando da term-proxy (solo exec, niente create/stop).
-ARG TTYD_VER=1.7.7
-ARG ZELLIJ_VER=0.45.1
+# ---- Terminale StegSuite (:19022, servizio `term`): code-server + docker CLI ----
+# VS Code nel browser sulla stessa immagine (tutti i tool nel terminale); il
+# profilo `rev` entra nel sandbox con `docker exec` via term-proxy (solo exec).
+ARG CODE_SERVER_VER=4.141.0
 ARG DOCKER_CLI_VER=27.3.1
-RUN case "$(uname -m)" in aarch64|arm64) a=aarch64 ;; *) a=x86_64 ;; esac \
- && curl -fsSL -o /usr/local/bin/ttyd "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VER}/ttyd.${a}" \
- && curl -fsSL "https://github.com/zellij-org/zellij/releases/download/v${ZELLIJ_VER}/zellij-no-web-${a}-unknown-linux-musl.tar.gz" \
-      | tar -xz -C /usr/local/bin zellij \
- && curl -fsSL "https://download.docker.com/linux/static/stable/${a}/docker-${DOCKER_CLI_VER}.tgz" \
+RUN case "$(uname -m)" in aarch64|arm64) a=arm64; d=aarch64 ;; *) a=amd64; d=x86_64 ;; esac \
+ && mkdir -p /opt/code-server \
+ && curl -fsSL "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VER}/code-server-${CODE_SERVER_VER}-linux-${a}.tar.gz" \
+      | tar -xz -C /opt/code-server --strip-components=1 \
+ && ln -sf /opt/code-server/bin/code-server /usr/local/bin/code-server \
+ && curl -fsSL "https://download.docker.com/linux/static/stable/${d}/docker-${DOCKER_CLI_VER}.tgz" \
       | tar -xz -C /usr/local/bin --strip-components=1 docker/docker \
- && chmod +x /usr/local/bin/ttyd /usr/local/bin/zellij /usr/local/bin/docker \
- && zellij --version && docker --version
-COPY app/term/config.kdl /root/.config/zellij/config.kdl
-COPY app/term/ctf.kdl /root/.config/zellij/layouts/ctf.kdl
+ && chmod +x /usr/local/bin/docker \
+ && code-server --install-extension ms-vscode.hexeditor \
+ && code-server --version && docker --version
+COPY app/term/settings.json /root/.local/share/code-server/User/settings.json
 COPY app/term/entry.sh /usr/local/bin/ctf-term
 COPY app/term/rev-shell.sh /usr/local/bin/ctf-rev-shell
 RUN chmod +x /usr/local/bin/ctf-term /usr/local/bin/ctf-rev-shell
