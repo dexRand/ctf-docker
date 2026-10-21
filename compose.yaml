@@ -63,6 +63,7 @@ services:
       HOMEPAGE_VAR_REV_WEB_PORT: ${REV_WEB_PORT:-19020}
       HOMEPAGE_VAR_SHELL_PORT: ${SHELL_PORT:-19021}
       HOMEPAGE_VAR_DORK_PORT: ${DORK_PORT:-19019}
+      HOMEPAGE_VAR_TERM_PORT: ${TERM_PORT:-19022}
 
   # -------------------------------------------------------------- CRYPTO/ENCODING
   cyberchef:
@@ -196,6 +197,40 @@ services:
     volumes:
       - ./config/dork:/usr/share/nginx/html:ro
 
+  # Terminale: Dozzle (upstream) apre una shell in qualsiasi container del
+  # progetto `ctf` (StegSuite di default per i tool stego/forensics, `rev` per
+  # il reversing). Non vede il socket Docker: passa da `term-proxy`, che
+  # consente solo letture + exec (niente create/stop/rm di container).
+  term:
+    <<: *base
+    image: amir20/dozzle:v8.14.4
+    mem_limit: 128m
+    cpus: 0.5
+    depends_on: [term-proxy]
+    environment:
+      DOZZLE_REMOTE_HOST: tcp://term-proxy:2375|ctf
+      DOZZLE_ENABLE_SHELL: "true"
+      DOZZLE_FILTER: label=com.docker.compose.project=ctf
+      DOZZLE_NO_ANALYTICS: "true"
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${TERM_PORT:-19022}:8080"
+
+  # Socket proxy con allowlist a regex: GET (lista/log/inspect) + exec.
+  term-proxy:
+    <<: *base
+    image: wollomatic/socket-proxy:1.10.0
+    mem_limit: 32m
+    cpus: 0.25
+    command:
+      - "-listenip=0.0.0.0"
+      - "-allowfrom=term"
+      - "-allowGET=.*"
+      - "-allowHEAD=.*"
+      - "-allowPOST=^/v[0-9.]+/(containers/[a-zA-Z0-9_.-]+/exec|exec/[a-f0-9]+/(start|resize))$$"
+      - "-shutdowngracetime=5"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
   # FileBrowser: browse ./data (progetti StegSuite, estratti, wordlist). Solo localhost.
   # FileBrowser Quantum (fork attivo di filebrowser, che è archiviato).
   # Configurato in noauth: accesso libero, nessun login.
@@ -251,6 +286,7 @@ services:
       - MITMWEB_UI_PORT=${MITMWEB_UI_PORT:-19003}
       - ITTOOLS_PORT=${ITTOOLS_PORT:-19011}
       - DORK_PORT=${DORK_PORT:-19019}
+      - TERM_PORT=${TERM_PORT:-19022}
       - ZAP_UI_PORT=${ZAP_UI_PORT:-19005}
       - SPIDERFOOT_PORT=${SPIDERFOOT_PORT:-19007}
       - WIRESHARK_HTTP_PORT=${WIRESHARK_HTTP_PORT:-19008}

@@ -146,6 +146,7 @@ create_ctf → add_challenge(start) → project_status … → get_flags
 | --- | --- | --- | --- | --- |
 | Dashboard | Homepage | http://localhost:19001 | Every tool, grouped by phase, with live status | core |
 | Analysis | **StegSuite** | http://localhost:19014 | CTFs/challenges, 60 analyzers, flag hunt, cracking, reports, REST + MCP | core |
+| Analysis | **Terminal** | http://localhost:19022 | Dozzle: open a shell in StegSuite (stego/forensics tools, `cdp <project>`) or in `rev`; live logs too | core |
 | Analysis | FileBrowser | http://localhost:19012 | Browse `./data`: projects, extracted files, reports | core |
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashes, JWT and much more | core |
 | Web | **mitmproxy** | http://localhost:19003 | Intercept and rewrite HTTP(S) · proxy on `:19004` | core |

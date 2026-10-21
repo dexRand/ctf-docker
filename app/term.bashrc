@@ -17,3 +17,12 @@ alias la='ls -A --color=auto'
 alias l='ls -CF --color=auto'
 alias grep='grep --color=auto'
 alias please='sudo'
+
+# cdp [prefix]: go to a StegSuite project (latest one without arguments)
+cdp() {
+  local root="${DATA_DIR:-/data}/projects" d
+  d=$(ls -1d "$root"/"${1:-}"* 2>/dev/null | sort | tail -n 1)
+  if [ -n "$d" ]; then cd "$d" || return; else echo "no project matching '${1:-}' in $root"; ls -1t "$root" 2>/dev/null | head; fi
+}
+_cdp() { COMPREPLY=($(compgen -W "$(ls -1 "${DATA_DIR:-/data}/projects" 2>/dev/null)" -- "${COMP_WORDS[1]}")); }
+complete -F _cdp cdp

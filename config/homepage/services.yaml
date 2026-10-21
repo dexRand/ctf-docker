@@ -17,6 +17,11 @@
         href: http://localhost:{{HOMEPAGE_VAR_STEGSUITE_PORT}}
         description: Analisi ricorsiva Auto/Check con GUI (albero file, tool, vision/OCR, terminale, grafo) e API REST
         container: ctf-stegsuite-1
+    - Terminale:
+        icon: mdi-console-line
+        href: http://localhost:{{HOMEPAGE_VAR_TERM_PORT}}
+        description: Shell nei container (Dozzle) — StegSuite per stego/forensics (cdp <progetto>), rev per il reversing; anche log live
+        container: ctf-term-1
     - FileBrowser:
         icon: mdi-file-tree
         href: http://localhost:{{HOMEPAGE_VAR_FILEBROWSER_PORT}}

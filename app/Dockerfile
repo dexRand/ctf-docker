@@ -68,6 +68,8 @@ RUN python3 -m venv /opt/stegsuite/venv \
 COPY app/backend/ /opt/stegsuite/backend/
 COPY third_party/ /opt/third_party/
 COPY app/term.bashrc /etc/stegsuite/term.bashrc
+# same prompt/aliases/cdp in shells opened with docker exec (Terminale, :19022)
+RUN echo '[ -f /etc/stegsuite/term.bashrc ] && . /etc/stegsuite/term.bashrc' >> /etc/bash.bashrc
 # replace the placeholder SPA with the built Vue app
 RUN rm -rf /opt/stegsuite/backend/static
 COPY --from=frontend /fe/dist /opt/stegsuite/backend/static
