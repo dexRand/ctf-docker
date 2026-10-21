@@ -395,3 +395,15 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       Matryoshka FAIL, got=[] — prima passava: probabile effetto di
       `perf(planner): don't carve again what a carver cut out` sui file annidati).
       Log: scratchpad `gate10.log`.
+
+### Sessione merge (21 ott 2026)
+
+- [x] Merge del lavoro di Claudione (`origin/main`, 58 commit: split
+      planner/pipeline/crackflow, 60 analyzer, MCP, CI) con il nostro
+      rev workbench (14 commit locali). Backup: branch `backup/local-20261021`.
+- [x] Riportati nei nuovi moduli i due fix stego: niente decoder-su-decoder,
+      niente carving su output di decoder, `needs_password` di steghide/outguess
+      su nodi decodificati ignorato (pipeline + `locked_files`).
+- [x] Rev workbench registrato in `ctf` SERVICES, `app/backend/services.py` e
+      Homepage (`HOMEPAGE_VAR_REV_WEB_PORT`); `check_consistency` 0 problemi.
+- [ ] Regressione `./ctf test` dopo il merge e push (chiedere prima).
