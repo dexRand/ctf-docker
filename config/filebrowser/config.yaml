@@ -1,8 +1,10 @@
 # FileBrowser Quantum — accesso libero (nessun login) sui report del triage.
 # https://filebrowserquantum.com/
-server:
+# Schema v2 (Quantum v2.x: la porta e baseURL stanno sotto `http:`).
+http:
   port: 80
   baseURL: "/"
+server:
   cacheDir: "/home/filebrowser/data/tmp"
   sources:
     - path: "/srv"
