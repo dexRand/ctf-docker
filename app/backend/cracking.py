@@ -299,8 +299,19 @@ def _crack_zip(path: Path, wls: list[Path], log, rules_file: Optional[Path] = No
 
 
 def _crack_zip_fcrackzip(path: Path, wl: Path, log, deadline: Optional[float]) -> Optional[str]:
-    r = _run(["fcrackzip", "-u", "-D", "-p", str(wl), str(path)],
-             timeout=_tool_timeout(deadline), log=log)
+    # fcrackzip keeps only ~40 chars of the -p argument: a project path like
+    # /data/projects/<id>/crack-context.txt is cut and silently never read.
+    tmp = _scratch("fcrackzip")
+    try:
+        short = tmp / "w"
+        try:
+            short.symlink_to(wl.resolve())
+        except OSError:
+            shutil.copyfile(wl, short)
+        r = _run(["fcrackzip", "-u", "-D", "-p", str(short), str(path)],
+                 timeout=_tool_timeout(deadline), log=log)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     m = re.search(r"pw\s*==\s*(\S+)", r.stdout)
     return m.group(1) if m else None
 

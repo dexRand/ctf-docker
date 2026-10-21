@@ -208,6 +208,10 @@ def test_carved_files_are_not_carved_again():
     assert not {"binwalk-scan", "binwalk-extract", "foremost"} & set(carved)
     assert set(from_archive) == set(up)
     assert "strings" in carved and "7z" in _plan_for("x.zip", None, False, made_by="foremost")
+    # binwalk: raw `<hex offset>` pieces are not carved again, decompressed members are
+    carvers = {"binwalk-scan", "binwalk-extract", "foremost"}
+    assert not carvers & set(_plan_for("29A4.zip", None, False, made_by="binwalk-extract"))
+    assert carvers <= set(_plan_for("2_c.jpg", "image/jpeg", False, made_by="binwalk-extract"))
 
 
 def test_no_foremost_on_captures():

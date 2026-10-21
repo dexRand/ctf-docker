@@ -391,7 +391,7 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       (extra, regressione fixture, 35 reali, `verify_flags.py`) e confrontare
       con `real-extra8.json`. Unit test: 239 verdi.
 - [ ] Fase 6 (RevSuite / rev auto-finder) ancora da approvare.
-- [ ] **Gate10 (finito dopo il push) — 2 regressioni da sistemare**: extra 17/18
+- [x] **Gate10 — 2 regressioni sistemate (gate12: extra 18/18, fixture 33/33, reali 35/35, ALL CORRECT)**: extra 17/18
       (`nothing.png` FAIL, got=[]), fixture 33/33, reali 34/35 (`dolls.jpg` /
       Matryoshka FAIL, got=[] — prima passava: probabile effetto di
       `perf(planner): don't carve again what a carver cut out` sui file annidati).

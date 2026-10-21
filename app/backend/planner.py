@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import threading
 
 from .analyzers import get as get_tool
@@ -84,6 +85,19 @@ def unreliable_lock(tool: str, origin: str) -> bool:
     return tool in ("steghide", "outguess") and origin_tool(origin) in STEG_DECODERS
 
 
+_HEX_PIECE = re.compile(r"[0-9A-Fa-f]+(\.[A-Za-z0-9]+)?")
+
+
+def _raw_carve(name: str, made_by: str) -> bool:
+    """A byte range cut out of its parent (foremost, or binwalk's `<hex offset>.ext`
+    pieces): whatever it contains was in the parent too, already carved. Files
+    binwalk *decompressed* from an archive keep their member name and are new
+    content (Matryoshka dolls: image -> zip -> image -> zip ...): carve those."""
+    if made_by == "foremost":
+        return True
+    return made_by in CARVERS and bool(_HEX_PIECE.fullmatch(name))
+
+
 def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "") -> list[str]:
     """Analyzers for one file, in plan order. `made_by` is the tool that
     extracted it ('' for uploads)."""
@@ -96,7 +110,7 @@ def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "") -> 
             continue
         if tool in BINARY_ONLY and is_text:
             continue
-        if tool in CARVERS and made_by in CARVERS:
+        if tool in CARVERS and _raw_carve(name, made_by):
             continue
         if tool == "foremost" and name.lower().endswith(CAPTURE_EXT):
             continue
