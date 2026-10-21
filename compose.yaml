@@ -203,7 +203,7 @@ services:
   # consente solo letture + exec (niente create/stop/rm di container).
   term:
     <<: *base
-    image: amir20/dozzle:v8.14.4
+    image: amir20/dozzle:v8.14.4@sha256:e944224b30d0ac8771d7e54c5ae0dfb30859d6b7e590b65e90bafe39c15c46ce
     mem_limit: 128m
     cpus: 0.5
     depends_on: [term-proxy]
@@ -218,15 +218,21 @@ services:
   # Socket proxy con allowlist a regex: GET (lista/log/inspect) + exec.
   term-proxy:
     <<: *base
-    image: wollomatic/socket-proxy:1.10.0
+    image: wollomatic/socket-proxy:1.10.0@sha256:3d825f671a5a190741ad6bff645be1061bceb53eaa6517b185de869e226cb779
     mem_limit: 32m
     cpus: 0.25
+    # utente non-root + gruppo proprietario del socket (cambia da host a host:
+    # `docker run --rm -v /var/run/docker.sock:/s alpine stat -c %g /s`)
+    group_add: ["${DOCKER_GID:-1001}"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
     command:
       - "-listenip=0.0.0.0"
       - "-allowfrom=term"
       - "-allowGET=.*"
       - "-allowHEAD=.*"
-      - "-allowPOST=^/v[0-9.]+/(containers/[a-zA-Z0-9_.-]+/exec|exec/[a-f0-9]+/(start|resize))$$"
+      - "-allowPOST=/v[0-9.]+/(containers/[a-zA-Z0-9_.-]+/exec|exec/[a-f0-9]+/(start|resize))"
       - "-shutdowngracetime=5"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
