@@ -1,0 +1,18 @@
+// tab "ctf": shell con i tool StegSuite (cdp <progetto>); tab "rev": sandbox rev
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="zellij:tab-bar"
+        }
+        children
+        pane size=1 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+    tab name="ctf" focus=true {
+        pane cwd="/data/projects"
+    }
+    tab name="rev" {
+        pane command="ctf-rev-shell"
+    }
+}

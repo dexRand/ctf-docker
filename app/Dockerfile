@@ -68,6 +68,25 @@ RUN python3 -m venv /opt/stegsuite/venv \
 COPY app/backend/ /opt/stegsuite/backend/
 COPY third_party/ /opt/third_party/
 COPY app/term.bashrc /etc/stegsuite/term.bashrc
+# ---- Terminale CTF (:19022, servizio `term`): ttyd + zellij + docker CLI ----
+# Stessa immagine di StegSuite (tutti i tool); la tab `rev` entra nel sandbox
+# con `docker exec` passando da term-proxy (solo exec, niente create/stop).
+ARG TTYD_VER=1.7.7
+ARG ZELLIJ_VER=0.45.1
+ARG DOCKER_CLI_VER=27.3.1
+RUN case "$(uname -m)" in aarch64|arm64) a=aarch64 ;; *) a=x86_64 ;; esac \
+ && curl -fsSL -o /usr/local/bin/ttyd "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VER}/ttyd.${a}" \
+ && curl -fsSL "https://github.com/zellij-org/zellij/releases/download/v${ZELLIJ_VER}/zellij-no-web-${a}-unknown-linux-musl.tar.gz" \
+      | tar -xz -C /usr/local/bin zellij \
+ && curl -fsSL "https://download.docker.com/linux/static/stable/${a}/docker-${DOCKER_CLI_VER}.tgz" \
+      | tar -xz -C /usr/local/bin --strip-components=1 docker/docker \
+ && chmod +x /usr/local/bin/ttyd /usr/local/bin/zellij /usr/local/bin/docker \
+ && zellij --version && docker --version
+COPY app/term/config.kdl /root/.config/zellij/config.kdl
+COPY app/term/ctf.kdl /root/.config/zellij/layouts/ctf.kdl
+COPY app/term/entry.sh /usr/local/bin/ctf-term
+COPY app/term/rev-shell.sh /usr/local/bin/ctf-rev-shell
+RUN chmod +x /usr/local/bin/ctf-term /usr/local/bin/ctf-rev-shell
 # same prompt/aliases/cdp in shells opened with docker exec (Terminale, :19022)
 RUN echo '[ -f /etc/stegsuite/term.bashrc ] && . /etc/stegsuite/term.bashrc' >> /etc/bash.bashrc
 # replace the placeholder SPA with the built Vue app

@@ -197,25 +197,34 @@ services:
     volumes:
       - ./config/dork:/usr/share/nginx/html:ro
 
-  # Terminale: Dozzle (upstream) apre una shell in qualsiasi container del
-  # progetto `ctf` (StegSuite di default per i tool stego/forensics, `rev` per
-  # il reversing). Non vede il socket Docker: passa da `term-proxy`, che
-  # consente solo letture + exec (niente create/stop/rm di container).
+  # Terminale CTF: pagina web tutta terminale (ttyd + zellij, tema StegSuite).
+  # Tab `ctf`: stessa immagine di StegSuite (tutti i tool, `cdp <progetto>`);
+  # tab `rev`: `docker exec` nel sandbox rev passando da `term-proxy`.
   term:
     <<: *base
-    image: amir20/dozzle:v8.14.4@sha256:e944224b30d0ac8771d7e54c5ae0dfb30859d6b7e590b65e90bafe39c15c46ce
-    mem_limit: 128m
-    cpus: 0.5
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    image: ctf-stegsuite
+    entrypoint: ["/usr/local/bin/ctf-term"]
+    mem_limit: 2g
+    cpus: 2
     depends_on: [term-proxy]
     environment:
-      DOZZLE_REMOTE_HOST: tcp://term-proxy:2375|ctf
-      DOZZLE_ENABLE_SHELL: "true"
-      DOZZLE_FILTER: label=com.docker.compose.project=ctf
-      DOZZLE_NO_ANALYTICS: "true"
+      DOCKER_HOST: tcp://term-proxy:2375
+      STEGSUITE: http://stegsuite:19014
+      TERM: xterm-256color
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:7681/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     ports:
-      - "${BIND_ADDR:-127.0.0.1}:${TERM_PORT:-19022}:8080"
+      - "${BIND_ADDR:-127.0.0.1}:${TERM_PORT:-19022}:7681"
 
-  # Socket proxy con allowlist a regex: GET (lista/log/inspect) + exec.
+  # Socket proxy con allowlist a regex: GET (lista/inspect) + exec, solo da `term`.
   term-proxy:
     <<: *base
     image: wollomatic/socket-proxy:1.10.0@sha256:3d825f671a5a190741ad6bff645be1061bceb53eaa6517b185de869e226cb779

@@ -24,7 +24,7 @@ SERVICES = [
     ("it-tools", "IT-Tools", "small dev/network utilities", "", "ITTOOLS_PORT", 19011, "/", "it-tools:80"),
     ("dork", "Dork generator", "search-engine dorks from a target", "", "DORK_PORT", 19019, "/", "dork:80"),
     ("term", "Terminal", "shell in any toolbox container (StegSuite, rev, ...)", "", "TERM_PORT", 19022,
-     "/", "term:8080"),
+     "/", "term:7681"),
     ("zap", "OWASP ZAP", "web app scanner + proxy", "web", "ZAP_UI_PORT", 19005, "/zap", "zap:8080"),
     ("spiderfoot", "SpiderFoot", "OSINT / recon automation", "recon", "SPIDERFOOT_PORT", 19007,
      "/spiderfoot/", "spiderfoot:8080"),

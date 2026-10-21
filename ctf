@@ -50,7 +50,7 @@ mitm|mitmweb mitmproxy|mitmweb (password: MITMWEB_PASSWORD, default mitm)|MITMWE
 mitm-proxy|proxy|mitmproxy proxy|MITMPROXY_PORT|19004||core
 it-tools|ittools|IT-Tools|ITTOOLS_PORT|19011|/|core
 dork|dorks|Dork generator|DORK_PORT|19019|/|core
-term|terminal|Terminale (shell nei container)|TERM_PORT|19022|/|core
+term|terminal|Terminale (ttyd + zellij: ctf, rev)|TERM_PORT|19022|/|core
 zap||OWASP ZAP|ZAP_UI_PORT|19005|/zap|web
 zap-proxy||ZAP proxy|ZAP_PROXY_PORT|19006||web
 spiderfoot|recon|SpiderFoot|SPIDERFOOT_PORT|19007|/spiderfoot/|recon
