@@ -118,6 +118,7 @@ onMounted(() => {
   })
 
   ro = new ResizeObserver(() => {
+    if (!graph || !el.value) return
     const w = el.value.clientWidth
     const h = el.value.clientHeight
     if (!w || !h) return
@@ -125,7 +126,7 @@ onMounted(() => {
     if (!fitted) {
       fitted = true
       setTimeout(() => window.dispatchEvent(new Event('resize')), 0)
-      setTimeout(() => graph.zoomToFit(700, 50), 600)
+      setTimeout(() => graph && graph.zoomToFit(700, 50), 600)   // may fire after unmount
     }
   })
   ro.observe(el.value)

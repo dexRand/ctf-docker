@@ -1,41 +1,43 @@
 # Tool ordinati per fase di lavoro CTF.
+# Le porte arrivano da .env tramite le variabili HOMEPAGE_VAR_* (vedi compose.yaml):
+# cambiando una porta in .env cambia anche il link qui.
 # `container` usa l'integrazione Docker (socket read-only in compose): stato e
 # CPU/RAM dei container. I tool con profilo non avviati risultano "down": è normale.
 
 - Dashboard:
     - Homepage:
         icon: mdi-view-dashboard
-        href: http://localhost:19001
+        href: http://localhost:{{HOMEPAGE_VAR_HOMEPAGE_PORT}}
         description: Questa dashboard — panoramica e stato di tutti i tool
         container: ctf-homepage-1
 
 - Analisi & Forensics:
     - StegSuite:
         icon: mdi-image-search
-        href: http://localhost:19014
+        href: http://localhost:{{HOMEPAGE_VAR_STEGSUITE_PORT}}
         description: Analisi ricorsiva Auto/Check con GUI (albero file, tool, vision/OCR, terminale, grafo) e API REST
         container: ctf-stegsuite-1
     - FileBrowser:
         icon: mdi-file-tree
-        href: http://localhost:19012
+        href: http://localhost:{{HOMEPAGE_VAR_FILEBROWSER_PORT}}
         description: Browser dei file in ./data — progetti StegSuite, estratti, report, wordlist
         container: ctf-filebrowser-1
     - Wireshark:
         icon: mdi-lan-connect
-        href: http://localhost:19008
+        href: http://localhost:{{HOMEPAGE_VAR_WIRESHARK_HTTP_PORT}}
         description: Analisi pacchetti e file pcap con GUI web (profilo forensics)
         container: ctf-wireshark-1
     - Whisper-WebUI:
         icon: mdi-microphone-message
-        href: http://localhost:19017
+        href: http://localhost:{{HOMEPAGE_VAR_WHISPER_PORT}}
         description: Trascrizione audio/video → testo e sottotitoli con timestamp (Whisper, SRT/VTT) — profilo audio · output in ./data/whisper/outputs
         container: ctf-whisper-1
 
 - Reversing & Pwn:
-    - ELF sandbox (rev):
+    - rev sandbox:
         icon: mdi-bug-check
-        href: http://localhost:19018
-        description: Analisi attiva di ELF in sandbox (Ghidra headless, gdb, strace, ltrace, pwntools, qemu-user) da terminale web — rete isolata (profilo rev)
+        href: http://localhost:{{HOMEPAGE_VAR_REV_PORT}}
+        description: Reversing/pwn in sandbox da terminale web — ELF, PE e APK (Ghidra headless, radare2, gdb, strace/ltrace, upx, apktool, jadx, pwntools, qemu-user) — rete isolata (profilo rev)
         container: ctf-rev-1
     - Rev workbench:
         icon: mdi-chip
@@ -46,49 +48,49 @@
 - Recon (OSINT):
     - SpiderFoot:
         icon: mdi-spider
-        href: http://localhost:19007/spiderfoot/
+        href: http://localhost:{{HOMEPAGE_VAR_SPIDERFOOT_PORT}}/spiderfoot/
         description: OSINT automation — domini, IP, email, leak (profilo recon)
         container: ctf-spiderfoot-1
     - Dork generator:
         icon: mdi-magnify
-        href: http://localhost:19019
+        href: http://localhost:{{HOMEPAGE_VAR_DORK_PORT}}
         description: Genera query Google/Bing/DuckDuckGo/GitHub/Shodan da un target (nessuno scraping)
         container: ctf-dork-1
 
 - Cracking:
     - Hashtopolis:
         icon: mdi-key-chain-variant
-        href: http://localhost:19016
+        href: http://localhost:{{HOMEPAGE_VAR_HASHTOPOLIS_FRONTEND_PORT}}
         description: Cracking hashcat distribuito (frontend + backend + MySQL) — login admin/hashtopolis, agent via voucher (profilo crack)
         container: ctf-hashtopolis-frontend-1
 
 - Web:
     - mitmproxy:
         icon: mdi-swap-horizontal
-        href: http://localhost:19003
-        description: Intercetta e modifica traffico HTTP(S) — proxy su localhost:19004 · password in .env (MITMWEB_PASSWORD)
+        href: http://localhost:{{HOMEPAGE_VAR_MITMWEB_UI_PORT}}
+        description: Intercetta e modifica traffico HTTP(S) — proxy su localhost:{{HOMEPAGE_VAR_MITMPROXY_PORT}} · password in .env (MITMWEB_PASSWORD)
         container: ctf-mitmproxy-1
     - OWASP ZAP:
         icon: mdi-shield-search
-        href: http://localhost:19005/zap
-        description: Scanner di sicurezza web con GUI nel browser — proxy su localhost:19006 · add-on extra (profilo web)
+        href: http://localhost:{{HOMEPAGE_VAR_ZAP_UI_PORT}}/zap
+        description: Scanner di sicurezza web con GUI nel browser — proxy su localhost:{{HOMEPAGE_VAR_ZAP_PROXY_PORT}} · add-on extra (profilo web)
         container: ctf-zap-1
 
 - Crypto & Encoding:
     - CyberChef:
         icon: mdi-chef-hat
-        href: http://localhost:19002
+        href: http://localhost:{{HOMEPAGE_VAR_CYBERCHEF_PORT}}
         description: "Coltellino svizzero per encoding e crypto — base64, XOR, RSA, hash, JWT..."
         container: ctf-cyberchef-1
     - SageMath (Jupyter):
         icon: mdi-math-integral-box
-        href: http://localhost:19010
+        href: http://localhost:{{HOMEPAGE_VAR_SAGEMATH_PORT}}
         description: Notebook Python/Sage per crypto e matematica — token nei log (profilo crypto)
         container: ctf-sagemath-1
 
 - Utility:
     - IT-Tools:
         icon: mdi-tools
-        href: http://localhost:19011
+        href: http://localhost:{{HOMEPAGE_VAR_ITTOOLS_PORT}}
         description: Utility per CTF e sviluppo — encoder, converter, hash, regex
         container: ctf-it-tools-1

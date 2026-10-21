@@ -7,7 +7,11 @@ import { ref } from 'vue'
 export const LANGUAGES = ['en', 'it']
 const KEY = 'stegsuite-lang'
 
-export const lang = ref(localStorage.getItem(KEY) || 'en')
+function stored() {
+  try { return localStorage.getItem(KEY) } catch { return null }   // storage may be blocked
+}
+
+export const lang = ref(stored() || 'en')
 
 // keep <html lang> in sync with the UI language (a11y: screen-reader pronunciation)
 function syncHtmlLang() {
@@ -149,9 +153,7 @@ const en = {
   'proj.flag_route': 'flag route',
   'proj.no_flag': '(no flag)',
   'proj.terminal_label': 'terminal — bash (cwd = project)',
-  'proj.live_log': 'live log ({n})',
   'proj.log_live': 'live',
-  'proj.log_all': 'commands',
   'proj.right_terminal': 'terminal',
   'proj.right_logs': 'logs',
   'proj.resize_files': 'resize file tree',
@@ -159,8 +161,6 @@ const en = {
   'proj.resize_logs': 'resize logs split',
   'proj.right_graph': 'graph',
   'proj.timeline': 'flag timeline',
-  'proj.extraction_tree': 'tool tree',
-  'proj.result_files': 'resulting files ({n}):',
   'proj.no_graph': 'no data yet',
   'proj.cracked': 'cracked',
   'proj.graph_hint': 'drag to move · scroll to zoom · click a dot to select the file',
@@ -181,7 +181,6 @@ const en = {
   'proj.view_panel': 'panel',
 
   // ---- toasts ----
-  'toast.copied': 'copied',
   'toast.copied_flags': 'copied {n} flag(s)',
   'toast.deleted': 'project deleted',
   'toast.cleared': 'history cleared',
@@ -193,28 +192,30 @@ const en = {
   'report.copy': 'copy',
   'report.close': 'Close',
   'report.lang': 'language',
-  'report.title_line': 'StegSuite report — {name}',
-  'report.status_line': '**Status:** {status} · **Mode:** --{mode} · **Files:** {files} · **Date:** {date}',
-  'report.passwords': 'Passwords',
-  'report.passwords_head': '| Password | Origin | Cracked with |',
-  'report.notes': 'Notes / locked',
-  'report.notes_head': '| Note | Tool |',
-  'report.how_header': 'How the flag was found',
-  'report.where': '**Where:**',
-  'report.how': '**How:**',
-  'report.chain': '**Chain:**',
-  'report.no_flag_how': '_No flag._',
-  'report.path_header': 'Flag route',
-  'report.no_path': '(no flag found)',
-  'report.solved_tag': '**(solved)**',
-  'report.tools_header_prefix': 'Tools on the flag',
-  'report.route_runs': 'Tools on the route ({n})',
-  'report.run_head': '| File | Tool | Status | Summary |',
-  'report.commands': 'Commands',
-  'report.route_files': 'Files on the route ({n})',
-  'report.route_files_head': '| File | Size | Produced by | Open |',
-  'report.open_link': 'open',
-  'report.footer': '> Analysed {files} files and {runs} tool runs; above only what leads to the flag. The other {noise} files are in the GUI.',
+  'proj.decoded_with': 'decoded with',
+  'ctf.section': 'CTFs',
+  'ctf.new': 'new CTF',
+  'ctf.name': 'CTF name',
+  'ctf.format': 'flag format (DUCTF{...} or regex)',
+  'ctf.none': 'no CTF yet: create one to group its challenges',
+  'ctf.solved_of': '{s}/{n} solved',
+  'ctf.add': 'add challenge',
+  'ctf.category': 'category',
+  'ctf.chal_name': 'challenge name',
+  'ctf.autosolve': 'autosolve',
+  'ctf.autosolve_stop': 'stop',
+  'ctf.autosolve_running': 'autosolve: {f}/{t} done, {r} running, {q} queued',
+  'ctf.flag': 'flag',
+  'ctf.solved': 'solved',
+  'ctf.mark_solved': 'mark solved',
+  'ctf.mark_open': 'reopen',
+  'ctf.delete': 'delete CTF',
+  'ctf.delete_confirm': 'Delete this CTF? Its challenges are kept.',
+  'ctf.empty': 'no challenges: drop the attachments of a challenge above',
+  'ctf.in_ctf': 'in CTF',
+  'ctf.no_ctf': '— no CTF —',
+  'ctf.save': 'save',
+  'ctf.start_now': 'analyze now',
 }
 
 const it = {
@@ -336,8 +337,6 @@ const it = {
   'proj.resize_logs': 'ridimensiona split log',
   'proj.right_graph': 'grafo',
   'proj.timeline': 'timeline flag',
-  'proj.extraction_tree': 'albero tool',
-  'proj.result_files': 'file risultanti ({n}):',
   'proj.no_graph': 'nessun dato (ancora)',
   'proj.cracked': 'craccato',
   'proj.graph_hint': 'trascina per muovere · scroll per zoom · clicca un puntino per selezionare il file',
@@ -365,9 +364,7 @@ const it = {
   'proj.flag_route': 'percorso flag',
   'proj.no_flag': '(nessuna flag)',
   'proj.terminal_label': 'terminal — bash (cwd = progetto)',
-  'proj.live_log': 'log live ({n})',
   'proj.log_live': 'live',
-  'proj.log_all': 'comandi',
   'proj.log_empty': 'Nessun run in questo progetto (ancora).',
   'proj.log_runs': 'run ({n})',
   'proj.no_events': 'Nessun evento (ancora).',
@@ -378,7 +375,6 @@ const it = {
   'proj.view_detail': 'dettaglio',
   'proj.view_panel': 'pannello',
 
-  'toast.copied': 'copiato',
   'toast.copied_flags': 'copiate {n} flag',
   'toast.deleted': 'progetto eliminato',
   'toast.cleared': 'history svuotata',
@@ -389,45 +385,39 @@ const it = {
   'report.copy': 'copia',
   'report.close': 'Chiudi',
   'report.lang': 'lingua',
-  'report.title_line': 'Report StegSuite — {name}',
-  'report.status_line': '**Stato:** {status} · **Modalità:** --{mode} · **File:** {files} · **Data:** {date}',
-  'report.passwords': 'Password',
-  'report.passwords_head': '| Password | Origine | Craccata con |',
-  'report.notes': 'Note / bloccati',
-  'report.notes_head': '| Nota | Tool |',
-  'report.how_header': 'Come è stata trovata la flag',
-  'report.where': '**Dove:**',
-  'report.how': '**Come:**',
-  'report.chain': '**Catena:**',
-  'report.no_flag_how': '_Nessuna flag._',
-  'report.path_header': 'Percorso della flag',
-  'report.no_path': '(nessuna flag trovata)',
-  'report.solved_tag': '**(risolto)**',
-  'report.tools_header_prefix': 'Tool usati per la flag',
-  'report.route_runs': 'Tool sul percorso ({n})',
-  'report.run_head': '| File | Tool | Stato | Sintesi |',
-  'report.commands': 'Comandi',
-  'report.route_files': 'File sul percorso ({n})',
-  'report.route_files_head': '| File | Dim | Prodotto da | Apri |',
-  'report.open_link': 'apri',
-  'report.footer': '> Analizzati {files} file e {runs} esecuzioni di tool; qui solo ciò che porta alla flag. Gli altri {noise} file sono nella GUI.',
+  'proj.decoded_with': 'decodificata con',
+  'ctf.section': 'CTF',
+  'ctf.new': 'nuova CTF',
+  'ctf.name': 'nome della CTF',
+  'ctf.format': 'formato flag (DUCTF{...} o regex)',
+  'ctf.none': 'nessuna CTF: creane una per raggruppare le sue challenge',
+  'ctf.solved_of': '{s}/{n} risolte',
+  'ctf.add': 'aggiungi challenge',
+  'ctf.category': 'categoria',
+  'ctf.chal_name': 'nome della challenge',
+  'ctf.autosolve': 'autosolve',
+  'ctf.autosolve_stop': 'ferma',
+  'ctf.autosolve_running': 'autosolve: {f}/{t} finite, {r} in corso, {q} in coda',
+  'ctf.flag': 'flag',
+  'ctf.solved': 'risolta',
+  'ctf.mark_solved': 'segna risolta',
+  'ctf.mark_open': 'riapri',
+  'ctf.delete': 'elimina CTF',
+  'ctf.delete_confirm': 'Eliminare questa CTF? Le challenge restano.',
+  'ctf.empty': 'nessuna challenge: trascina qui sopra gli allegati di una challenge',
+  'ctf.in_ctf': 'nella CTF',
+  'ctf.no_ctf': '— nessuna CTF —',
+  'ctf.save': 'salva',
+  'ctf.start_now': 'analizza subito',
 }
 
 const LABELS = { en, it }
 
-function resolve(key, params) {
-  let v = LABELS[lang.value]?.[key] ?? LABELS.en[key]
-  if (v == null) return key
-  if (params) for (const [k, val] of Object.entries(params)) v = String(v).replaceAll(`{${k}}`, String(val))
-  return v
-}
-
 export function t(key, params) {
-  return resolve(key, params)
+  return tt(lang.value, key, params)
 }
 
-// translate with an explicit locale (used by report building, which must be
-// independent of the current UI language)
+// translate with an explicit locale (independent of the current UI language)
 export function tt(l, key, params) {
   let v = LABELS[l]?.[key] ?? LABELS.en[key]
   if (v == null) return key
@@ -438,6 +428,6 @@ export function tt(l, key, params) {
 export function setLang(l) {
   if (!LABELS[l] || l === lang.value) return
   lang.value = l
-  localStorage.setItem(KEY, l)
+  try { localStorage.setItem(KEY, l) } catch { /* storage blocked */ }
   syncHtmlLang()
 }

@@ -51,6 +51,26 @@ await page.getByRole('button', { name: 'panel', exact: true }).click()
 await page.waitForTimeout(250)
 check('mobile: panel pane shown', await page.locator('aside').nth(1).isVisible())
 
+// --- CTF view: scoreboard of a CTF with one challenge ---
+await page.setViewportSize({ width: 1440, height: 900 })
+const ctf = await (await fetch(BASE + '/api/v1/ctfs', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'ui smoke ctf', flag_format: 'ITS{...}' }),
+})).json()
+const cfd = new FormData()
+cfd.append('name', 'smoke chall')
+cfd.append('start', 'true')
+cfd.append('files', new Blob(['note ITS{ui_ctf}'], { type: 'text/plain' }), 'c.txt')
+await fetch(`${BASE}/api/v1/ctfs/${ctf.id}/challenges`, { method: 'POST', body: cfd })
+await page.goto(`${BASE}/#/ctf/${ctf.id}`, { waitUntil: 'networkidle' })
+await page.waitForTimeout(1500)
+check('ctf: title shown', (await page.getByRole('heading', { name: 'ui smoke ctf' }).count()) > 0)
+check('ctf: challenge listed', (await page.getByText('smoke chall').count()) > 0)
+check('ctf: autosolve button', (await page.getByRole('button', { name: /autosolve/i }).count()) > 0)
+await page.goto(BASE, { waitUntil: 'networkidle' })
+check('home: CTF card links to the CTF', (await page.locator(`a[href="#/ctf/${ctf.id}"]`).count()) > 0)
+await fetch(`${BASE}/api/v1/ctfs/${ctf.id}`, { method: 'DELETE' })
+
 await browser.close()
 check('no console/page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 console.log(failures === 0 ? '* ALL UI CHECKS PASSED' : `* ${failures} CHECK(S) FAILED`)

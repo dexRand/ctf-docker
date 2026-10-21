@@ -26,7 +26,7 @@ _SHT = {0: "NULL", 1: "PROGBITS", 2: "SYMTAB", 3: "STRTAB", 4: "RELA", 5: "HASH"
         6: "DYNAMIC", 7: "NOTE", 8: "NOBITS", 9: "REL", 10: "SHLIB", 11: "DYNSYM",
         14: "INIT_ARRAY", 15: "FINI_ARRAY", 16: "PREINIT_ARRAY", 18: "GROUP"}
 _DT_NEEDED, _DT_SONAME, _DT_RPATH, _DT_RUNPATH = 1, 14, 15, 29
-_DT_PLTRELSZ, _DT_PLTREL, _DT_JMPREL = 2, 20, 23
+_DT_PLTRELSZ, _DT_PLTREL = 2, 20
 _DT_BIND_NOW, _DT_FLAGS, _DT_FLAGS_1 = 24, 30, 0x6FFFFFFB
 _DF_BIND_NOW, _DF_1_NOW = 0x8, 0x1
 _UPX_MAGIC = b"UPX!"
@@ -311,7 +311,8 @@ class ElfAnalyzer(Analyzer):
 
     def run(self, ctx: ToolContext) -> ToolResult:
         try:
-            head = ctx.input.read_bytes()[:8_000_000]
+            with open(ctx.input, "rb") as fh:   # headers/sections live in the first MBs
+                head = fh.read(8_000_000)
         except OSError as exc:
             return ToolResult(self.name, status="error", summary=f"cannot read: {exc}")
         info = elf_summary(head)

@@ -12,8 +12,9 @@ from __future__ import annotations
 import base64
 from pathlib import Path
 
-from .base import Analyzer, ToolContext, ToolResult, list_files, out_of, which
+from .base import Analyzer, ToolContext, ToolResult, list_files, which
 from .registry import register
+from .util import B64_TOKEN, join_b64_fragments, printable_ratio
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
 
@@ -24,23 +25,10 @@ def _key_files(ctx: ToolContext) -> list[Path]:
     Analyzers only receive the current file, so we look at the sibling uploads
     and analysed nodes of the same project (that is how WebNet0/1 ship the key).
     """
-    proj = ctx.workdir.parent.parent
-    found: list[Path] = []
-    for sub in ("uploads", "files"):
-        d = proj / sub
-        if not d.is_dir():
-            continue
-        for p in sorted(d.iterdir()):
-            if not p.is_file() or p == ctx.input:
-                continue
-            try:
-                head = p.read_bytes()[:4096]
-            except OSError:
-                continue
-            if (b"PRIVATE KEY-----" in head or b"CLIENT_RANDOM" in head
-                    or b"TRAFFIC_SECRET" in head or b"EXPORTER_SECRET" in head
-                    or b"SSLKEYLOGFILE" in head or b"sslkeylog" in head.lower()):
-                found.append(p)
+    found = [p for p, head, _ in ctx.siblings(4096)
+             if b"PRIVATE KEY-----" in head or b"CLIENT_RANDOM" in head
+             or b"TRAFFIC_SECRET" in head or b"EXPORTER_SECRET" in head
+             or b"SSLKEYLOGFILE" in head or b"sslkeylog" in head.lower()]
     seen: set[tuple] = set()
     uniq: list[Path] = []
     for p in found:  # a key may appear both as upload and as analysed node
@@ -56,7 +44,8 @@ def _tls_options(keys: list[Path]) -> list[str]:
     opts: list[str] = []
     for k in keys:
         try:
-            head = k.read_bytes()[:4096]
+            with open(k, "rb") as fh:
+                head = fh.read(4096)
         except OSError:
             continue
         # a keylog file has CLIENT_RANDOM (TLS1.2) or the TLS1.3 *_SECRET labels
@@ -98,13 +87,16 @@ def _try_decodes(joined: str) -> list[tuple[str, str]]:
     return out
 
 
-def dns_tunnel_candidates(queries: list[str]) -> list[str]:
+def dns_tunnel_candidates(queries: list[str],
+                          by_server: dict[str, list[str]] | None = None) -> list[str]:
     """Try to reassemble DNS-exfiltrated plaintext from query names.
 
     Two heuristics feed the same printable-gated base32/base64 decode:
     (A) queries sharing a fixed base domain (last 1-2 labels) leak one chunk
         per query in their varying prefix labels;
-    (B) a fixed label position across all queries.
+    (B) a fixed label position across all queries;
+    (C) the same, per DNS server the queries were sent to: the exfil often goes
+        to its own server, hidden among random lookups (picoCTF "shark2").
     Case is preserved: base32 is decoded case-insensitively, base64 needs it.
     """
     names = list(dict.fromkeys((q or "").rstrip(".") for q in queries if q))
@@ -129,6 +121,18 @@ def dns_tunnel_candidates(queries: list[str]) -> list[str]:
         for base, prefixes in groups.items():
             if len(prefixes) >= 2:
                 consider(f"base {base}", "".join(prefixes))
+    for server, qs in (by_server or {}).items():   # (C) per destination server
+        uniq = list(dict.fromkeys(q.rstrip(".") for q in qs))
+        if len(uniq) < 2 or len(uniq) == len(names):
+            continue
+        groups2: dict[str, list[str]] = {}
+        for n in uniq:
+            parts = n.split(".")
+            if len(parts) > 2:
+                groups2.setdefault(".".join(parts[-2:]), []).append("".join(parts[:-2]))
+        for base, prefixes in groups2.items():
+            if len(prefixes) >= 2:
+                consider(f"server {server} base {base}", "".join(prefixes))
     max_parts = max(len(n.split(".")) for n in names)
     for pos in range(max_parts):  # (B) fixed label position
         consider(f"label[{pos}]",
@@ -165,6 +169,83 @@ def _expand_http_response(line: str) -> str:
     if not headers:
         return ""
     return "\n".join([url.strip()] + [f"  {h}" for h in headers])
+
+
+_MAX_STREAM = 1_000_000      # bytes kept per conversation
+_MAX_STREAMS_OUT = 200
+
+
+def _streams_text(ctx: ToolContext, tls: list[str]) -> str:
+    """Payload of every UDP/TCP conversation joined in order, shown as text
+    (non-printables as '.') when it reads like text or holds a brace."""
+    proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-T", "fields", "-E", "separator=\t",
+                    "-e", "frame.time_epoch", "-e", "udp.stream", "-e", "udp.payload",
+                    "-e", "tcp.stream", "-e", "tcp.payload"], timeout=180)
+    joined: dict[tuple[str, str], bytearray] = {}
+    timed: list[tuple[float, bytes]] = []
+    for line in (proc.stdout or "").splitlines():
+        cols = line.split("\t") + ["", "", "", "", ""]
+        for proto, sid, payload in (("udp", cols[1], cols[2]), ("tcp", cols[3], cols[4])):
+            if not sid or not payload:
+                continue
+            try:
+                chunk = bytes.fromhex(payload.replace(":", "").split(",")[0])
+            except ValueError:
+                continue
+            try:
+                timed.append((float(cols[0] or 0), chunk))
+            except ValueError:
+                pass
+            buf = joined.setdefault((proto, sid), bytearray())
+            if len(buf) < _MAX_STREAM:
+                buf += chunk
+    out = []
+    for (proto, sid), buf in joined.items():
+        if len(buf) < 4:
+            continue
+        if b"{" in buf or printable_ratio(bytes(buf)) >= 0.7:
+            text = "".join(chr(b) if 32 <= b < 127 or b in (9, 10) else "." for b in buf)
+            out.append(f"[{proto} stream {sid}, {len(buf)} B] {text[:4000]}")
+        if len(out) >= _MAX_STREAMS_OUT:
+            break
+    tokens = _b64_per_packet(timed)
+    if tokens:
+        out.append(f"[base64 per packet, time order] {tokens}")
+    out += _port_text(ctx)
+    return "\n".join(out)
+
+
+def _port_text(ctx: ToolContext) -> list[str]:
+    """Data hidden in UDP/TCP source ports (port = base + ASCII code, picoCTF
+    "shark on wire 2"): per destination port, ports minus their base as text."""
+    proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields", "-E", "separator=\t",
+                    "-e", "udp.srcport", "-e", "udp.dstport", "-e", "tcp.srcport", "-e", "tcp.dstport"],
+                   timeout=180)
+    by_dst: dict[str, list[int]] = {}
+    for line in (proc.stdout or "").splitlines():
+        cols = (line.split("\t") + ["", "", "", ""])[:4]
+        for src, dst in ((cols[0], cols[1]), (cols[2], cols[3])):
+            if src.isdigit() and dst.isdigit():
+                by_dst.setdefault(dst, []).append(int(src))
+    out = []
+    for dst, ports in by_dst.items():
+        if len(ports) < 8:
+            continue
+        base = min(ports) // 1000 * 1000
+        vals = [p - base for p in ports]
+        text = "".join(chr(v) for v in vals if 32 <= v < 127)
+        if len(text) >= 8 and len(text) >= 0.8 * len(vals) and len(set(text)) > 3:
+            out.append(f"[source ports - {base} -> dst {dst}] {text}")
+    return out
+
+
+def _b64_per_packet(timed: list[tuple[float, bytes]]) -> str:
+    """Packets that each carry one base64 token (exfil split across packets,
+    possibly out of order): decode them in capture-time order and join."""
+    toks = [(t, c.strip()) for t, c in timed if 4 <= len(c.strip()) <= 512 and B64_TOKEN.match(c.strip())]
+    if len(toks) < 3 or len(toks) < 0.5 * len(timed):
+        return ""
+    return join_b64_fragments([tok for _t, tok in sorted(toks, key=lambda x: x[0])])
 
 
 class PcapAnalyzer(Analyzer):
@@ -221,14 +302,27 @@ class PcapAnalyzer(Analyzer):
         fields = " ".join(line for line in (proc.stdout or "").splitlines() if line.strip())
         if fields:
             parts.append("== fields ==\n" + fields[:20000])
+        # reassembled UDP/TCP conversations: a flag sent one char per packet
+        # ("follow UDP stream") only appears when the payloads are joined
+        streams = _streams_text(ctx, tls)
+        if streams:
+            parts.append("== streams ==\n" + streams)
         # DNS tunneling: chunk-per-query exfiltration (ExtractionD'ADNs style)
-        proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields",
-                        "-e", "dns.qry.name"], timeout=180)
-        queries = [l.strip() for l in (proc.stdout or "").splitlines() if l.strip()]
+        proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields", "-E", "separator=\t",
+                        "-e", "ip.dst", "-e", "dns.qry.name", "-e", "dns.flags.response"], timeout=180)
+        queries: list[str] = []
+        by_server: dict[str, list[str]] = {}
+        for line in (proc.stdout or "").splitlines():
+            dst, name, resp = (line.split("\t") + ["", "", ""])[:3]
+            if not name.strip():
+                continue
+            queries.append(name.strip())
+            if resp.strip() in ("0", "False"):          # a query, sent to `dst`
+                by_server.setdefault(dst.strip(), []).append(name.strip())
         if queries:
             parts.append("== dns queries ==\n"
                          + "\n".join(dict.fromkeys(queries))[:12000])
-        tunnel = dns_tunnel_candidates(queries)
+        tunnel = dns_tunnel_candidates(queries, by_server)
         if tunnel:
             parts.append("== DNS tunneling ==\n" + "\n".join(tunnel))
         # export HTTP objects (become children to recurse into)

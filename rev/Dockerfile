@@ -7,7 +7,7 @@
 # L'isolamento lo impone il compose: rete interna senza internet, cap_drop ALL
 # (+ SYS_PTRACE per gdb), no-new-privileges, limiti mem/cpu/pids. NON eseguire
 # binari hostili fuori da questo container.
-FROM pwntools/pwntools:stable
+FROM pwntools/pwntools:stable@sha256:243d643d77ab8366e716158183c624d5f1d4493397ec7cb906e340d2025437ac
 
 USER root
 

@@ -3,17 +3,17 @@ from __future__ import annotations
 
 import codecs
 
-from backend.orchestrator import (
+from backend.flaghunt import _snippet
+from backend.flagpatterns import (
     _GENERIC_RE,
     _STRICT_RE,
     _canon_flag,
-    _detect_ext,
     _is_known_prefix,
     _ok_flag,
     _rot13_candidates,
-    _snippet,
     _url_decoded,
 )
+from backend.planner import _detect_ext
 
 
 def search(data: bytes) -> set[str]:
@@ -97,9 +97,9 @@ def test_rot13_candidates_ignore_unrelated_text() -> None:
 def test_custom_flag_pattern_with_braces(monkeypatch):
     import re
 
-    from backend import orchestrator
+    from backend import flagpatterns, orchestrator
 
-    monkeypatch.setattr(orchestrator, "_CUSTOM_FLAG_RE", re.compile(rb"DUCTF\{[^}]+\}"))
+    monkeypatch.setattr(flagpatterns, "_CUSTOM_FLAG_RE", re.compile(rb"DUCTF\{[^}]+\}"))
     out = [v for v, _, _ in orchestrator.custom_flag_matches(b"xx DUCTF{custom_1} yy")]
     assert out == ["DUCTF{custom_1}"]
 
@@ -107,17 +107,17 @@ def test_custom_flag_pattern_with_braces(monkeypatch):
 def test_custom_flag_pattern_without_braces(monkeypatch):
     import re
 
-    from backend import orchestrator
+    from backend import flagpatterns, orchestrator
 
-    monkeypatch.setattr(orchestrator, "_CUSTOM_FLAG_RE", re.compile(rb"FLAG-[0-9a-f]{8}"))
+    monkeypatch.setattr(flagpatterns, "_CUSTOM_FLAG_RE", re.compile(rb"FLAG-[0-9a-f]{8}"))
     out = [v for v, _, _ in orchestrator.custom_flag_matches(b"here FLAG-deadbeef end")]
     assert out == ["FLAG-deadbeef"]
 
 
 def test_no_custom_pattern_matches_nothing(monkeypatch):
-    from backend import orchestrator
+    from backend import flagpatterns, orchestrator
 
-    monkeypatch.setattr(orchestrator, "_CUSTOM_FLAG_RE", None)
+    monkeypatch.setattr(flagpatterns, "_CUSTOM_FLAG_RE", None)
     assert orchestrator.custom_flag_matches(b"anything") == []
 
 
@@ -167,3 +167,92 @@ def test_escaped_newline_before_flag_is_not_glued() -> None:
     out = _hunt_values("fp-esc", "the flag is\\nSEKAI{esc_ok}", "decode:x.txt")
     assert "SEKAI{esc_ok}" in out
     assert not any(v == "nSEKAI{esc_ok}" for v in out)
+
+
+def test_a_flag_never_deletes_a_password_it_contains() -> None:
+    # a cracked password (`s3cret`) is a substring of the flag `flag{s3cret}`;
+    # the "drop shorter fragments" dedupe used to delete it, re-locking the file
+    from sqlmodel import Session, select
+
+    from backend.db import engine, init_db
+    from backend.models import Finding, Project
+    from backend.orchestrator import _hunt
+
+    pid = "pwd-keep"
+    init_db()
+    with Session(engine) as s:
+        s.add(Project(id=pid, name=pid, status="running"))
+        s.add(Finding(project_id=pid, kind="password", value="s3cret", source="crack"))
+        s.commit()
+        _hunt(s, pid, None, "flag{s3cret}", "strings:x")
+        s.commit()
+        kinds = {(f.kind, f.value) for f in s.exec(select(Finding).where(Finding.project_id == pid))}
+    assert ("password", "s3cret") in kinds
+    assert ("flag", "flag{s3cret}") in kinds
+
+
+def test_hex_dump_lines_are_not_glued_into_a_flag() -> None:
+    # xxd splits the ASCII column across lines; collapsing whitespace used to
+    # join `ITS{exif` with the next line's offset+hex into a bogus flag
+    dump = ("00000070: 0000 0048 0000 0001 4954 537b 6578 6966  ...H....ITS{exif\n"
+            "00000080: 5f66 6c61 675f 327d 0000 ffdb 0043 0008  _flag_2}.....C..\n")
+    out = _hunt_values("fp-xxd", dump, "xxd:exif.jpg")
+    assert not any("00000080" in v for v in out)
+
+
+def test_common_ctf_prefixes_are_found_even_in_noisy_sources() -> None:
+    out = _hunt_values("fp-prefix", "\x00\x01junk ictf{th4t_isn7_chin3se} more DUCTF{x_1_y} tjctf{a_b_c}",
+                       "strings:bom.txt")
+    assert {"ictf{th4t_isn7_chin3se}", "DUCTF{x_1_y}", "tjctf{a_b_c}"} <= out
+
+
+def test_rot13_twin_still_collapses_to_the_known_prefix() -> None:
+    out = _hunt_values("fp-rot13b", "VGF{ebg_guvegrra}", "strings:x")
+    assert "ITS{rot_thirteen}" in out
+
+
+def test_decode_strips_the_high_bit() -> None:
+    from backend.analyzers.decode import candidates
+    data = bytes(b | 0x80 for b in b"lactf{high_bit_set}")
+    assert candidates(data)["high-bit"] == b"lactf{high_bit_set}"
+
+
+def test_markup_text_joins_a_flag_split_across_tspans(tmp_path) -> None:
+    from backend.analyzers.base import ToolContext
+    from backend.analyzers.text import MarkupTextAnalyzer
+    svg = tmp_path / "d.svg"
+    svg.write_text('<svg><text><tspan>p </tspan><tspan>i c o C T F { 3 n h </tspan>'
+                   '<tspan>4 n c 3 d }</tspan></text><!-- note --></svg>')
+    res = MarkupTextAnalyzer().run(ToolContext(input=svg, workdir=tmp_path / "w"))
+    out = _hunt_values("fp-svg", res.output, "markup-text:d.svg")
+    assert "picoCTF{3nh4nc3d}" in out
+
+
+def test_guid_in_braces_is_not_a_flag_unless_known_prefix() -> None:
+    out = _hunt_values("fp-guid", r"Interface \Device\NPF_{EE54A6A6-8BD8-498A-995A-DE0B78012FBE} "
+                       "and flag{EE54A6A6-8BD8-498A-995A-DE0B78012FBE}", "exiftool:x.pcapng")
+    assert out == {"flag{EE54A6A6-8BD8-498A-995A-DE0B78012FBE}"}
+
+
+def test_hunt_without_autoflush_still_drops_fragments() -> None:
+    # pending (unflushed) findings must be replaced too: `CTF{x_y_z}` seen first,
+    # then `picoCTF{x_y_z}` in the same text -> only the long one is stored
+    from sqlmodel import Session, select
+
+    from backend.db import engine, init_db
+    from backend.flaghunt import hunt
+    from backend.models import Finding, Project
+    init_db()
+    with Session(engine) as s:
+        s.add(Project(id="fp-noflush", name="x", status="running"))
+        s.commit()
+        hunt(s, "fp-noflush", None, "CTF{x_y_z} and later picoCTF{x_y_z}", "strings:a")
+        s.commit()
+        vals = {f.value for f in s.exec(select(Finding).where(Finding.project_id == "fp-noflush"))}
+    assert vals == {"picoCTF{x_y_z}"}
+
+
+def test_collapsed_view_finds_a_spaced_flag_glued_to_a_word() -> None:
+    out = _hunt_values("fp-glued", "[text] image/svg+xml p i c o C T F { 3 n h 4 n c 3 d _ a a b 7 2 9 d d }",
+                       "markup-text:drawing.flag.svg")
+    assert out == {"picoCTF{3nh4nc3d_aab729dd}"}

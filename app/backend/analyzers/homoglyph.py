@@ -10,9 +10,8 @@ from __future__ import annotations
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
+from .util import TEXT_EXT, bits_to_bytes, is_printable
 
-TEXT_EXT = (".txt", ".md", ".html", ".htm", ".js", ".py", ".c", ".csv", ".log",
-            ".xml", ".yaml", ".yml", ".srt", ".vtt")
 
 _CONFUSABLES = {
     # Cyrillic → Latin
@@ -29,26 +28,9 @@ _CONFUSABLES = {
 _MIN_HITS = 6
 
 
-def _bytes_from_bits(bits: list[int]) -> bytes:
-    out = bytearray()
-    for i in range(0, len(bits) - len(bits) % 8, 8):
-        val = 0
-        for b in bits[i:i + 8]:
-            val = (val << 1) | b
-        out.append(val & 0xFF)
-    return bytes(out)
-
-
-def _printable(blob: bytes) -> bool:
-    if not blob:
-        return False
-    good = sum(1 for c in blob if 32 <= c < 127 or c in (9, 10, 13))
-    return good / len(blob) >= 0.90
-
-
 class HomoglyphAnalyzer(Analyzer):
     name = "homoglyph"
-    category = "stego"
+    category = "steg"
     description = "De-homoglyph (Cyrillic/Greek look-alikes) and decode Latin/non-Latin bits."
     accepts = TEXT_EXT + ("text/",)
     display_order = 131
@@ -76,8 +58,8 @@ class HomoglyphAnalyzer(Analyzer):
         if len(bits) >= 64:
             for inv in (False, True):
                 b2 = [1 - b for b in bits] if inv else bits
-                dec = _bytes_from_bits(b2)
-                if _printable(dec) and dec.strip():
+                dec = bits_to_bytes(b2)
+                if is_printable(dec) and dec.strip():
                     results.append(f"[homoglyph bits{' (inv)' if inv else ''}] "
                                    + dec.decode("latin-1", "replace")[:4000])
         return ToolResult(self.name, status="done", summary=f"{len(hits)} homoglyph(s)",

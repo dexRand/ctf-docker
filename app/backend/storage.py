@@ -2,7 +2,7 @@
 
 /data/projects/<id>/
     uploads/     original uploaded files
-    files/       every analysed file (originals + extracted), by node id
+    files/       extracted files, as NNNN__name (discovery order)
     work/        tool outputs, one dir per file node
 """
 from __future__ import annotations
@@ -28,8 +28,23 @@ def sanitize_name(name: str) -> str:
     return name or "file"
 
 
+# project / tool-job ids: `new_project_id()` output (and legacy hand-made ids);
+# never a path component like "..", so ids can't escape their base directory
+_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+
+
+class InvalidId(ValueError):
+    """An id that is not a plain project/job identifier (answered as 404)."""
+
+
+def check_id(value: str) -> str:
+    if not _ID_RE.match(value or ""):
+        raise InvalidId(value)
+    return value
+
+
 def project_dir(pid: str) -> Path:
-    return PROJECTS_DIR / pid
+    return PROJECTS_DIR / check_id(pid)
 
 
 def init_project(pid: str) -> None:
@@ -41,7 +56,8 @@ def delete_project(pid: str) -> None:
     shutil.rmtree(project_dir(pid), ignore_errors=True)
 
 
-def _hashes(path: Path) -> tuple[str, str, int]:
+def hashes_of(path: Path) -> tuple[str, str, int]:
+    """(sha256, md5, size) of a file, read in 1 MB chunks."""
     md5 = hashlib.md5()
     sha = hashlib.sha256()
     size = 0
@@ -63,14 +79,7 @@ def save_upload(pid: str, filename: str, src: BinaryIO) -> dict:
         n += 1
     with open(dest, "wb") as out:
         shutil.copyfileobj(src, out)
-    sha, md5, size = _hashes(dest)
+    sha, md5, size = hashes_of(dest)
     return {"name": dest.name, "path": dest, "sha256": sha, "md5": md5, "size": size}
 
 
-def file_node_path(pid: str, node_id: int, name: str) -> Path:
-    """Where an analysed file node is stored (files/<id>__<name>)."""
-    return project_dir(pid) / "files" / f"{node_id}__{sanitize_name(name)}"
-
-
-def hashes_of(path: Path) -> tuple[str, str, int]:
-    return _hashes(path)

@@ -162,7 +162,7 @@ def looks_like_whitespace(data: bytes) -> bool:
 
 class WhitespaceAnalyzer(Analyzer):
     name = "whitespace"
-    category = "stego"
+    category = "steg"
     description = "Interpret a Whitespace esolang program (spaces/tabs/newlines)."
     accepts = ()   # any file; gated by looks_like_whitespace()
     display_order = 129

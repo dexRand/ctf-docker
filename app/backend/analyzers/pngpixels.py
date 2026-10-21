@@ -11,34 +11,18 @@ from collections import Counter
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
+from .util import bits_to_bytes, is_printable
 
 _MAX_PIXELS = 5_000_000
 _MAX_VALUES = 16
 
 
-def _bytes_from_bits(bits: list[int]) -> bytes:
-    out = bytearray()
-    for i in range(0, len(bits) - len(bits) % 8, 8):
-        val = 0
-        for b in bits[i:i + 8]:
-            val = (val << 1) | b
-        out.append(val & 0xFF)
-    return bytes(out)
-
-
-def _printable(blob: bytes) -> bool:
-    if not blob:
-        return False
-    good = sum(1 for c in blob if 32 <= c < 127 or c in (9, 10, 13))
-    return good / len(blob) >= 0.90
-
-
 class PngPixelsAnalyzer(Analyzer):
     name = "png-pixels"
-    category = "stego"
+    category = "steg"
     description = "Decode data hidden in low-bit-depth / palette PNG pixel values."
     accepts = (".png", "image/png")
-    display_order = 274
+    display_order = 337
 
     def run(self, ctx: ToolContext) -> ToolResult:
         try:
@@ -60,13 +44,13 @@ class PngPixelsAnalyzer(Analyzer):
         order = [v for v, _ in counts.most_common()]
         for zero, one in ((order[0], order[1]), (order[1], order[0])):
             bits = [0 if p == zero else 1 for p in px if p in (zero, one)]
-            dec = _bytes_from_bits(bits)
-            if _printable(dec) and dec.strip():
+            dec = bits_to_bytes(bits)
+            if is_printable(dec) and dec.strip():
                 results.append(f"[pixel-values msb] {dec.decode('latin-1', 'replace')[:4000]}")
                 break
         if im.mode == "P":   # palette indices as raw bytes
             raw = bytes(int(p) & 0xFF for p in px)
-            if _printable(raw) and raw.strip():
+            if is_printable(raw) and raw.strip():
                 results.append(f"[palette-index bytes] {raw.decode('latin-1', 'replace')[:4000]}")
         if not results:
             return ToolResult(self.name, status="skipped", summary="no printable decode")

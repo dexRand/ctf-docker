@@ -43,3 +43,30 @@ def test_parse_bkcrack_keys():
     text = "bkcrack 1.8.1\nKeys: 1a2b3c4d 5e6f7a8b 9c0d1e2f\n"
     assert cracking._parse_bkcrack_keys(text) == "1a2b3c4d 5e6f7a8b 9c0d1e2f"
     assert cracking._parse_bkcrack_keys("no keys here") is None
+
+
+def test_pot_password_keeps_colons_in_the_password():
+    h = "$pkzip2$1*1*2*0*c*0*abc*$/pkzip2$"
+    assert cracking._pot_password(f"{h}:pa:ss:w0rd\n", h) == "pa:ss:w0rd"
+    assert cracking._pot_password("", h) is None
+
+
+def test_tool_timeout_is_capped_by_the_deadline():
+    import time
+    assert cracking._tool_timeout(None) == 3600
+    assert cracking._tool_timeout(time.time() + 30) <= 30
+    assert cracking._tool_timeout(time.time() - 5) == 1
+
+
+def test_each_crack_gets_its_own_scratch_dir():
+    a, b = cracking._scratch("x"), cracking._scratch("x")
+    try:
+        assert a != b and a.is_dir() and b.is_dir()
+    finally:
+        a.rmdir(); b.rmdir()
+
+
+def test_pot_password_ignores_hashcat_errors():
+    h = "$pkzip2$1*1*2*0*c*0*abc*$/pkzip2$"
+    err = "Hashfile '/tmp/x/hash' on line 1 ($pkzip...zip2$): Hash contains unsupported compression type for current mode"
+    assert cracking._pot_password(err + "\n", h) is None

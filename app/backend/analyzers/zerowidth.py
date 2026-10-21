@@ -13,34 +13,32 @@ from collections import Counter
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
+from .util import TEXT_EXT, bits_to_bytes, is_printable
 
-TEXT_EXT = (".txt", ".md", ".html", ".htm", ".js", ".py", ".c", ".cpp", ".csv",
-            ".json", ".srt", ".vtt", ".log", ".xml", ".yaml", ".yml")
 _ZW = ("\u200b", "\u200c", "\u200d", "\ufeff", "\u2060", "\u00ad", "\u180e")
 _MAX_OUT = 50_000
 
 
-def _bits_to_bytes(bits: list[int], width: int = 8) -> bytes:
-    out = bytearray()
-    for i in range(0, len(bits) - len(bits) % width, width):
-        val = 0
-        for b in bits[i:i + width]:
-            val = (val << 1) | b
-        out.append(val & 0xFF)
-    return bytes(out)
-
-
-def _printable(blob: bytes) -> bool:
-    if not blob:
-        return False
-    good = sum(1 for c in blob if 32 <= c < 127 or c in (9, 10, 13))
-    return good / len(blob) >= 0.90
+def _decode_two_symbols(seq: list[str]) -> list[str]:
+    """The two most frequent symbols are the bits (a 3rd one is usually a
+    separator, ignored). Both 0/1 assignments, 8- and 7-bit; printable only."""
+    order = [c for c, _ in Counter(seq).most_common(3)]
+    if len(order) < 2:
+        return []
+    decodes: list[str] = []
+    for zero, one in ((order[0], order[1]), (order[1], order[0])):
+        bits = [0 if c == zero else 1 for c in seq if c in (zero, one)]
+        for width in (8, 7):
+            dec = bits_to_bytes(bits, width).decode("latin-1", "replace")
+            if is_printable(dec.encode("latin-1")) and dec not in decodes:
+                decodes.append(dec[:_MAX_OUT])
+    return decodes
 
 
 class ZeroWidthAnalyzer(Analyzer):
     name = "zero-width"
-    category = "stego"
-    description = "Decode zero-width (ZWSP/ZWNJ/ZWJ) and trailing-whitespace stego."
+    category = "steg"
+    description = "Decode zero-width (ZWSP/ZWNJ/ZWJ), two-symbol whitespace and trailing-whitespace stego."
     accepts = TEXT_EXT + ("text/",)
     display_order = 128
 
@@ -54,27 +52,24 @@ class ZeroWidthAnalyzer(Analyzer):
 
         seq = [c for c in text if c in _ZW]
         if len(seq) >= 16:
-            # the two most frequent symbols are the bits; a 3rd char is usually a
-            # separator (ignored). Try both 0/1 assignments and 8/7-bit widths.
-            order = [c for c, _ in Counter(seq).most_common(3)]
-            if len(order) >= 2:
-                decodes: list[str] = []
-                for zero, one in ((order[0], order[1]), (order[1], order[0])):
-                    bits = [0 if c == zero else 1 for c in seq if c in (zero, one)]
-                    for width in (8, 7):
-                        dec = _bits_to_bytes(bits, width).decode("latin-1", "replace")
-                        if _printable(dec.encode("latin-1")) and dec not in decodes:
-                            decodes.append(dec)
-                for dec in decodes:
-                    out.append(f"[zero-width {len(seq)} chars] " + dec[:_MAX_OUT])
+            out += [f"[zero-width {len(seq)} chars] " + d for d in _decode_two_symbols(seq)]
+
+        # a whole text written with two symbols only (e.g. em-space / space,
+        # picoCTF "WhitePages"): the symbols are the bits
+        body = [c for c in text if c not in "\r\n"]
+        top = Counter(body).most_common(3)
+        if len(body) >= 64 and len(top) >= 2 and top[0][1] + top[1][1] >= 0.98 * len(body):
+            pair = f"U+{ord(top[0][0]):04X}/U+{ord(top[1][0]):04X}"
+            out += [f"[two-symbol {pair} {len(body)} chars] " + d
+                    for d in _decode_two_symbols(body)]
 
         tw: list[int] = []
         for line in text.split("\n"):
             for ch in line[len(line.rstrip(" \t")):]:
                 tw.append(0 if ch == " " else 1)
         if len(tw) >= 16:
-            dec = _bits_to_bytes(tw)
-            if _printable(dec):
+            dec = bits_to_bytes(tw)
+            if is_printable(dec):
                 out.append(f"[trailing-whitespace {len(tw)} bits] "
                            + dec.decode("latin-1", "replace")[:_MAX_OUT])
 

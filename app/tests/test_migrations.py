@@ -37,3 +37,24 @@ def test_legacy_database_with_context_is_stamped_at_0002(tmp_path: Path):
 def test_empty_database_is_fresh(tmp_path: Path):
     e = create_engine(f"sqlite:///{tmp_path / 'empty.db'}")
     assert _legacy_revision(inspect(e)) is None
+
+
+def test_ctf_columns_exist_after_upgrade():
+    init_db()
+    insp = inspect(engine)
+    assert "ctf" in set(insp.get_table_names())
+    cols = {c["name"] for c in insp.get_columns("project")}
+    assert {"ctf_id", "category", "solved", "flag"} <= cols
+
+
+def test_models_match_migrations():
+    # autogenerate diff between models.py and the migrated schema must be empty
+    from alembic.autogenerate import compare_metadata
+    from alembic.runtime.migration import MigrationContext
+    from sqlmodel import SQLModel
+
+    import backend.models  # noqa: F401
+    init_db()
+    with engine.connect() as conn:
+        diff = compare_metadata(MigrationContext.configure(conn), SQLModel.metadata)
+    assert diff == []

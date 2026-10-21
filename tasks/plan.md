@@ -1,6 +1,7 @@
 # Implementation Plan: CTF Toolbox
 
-> **Storico.** Il piano originale è completato (vedi `tasks/todo.md` per lo stato
+> **Storico.** Il lavoro attuale è in `tasks/plan-refactor.md` (audit e refactor
+> 2026-10-20). Il piano originale qui sotto è completato (vedi `tasks/todo.md` per lo stato
 > fase per fase). Le porte sono state spostate da `9000+` a **`19000+`** per non
 > collidere con altri stack sull'host. Il lavoro successivo (StegSuite) è tracciato
 > in `tasks/remaining.md`.
@@ -54,7 +55,7 @@ strumenti dedicati e la dashboard li raggruppa di conseguenza.
 
 | Dominio | Suite | Dove | Note |
 |---|---|---|---|
-| Stego / Forensics | **StegSuite** | `:19014` (core) | 55 analyzer, GUI + API REST, `./ctf scan` |
+| Stego / Forensics | **StegSuite** | `:19014` (core) | 60 analyzer, CTF/challenge, autosolver, GUI + REST + MCP, `./ctf scan` |
 | Rev / Pwn (attivo) | **`rev` sandbox** | `:19018` + GUI `:19020` (profilo `rev`) | **ELF + PE + APK**: Ghidra, radare2, upx, apktool, jadx, gdb, qemu, pwntools · **report** (`rev-report`) + **emulazione** (Unicorn + `z3`) + **angr** (esecuzione simbolica) · **workbench web** su `:19020` (emulate · brute · report) |
 | Web | **ZAP** | `:19005` (profilo `web`) | scanner + proxy |
 | Crypto / Math | **SageMath** | `:19010` (profilo `crypto`) | notebook |

@@ -1,14 +1,34 @@
 const BASE = '/api/v1'
 
+const KEY_STORE = 'stegsuite_api_key'
+
 function apiKey() {
-  try { return localStorage.getItem('stegsuite_api_key') || '' } catch { return '' }
+  try { return localStorage.getItem(KEY_STORE) || '' } catch { return '' }
 }
 
-export async function api(path, opts = {}) {
+// The key also lives in a cookie: <img>/<audio>/download links are loaded by
+// the browser itself and can't carry the X-API-Key header.
+function setApiKey(key) {
+  try { localStorage.setItem(KEY_STORE, key) } catch { /* storage blocked */ }
+  document.cookie = `stegsuite_key=${encodeURIComponent(key)}; path=/; SameSite=Strict`
+}
+
+if (apiKey()) setApiKey(apiKey())
+
+// On a 401 ask once for the key (set via STEGSUITE_API_KEY on the server).
+function askApiKey() {
+  const key = window.prompt('StegSuite API key (STEGSUITE_API_KEY):', '')
+  if (!key) return false
+  setApiKey(key.trim())
+  return true
+}
+
+export async function api(path, opts = {}, retried = false) {
   const headers = { ...(opts.headers || {}) }
   const key = apiKey()
   if (key) headers['x-api-key'] = key
   const r = await fetch(BASE + path, { ...opts, headers })
+  if (r.status === 401 && !retried && askApiKey()) return api(path, opts, true)
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`)
   const ct = r.headers.get('content-type') || ''
   return ct.includes('application/json') ? r.json() : r.text()

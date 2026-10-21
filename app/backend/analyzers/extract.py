@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, list_files, which, out_of
 from .registry import register, subprocess_analyzer
+from .util import ARCHIVE_EXT
 
 
 def _arts(files: list[Path], workdir: Path) -> list[dict]:
@@ -67,29 +68,17 @@ class ForemostAnalyzer(Analyzer):
         )
 
 
-ARCHIVE_EXT = (".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".cab", ".iso")
 
 
 def _sibling_passwords(ctx: ToolContext) -> list[str]:
     """Passwords hinted by a small sibling *text* file (e.g. ``psw: ****``)."""
-    proj = ctx.workdir.parent.parent
     out: list[str] = []
-    for sub in ("uploads", "files"):
-        d = proj / sub
-        if not d.is_dir():
+    for _p, head, size in ctx.siblings(4096):
+        if size > 4096 or b"\x00" in head[:64]:   # only small text files
             continue
-        for p in sorted(d.iterdir()):
-            if not p.is_file() or p == ctx.input:
-                continue
-            try:
-                head = p.read_bytes()[:8192]
-            except OSError:
-                continue
-            if len(head) > 4096 or b"\x00" in head[:64]:
-                continue
-            m = re.search(rb"(?im)\b(?:psw|pass(?:word)?)\b\s*[:=]\s*(\S+)", head)
-            if m:
-                out.append(m.group(1).decode("latin-1", "replace").strip())
+        m = re.search(rb"(?im)\b(?:psw|pass(?:word)?)\b\s*[:=]\s*(\S+)", head)
+        if m:
+            out.append(m.group(1).decode("latin-1", "replace").strip())
     return out
 
 

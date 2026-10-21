@@ -1,13 +1,17 @@
 """Analysis control + results (runs, artifacts, findings, events)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+import threading
+
+from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import FileResponse, Response
 from sqlmodel import Session, select
 
-from .. import orchestrator, storage
+from .. import orchestrator, pipeline, storage
+from ..analyzers import get as get_tool
 from ..db import get_session
 from ..models import Artifact, Event, FileNode, Finding, Project, ToolRun
+from ..report import split_context
 
 router = APIRouter()
 
@@ -39,32 +43,72 @@ def start_project(pid: str, session: Session = Depends(get_session)) -> dict:
     return {"started": pid}
 
 
-def _control(pid: str, action: str) -> dict:
+_STATUS_AFTER = {"pause": "paused", "resume": "running"}
+
+
+def _control(pid: str, action: str, session: Session) -> dict:
     if not orchestrator.control(pid, action):
         raise HTTPException(404, "no running analysis for this project")
+    p = session.get(Project, pid)
+    if p and action in _STATUS_AFTER:  # pause/resume are visible in the project status
+        p.status = _STATUS_AFTER[action]
+        session.add(p)
+        session.commit()
+        orchestrator.emit(pid, {"type": "status", "status": p.status})
     return {action: pid}
 
 
 @router.post("/api/v1/projects/{pid}/pause")
-def pause_project(pid: str) -> dict:
-    return _control(pid, "pause")
+def pause_project(pid: str, session: Session = Depends(get_session)) -> dict:
+    return _control(pid, "pause", session)
 
 
 @router.post("/api/v1/projects/{pid}/resume")
-def resume_project(pid: str) -> dict:
-    return _control(pid, "resume")
+def resume_project(pid: str, session: Session = Depends(get_session)) -> dict:
+    return _control(pid, "resume", session)
 
 
 @router.post("/api/v1/projects/{pid}/cancel")
-def cancel_project(pid: str) -> dict:
-    return _control(pid, "cancel")
+def cancel_project(pid: str, session: Session = Depends(get_session)) -> dict:
+    return _control(pid, "cancel", session)
+
+
+@router.post("/api/v1/projects/{pid}/files/{fid}/run", status_code=202)
+def run_tools(pid: str, fid: int, payload: dict = Body(...),
+              session: Session = Depends(get_session)) -> dict:
+    """Run one or more analyzers on a file of the project, optionally with a
+    password (e.g. steghide/outguess/7z with a password you found). Runs in the
+    background; new runs/findings show up in /runs, /findings and on the WS.
+    Files it extracts are added to the tree and analyzed."""
+    node = session.get(FileNode, fid)
+    if not node or node.project_id != pid:
+        raise HTTPException(404, "file not found")
+    tools = payload.get("tools") or []
+    if isinstance(tools, str):
+        tools = [tools]
+    unknown = [t for t in tools if not get_tool(str(t))]
+    if not tools or unknown:
+        raise HTTPException(422, f"unknown tool(s): {unknown}" if unknown else "tools: list required")
+    password = payload.get("password") or None
+
+    def work() -> None:
+        if pipeline.run_tools_on_node(pid, fid, [str(t) for t in tools], password):
+            orchestrator.analyze_new(pid)
+
+    threading.Thread(target=work, daemon=True).start()
+    return {"started": pid, "file_id": fid, "tools": tools}
 
 
 @router.get("/api/v1/projects/{pid}/findings")
 def project_findings(pid: str, session: Session = Depends(get_session)) -> list[dict]:
     rows = session.exec(select(Finding).where(Finding.project_id == pid).order_by(Finding.id)).all()
-    return [{"id": f.id, "file_id": f.file_id, "kind": f.kind, "value": f.value,
-             "source": f.source, "context": f.context, "created_at": f.created_at} for f in rows]
+    out = []
+    for f in rows:
+        ctx, match = split_context(f.context)
+        out.append({"id": f.id, "file_id": f.file_id, "kind": f.kind, "value": f.value,
+                    "source": f.source, "context": ctx, "match": match or None,
+                    "created_at": f.created_at})
+    return out
 
 
 @router.get("/api/v1/projects/{pid}/runs")

@@ -14,15 +14,24 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+# Images are pinned by digest (`tag@sha256:…`): a rebuild or a new machine gets
+# exactly what was tested. Refresh them with `python3 tools/pin_images.py`.
+
+# common to every service: restart policy, rotated logs, the toolbox network
+x-base: &base
+  restart: unless-stopped
+  logging: *default-logging
+  networks: [ctfnet]
+
 services:
   # ---------------------------------------------------------------- DASHBOARD
   homepage:
-    image: ghcr.io/gethomepage/homepage:latest
-    restart: unless-stopped
+    <<: *base
+    image: ghcr.io/gethomepage/homepage:v2.6.0@sha256:3e38fe788223cb46a3ce1f046ef11667b40f7707fdca0dcbfa3f86c5c42bf1e8
     mem_limit: 512m
-    logging: *default-logging
+    cpus: 0.5
     ports:
-      - "${HOMEPAGE_PORT:-19001}:3000"
+      - "${BIND_ADDR:-127.0.0.1}:${HOMEPAGE_PORT:-19001}:3000"
     volumes:
       - ./config/homepage:/app/config
       # favicon "hacker": impostato in settings.yaml e sovrascrivendo i default di Homepage
@@ -34,75 +43,84 @@ services:
       # read-only: Homepage mostra stato/CPU/RAM dei container (integrazione Docker)
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      HOMEPAGE_ALLOWED_HOSTS: ${HOMEPAGE_ALLOWED_HOSTS:-localhost:19001,127.0.0.1:19001}
-    networks: [ctfnet]
+      HOMEPAGE_ALLOWED_HOSTS: ${HOMEPAGE_ALLOWED_HOSTS:-localhost:${HOMEPAGE_PORT:-19001},127.0.0.1:${HOMEPAGE_PORT:-19001}}
+      # ports for the links in config/homepage/services.yaml ({{HOMEPAGE_VAR_*}})
+      HOMEPAGE_VAR_HOMEPAGE_PORT: ${HOMEPAGE_PORT:-19001}
+      HOMEPAGE_VAR_CYBERCHEF_PORT: ${CYBERCHEF_PORT:-19002}
+      HOMEPAGE_VAR_MITMWEB_UI_PORT: ${MITMWEB_UI_PORT:-19003}
+      HOMEPAGE_VAR_MITMPROXY_PORT: ${MITMPROXY_PORT:-19004}
+      HOMEPAGE_VAR_ZAP_UI_PORT: ${ZAP_UI_PORT:-19005}
+      HOMEPAGE_VAR_ZAP_PROXY_PORT: ${ZAP_PROXY_PORT:-19006}
+      HOMEPAGE_VAR_SPIDERFOOT_PORT: ${SPIDERFOOT_PORT:-19007}
+      HOMEPAGE_VAR_WIRESHARK_HTTP_PORT: ${WIRESHARK_HTTP_PORT:-19008}
+      HOMEPAGE_VAR_SAGEMATH_PORT: ${SAGEMATH_PORT:-19010}
+      HOMEPAGE_VAR_ITTOOLS_PORT: ${ITTOOLS_PORT:-19011}
+      HOMEPAGE_VAR_FILEBROWSER_PORT: ${FILEBROWSER_PORT:-19012}
+      HOMEPAGE_VAR_STEGSUITE_PORT: ${STEGSUITE_PORT:-19014}
+      HOMEPAGE_VAR_HASHTOPOLIS_FRONTEND_PORT: ${HASHTOPOLIS_FRONTEND_PORT:-19016}
+      HOMEPAGE_VAR_WHISPER_PORT: ${WHISPER_PORT:-19017}
+      HOMEPAGE_VAR_REV_PORT: ${REV_PORT:-19018}
+      HOMEPAGE_VAR_DORK_PORT: ${DORK_PORT:-19019}
 
   # -------------------------------------------------------------- CRYPTO/ENCODING
   cyberchef:
-    image: ghcr.io/gchq/cyberchef:latest
-    restart: unless-stopped
+    <<: *base
+    image: ghcr.io/gchq/cyberchef:latest@sha256:f04a39926344faf8e4cbbc8c92fb125d2b466f9be62db09aff23c7c406101a51
     mem_limit: 256m
-    logging: *default-logging
+    cpus: 0.5
     ports:
-      - "${CYBERCHEF_PORT:-19002}:8080"
-    networks: [ctfnet]
+      - "${BIND_ADDR:-127.0.0.1}:${CYBERCHEF_PORT:-19002}:8080"
 
   sagemath:
-    image: sagemath/sagemath:latest
-    restart: unless-stopped
+    <<: *base
+    image: sagemath/sagemath:latest@sha256:310dfe23fc786f3a5a06a7b0387c60201ec79b32c0db941b7624505ee5edb565
     command: sage-jupyter
     mem_limit: 2g
     cpus: 1.5
-    logging: *default-logging
     ports:
-      - "${SAGEMATH_PORT:-19010}:8888"
+      - "${BIND_ADDR:-127.0.0.1}:${SAGEMATH_PORT:-19010}:8888"
     volumes:
       - sagemath-home:/home/sage
     profiles: [crypto]
-    networks: [ctfnet]
 
   # ------------------------------------------------------------------------------- WEB
   mitmproxy:
-    image: mitmproxy/mitmproxy:latest
-    restart: unless-stopped
+    <<: *base
+    image: mitmproxy/mitmproxy:12.2.3@sha256:00b77b5d8804c8ad18cb6caefbf9d5849e895e8986c5ce011f4ae30f4385962f
     mem_limit: 512m
-    logging: *default-logging
+    cpus: 1
     command: mitmweb --web-host 0.0.0.0 --listen-host 0.0.0.0 --set web_password=${MITMWEB_PASSWORD:-mitm}
     ports:
-      - "${MITMPROXY_PORT:-19004}:8080"   # proxy HTTP(S)
-      - "${MITMWEB_UI_PORT:-19003}:8081"  # GUI web (mitmweb)
+      - "${BIND_ADDR:-127.0.0.1}:${MITMPROXY_PORT:-19004}:8080"   # proxy HTTP(S)
+      - "${BIND_ADDR:-127.0.0.1}:${MITMWEB_UI_PORT:-19003}:8081"  # GUI web (mitmweb)
     volumes:
       - mitmproxy:/home/mitmproxy/.mitmproxy
-    networks: [ctfnet]
 
   zap:
+    <<: *base
     build:
       context: ./zap
       dockerfile: Dockerfile
     image: ctf-zap
-    restart: unless-stopped
     user: zap
     mem_limit: 2g
     cpus: 1.5
-    logging: *default-logging
     command: zap-webswing.sh
     ports:
-      - "${ZAP_UI_PORT:-19005}:8080"      # GUI web -> http://localhost:19005/zap
-      - "${ZAP_PROXY_PORT:-19006}:8090"   # proxy HTTP(S)
+      - "${BIND_ADDR:-127.0.0.1}:${ZAP_UI_PORT:-19005}:8080"      # GUI web -> http://localhost:19005/zap
+      - "${BIND_ADDR:-127.0.0.1}:${ZAP_PROXY_PORT:-19006}:8090"   # proxy HTTP(S)
     volumes:
       - ./config/zap:/zap/wrk:rw
     profiles: [web]
-    networks: [ctfnet]
 
   # ----------------------------------------------------------------------------- RECON
   spiderfoot:
-    image: dtagdevsec/spiderfoot:24.04.1
-    restart: unless-stopped
+    <<: *base
+    image: dtagdevsec/spiderfoot:24.04.1@sha256:2eda6a8152c2d21aac5129832e4c17a695befd35096141219e9e36494e8ceb1f
     mem_limit: 1g
     cpus: 1
-    logging: *default-logging
     ports:
-      - "${SPIDERFOOT_PORT:-19007}:8080"
+      - "${BIND_ADDR:-127.0.0.1}:${SPIDERFOOT_PORT:-19007}:8080"
     volumes:
       - spiderfoot-data:/var/lib/spiderfoot
     healthcheck:
@@ -112,29 +130,26 @@ services:
       retries: 3
       start_period: 30s
     profiles: [recon]
-    networks: [ctfnet]
 
   # ------------------------------------------------------------------------- FORENSICS
   wireshark:
-    image: ghcr.io/linuxserver/wireshark:latest
-    restart: unless-stopped
+    <<: *base
+    image: ghcr.io/linuxserver/wireshark:4.6.6-r0-ls329@sha256:9f35035b96eec43ec8736e0ad66fa52b0f5a12e37b1e8e9cfc6f19bf2fdf7583
     mem_limit: 2g
     cpus: 1.5
-    logging: *default-logging
     environment:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-Europe/Rome}
     ports:
-      - "${WIRESHARK_HTTP_PORT:-19008}:3000"   # GUI web http
-      - "${WIRESHARK_HTTPS_PORT:-19009}:3001"  # GUI web https
+      - "${BIND_ADDR:-127.0.0.1}:${WIRESHARK_HTTP_PORT:-19008}:3000"   # GUI web http
+      - "${BIND_ADDR:-127.0.0.1}:${WIRESHARK_HTTPS_PORT:-19009}:3001"  # GUI web https
     volumes:
       - wireshark-config:/config
     shm_size: "1gb"
     security_opt:
       - seccomp:unconfined
     profiles: [forensics]
-    networks: [ctfnet]
 
   # ----------------------------------------------------------------------------- AUDIO
   # Whisper-WebUI (Gradio): trascrizione audio/video -> testo/SRT con timestamp.
@@ -144,78 +159,73 @@ services:
   # NB: serve un tag >= v1.0.8 (torch <= 2.8): `latest` ha torch 2.9 e rompe
   # l'import di pyannote/torchaudio (`AudioMetaData`).
   whisper:
-    image: jhj0517/whisper-webui:v1.0.8-4def223
-    restart: unless-stopped
+    <<: *base
+    image: jhj0517/whisper-webui:v1.0.8-4def223@sha256:e61d8ee5d5de80a6b290300f91f21e7ba4fd8c3aaf24d65a10551de3f513c6c3
     mem_limit: 6g
     cpus: 3
-    logging: *default-logging
     entrypoint: ["sh", "-c", "cp -f /opt/whisper/default_parameters.yaml /Whisper-WebUI/configs/default_parameters.yaml && exec python app.py --server_name 0.0.0.0 --server_port 7860 --inbrowser false"]
     ports:
-      - "127.0.0.1:${WHISPER_PORT:-19017}:7860"
+      - "${BIND_ADDR:-127.0.0.1}:${WHISPER_PORT:-19017}:7860"
     volumes:
       - ./config/whisper/default_parameters.yaml:/opt/whisper/default_parameters.yaml:ro
       - ./data/whisper/models:/Whisper-WebUI/models
       - ./data/whisper/outputs:/Whisper-WebUI/outputs
     profiles: [audio]
-    networks: [ctfnet]
 
   # --------------------------------------------------------------------------- UTILITY
   it-tools:
-    image: corentinth/it-tools:latest
-    restart: unless-stopped
+    <<: *base
+    image: corentinth/it-tools:latest@sha256:8b8128748339583ca951af03dfe02a9a4d7363f61a216226fc28030731a5a61f
     mem_limit: 128m
-    logging: *default-logging
+    cpus: 0.25
     ports:
-      - "${ITTOOLS_PORT:-19011}:80"
-    networks: [ctfnet]
+      - "${BIND_ADDR:-127.0.0.1}:${ITTOOLS_PORT:-19011}:80"
 
   # Dork generator: pagina statica (nginx upstream, nessuna build custom) che
   # costruisce query Google/Bing/DuckDuckGo/GitHub/Shodan/… da un target.
   # Nessuno scraping: apre solo i link nel motore scelto.
   dork:
-    image: nginx:alpine
-    restart: unless-stopped
+    <<: *base
+    image: nginx:1-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d
     mem_limit: 64m
-    logging: *default-logging
+    cpus: 0.25
     ports:
-      - "${DORK_PORT:-19019}:80"
+      - "${BIND_ADDR:-127.0.0.1}:${DORK_PORT:-19019}:80"
     volumes:
       - ./config/dork:/usr/share/nginx/html:ro
-    networks: [ctfnet]
 
   # FileBrowser: browse ./data (progetti StegSuite, estratti, wordlist). Solo localhost.
   # FileBrowser Quantum (fork attivo di filebrowser, che è archiviato).
   # Configurato in noauth: accesso libero, nessun login.
   filebrowser:
-    image: gtstef/filebrowser:stable
-    restart: unless-stopped
+    <<: *base
+    image: gtstef/filebrowser:stable@sha256:2e3936caf7b12908f7d3ebb68ddfcea075cda5f732e4bd95beae6cfa529cbec7
     mem_limit: 512m
-    logging: *default-logging
+    cpus: 0.5
     ports:
-      - "127.0.0.1:${FILEBROWSER_PORT:-19012}:80"
+      - "${BIND_ADDR:-127.0.0.1}:${FILEBROWSER_PORT:-19012}:80"
     volumes:
       - ./data:/srv
       - ./config/filebrowser/config.yaml:/config/config.yaml:ro
       - filebrowser-data:/home/filebrowser/data
     environment:
       FILEBROWSER_CONFIG: /config/config.yaml
-    networks: [ctfnet]
 
   # StegSuite — stego/forensics workbench (Auto + Check), API-first, own GUI.
   stegsuite:
+    <<: *base
     build:
       context: .
       dockerfile: app/Dockerfile
     image: ctf-stegsuite
-    restart: unless-stopped
     mem_limit: 4g
     cpus: 3
-    logging: *default-logging
     ports:
-      - "127.0.0.1:${STEGSUITE_PORT:-19014}:19014"
+      - "${BIND_ADDR:-127.0.0.1}:${STEGSUITE_PORT:-19014}:19014"
     environment:
       - MAX_DEPTH=${MAX_DEPTH:-6}
       - HEAVY_TOOLS=${HEAVY_TOOLS:-1}
+      - TOOL_WORKERS=${TOOL_WORKERS:-3}
       - API_KEY=${STEGSUITE_API_KEY:-}
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-1024}
       - RATE_LIMIT_RPM=${RATE_LIMIT_RPM:-0}
@@ -227,23 +237,37 @@ services:
       - MAX_WORDLIST_MB=${MAX_WORDLIST_MB:-512}
       - HASHCAT_RULES=${HASHCAT_RULES:-best64}
       - CRACK_BUDGET_S=${CRACK_BUDGET_S:-0}
+      - CRACK_WORKERS=${CRACK_WORKERS:-1}
       - AUTO_CRACK_MAX_MB=${AUTO_CRACK_MAX_MB:-1}
       - AUTO_CRACK_BUDGET_S=${AUTO_CRACK_BUDGET_S:-120}
       - FLAG_PATTERN=${FLAG_PATTERN:-}
+      # host ports of the other tools, for /api/v1/services and the MCP server
+      - HOMEPAGE_PORT=${HOMEPAGE_PORT:-19001}
+      - STEGSUITE_PORT=${STEGSUITE_PORT:-19014}
+      - FILEBROWSER_PORT=${FILEBROWSER_PORT:-19012}
+      - CYBERCHEF_PORT=${CYBERCHEF_PORT:-19002}
+      - MITMWEB_UI_PORT=${MITMWEB_UI_PORT:-19003}
+      - ITTOOLS_PORT=${ITTOOLS_PORT:-19011}
+      - DORK_PORT=${DORK_PORT:-19019}
+      - ZAP_UI_PORT=${ZAP_UI_PORT:-19005}
+      - SPIDERFOOT_PORT=${SPIDERFOOT_PORT:-19007}
+      - WIRESHARK_HTTP_PORT=${WIRESHARK_HTTP_PORT:-19008}
+      - SAGEMATH_PORT=${SAGEMATH_PORT:-19010}
+      - HASHTOPOLIS_FRONTEND_PORT=${HASHTOPOLIS_FRONTEND_PORT:-19016}
+      - WHISPER_PORT=${WHISPER_PORT:-19017}
+      - REV_PORT=${REV_PORT:-19018}
     volumes:
       - ./data:/data
       - ./wordlists:/wordlists:ro
-    networks: [ctfnet]
 
   # ------------------------------------------------------------------- CRACK
   # Hashtopolis: distributed hashcat cracking (frontend + backend + MySQL).
   # Gli agent si registrano dalla UI (voucher); non ne avviamo uno di default.
   hashtopolis-db:
-    image: mysql:9.7
-    restart: unless-stopped
+    <<: *base
+    image: mysql:9.7@sha256:e2fa358a74ac81148e7e27d9433e4c0ab62133de8ea4428b4f39a51a4ba7d07f
     mem_limit: 1g
     cpus: 1
-    logging: *default-logging
     environment:
       MYSQL_ROOT_PASSWORD: ${HASHTOPOLIS_DB_ROOT_PASS:-hashtopolis}
       MYSQL_DATABASE: ${HASHTOPOLIS_DB_NAME:-hashtopolis}
@@ -251,16 +275,22 @@ services:
       MYSQL_PASSWORD: ${HASHTOPOLIS_DB_PASS:-hashtopolis}
     volumes:
       - hashtopolis-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     profiles: [crack]
-    networks: [ctfnet]
 
   hashtopolis-backend:
-    image: hashtopolis/backend:latest
-    restart: unless-stopped
+    <<: *base
+    image: hashtopolis/backend:latest@sha256:f8ea58f6f116cb67b559e351ca466687ae564b8942a83b453bcd6dbdde0f654d
     mem_limit: 1g
     cpus: 1
-    logging: *default-logging
-    depends_on: [hashtopolis-db]
+    depends_on:
+      hashtopolis-db:
+        condition: service_healthy
     environment:
       HASHTOPOLIS_DB_TYPE: mysql
       HASHTOPOLIS_DB_USER: ${HASHTOPOLIS_DB_USER:-hashtopolis}
@@ -269,40 +299,37 @@ services:
       HASHTOPOLIS_DB_DATABASE: ${HASHTOPOLIS_DB_NAME:-hashtopolis}
       HASHTOPOLIS_ADMIN_USER: ${HASHTOPOLIS_ADMIN_USER:-admin}
       HASHTOPOLIS_ADMIN_PASSWORD: ${HASHTOPOLIS_ADMIN_PASSWORD:-hashtopolis}
-      HASHTOPOLIS_BACKEND_URL: ${HASHTOPOLIS_BACKEND_URL:-http://localhost:19015}
-      HASHTOPOLIS_FRONTEND_URLS: ${HASHTOPOLIS_FRONTEND_URLS:-http://localhost:19016}
+      HASHTOPOLIS_BACKEND_URL: ${HASHTOPOLIS_BACKEND_URL:-http://localhost:${HASHTOPOLIS_BACKEND_PORT:-19015}}
+      HASHTOPOLIS_FRONTEND_URLS: ${HASHTOPOLIS_FRONTEND_URLS:-http://localhost:${HASHTOPOLIS_FRONTEND_PORT:-19016}}
       HASHTOPOLIS_FRONTEND_PORT: ${HASHTOPOLIS_FRONTEND_PORT:-19016}
     volumes:
       - hashtopolis-backend:/usr/local/share/hashtopolis
     ports:
-      - "127.0.0.1:${HASHTOPOLIS_BACKEND_PORT:-19015}:80"
+      - "${BIND_ADDR:-127.0.0.1}:${HASHTOPOLIS_BACKEND_PORT:-19015}:80"
     profiles: [crack]
-    networks: [ctfnet]
 
   hashtopolis-frontend:
-    image: hashtopolis/frontend:latest
-    restart: unless-stopped
+    <<: *base
+    image: hashtopolis/frontend:latest@sha256:5749f8d6835205d390f8371cf55ac9a141248aa3e32902c8af42a6e939036732
     mem_limit: 512m
     cpus: 1
-    logging: *default-logging
     depends_on: [hashtopolis-backend]
     environment:
-      HASHTOPOLIS_BACKEND_URL: ${HASHTOPOLIS_BACKEND_URL:-http://localhost:19015}
+      HASHTOPOLIS_BACKEND_URL: ${HASHTOPOLIS_BACKEND_URL:-http://localhost:${HASHTOPOLIS_BACKEND_PORT:-19015}}
     ports:
-      - "127.0.0.1:${HASHTOPOLIS_FRONTEND_PORT:-19016}:80"
+      - "${BIND_ADDR:-127.0.0.1}:${HASHTOPOLIS_FRONTEND_PORT:-19016}:80"
     profiles: [crack]
-    networks: [ctfnet]
 
   # ------------------------------------------------------------- REV (analisi ELF attiva)
   # Sandbox per eseguire/debuggiare binari ELF sconosciuti (gdb, strace, ltrace,
   # pwntools, qemu-user) da un terminale web. Rete INTERNA (nessun accesso a
   # internet), cap_drop ALL, no-new-privileges. Solo localhost. Avvio: ./ctf up rev
   rev:
+    <<: *base
     build:
       context: ./rev
       dockerfile: Dockerfile
     image: ctf-rev
-    restart: unless-stopped
     mem_limit: 4g
     cpus: 2
     pids_limit: 512
@@ -312,7 +339,6 @@ services:
       - ALL
     cap_add:
       - SYS_PTRACE        # gdb/debug di processi figli
-    logging: *default-logging
     volumes:
       - ./data/rev:/work
     working_dir: /work
@@ -322,15 +348,14 @@ services:
   # Unico punto d'accesso al sandbox: inoltra la porta 19018 (localhost) a
   # `rev` sulla rete interna. `rev` NON è pubblicato, quindi non ha egress.
   rev-proxy:
-    image: alpine/socat:latest
-    restart: unless-stopped
+    <<: *base
+    image: alpine/socat:latest@sha256:22d77becaeeea8ef56b8c4bb2312323acafe85354be6a85714ff5050e3537842
     mem_limit: 64m
     cpus: 0.5
-    logging: *default-logging
     depends_on: [rev]
     command: ["TCP-LISTEN:7681,fork,reuseaddr", "TCP:rev:7681"]
     ports:
-      - "127.0.0.1:${REV_PORT:-19018}:7681"
+      - "${BIND_ADDR:-127.0.0.1}:${REV_PORT:-19018}:7681"
     profiles: [rev]
     networks: [ctfnet, revnet]
 

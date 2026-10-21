@@ -322,3 +322,76 @@ stable. Verificato: 13/13 presenti (`-addonlist`) + webswing risponde su
 - [x] Ogni servizio risponde a runtime (9/9 → HTTP 200)
 - [x] Dashboard mostra tutti i tool con descrizione e stato
 - [x] README allineato (EN principale + IT)
+
+## Refactor 2026-10 (audit completo) — vedi `tasks/plan-refactor.md`
+Stato: **Fasi 0–5 fatte**, Fase 6 (RevSuite) in attesa di approvazione.
+- [x] **Fase 0 — sicurezza e bug**: path traversal su `/tooljobs` (DB scaricabile,
+      confermato), RCE da `.git/config` (confermato), XSS nel report, porte su
+      `127.0.0.1`, password cancellate dal dedupe, `/tmp` condiviso fra crack, budget
+      di crack, collisioni di `order_index`, delete con job attivo, worker crack senza
+      errori, bug analyzer (OCR fallback, zTXt, numpy opzionale, steghide), bug SPA
+      (`out()`, race `load()`, WS/terminale), API key via cookie/`?key=`, Dockerfile.
+- [x] **Fase 1 — API-first**: report/log/transcript/flag-route/summary nel backend,
+      `POST /files/{fid}/run`, pausa visibile; `docs/API.md` aggiornato.
+- [x] **Fase 1b — CTF/autosolver/IA**: modello `Ctf` (migrazione 0003), formato flag
+      per CTF → `solved`, autosolver, vista CTF nella SPA, **server MCP** (19 tool),
+      `/services`, `./ctf up` pronto all'uso + `./ctf mcp`.
+- [x] **Fase 2 — modularità**: `orchestrator.py` diviso in 9 moduli, `analyzers/util.py`
+      (bit/printable/base64/magic/estensioni), `run_cmd` unico con kill del gruppo,
+      `ctx.siblings()`, `apply_crack_result` condiviso, codice morto rimosso.
+- [x] **Fase 3 — efficienza** (senza perdere flag, verificato): GIF OCR una volta,
+      `lsb-carve` in numpy (97 s → 0,9 s su Gab-chan, byte identici a zsteg), morse
+      vettorizzato, letture limitate, line-count wordlist in cache, N+1 rimossi.
+- [x] **Fase 4 — frontend**: `Project.vue` 1385 → ~900 righe (summary dal backend,
+      `ansi.js`, `usePaneResize`, `TextModal`), i18n/icone morte rimosse, leak chiusi.
+- [x] **Fase 5 — infra/doc**: compose con ancora `x-base`, cpus, healthcheck, link
+      dashboard da `.env`, **immagini pinnate per digest** (`tools/pin_images.py`),
+      `tools/check_consistency.py` in CI, README EN/IT riscritti, SPEC/AGENTS aggiornati.
+- [x] **Nuove tecniche dai test reali**: whitespace a due simboli, flussi UDP/TCP,
+      base64 un token per pacchetto, testo di SVG/HTML, bit alto, prefissi CTF comuni
+      (`DUCTF`, `ictf`, `tjctf`, `lactf`, …), niente flag fasulle dagli hex dump.
+
+Risultati (immagine nuova): pytest **214/214**, regressione **33/33**, reali **35/35**
+(2963 s → 2675 s di analisi a parità di flag), verifica writeup **ALL CORRECT**.
+Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
+
+### Ultimi interventi (20/10, dopo il primo push)
+- [x] Riquadro verde / prova per **ogni** flag: anche quelle decodificate (XOR, base64,
+      hex, rot13, OCR, FLAG_PATTERN) e quelle nei byte del file (hexdump all'offset).
+      Audit sullo storico: 0 flag senza prova.
+- [x] `pcap`: tunnel DNS per server di destinazione (shark2), porte sorgente (sow2),
+      base64 per pacchetto (ph4nt0m), flussi UDP/TCP (sow1); niente `foremost` sui pcap.
+- [x] Cracking: errori di hashcat non più presi come password; wordlist di contesto dai
+      metadati (EXIF Title/Comment…); per ogni wordlist hashcat **e poi** fcrackzip.
+- [x] `stepic` (150 MP in 2 s), `lsb-carve` sulle prime righe delle immagini enormi,
+      niente doppio carving dei frammenti ritagliati.
+- [x] Tempi per tool corretti con le ondate parallele.
+- Verifica in corso al momento della compattazione (`gate10`): 18 extra + regressione
+  + 35 reali + writeup. Push consentito solo se tutto verde (vedi memoria).
+
+### Backlog
+- [ ] Push del commit CI `ci: consistency check…` (solo locale): serve un token GitHub
+      con scope `workflow`; finché manca si pusha il resto senza `ci.yml`.
+- [ ] Fase 6 — RevSuite (auto-triage binari + terminale per progetto) — da approvare.
+- [x] Coda di cracking con N worker (`CRACK_WORKERS`), crack per file, `GET/DELETE /cracks`.
+- [ ] Gap reali: evtx, PNG/BMP corrotti + OCR, SSTV→OCR, porte UDP, evil bit, GPP
+      cpassword, SAM, Chef, QOI, zstd IDAT, palette PNG, QR sfocato, pcap corrotto, ASK/SAME.
+
+### Prossima sessione (da fare)
+
+- [ ] **Spostare la CI al suo posto**: `git mv ci/ci.yml .github/workflows/ci.yml`
+      (sovrascrive la vecchia) e pushare da un PC con token con scope `workflow`.
+- [ ] **Coda di crack visuale** nella SPA: elenco job in coda/in corso/finiti per
+      file, con stato e progresso (API `crackqueue` già esistente → endpoint + vista).
+- [ ] **Job di nuovo `running`** quando si avvia un crack su un progetto fermo
+      (`done`/`failed`): lo stato del job deve riflettere il crack in corso e
+      tornare `done` a fine crack (incluso il rianalisi dei file estratti).
+- [ ] Verifica gate10 non completata prima del push: rilanciare la suite completa
+      (extra, regressione fixture, 35 reali, `verify_flags.py`) e confrontare
+      con `real-extra8.json`. Unit test: 239 verdi.
+- [ ] Fase 6 (RevSuite / rev auto-finder) ancora da approvare.
+- [ ] **Gate10 (finito dopo il push) — 2 regressioni da sistemare**: extra 17/18
+      (`nothing.png` FAIL, got=[]), fixture 33/33, reali 34/35 (`dolls.jpg` /
+      Matryoshka FAIL, got=[] — prima passava: probabile effetto di
+      `perf(planner): don't carve again what a carver cut out` sui file annidati).
+      Log: scratchpad `gate10.log`.

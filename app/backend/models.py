@@ -11,12 +11,27 @@ def _now() -> dt.datetime:
     return dt.datetime.now(dt.timezone.utc)
 
 
+class Ctf(SQLModel, table=True):
+    """A CTF event: groups its challenges (projects) and sets the flag format."""
+    id: str = Field(primary_key=True)
+    name: str = ""
+    flag_format: str = ""        # "DUCTF" / "DUCTF{...}" (prefix) or a regex
+    url: str = ""
+    notes: str = ""
+    created_at: dt.datetime = Field(default_factory=_now)
+
+
 class Project(SQLModel, table=True):
+    """A challenge: uploaded files + everything the analysis found."""
     id: str = Field(primary_key=True)
     name: str = ""
     status: str = "created"      # created|queued|running|paused|done|error|cancelled
     mode: str = "auto"           # auto|check
     settings_json: str = "{}"
+    ctf_id: Optional[str] = Field(default=None, index=True)
+    category: str = ""           # forensics|stego|misc|rev|crypto|web|pwn|osint…
+    solved: bool = False
+    flag: str = ""               # the flag that solved it (auto or confirmed)
     created_at: dt.datetime = Field(default_factory=_now)
     updated_at: dt.datetime = Field(default_factory=_now)
 

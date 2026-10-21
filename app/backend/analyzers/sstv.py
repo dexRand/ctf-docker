@@ -18,12 +18,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
+try:  # optional: a missing numpy must only disable SSTV, not the whole registry
+    import numpy as np
+except ImportError:  # pragma: no cover
+    np = None
 
 from .base import Analyzer, ToolContext, ToolResult, which
 from .registry import register
+from .util import AV_EXT
 
-AV_EXT = (".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".au", ".snd")
 
 SYNC_HZ = 1200.0
 BLACK_HZ = 1500.0
@@ -72,6 +75,15 @@ MODES = {
 # ---------------------------------------------------------------------------
 # signal processing
 # ---------------------------------------------------------------------------
+
+def _is_pcm16_wav(path: Path) -> bool:
+    import wave
+    try:
+        with wave.open(str(path), "rb") as w:
+            return w.getsampwidth() == 2
+    except Exception:
+        return False
+
 
 def _read_wav(path: Path) -> tuple[np.ndarray, int]:
     """Read a mono PCM WAV as float in [-1, 1] (raises on failure)."""
@@ -254,15 +266,12 @@ class SstvAnalyzer(Analyzer):
     category = "audio"
     description = "Decode an SSTV audio transmission (Scottie S1/S2) into an image (m00nwalk)."
     accepts = AV_EXT
-    display_order = 420
+    display_order = 421
 
     def _to_wav(self, ctx: ToolContext) -> Path:
         """Return a WAV path, converting with ffmpeg when the input is not PCM."""
-        try:
-            _read_wav(ctx.input)
+        if _is_pcm16_wav(ctx.input):   # header only: decode_sstv reads the samples once
             return ctx.input
-        except Exception:
-            pass
         if not which("ffmpeg"):
             return ctx.input
         out = ctx.sub(self.name) / "input.wav"
@@ -271,9 +280,7 @@ class SstvAnalyzer(Analyzer):
         return out if out.exists() else ctx.input
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        try:
-            import numpy  # noqa: F401
-        except Exception:
+        if np is None:
             return ToolResult(self.name, status="skipped", summary="numpy not installed")
         result = decode_sstv(self._to_wav(ctx))
         if result is None:

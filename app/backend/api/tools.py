@@ -42,7 +42,7 @@ def run_single_tool(tool: str, file: UploadFile = File(...), password: str = For
 
 @router.get("/api/v1/tooljobs/{job}/files/{name:path}")
 def tool_job_file(job: str, name: str):
-    base = (TOOLJOBS_DIR / job).resolve()
+    base = (TOOLJOBS_DIR / storage.check_id(job)).resolve()
     target = (base / name).resolve()
     if target != base and base not in target.parents:
         raise HTTPException(404, "not found")

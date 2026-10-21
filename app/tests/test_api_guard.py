@@ -116,3 +116,33 @@ def test_the_budget_is_per_client_ip(env):
         assert c.get("/api/v1/tools", headers={"X-Forwarded-For": "203.0.113.7"}).status_code == 200
         assert c.get("/api/v1/tools", headers={"X-Forwarded-For": "203.0.113.7"}).status_code == 429
         assert c.get("/api/v1/tools", headers={"X-Forwarded-For": "198.51.100.9"}).status_code == 200
+
+def test_api_key_is_accepted_from_cookie_and_query(env):
+    # browser loads (<img>, downloads) can't send headers: cookie or ?key=
+    env.setenv("API_KEY", "secret")
+    m = _reload_main()
+    with TestClient(m.app) as c:
+        assert c.get("/api/v1/tools?key=secret").status_code == 200
+        assert c.get("/api/v1/tools?key=nope").status_code == 401
+        c.cookies.set("stegsuite_key", "secret")
+        assert c.get("/api/v1/tools").status_code == 200
+
+
+# --- path traversal ----------------------------------------------------------
+
+@pytest.mark.parametrize("job", ["..", "%2e%2e", ".", "a.b"])
+def test_tooljob_files_reject_traversal_ids(env, job):
+    with TestClient(_reload_main().app) as c:
+        r = c.get(f"/api/v1/tooljobs/{job}/files/stegsuite.db")
+    assert r.status_code == 404
+
+
+def test_tooljob_files_reject_traversal_names(env):
+    with TestClient(_reload_main().app) as c:
+        r = c.get("/api/v1/tooljobs/job1/files/..%2f..%2fstegsuite.db")
+    assert r.status_code == 404
+
+
+def test_project_routes_reject_traversal_ids(env):
+    with TestClient(_reload_main().app) as c:
+        assert c.get("/api/v1/projects/%2e%2e/files/1/content").status_code == 404

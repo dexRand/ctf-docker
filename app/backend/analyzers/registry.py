@@ -14,8 +14,9 @@ def register(analyzer: Analyzer) -> Analyzer:
 
 
 def subprocess_analyzer(name, cmd, category, description, *, accepts=(), order=100,
-                        needs_password=False, has_archive=False, soft=False) -> type:
-    """Factory for simple command wrappers."""
+                        needs_password=False, has_archive=False, soft=False,
+                        alt_bins=(), max_output=0) -> type:
+    """Factory for simple command wrappers (`{input}` is the file path)."""
     cls = type(
         f"Analyzer_{name}",
         (SubprocessAnalyzer,),
@@ -24,6 +25,7 @@ def subprocess_analyzer(name, cmd, category, description, *, accepts=(), order=1
             "description": description, "accepts": tuple(accepts),
             "display_order": order, "needs_password": needs_password,
             "has_archive": has_archive, "soft_errors": soft,
+            "alt_bins": tuple(alt_bins), "max_output": max_output,
         },
     )
     register(cls())

@@ -141,3 +141,39 @@ def test_expand_http_response_request_only_row_is_dropped() -> None:
     # a request packet row carries the URI but no response headers
     assert _expand_http_response("https://host/\t") == ""
     assert _expand_http_response("https://host/\t   ") == ""
+
+def test_base64_tokens_one_per_packet_are_joined_in_time_order():
+    from backend.analyzers.pcap import _b64_per_packet
+    timed = [(3.0, b"fQ=="), (1.0, b"cGljb0NURg=="), (2.0, b"ezF0X3c0cw=="), (0.5, b"J4auZMY=")]
+    assert _b64_per_packet(timed) == "picoCTF{1t_w4s}"
+
+
+def test_text_hidden_in_source_ports(monkeypatch, tmp_path):
+    import subprocess
+
+    from backend.analyzers import pcap
+    from backend.analyzers.base import ToolContext
+    msg = "picoCTF{p0rts}"
+    rows = "\n".join(f"{5000 + ord(c)}\t22\t\t" for c in msg) + "\n" + "\n".join("53000\t53\t\t" for _ in range(9))
+    ctx = ToolContext(input=tmp_path / "x.pcap", workdir=tmp_path / "w")
+    monkeypatch.setattr(ctx, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, rows, ""))
+    out = pcap._port_text(ctx)
+    assert any("picoCTF{p0rts}" in o for o in out)
+    assert not any("dst 53" in o for o in out)        # a constant port is not data
+
+
+def test_dns_exfil_grouped_by_destination_server():
+    import base64
+    import random
+
+    from backend.analyzers.pcap import dns_tunnel_candidates
+    tok = base64.b64encode(b"picoCTF{dns_3xf1l_ftw}").decode()
+    chunks = [tok[i:i + 8] for i in range(0, len(tok), 8)]
+    rnd = random.Random(1)
+    noise = ["".join(rnd.choice("abcdefghijklmnopqrstuvwxyzABCDEFGH0123456789+/") for _ in range(8))
+             for _ in range(60)]
+    exfil = [f"{c}.redherring.com" for c in chunks]
+    junk = [f"{n}.redherring.com" for n in noise]
+    queries = junk[:30] + exfil + junk[30:]
+    out = dns_tunnel_candidates(queries, {"8.8.8.8": junk, "18.217.1.57": exfil})
+    assert any("picoCTF{dns_3xf1l_ftw}" in o for o in out)

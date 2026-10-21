@@ -1,11 +1,13 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, wsUrl, fmtSize, fmtDate, fmtTime, STATUS_COLOR } from '../api'
+import { api, wsUrl, fmtSize, fmtDate, fmtTime } from '../api'
 import { toolLabel } from '../labels'
-import { t, tt, lang } from '../i18n'
-import { mdToHtml } from '../md'
+import { ansiToHtml } from '../lib/ansi'
+import { usePaneResize } from '../composables/usePaneResize'
+import { t, lang } from '../i18n'
 import { notify } from '../toast'
+import TextModal from '../components/TextModal.vue'
 import Terminal from '../components/Terminal.vue'
 import GraphView from '../components/GraphView.vue'
 import Icon from '../components/Icon.vue'
@@ -44,71 +46,11 @@ function onMq() { if (mq) narrow.value = mq.matches }
 function mobileTabBtn(p) {
   return mobilePane.value === p ? 'bg-acc text-ink font-bold' : 'text-dim hover:text-fglite'
 }
-function loadW(key, def) {
-  try { const v = parseInt(localStorage.getItem('steg.pane.' + key) || '', 10); return isNaN(v) ? def : v } catch { return def }
-}
-const leftW = ref(loadW('left', 250))
-const rightW = ref(loadW('right', 380))
 const gridRef = ref(null)
 const treeScrollRef = ref(null)
 const logsRef = ref(null)
 const graphRef = ref(null)
-const logSplit = ref(loadW('logsplit', 300))
-function clamp(v, mn, mx) { return Math.min(mx, Math.max(mn, v)) }
-// Delta-based drag: we capture the sizes at pointerdown and apply the pointer
-// offset. No rect math during the move, so the panes never jump or fight.
-let drag = null
-function startDrag(kind, e) {
-  e.preventDefault()
-  e.stopPropagation()
-  const grid = gridRef.value?.getBoundingClientRect()
-  const logsBox = logsRef.value?.parentElement?.getBoundingClientRect()
-  drag = {
-    kind, x: e.clientX, y: e.clientY,
-    left: leftW.value, right: rightW.value, split: logSplit.value,
-    gw: grid ? grid.width : 1400, lh: logsBox ? logsBox.height : 800,
-  }
-  window.addEventListener('pointermove', onDrag)
-  window.addEventListener('pointerup', endDrag)
-  document.body.style.cursor = kind === 'logsplit' ? 'row-resize' : 'col-resize'
-  document.body.style.userSelect = 'none'
-}
-function onDrag(e) {
-  if (!drag) return
-  const dx = e.clientX - drag.x, dy = e.clientY - drag.y
-  if (drag.kind === 'left') {
-    leftW.value = clamp(drag.left + dx, 180, Math.max(220, Math.min(560, drag.gw - drag.right - 380)))
-  } else if (drag.kind === 'right') {
-    rightW.value = clamp(drag.right - dx, 300, Math.max(340, Math.min(820, drag.gw - drag.left - 380)))
-  } else if (drag.kind === 'logsplit') {
-    logSplit.value = clamp(drag.split + dy, 80, Math.max(120, drag.lh - 150))
-  }
-}
-function endDrag() {
-  if (!drag) return
-  drag = null
-  window.removeEventListener('pointermove', onDrag)
-  window.removeEventListener('pointerup', endDrag)
-  document.body.style.cursor = ''
-  document.body.style.userSelect = ''
-  savePanes()
-  window.dispatchEvent(new Event('resize'))
-}
-function savePanes() {
-  try {
-    localStorage.setItem('steg.pane.left', String(leftW.value))
-    localStorage.setItem('steg.pane.right', String(rightW.value))
-    localStorage.setItem('steg.pane.logsplit', String(logSplit.value))
-  } catch { /* private mode */ }
-}
-// Keyboard support for the separators (role=separator): arrow keys resize.
-function nudge(kind, delta) {
-  if (kind === 'left') leftW.value = clamp(leftW.value + delta, 180, 560)
-  else if (kind === 'right') rightW.value = clamp(rightW.value - delta, 300, 820)
-  else if (kind === 'logsplit') logSplit.value = clamp(logSplit.value + delta, 80, 640)
-  savePanes()
-  window.dispatchEvent(new Event('resize'))
-}
+const { leftW, rightW, logSplit, startDrag, endDrag, nudge } = usePaneResize(gridRef, logsRef)
 let ws = null
 let refreshTimer = null
 let logSeeded = false
@@ -215,23 +157,11 @@ const graphLinks = computed(() => tree.value.filter((n) => n.parent_id != null)
     target: n.id,
     route: routeIdSet.value.has(n.id) && routeIdSet.value.has(n.parent_id),
   })))
-// ordered route from the upload down to each flag (deduped), for the timeline
-const routeSteps = computed(() => {
-  const seen = new Set()
-  const steps = []
-  for (const f of flags.value) {
-    for (const n of chainOf(f.file_id)) {
-      if (seen.has(n.id)) continue
-      seen.add(n.id)
-      const isUpload = n.parent_id == null
-      steps.push({
-        id: n.id, name: n.name, tool: isUpload ? 'upload' : originTool(n),
-        flag: f.file_id === n.id, pwd: isUpload ? null : pwdOf(n.id),
-      })
-    }
-  }
-  return steps
-})
+// the solution as computed by the backend (/summary): flags with chain and
+// evidence, the route through the tree, solver/route runs, tools involved
+const summary = ref({ flags: [], route_ids: [], route_steps: [], route_tree: '',
+  relevant_run_ids: [], solver_run_ids: [], flag_tools: [], solver_tools: [] })
+const routeSteps = computed(() => summary.value.route_steps)
 // clicking a graph node (or a timeline step) selects that file on the left,
 // so the details stay in one place (tree + overview/extracted)
 function selectFile(id) {
@@ -255,58 +185,16 @@ function selectFile(id) {
 }
 function shortName(s) { s = String(s); return s.length > 18 ? s.slice(0, 17) + '…' : s }
 const notes = computed(() => findings.value.filter((f) => f.kind === 'note'))
-const routeTreeText = computed(() => (routeNodes().length ? asciiRouteTree() : ''))
-const routeIdSet = computed(() => new Set(routeNodes().map((n) => n.id)))
-// only the runs that actually took part: the finder tool + the tools that
-// produced each file on the path to the flag (not every tool that ran)
-const relevantRuns = computed(() => {
-  const wanted = new Set()
-  const found = new Set()
-  for (const f of flags.value) {
-    wanted.add(`${f.file_id}:${sourceTool(f.source)}`)
-    // the source can be a pseudo-tool ("raw scan") matching no run; the run that
-    // really showed the flag is found from its output
-    const ev = evidenceFor(f)
-    if (ev && ev.run) found.add(ev.run)
-    let cur = f.file_id
-    while (cur && treeById.value[cur]) {
-      const n = treeById.value[cur]
-      if (n.parent_id != null) {
-        const t = originTool(n)
-        if (t && t !== 'upload' && t !== 'extracted') wanted.add(`${n.parent_id}:${t}`)
-      }
-      cur = n.parent_id
-    }
-  }
-  return runs.value.filter((r) => found.has(r.id) || wanted.has(`${r.file_id}:${r.tool}`))
-})
-// run ids that actually produced a flag. The finding source names a tool, but
-// it can be a pseudo-source ("raw scan") that matches no run at all: the flag
-// may have surfaced in some other tool's output (exiftool Artist, png-chunks
-// tEXt, ...). So prefer the run whose output really contains the flag value,
-// and fall back to the tool named in the source.
-const solverRuns = computed(() => {
-  const s = new Set()
-  for (const f of flags.value) {
-    const ev = evidenceFor(f)
-    if (ev && ev.run) { s.add(ev.run); continue }
-    const src = sourceTool(f.source)
-    for (const r of runsByFile.value[f.file_id] || []) if (r.tool === src) s.add(r.id)
-  }
-  return s
-})
-// tools that solved a flag, for the "tool usati per la flag" chip row
-const solverTools = computed(() => {
-  const s = new Set()
-  for (const f of flags.value) {
-    const ev = evidenceFor(f)
-    if (ev && ev.run) s.add(ev.tool)
-    else s.add(sourceTool(f.source))
-  }
-  return s
-})
-// each flag paired with the real tool output that shows it
-const flagCards = computed(() => flags.value.map((f) => ({ f, ev: evidenceFor(f) })))
+const routeTreeText = computed(() => summary.value.route_tree)
+const routeIdSet = computed(() => new Set(summary.value.route_ids))
+const routeNodes = () => tree.value.filter((n) => routeIdSet.value.has(n.id))
+const solverRuns = computed(() => new Set(summary.value.solver_run_ids))
+const solverTools = computed(() => new Set(summary.value.solver_tools))
+const flagTools = () => summary.value.flag_tools
+// each flag paired with the tool output that shows it
+const flagCards = computed(() => summary.value.flags.map((f) => ({
+  f: { ...f, file_id: f.file ? f.file.id : null }, ev: f.evidence,
+})))
 // files "near" the flag path: siblings and children of route nodes
 const nearIdSet = computed(() => {
   const s = new Set()
@@ -365,44 +253,62 @@ function rightTabBtn(t) {
   return rightTab.value === t ? 'bg-acc text-ink font-bold' : 'text-dim hover:text-fglite'
 }
 
+// every load() gets a sequence number: a slow response for a previous project
+// (or an older refresh) must never overwrite newer data
+let loadSeq = 0
 async function load() {
+  const seq = ++loadSeq
+  const id = props.id
   try {
-    project.value = await api(`/projects/${props.id}`)
-    ;[findings.value, locked.value, wordlists.value] = await Promise.all([
-      api(`/projects/${props.id}/findings`),
-      api(`/projects/${props.id}/locked`),
+    const [proj, fnd, lck, wls, rns, sum] = await Promise.all([
+      api(`/projects/${id}`),
+      api(`/projects/${id}/findings`),
+      api(`/projects/${id}/locked`),
       api('/wordlists'),
+      api(`/projects/${id}/runs`),
+      api(`/projects/${id}/summary`),
     ])
-    for (const l of locked.value) {
-      try { l._wl = localStorage.getItem(`steg.wl.${props.id}.${l.file_id}`) || '' } catch { l._wl = '' }
+    if (seq !== loadSeq) return
+    for (const l of lck) {
+      try { l._wl = localStorage.getItem(`steg.wl.${id}.${l.file_id}`) || '' } catch { l._wl = '' }
     }
-    runs.value = await api(`/projects/${props.id}/runs`)
+    project.value = proj
+    findings.value = fnd
+    locked.value = lck
+    wordlists.value = wls
+    runs.value = rns
+    summary.value = sum
     // seed the live log from persisted events so the Logs tab is not empty on
     // projects that were analysed in a previous session (only once, and only if
     // no live event has arrived yet)
     if (!logSeeded) {
       logSeeded = true
       try {
-        const evs = await api(`/projects/${props.id}/events`)
-        if (!log.value.length) {
+        const evs = await api(`/projects/${id}/events`)
+        if (seq === loadSeq && !log.value.length) {
           log.value = (evs || []).map((e) => ({ type: 'event', level: e.level, message: e.message, ts: e.ts }))
         }
       } catch { /* no history */ }
-    }
-    // preload outputs of tools that ran on files containing a flag, so the
-    // evidence excerpt (tool output with the flag) is available immediately
-    for (const f of findings.value.filter((x) => x.kind === 'flag')) {
-      for (const r of runs.value.filter((x) => x.file_id === f.file_id)) out(r.id)
     }
     if (selected.value == null && tree.value.length) selected.value = tree.value[0].id
     // refresh the full-logs view if the user is looking at it
     fullLogs.value = ''
     if (logView.value === 'full') showFullLogs()
-  } catch (e) { err.value = String(e) }
+  } catch (e) { if (seq === loadSeq) err.value = String(e) }
 }
 
+// live events; reconnects (backend restart, network blip) until unmounted
+let disposed = false
+let reconnectTimer = null
 function connect() {
-  ws = new WebSocket(wsUrl(`/ws/projects/${props.id}`))
+  clearTimeout(reconnectTimer)
+  if (ws) { ws.onclose = null; try { ws.close() } catch {} }
+  const id = props.id
+  ws = new WebSocket(wsUrl(`/ws/projects/${id}`))
+  ws.onclose = () => {
+    if (disposed || id !== props.id) return
+    reconnectTimer = setTimeout(() => { connect(); load() }, 2000)
+  }
   ws.onmessage = (ev) => {
     let m; try { m = JSON.parse(ev.data) } catch { return }
     if (m.type === 'ping') return
@@ -466,6 +372,7 @@ async function out(rid) {
   const fid = (runs.value.find((r) => r.id === rid) || {}).file_id
   try { outputs.value[rid] = await api(`/projects/${props.id}/files/${fid}/runs/${rid}`) }
   catch (e) { outputs.value[rid] = String(e) }
+  return outputs.value[rid]
 }
 async function toggle(rid) {
   if (expanded.value[rid]) { delete expanded.value[rid]; return }
@@ -490,123 +397,6 @@ async function loadPreview(id) {
   catch (e) { outputs.value[key] = String(e) }
 }
 
-function commandsOf(text) {
-  return String(text || '').split('\n').filter((l) => l.startsWith('# '))
-    .map((l) => l.slice(2)).filter((c) => c && c !== 'commands:')
-}
-// excerpt of a tool output around the flag (the evidence of where it was)
-function evidenceLines(text, flag, width = 3) {
-  const lines = String(text).split('\n')
-  const idx = lines.findIndex((l) => l.includes(flag))
-  if (idx < 0) return ''
-  const from = Math.max(0, idx - width)
-  const to = Math.min(lines.length, idx + width + 1)
-  return lines.slice(from, to).join('\n').slice(0, 900)
-}
-function evidenceFor(f) {
-  const src = sourceTool(f.source)
-  const cands = (runsByFile.value[f.file_id] || []).slice()
-    .sort((a, b) => ((a.tool === src) ? -1 : 0) - ((b.tool === src) ? -1 : 0))
-  for (const r of cands) {
-    const o = outputs.value[r.id]
-    if (o && String(o).includes(f.value)) {
-      return { run: r.id, tool: r.tool, command: commandsOf(o)[0] || '', lines: evidenceLines(String(o), f.value) }
-    }
-  }
-  return null
-}
-
-// --- ASCII tree (box drawing) ---
-function childrenMap(nodes) {
-  const m = {}
-  for (const n of nodes) { (m[n.parent_id ?? 0] ||= []).push(n) }
-  for (const k in m) m[k].sort((a, b) => a.order_index - b.order_index)
-  return m
-}
-const SRC_PREFIX = ['b64', 'hex', 'fuzzy']
-const SRC_DECODER = { b64: 'base64', hex: 'hex', fuzzy: 'fuzzy/OCR' }
-function sourceParts(src) {
-  const parts = String(src || '').split(':').filter(Boolean)
-  const dec = []
-  while (parts.length > 1 && SRC_PREFIX.includes(parts[0])) dec.push(parts.shift())
-  const tool = parts[0] === 'raw' ? 'raw scan' : (parts[0] || '?')
-  return { tool, dec }
-}
-function sourceTool(src) { return sourceParts(src).tool }
-function sourceHow(src, lng) {
-  const { tool, dec } = sourceParts(src)
-  const name = toolLabel(tool, lng)
-  return dec.length ? name + ' + ' + dec.map((d) => SRC_DECODER[d] || d).join(' + ') : name
-}
-function chainOf(fileId) {
-  const chain = []
-  let cur = fileId
-  while (cur && treeById.value[cur]) { chain.unshift(treeById.value[cur]); cur = treeById.value[cur].parent_id }
-  return chain
-}
-function pwdVia(p) { return p && p.context ? ` (via ${p.context})` : '' }
-function chainText(f, lng) {
-  const parts = []
-  const ev = evidenceFor(f)
-  const via = lng ? tt(lng, 'proj.via') : t('proj.via')
-  chainOf(f.file_id).forEach((n, i) => {
-    const ot = originTool(n)
-    if (i === 0) parts.push(n.name)
-    else {
-      const pw = passwords.value.find((p) => p.file_id === n.id)
-      parts.push(`${n.name} (${via} ${toolLabel(ot, lng)}${pw ? ', pwd ' + pw.value + pwdVia(pw) : ''})`)
-    }
-  })
-  parts.push(`[${ev && ev.run ? toolLabel(ev.tool, lng) : sourceHow(f.source, lng)}]`)
-  return parts.join('  ->  ')
-}
-function flagTools() {
-  const s = new Set()
-  for (const f of flags.value) {
-    const ev = evidenceFor(f)
-    s.add(ev && ev.run ? ev.tool : sourceTool(f.source))
-    for (const n of chainOf(f.file_id)) {
-      const t = originTool(n)
-      if (t && t !== 'upload' && t !== 'extracted') s.add(t)
-    }
-  }
-  for (const r of relevantRuns.value) s.add(r.tool)
-  return [...s].sort()
-}
-function routeLabel(n) {
-  const fl = flags.value.filter((f) => f.file_id === n.id).map((f) => f.value)
-  const pw = passwords.value.filter((p) => p.file_id === n.id).map((p) => p.value)
-  const ot = originTool(n)
-  let s = n.name
-  if (ot && ot !== 'upload' && ot !== 'extracted') s += `   (${ot})`
-  if (fl.length) s += `   <-- FLAG: ${fl.join(', ')}`
-  else if (pw.length) s += `   <-- password: ${pw.join(', ')}`
-  return s
-}
-function asciiRouteTree() {
-  const m = childrenMap(routeNodes())
-  const lines = []
-  const walk = (pid, prefix) => {
-    const kids = m[pid] || []
-    kids.forEach((k, i) => {
-      const last = i === kids.length - 1
-      lines.push(prefix + (last ? '└── ' : '├── ') + routeLabel(k))
-      walk(k.id, prefix + (last ? '    ' : '│   '))
-    })
-  }
-  walk(0, '')
-  return lines.join('\n')
-}
-function routeNodes() {
-  const ids = new Set()
-  for (const f of flags.value) {
-    let cur = f.file_id
-    while (cur && treeById.value[cur]) { ids.add(cur); cur = treeById.value[cur].parent_id }
-  }
-  // keep the ancestry order (tree is already sorted by discovery)
-  return tree.value.filter((n) => ids.has(n.id))
-}
-
 async function openReport() {
   reportLang.value = lang.value
   report.value = { open: true, text: '…', busy: true }
@@ -616,83 +406,12 @@ async function openReport() {
     report.value = { open: true, text: '⚠️ ' + String(e), busy: false }
   }
 }
+// report, full logs and transcript are built by the backend (API-first:
+// the same text is available to scripts and AI agents)
 async function buildReport(lng) {
-  const g = (k, p) => tt(lng, k, p)
-  const P = project.value
-  const L = []
-  L.push(`# ${g('report.title_line', { name: P.name })}`)
-  L.push('')
-  L.push(g('report.status_line', { status: P.status, mode: P.mode, files: P.files, date: fmtDate(P.created_at) }))
-  L.push('')
-  if (passwords.value.length) {
-    L.push('## ' + g('report.passwords'))
-    L.push(g('report.passwords_head'))
-    L.push('|---|---|---|')
-    for (const p of passwords.value) L.push(`| \`${p.value}\` | ${p.source} | ${p.context ? `\`${p.context}\`` : '—'} |`)
-  }
-  if (notes.value.length) {
-    L.push(''); L.push('## ' + g('report.notes')); L.push(g('report.notes_head')); L.push('|---|---|')
-    for (const n of notes.value) L.push(`| ${n.value} | ${n.source} |`)
-  }
-  L.push(''); L.push('## ' + g('report.how_header'))
-  if (flagCards.value.length) {
-    for (const { f, ev } of flagCards.value) {
-      const fn = treeById.value[f.file_id]
-      L.push(`### \`${f.value}\``)
-      L.push(`- ${g('report.where')} ${fn ? fn.name : '?'}${fn ? `  ·  [${g('report.open_link')}](${fileUrl(fn)})` : ''}`)
-      L.push(`- ${g('report.how')} ${ev && ev.run ? toolLabel(ev.tool, lng) : sourceHow(f.source, lng)}`)
-      L.push(`- ${g('report.chain')} \`${chainText(f, lng)}\``)
-      if (ev && ev.lines) {
-        L.push('```')
-        L.push(`# ${ev.tool}${ev.command ? '  —  ' + ev.command : ''}`)
-        L.push(ev.lines.replace(/```/g, "'''"))
-        L.push('```')
-      } else if (f.context) {
-        L.push('```')
-        L.push(String(f.context).replace(/```/g, "'''"))
-        L.push('```')
-      }
-      L.push('')
-    }
-  } else L.push(g('report.no_flag_how'))
-  L.push(`## ${g('report.tools_header_prefix')} (${flagTools().length})`)
-  L.push(flagTools().map((t) => `\`${t}\`${solverTools.value.has(t) ? ' ' + g('report.solved_tag') : ''}`).join(', ') || '_—_')
-  L.push(''); L.push('## ' + g('report.path_header'))
-  L.push('```')
-  L.push(routeNodes().length ? asciiRouteTree() : g('report.no_path'))
-  L.push('```')
-  const rel = relevantRuns.value
-  if (rel.length) {
-    L.push(''); L.push(`## ${g('report.route_runs', { n: rel.length })}`)
-    L.push(g('report.run_head'))
-    L.push('|---|---|---|---|')
-    for (const r of rel) {
-      const f = treeById.value[r.file_id]
-      L.push(`| ${f ? f.name : '?'} | ${r.tool} | ${r.status} | ${(r.summary || '').replace(/\|/g, '\\|')} |`)
-    }
-    const blocks = []
-    for (const r of rel) {
-      const o = outputs.value[r.id] != null ? outputs.value[r.id] : await out(r.id)
-      const cmds = commandsOf(o)
-      if (cmds.length) {
-        blocks.push('```\n# ' + (treeById.value[r.file_id] || {}).name + ' — ' + r.tool + '\n' + cmds.join('\n') + '\n```')
-      }
-    }
-    if (blocks.length) { L.push(''); L.push('## ' + g('report.commands')); L.push(...blocks) }
-  }
-  const routeFiles = routeNodes().filter((n) => n.parent_id != null)
-  if (routeFiles.length) {
-    L.push(''); L.push(`## ${g('report.route_files', { n: routeFiles.length })}`)
-    L.push(g('report.route_files_head'))
-    L.push('|---|---|---|---|')
-    for (const n of routeFiles) L.push(`| ${n.name} | ${fmtSize(n.size)} | ${originTool(n)} | [${g('report.open_link')}](${fileUrl(n)}) |`)
-  }
-  const noise = tree.value.length - routeNodes().length
-  L.push('')
-  L.push(g('report.footer', { files: tree.value.length, runs: runs.value.length, noise }))
-  report.value = { open: true, text: L.join('\n'), busy: false }
+  const text = await api(`/projects/${props.id}/report?format=md&lang=${lng}`)
+  report.value = { open: true, text, busy: false }
 }
-function copyReport() { navigator.clipboard?.writeText(report.value.text) }
 const copied = ref('')
 async function copyText(text) {
   try {
@@ -705,13 +424,6 @@ async function copyAllFlags() {
   if (!flags.value.length) return
   await copyText(flags.value.map((f) => f.value).join('\n'))
   notify(t('toast.copied_flags', { n: flags.value.length }), 'ok')
-}
-function downloadReport() {
-  const blob = new Blob([report.value.text], { type: 'text/markdown' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `stegsuite-report-${props.id}.md`
-  a.click()
 }
 
 // --- transcript (for an AI agent: what the tool did, commands + outputs) ---
@@ -736,19 +448,7 @@ const logView = ref('runs')
 const fullLogs = ref('')
 const fullLogsBusy = ref(false)
 async function buildFullLogs() {
-  const P = project.value || {}
-  const L = [`# StegSuite full logs — ${P.name} (${P.id})`, '', '## Event log', plainLog() || '(none)', '', '## Runs']
-  const byFile = {}
-  for (const r of runs.value) (byFile[r.file_id] ||= []).push(r)
-  for (const n of tree.value) {
-    for (const r of (byFile[n.id] || [])) {
-      L.push('')
-      L.push(`### ${n.name} — ${r.tool} — ${effStatus(r)} (exit ${r.exit_code ?? '-'}) — ${fmtDate(r.finished_at || r.started_at)}`)
-      const raw = outputs.value[r.id] != null ? outputs.value[r.id] : await out(r.id)
-      L.push(String(raw ?? '(no output)'))
-    }
-  }
-  return L.join('\n')
+  return api(`/projects/${props.id}/logs`)
 }
 async function showFullLogs() {
   logView.value = 'full'
@@ -763,141 +463,8 @@ async function copyFullLogs() {
   }
   navigator.clipboard?.writeText(fullLogs.value)
 }
-function fileTreeText() {
-  const lines = []
-  const walk = (pid, depth) => {
-    for (const n of (childrenByParent.value[pid] || [])) {
-      const tool = n.parent_id == null ? 'upload' : originTool(n)
-      lines.push('  '.repeat(depth) + `- ${n.name}  [${tool}]  ${fmtSize(n.size)}`
-        + (n.sha256 ? `  sha256:${n.sha256.slice(0, 16)}…` : ''))
-      walk(n.id, depth + 1)
-    }
-  }
-  walk(0, 0)
-  return lines.join('\n') || '(empty)'
-}
-function xmlAttr(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/\n/g, ' ')
-}
-function cdata(s) {
-  return '<![CDATA[' + String(s ?? '').replace(/\]\]>/g, ']]]]><![CDATA[>') + ']]>'
-}
-function flagFormat() {
-  const f = flags.value[0]
-  if (!f) return ''
-  const m = String(f.value).match(/^([A-Za-z0-9_]+)\{/)
-  return m ? m[1] + '{...}' : ''
-}
 async function buildTranscript() {
-  const P = project.value || {}
-  const L = []
-  // Long, high-signal context first; the actual task goes at the very end
-  // (per Anthropic long-context guidance: data on top, query at the bottom).
-  L.push('You are a CTF assistant. The transcript below is the machine log of an')
-  L.push('automated steganography/forensics tool run on a challenge. If the flag is')
-  L.push('not present or the tool stopped early, continue from this transcript.')
-  L.push('')
-  L.push('<transcript>')
-  L.push(`<challenge name="${xmlAttr(P.name)}" id="${xmlAttr(P.id)}" status="${xmlAttr(P.status)}" mode="${xmlAttr(P.mode)}">`)
-  L.push(`  <files_count>${P.files}</files_count>`)
-  L.push(`  <created>${xmlAttr(fmtDate(P.created_at))}</created>`)
-  const fmt = flagFormat()
-  if (fmt) L.push(`  <flag_format>${xmlAttr(fmt)}</flag_format>`)
-  L.push('</challenge>')
-  L.push('')
-
-  L.push('<findings>')
-  L.push('  <flags>')
-  for (const f of flags.value) {
-    L.push(`    <flag value="${xmlAttr(f.value)}" file="${xmlAttr((treeById.value[f.file_id] || {}).name || '?')}" how="${xmlAttr(sourceHow(f.source))}"/>`)
-  }
-  L.push('  </flags>')
-  L.push('  <passwords>')
-  for (const p of passwords.value) {
-    L.push(`    <password value="${xmlAttr(p.value)}" source="${xmlAttr(p.source)}"`
-      + `${p.context ? ` wordlist="${xmlAttr(p.context)}"` : ''} file="${xmlAttr((treeById.value[p.file_id] || {}).name || '?')}"/>`)
-  }
-  L.push('  </passwords>')
-  L.push('  <notes>')
-  for (const n of notes.value) L.push(`    <note>${xmlAttr(n.value)} (${xmlAttr(n.source)})</note>`)
-  L.push('  </notes>')
-  if (locked.value.length) {
-    L.push('  <still_locked>')
-    for (const l of locked.value) L.push(`    <locked file="${xmlAttr(l.name)}" tool="${xmlAttr(l.kind)}"/>`)
-    L.push('  </still_locked>')
-  }
-  L.push('</findings>')
-  L.push('')
-
-  L.push('<flag_path>')
-  L.push(routeNodes().length ? asciiRouteTree() : '(no path to a flag yet)')
-  L.push('</flag_path>')
-  if (routeSteps.value.length) {
-    L.push('')
-    L.push('<timeline>')
-    routeSteps.value.forEach((s, i) => L.push(
-      `${i + 1}. ${s.name} [${s.tool}]${s.pwd ? ' pwd=' + s.pwd.value : ''}${s.flag ? ' <-- FLAG' : ''}`))
-    L.push('</timeline>')
-  }
-  L.push('')
-
-  L.push('<files>')
-  const walk = (pid, depth) => {
-    for (const n of (childrenByParent.value[pid] || [])) {
-      const tool = n.parent_id == null ? 'upload' : originTool(n)
-      const mark = graphFlagIds.value.has(n.id) ? ' flag="true"'
-        : pwdOf(n.id) ? ' cracked="true"' : lockedIds.value.has(n.id) ? ' locked="true"' : ''
-      L.push(`${'  '.repeat(depth + 1)}<file name="${xmlAttr(n.name)}" tool="${xmlAttr(tool)}" size="${fmtSize(n.size)}"`
-        + `${n.sha256 ? ` sha256="${n.sha256.slice(0, 16)}"` : ''}${mark}/>`)
-      walk(n.id, depth + 1)
-    }
-  }
-  walk(0, 0)
-  L.push('</files>')
-  L.push('')
-
-  // commands for every run (cheap, high-signal); outputs truncated, with more
-  // room for the runs that are on the flag path
-  L.push('<runs>')
-  const byFile = {}
-  for (const r of runs.value) (byFile[r.file_id] ||= []).push(r)
-  for (const n of tree.value) {
-    for (const r of (byFile[n.id] || [])) {
-      const raw = outputs.value[r.id] != null ? outputs.value[r.id] : await out(r.id)
-      const text = String(raw ?? '')
-      const cap = relevantRuns.value.some((x) => x.id === r.id) ? 3000 : 1200
-      const cmds = commandsOf(text)
-      L.push(`  <run file="${xmlAttr(n.name)}" tool="${xmlAttr(r.tool)}" status="${xmlAttr(effStatus(r))}" exit="${r.exit_code ?? '-'}" at="${xmlAttr(fmtDate(r.finished_at || r.started_at))}">`)
-      if (r.summary) L.push(`    <summary>${xmlAttr(r.summary)}</summary>`)
-      L.push('    <commands>')
-      if (cmds.length) for (const c of cmds) L.push(`      <cmd>${xmlAttr(c)}</cmd>`)
-      else L.push('      <cmd>(none recorded)</cmd>')
-      L.push('    </commands>')
-      if (text) {
-        const body = text.replace(/^# commands:\n(?:# .*\n)*\n?/, '').slice(0, cap)
-        L.push(`    <output>${cdata(body)}${text.length > cap ? `\n… [truncated ${text.length - cap} chars]` : ''}</output>`)
-      }
-      L.push('  </run>')
-    }
-  }
-  L.push('</runs>')
-  L.push('')
-  L.push('<event_log>')
-  L.push(cdata(plainLog() || '(none)'))
-  L.push('</event_log>')
-  L.push('</transcript>')
-  L.push('')
-  L.push('<task>')
-  L.push('The automated tool may have stopped early or missed the flag. Using the transcript above:')
-  L.push('1. Summarize what has already been done and what is still unsolved (see <still_locked>).')
-  L.push('2. Give the exact next commands (tool + file paths) to finish the challenge and obtain the flag.')
-  if (flags.value.length) L.push('A flag is already present in <findings><flags>: verify it and, if valid, confirm it.')
-  else L.push('No flag has been found yet, so propose the next steps to find it.')
-  L.push('Explain briefly why each command is the right next step.')
-  L.push('</task>')
-  return L.join('\n')
+  return api(`/projects/${props.id}/transcript`)
 }
 async function openTranscript() {
   transcript.value = { open: true, text: '', busy: true }
@@ -907,45 +474,7 @@ async function openTranscript() {
     transcript.value = { open: true, text: '⚠️ ' + String(e), busy: false }
   }
 }
-function copyTranscript() { navigator.clipboard?.writeText(transcript.value.text) }
-function downloadTranscript() {
-  const blob = new Blob([transcript.value.text], { type: 'text/markdown' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `stegsuite-transcript-${props.id}.md`
-  a.click()
-}
 
-const X16 = ['#000000', '#cd3131', '#0dbc79', '#e5e510', '#2472c8', '#bc3fbc', '#11a8cd', '#e5e5e5',
-  '#666666', '#f14c4c', '#23d18b', '#f5f543', '#3b8eea', '#d670d6', '#29b8db', '#ffffff']
-function xterm(n) {
-  n = Number(n)
-  if (n < 16) return X16[n]
-  if (n < 232) { const k = n - 16, r = Math.floor(k / 36), g = Math.floor((k % 36) / 6), b = k % 6; const v = (x) => (x ? x * 40 + 55 : 0); return `rgb(${v(r)},${v(g)},${v(b)})` }
-  const v = 8 + (n - 232) * 10; return `rgb(${v},${v},${v})`
-}
-function ansiToHtml(s) {
-  const esc = String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  let open = 0
-  return esc.replace(/\x1b\[([0-9;]*)m/g, (_m, codes) => {
-    const parts = codes.split(';').filter((x) => x !== '').map(Number)
-    const css = []
-    for (let i = 0; i < parts.length; i++) {
-      const c = parts[i]
-      if (c === 0) css.push('RESET')
-      else if (c === 1) css.push('font-weight:600')
-      else if (c >= 30 && c <= 37) css.push(`color:${X16[c - 30]}`)
-      else if (c >= 90 && c <= 97) css.push(`color:${X16[c - 90 + 8]}`)
-      else if (c >= 40 && c <= 47) css.push(`background:${X16[c - 40]}`)
-      else if (c >= 100 && c <= 107) css.push(`background:${X16[c - 100 + 8]}`)
-      else if (c === 38 && parts[i + 1] === 5) { css.push(`color:${xterm(parts[i + 2])}`); i += 2 }
-      else if (c === 48 && parts[i + 1] === 5) { css.push(`background:${xterm(parts[i + 2])}`); i += 2 }
-    }
-    if (css.includes('RESET')) { const n = open; open = 0; return '</span>'.repeat(n) }
-    open++
-    return `<span style="${css.join(';')}">`
-  }) + '</span>'.repeat(open)
-}
 
 watch(selected, (id) => { previewErr.value = false; if (id != null) loadPreview(id) })
 watch(reportLang, (l) => {
@@ -959,7 +488,7 @@ watch(rightTab, async () => { await nextTick(); window.dispatchEvent(new Event('
 watch(() => props.id, () => {
   selected.value = null; outputs.value = {}; expanded.value = {}; log.value = []; logSeeded = false
   progress.value = { processed: 0, total: 0 }; currentFile.value = ''
-  load()
+  load(); connect()
 })
 onMounted(() => {
   mq = window.matchMedia('(max-width: 900px)')
@@ -970,7 +499,10 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (mq) mq.removeEventListener('change', onMq)
   endDrag()
-  try { ws && ws.close() } catch {}
+  disposed = true
+  clearTimeout(refreshTimer)
+  clearTimeout(reconnectTimer)
+  if (ws) { ws.onclose = null; try { ws.close() } catch {} }
 })
 </script>
 
@@ -979,11 +511,16 @@ onBeforeUnmount(() => {
     <h1 class="sr-only">{{ project?.name }}</h1>
     <!-- action bar -->
     <div class="flex flex-wrap items-center gap-2 border-b border-edge bg-panel px-3 py-1.5 text-xs">
-      <button @click="router.push('/')" class="kb px-2" :aria-label="t('proj.back_home')"><Icon name="chevronR" class="rotate-180" :size="12" /></button>
+      <button @click="router.push(project?.ctf_id ? `/ctf/${project.ctf_id}` : '/')" class="kb px-2" :aria-label="t('proj.back_home')"><Icon name="chevronR" class="rotate-180" :size="12" /></button>
       <span class="font-bold text-fgx">{{ project?.name }}</span>
       <span class="rounded border px-2 py-0.5 text-[10px]" :class="statusChip(project?.status)">
         {{ project?.status }}
       </span>
+      <span v-if="project?.solved" class="rounded border border-acc/50 bg-acc/10 px-2 py-0.5 text-[10px] text-acc"
+            :title="project.flag">✓ {{ t('ctf.solved') }}</span>
+      <RouterLink v-if="project?.ctf_id" :to="`/ctf/${project.ctf_id}`" class="text-[10px] text-dim underline hover:text-acc">
+        {{ t('ctf.in_ctf') }} {{ project.category ? '· ' + project.category : '' }}
+      </RouterLink>
       <span class="hidden text-[10px] text-dim lg:inline">
         --{{ project?.mode }} · {{ project?.files }} {{ t('proj.files') }} · {{ fmtDate(project?.created_at) }}
       </span>
@@ -1186,9 +723,12 @@ onBeforeUnmount(() => {
               <div class="mt-1 text-[11px] text-dim">
                 {{ t('proj.in') }}
                 <button class="text-fg hover:text-acc hover:underline" @click="c.f.file_id && (selected = c.f.file_id)">{{ (treeById[c.f.file_id] || {}).name || '?' }}</button>
-                · <b class="text-fglite">{{ c.ev && c.ev.run ? toolLabel(c.ev.tool) : sourceHow(c.f.source) }}</b>
+                · <b class="text-fglite">{{ c.ev ? toolLabel(c.ev.tool) : c.f.how }}</b>
               </div>
-              <div class="mt-1 break-all text-[10px] text-dim">{{ chainText(c.f) }}</div>
+              <div class="mt-1 break-all text-[10px] text-dim">{{ c.f.chain_text }}</div>
+              <div v-if="c.ev && c.ev.decoded" class="mt-1 break-all text-[10px] text-warn">
+                {{ t('proj.decoded_with') }} {{ c.ev.decoded }}<span v-if="c.ev.match">: <code class="text-fglite">{{ c.ev.match.slice(0, 120) }}</code></span>
+              </div>
               <pre v-if="c.ev" class="mt-1 max-h-28 overflow-auto whitespace-pre rounded border border-edge bg-ink p-1.5 text-[10px] text-fglite"># {{ c.ev.tool }}{{ c.ev.command ? '  —  ' + c.ev.command : '' }}
 {{ c.ev.lines }}</pre>
               <pre v-else-if="c.f.context" class="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all rounded border border-edge bg-ink p-1.5 text-[10px] text-dim">{{ c.f.context }}</pre>
@@ -1240,7 +780,7 @@ onBeforeUnmount(() => {
         <!-- terminal -->
         <div v-show="rightTab === 'terminal'" class="flex min-h-0 flex-1 flex-col">
           <div class="flex items-center bg-panel2 px-3 py-1 text-left text-[10px] text-dim">{{ t('proj.terminal_label') }}</div>
-          <div class="min-h-0 flex-1"><Terminal :pid="props.id" /></div>
+          <div class="min-h-0 flex-1"><Terminal :key="props.id" :pid="props.id" /></div>
         </div>
 
         <!-- logs: live events on top, all runs below -->
@@ -1326,7 +866,7 @@ onBeforeUnmount(() => {
                   <button type="button" @click="selectFile(s.id)" class="truncate text-left hover:underline"
                           :class="selected === s.id ? 'text-acc' : (s.flag ? 'font-bold text-acc' : 'text-fglite')">{{ s.name }}</button>
                   <span class="shrink-0 rounded bg-panel2 px-1 py-0.5 text-[9px] text-dim">{{ toolLabel(s.tool) }}</span>
-                  <span v-if="s.pwd" class="shrink-0 text-[9px] text-warn" :title="s.pwd.context">🔑{{ s.pwd.value }}</span>
+                  <span v-if="s.password" class="shrink-0 text-[9px] text-warn">🔑{{ s.password }}</span>
                   <span v-if="s.flag" class="shrink-0 text-[9px] text-acc">★</span>
                 </li>
               </ol>
@@ -1351,36 +891,22 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- report modal -->
-    <div v-if="report.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6" @click.self="report.open = false">
-      <div class="flex max-h-[88vh] w-[min(980px,calc(100vw-1.5rem))] flex-col rounded border border-edge bg-panel">
-        <div class="flex items-center gap-2 border-b border-edge bg-panel2 px-4 py-2 text-xs">
-          <Icon name="report" :size="14" class="text-acc" /><b>{{ t('report.title') }}</b><span v-if="report.busy" class="animate-blink text-acc">▋</span>
-          <label class="flex items-center gap-1.5 text-[10px] text-dim">
-            {{ t('report.lang') }}
-            <select v-model="reportLang" class="rounded border border-edge bg-ink px-1 py-0.5 text-[10px] uppercase focus:border-acc">
-              <option value="en">English</option>
-              <option value="it">Italiano</option>
-            </select>
-          </label>
-          <button @click="copyReport" class="kb ml-auto text-[10px]"><Icon name="copy" :size="11" />{{ t('report.copy') }}</button>
-          <button @click="downloadReport" class="kb text-[10px]"><Icon name="download" :size="11" />.md</button>
-          <button @click="report.open = false" class="kb text-[10px]" :aria-label="t('report.close')"><Icon name="close" :size="11" /></button>
-        </div>
-        <div class="md min-h-0 flex-1 overflow-auto p-5" v-html="mdToHtml(report.text)"></div>
-      </div>
-    </div>
+    <TextModal v-if="report.open" :title="t('report.title')" :text="report.text" :busy="report.busy"
+               markdown :filename="`stegsuite-report-${props.id}.md`" @close="report.open = false">
+      <template #controls>
+        <label class="flex items-center gap-1.5 text-[10px] text-dim">
+          {{ t('report.lang') }}
+          <select v-model="reportLang" class="rounded border border-edge bg-ink px-1 py-0.5 text-[10px] uppercase focus:border-acc">
+            <option value="en">English</option>
+            <option value="it">Italiano</option>
+          </select>
+        </label>
+      </template>
+    </TextModal>
 
     <!-- transcript modal (copy/paste into an AI agent) -->
-    <div v-if="transcript.open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6" @click.self="transcript.open = false">
-      <div class="flex max-h-[88vh] w-[min(900px,calc(100vw-1.5rem))] flex-col rounded border border-edge bg-panel">
-        <div class="flex items-center gap-2 border-b border-edge bg-panel2 px-4 py-2 text-xs">
-          <Icon name="copy" :size="14" class="text-acc" /><b>{{ t('proj.transcript') }}</b><span v-if="transcript.busy" class="animate-blink text-acc">▋</span>
-          <button @click="copyTranscript" class="kb ml-auto text-[10px]"><Icon name="copy" :size="11" />{{ t('report.copy') }}</button>
-          <button @click="downloadTranscript" class="kb text-[10px]"><Icon name="download" :size="11" />.md</button>
-          <button @click="transcript.open = false" class="kb text-[10px]" :aria-label="t('report.close')"><Icon name="close" :size="11" /></button>
-        </div>
-        <pre class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-4 text-[11px] leading-relaxed text-fglite">{{ transcript.text }}</pre>
-      </div>
-    </div>
+    <TextModal v-if="transcript.open" :title="t('proj.transcript')" icon="copy" :text="transcript.text"
+               :busy="transcript.busy" width="900px" :filename="`stegsuite-transcript-${props.id}.md`"
+               @close="transcript.open = false" />
   </div>
 </template>

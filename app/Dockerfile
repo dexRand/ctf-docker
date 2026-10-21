@@ -8,7 +8,7 @@
 #   docker build -t stegsuite:dev -f app/Dockerfile .
 
 # ---------- frontend ----------
-FROM node:20-alpine AS frontend
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS frontend
 WORKDIR /fe
 COPY app/frontend/package.json app/frontend/package-lock.json /fe/
 RUN npm ci --no-audit --no-fund
@@ -29,9 +29,8 @@ RUN apt-get update \
         unzip zip fcrackzip pdfcrack hashcat pocl-opencl-icd libmhash2 \
  && curl -fsSL -o /tmp/stegseek.deb \
         https://github.com/RickdeJager/stegseek/releases/download/v0.6/stegseek_0.6-1.deb \
- && dpkg -i /tmp/stegseek.deb \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends /tmp/stegseek.deb \
  && rm -f /tmp/stegseek.deb \
- && apt-get -f install -y \
  && rm -rf /var/lib/apt/lists/*
 
 # bkcrack (ZipCrypto known-plaintext attacks), pinned prebuilt binary
@@ -47,14 +46,19 @@ RUN mkdir -p /tmp/bk && cd /tmp/bk \
     fi \
  && rm -rf /tmp/bk
 
-# most-used big wordlist (small lists are mounted at /wordlists)
+# most-used big wordlist (small lists are mounted at /wordlists). The build
+# fails if it can't be fetched (an image silently missing rockyou cracks less);
+# offline builds can opt out with --build-arg ROCKYOU=0.
+ARG ROCKYOU=1
 RUN mkdir -p /opt/wordlists \
- && ( curl -fsSL -o /tmp/rockyou.tar.gz \
+ && if [ "$ROCKYOU" = "1" ]; then \
+      curl -fsSL -o /tmp/rockyou.tar.gz \
         https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Leaked-Databases/rockyou.txt.tar.gz \
       && mkdir -p /tmp/rk && tar -xzf /tmp/rockyou.tar.gz -C /tmp/rk \
       && find /tmp/rk -name 'rockyou.txt' -exec mv {} /opt/wordlists/rockyou.txt \; \
-      && rm -rf /tmp/rockyou.tar.gz /tmp/rk ) \
- || echo "WARN: rockyou download skipped"
+      && test -s /opt/wordlists/rockyou.txt \
+      && rm -rf /tmp/rockyou.tar.gz /tmp/rk; \
+    fi
 
 COPY app/backend/requirements.txt /opt/stegsuite/requirements.txt
 RUN python3 -m venv /opt/stegsuite/venv \
@@ -70,5 +74,7 @@ COPY --from=frontend /fe/dist /opt/stegsuite/backend/static
 
 WORKDIR /data
 EXPOSE 19014
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -fsS http://127.0.0.1:19014/api/v1/health || exit 1
 CMD ["/opt/stegsuite/venv/bin/uvicorn", "backend.main:app", \
      "--host", "0.0.0.0", "--port", "19014", "--app-dir", "/opt/stegsuite"]

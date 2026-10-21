@@ -3,12 +3,11 @@ from __future__ import annotations
 
 import struct
 import wave
-from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, which, out_of
 from .registry import register
+from .util import AV_EXT
 
-AV_EXT = (".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac", ".mp4", ".mkv", ".avi", ".mov", ".webm")
 
 
 def _bits_to_text(bits: list[int]) -> str:
@@ -68,7 +67,7 @@ class WavLsbAnalyzer(Analyzer):
     def run(self, ctx: ToolContext) -> ToolResult:
         try:
             with wave.open(str(ctx.input), "rb") as w:
-                nch, sw, _sr, nfr = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
+                nch, sw, nfr = w.getnchannels(), w.getsampwidth(), w.getnframes()
                 raw = w.readframes(min(nfr, 2_000_000))
         except Exception as exc:
             return ToolResult(self.name, status="skipped", summary=f"WAV not readable ({exc})")

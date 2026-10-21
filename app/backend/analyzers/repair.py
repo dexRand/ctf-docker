@@ -12,6 +12,7 @@ import struct
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
+from .util import MAGICS
 
 _DIB_SIZES = {12, 40, 52, 56, 64, 108, 124}
 _BMP_SIG = b"BM"
@@ -143,3 +144,47 @@ class ImageRepairAnalyzer(Analyzer):
 
 
 register(ImageRepairAnalyzer())
+
+class ByteSwapAnalyzer(Analyzer):
+    """A file stored with its bytes swapped in 2- or 4-byte words (picoCTF
+    "endianness-v2": a JPEG as little-endian 32-bit words) has no known magic;
+    swapped back it has. Only the first bytes are tested; the whole file is
+    swapped when they match."""
+    name = "byte-swap"
+    category = "forensics"
+    description = "File stored as byte-swapped 16/32-bit words: detect the magic and swap it back."
+    accepts = ()
+    display_order = 241
+
+    def run(self, ctx: ToolContext) -> ToolResult:
+        with open(ctx.input, "rb") as fh:
+            head = fh.read(16)
+        if _strong_magic(head):
+            return ToolResult(self.name, status="skipped", summary="already a known file")
+        for width in (4, 2):
+            ext = _strong_magic(_swap(head, width))
+            if ext:
+                data = ctx.input.read_bytes()   # a trailing partial word stays as is
+                out = ctx.sub(self.name) / f"{ctx.input.stem}.swap{width * 8}{ext}"
+                out.write_bytes(_swap(data, width))
+                return ToolResult(self.name, status="done",
+                                  summary=f"{width * 8}-bit word swap -> {ext}",
+                                  extracted=[str(out)],
+                                  artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
+        return ToolResult(self.name, status="skipped", summary="no swapped magic")
+
+
+def _strong_magic(head: bytes) -> str:
+    """Extension for a signature of 3+ bytes (2-byte ones like `BM` match by chance)."""
+    return next((ext for sig, ext in MAGICS if len(sig) >= 3 and head.startswith(sig)), "")
+
+
+def _swap(data: bytes, width: int) -> bytes:
+    """Reverse the bytes of every `width`-byte word (a trailing partial word is kept)."""
+    import numpy as np
+    n = len(data) - len(data) % width
+    words = np.frombuffer(data[:n], dtype=f">u{width}").byteswap()
+    return words.tobytes() + data[n:]
+
+
+register(ByteSwapAnalyzer())
