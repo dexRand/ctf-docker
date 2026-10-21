@@ -35,6 +35,8 @@ SERVICES = [
      "whisper:7860"),
     ("rev", "rev sandbox", "isolated reversing/pwn terminal (ELF/PE/APK, Ghidra, gdb)", "rev",
      "REV_PORT", 19018, "/", "rev-proxy:7681"),
+    ("rev-web", "rev workbench", "browser workbench: auto report, Unicorn emulation, brute", "rev",
+     "REV_WEB_PORT", 19020, "/", "rev-web-proxy:8080"),
 ]
 
 

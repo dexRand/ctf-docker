@@ -41,9 +41,9 @@
         container: ctf-rev-1
     - Rev workbench:
         icon: mdi-chip
-        href: http://localhost:19020
+        href: http://localhost:{{HOMEPAGE_VAR_REV_WEB_PORT}}
         description: Workbench rev — emulate (Unicorn) · brute del 1° argomento · report di primo passaggio (Ghidra/checksec/stringhe) — profilo rev
-        container: ctf-rev-1
+        container: ctf-rev-web-proxy-1
 
 - Recon (OSINT):
     - SpiderFoot:

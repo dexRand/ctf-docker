@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 
 from .events import emit as _emit, event as _event, now as _now
 from .models import Event, FileNode, Finding, ToolRun
+from .planner import origin_tool, STEG_DECODERS
 from .tree import import_children
 
 if TYPE_CHECKING:  # jobs imports this module: type-only import
@@ -77,8 +78,15 @@ def locked_files(session: Session, pid: str) -> dict[int, str]:
                         .order_by(ToolRun.id)).all()
     out: dict[int, str] = {}
     for r in runs:
-        if r.file_id not in cracked:
-            out.setdefault(r.file_id, r.tool)
+        if r.file_id in cracked:
+            continue
+        if r.tool in ("steghide", "outguess"):
+            node = session.get(FileNode, r.file_id)
+            # steghide/outguess can't tell "no payload" from "wrong passphrase":
+            # on a node a stego decoder produced the lock is a false positive.
+            if node and origin_tool(node.origin) in STEG_DECODERS:
+                continue
+        out.setdefault(r.file_id, r.tool)
     return out
 
 

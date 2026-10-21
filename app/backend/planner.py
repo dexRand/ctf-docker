@@ -60,6 +60,23 @@ CARVERS = {"binwalk-scan", "binwalk-extract", "foremost"}
 CAPTURE_EXT = (".pcap", ".pcapng", ".cap")
 
 
+# Tools whose output is a *decoded* stream (pixels, LSB planes, re-encoded
+# images): a steghide/outguess "needs password" on their children is a false
+# positive (they are not original carriers), and re-running a decoder on
+# another decoder's output is mostly noise (it made the recursion explode).
+STEG_DECODERS = {"zsteg", "bit-planes", "png-pixels", "lsb-carve", "channel-remap",
+                 "image-enhance", "psimage", "gif-frames", "blobs", "decode",
+                 "image-repair", "png-repair"}
+IMG_DECODERS = {"zsteg", "bit-planes", "png-pixels", "lsb-carve", "channel-remap",
+                "image-enhance", "psimage", "image-repair", "png-repair"}
+
+
+def origin_tool(origin: str) -> str:
+    """Tool that extracted a node ('extracted:<tool>:<parent>' -> '<tool>')."""
+    parts = (origin or "").split(":")
+    return parts[1] if origin.startswith("extracted:") and len(parts) >= 3 else ""
+
+
 def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "") -> list[str]:
     """Analyzers for one file, in plan order. `made_by` is the tool that
     extracted it ('' for uploads)."""
@@ -75,6 +92,10 @@ def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "") -> 
         if tool in CARVERS and made_by in CARVERS:
             continue
         if tool == "foremost" and name.lower().endswith(CAPTURE_EXT):
+            continue
+        if tool in IMG_DECODERS and made_by in IMG_DECODERS:
+            continue
+        if tool in HEAVY_EXTRACT and made_by in STEG_DECODERS:
             continue
         plan.append(tool)
     return plan
