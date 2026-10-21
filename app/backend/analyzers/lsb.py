@@ -56,9 +56,9 @@ def _rgba_head(path: Path, max_pixels: int = _MAX_NUMPY_PIXELS):
         return None
 
 
-def _streams(path: Path):
+def _streams(path: Path, arr=None):
     """(spec, stream) for every spec: numpy for RGB/RGBA images, zsteg otherwise."""
-    arr = _rgba_head(path)
+    arr = _rgba_head(path) if arr is None else arr
     for spec in _SPECS:
         if arr is not None:
             yield spec, lsb_stream(arr, spec)
@@ -76,12 +76,15 @@ class LsbCarveAnalyzer(Analyzer):
     display_order = 336
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        if not which("zsteg"):
+        # RGB/RGBA images are decoded with numpy, so zsteg is only needed for the
+        # other modes (palette/gray): don't skip the whole analyzer without it.
+        arr = _rgba_head(ctx.input)
+        if arr is None and not which("zsteg"):
             return ToolResult(self.name, status="skipped", summary="zsteg not installed")
         outdir = ctx.sub(self.name)
         produced: list[Path] = []
         seen: set[tuple] = set()
-        for spec, data in _streams(ctx.input):
+        for spec, data in _streams(ctx.input, arr):
             if len(data) < _MIN:
                 continue
             for magic, ext in _MAGICS:
