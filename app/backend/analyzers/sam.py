@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import subprocess
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, which
@@ -107,14 +108,20 @@ class SamAnalyzer(Analyzer):
         hf = tmp / "sam-nt.txt"
         hf.write_text("\n".join(hashes.values()) + "\n", encoding="utf-8")
         pot = tmp / "sam-nt.pot"
+        found: dict[str, str] = {}
         for wl in wordlists:
-            proc = ctx.run(cracking.hashcat_args(1000, str(hf), wordlist=str(wl),
-                                                 potfile=str(pot), runtime=180),
-                           timeout=240)
-            if proc.returncode not in (0, 1, 2):      # 0 found, 1 exhausted, 2 aborted
-                continue
-        show = ctx.run(["hashcat", "-m", "1000", str(hf), "--show", "--potfile-path", str(pot)],
-                       timeout=60)
+            ctx.run(cracking.hashcat_args(1000, str(hf), wordlist=str(wl),
+                                          potfile=str(pot), runtime=120), timeout=180)
+            found = self._show(hf, pot, hashes)
+            if len(found) == len(hashes):
+                break
+        return found
+
+    @staticmethod
+    def _show(hf: Path, pot: Path, hashes: dict[str, str]) -> dict[str, str]:
+        show = subprocess.run(["hashcat", "-m", "1000", str(hf), "--show",
+                               "--potfile-path", str(pot)],
+                              capture_output=True, text=True, timeout=60)
         found: dict[str, str] = {}
         by_hash = {h: u for u, h in hashes.items()}
         for line in (show.stdout or "").splitlines():
