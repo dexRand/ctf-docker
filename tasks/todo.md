@@ -442,3 +442,6 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 - [ ] **Ancora aperti**: SAM hive + crack (`samiam`), ASK (`sleepy.mp3`),
       SAME/EAS (`warning.wav`), Firefox profile (`ictf23_web`: DB/SQLite e
       sessionstore con byte spuri). `elves.bmp`: ELF degradato, non ricostruibile.
+  Verificati sui casi reali: ictf23_forensics ✅ (266s: il pcap esporta ~130
+  oggetti HTTP, la pipeline li analizza tutti — la flag è in secret.png) e
+  recipe.txt ✅ (2s). Nota: l'export HTTP degli oggetti video rende il caso lento.
