@@ -482,3 +482,7 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       bit-planes/channel-remap/image-enhance/psimage su BMP non validi,
       nested-archive su stream troncati → ora `done`/`skipped`, non `error`.
       Restano 0 progetti in errore (l'unico era il vecchio nome troppo lungo).
+- [x] **Perf (2° giro)**: `bit-planes` salva piani PNG 1-bit e fa OCR a 1000 px
+      (4 MP: 351 → 51s), `qr` deblur su una copia ≤500 px (garden: QR 250 → ~5s),
+      `ocr` accetta un `max_dim` per chiamata. **garden.jpg 403.6 → 125.8s (-69%)**,
+      **try_me.pcap 225.0 → 142.2s (-37%)**, entrambi PASS.

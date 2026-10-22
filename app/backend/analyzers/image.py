@@ -36,9 +36,9 @@ class BitPlanesAnalyzer(Analyzer):
         files: list[Path] = []
         for ci, ch in enumerate("RGBA"):
             for bit in range(8):
-                plane = (((arr[:, :, ci] >> bit) & 1) * 255).astype("uint8")
+                plane = (((arr[:, :, ci] >> bit) & 1)).astype(bool)
                 fn = outdir / f"{ctx.input.stem}_{ch}{bit}.png"
-                Image.fromarray(plane, mode="L").save(fn)
+                Image.fromarray(plane).save(fn)     # 1-bit PNG: 8x smaller/faster
                 files.append(fn)
         # OCR only the LSB (bit 0) of R/G/B: a flag drawn in the LSB is captured
         # with a light OCR pass, without scanning all 32 planes (slow).
@@ -49,7 +49,7 @@ class BitPlanesAnalyzer(Analyzer):
                 m = re.search(r"_([RGBA])(\d)\.png$", f.name)
                 if not m or m.group(1) not in "RGB" or int(m.group(2)) != 0:
                     continue
-                t = ocr_image(f, thorough=False)
+                t = ocr_image(f, thorough=False, max_dim=1000)
                 if t:
                     lines.append(f"{f.name}: {t}")
         except Exception:

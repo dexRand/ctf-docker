@@ -22,6 +22,11 @@ def _deblurred(path: Path, outdir: Path):
         im = Image.open(path).convert("L")
     except Exception:
         return
+    # a blurred QR is small; upscaling a multi-megapixel photo 4x costs minutes
+    if max(im.size) > 500:
+        f = 500 / max(im.size)
+        im = im.resize((max(1, round(im.width * f)), max(1, round(im.height * f))),
+                       Image.LANCZOS)
     for sc in (3, 4):
         up = im.resize((im.width * sc, im.height * sc), Image.LANCZOS)
         for rad, pct in ((6, 500), (8, 600)):
@@ -51,7 +56,7 @@ class QrAnalyzer(Analyzer):
             tmpdir = Path(tempfile.mkdtemp(prefix="stegsuite-qr-"))
             try:
                 for img in _deblurred(ctx.input, tmpdir):
-                    proc = ctx.run(["zbarimg", "--quiet", "--raw", str(img)], timeout=120)
+                    proc = ctx.run(["zbarimg", "--quiet", "--raw", str(img)], timeout=60)
                     out = out_of(proc)
                     if out.strip():
                         break

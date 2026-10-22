@@ -92,7 +92,8 @@ def _tess(img, psm: int, timeout: int, langs: str | None = None) -> str:
             pass
 
 
-def ocr_image(path: Path, timeout: int = 90, thorough: bool = True) -> str:
+def ocr_image(path: Path, timeout: int = 90, thorough: bool = True,
+              max_dim: int | None = None) -> str:
     """Run tesseract on a file and return recognized text ('' if unavailable).
 
     Small images are upscaled first (OCR on tiny text is otherwise poor). When
@@ -116,10 +117,11 @@ def ocr_image(path: Path, timeout: int = 90, thorough: bool = True) -> str:
         return ""
     # downscale huge images: tesseract on multi-MP photos is very slow and the
     # flags in them are large text anyway
-    if OCR_MAX_DIM:
+    limit = max_dim or OCR_MAX_DIM
+    if limit:
         w0, h0 = base.size
-        if max(w0, h0) > OCR_MAX_DIM:
-            f = OCR_MAX_DIM / max(w0, h0)
+        if max(w0, h0) > limit:
+            f = limit / max(w0, h0)
             base = base.resize((max(1, round(w0 * f)), max(1, round(h0 * f))), Image.LANCZOS)
     texts: list[str] = []
     gray = base.convert("L")
