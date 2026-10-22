@@ -19,6 +19,9 @@ const project = ref(null)
 const runs = ref([])
 const findings = ref([])
 const locked = ref([])
+const cracks = ref({ running: false, jobs: [] })
+const now = ref(Date.now() / 1000)
+let crackTick = null
 const wordlists = ref([])
 const log = ref([])
 const selected = ref(null)
@@ -140,6 +143,48 @@ const passwords = computed(() => findings.value.filter((f) => f.kind === 'passwo
 const passwordFileIds = computed(() => new Set(passwords.value.map((p) => p.file_id)))
 function pwdOf(fileId) { return passwords.value.find((p) => p.file_id === fileId) || null }
 
+// --- crack queue: live jobs of this project (queued/running/finished) -------
+const crackActive = computed(() => (cracks.value.jobs || []).filter((j) => j.status === 'queued' || j.status === 'running'))
+const crackShown = computed(() => {
+  const jobs = cracks.value.jobs || []
+  const active = jobs.filter((j) => j.status === 'queued' || j.status === 'running')
+  const done = jobs.filter((j) => !['queued', 'running'].includes(j.status))
+  return [...active, ...done].slice(0, 12)
+})
+function crackChip(status) {
+  const map = {
+    running: 'border-warn/60 bg-warn/10 text-warn',
+    queued: 'border-info/50 bg-info/10 text-info',
+    found: 'border-acc/50 bg-acc/10 text-acc',
+    not_found: 'border-edge text-dim',
+    cancelled: 'border-edge text-dim',
+    error: 'border-danger/50 bg-danger/10 text-danger',
+  }
+  return map[status] || 'border-edge text-dim'
+}
+function crackLabel(status) { return t('proj.crackq_' + status) }
+function queuePos(j) {
+  const q = (cracks.value.jobs || []).filter((x) => x.status === 'queued').sort((a, b) => a.id - b.id)
+  return q.findIndex((x) => x.id === j.id) + 1
+}
+function elapsed(j) {
+  const end = j.finished_at || now.value
+  const start = j.started_at || j.queued_at
+  return Math.max(0, end - start)
+}
+function fmtDur(sec) {
+  sec = Math.max(0, Math.round(sec))
+  if (sec < 60) return sec + 's'
+  const m = Math.floor(sec / 60), s = sec % 60
+  return `${m}m ${String(s).padStart(2, '0')}s`
+}
+async function cancelCrack(j) {
+  try {
+    await api(`/cracks/${j.id}`, { method: 'DELETE' })
+    scheduleRefresh()
+  } catch (e) { notify(String(e), 'error') }
+}
+
 // --- graph tab: force-directed tool graph + flag timeline -----------------
 const graphFlagIds = computed(() => new Set(flags.value.map((f) => f.file_id)))
 const graphNodes = computed(() => tree.value.map((n) => ({
@@ -260,13 +305,14 @@ async function load() {
   const seq = ++loadSeq
   const id = props.id
   try {
-    const [proj, fnd, lck, wls, rns, sum] = await Promise.all([
+    const [proj, fnd, lck, wls, rns, sum, cq] = await Promise.all([
       api(`/projects/${id}`),
       api(`/projects/${id}/findings`),
       api(`/projects/${id}/locked`),
       api('/wordlists'),
       api(`/projects/${id}/runs`),
       api(`/projects/${id}/summary`),
+      api(`/projects/${id}/crack/status`),
     ])
     if (seq !== loadSeq) return
     for (const l of lck) {
@@ -278,6 +324,8 @@ async function load() {
     wordlists.value = wls
     runs.value = rns
     summary.value = sum
+    cracks.value = cq || { running: false, jobs: [] }
+    now.value = Date.now() / 1000
     // seed the live log from persisted events so the Logs tab is not empty on
     // projects that were analysed in a previous session (only once, and only if
     // no live event has arrived yet)
@@ -495,11 +543,14 @@ onMounted(() => {
   narrow.value = mq.matches
   mq.addEventListener('change', onMq)
   load(); connect()
+  // tick only while a crack is running, so its elapsed time stays live
+  crackTick = setInterval(() => { if (crackActive.value.length) now.value = Date.now() / 1000 }, 1000)
 })
 onBeforeUnmount(() => {
   if (mq) mq.removeEventListener('change', onMq)
   endDrag()
   disposed = true
+  clearInterval(crackTick)
   clearTimeout(refreshTimer)
   clearTimeout(reconnectTimer)
   if (ws) { ws.onclose = null; try { ws.close() } catch {} }
@@ -770,6 +821,29 @@ onBeforeUnmount(() => {
               <button @click="crack(l, l._wl)" class="kb kb-acc shrink-0 text-[10px]"><Icon name="key" :size="11" />{{ t('proj.crack') }}</button>
             </div>
           </div>
+
+          <template v-if="cracks.jobs.length">
+            <div class="mb-1 mt-3 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-info">
+              <Icon name="key" :size="12" /> {{ t('proj.crackq', { n: cracks.jobs.length }) }}
+              <span v-if="crackActive.length" class="font-normal normal-case tracking-normal text-dim">
+                {{ t('proj.crackq_active', { n: crackActive.length, m: cracks.jobs.length - crackActive.length }) }}
+              </span>
+            </div>
+            <div v-for="j in crackShown" :key="j.id"
+                 class="mb-1 flex items-center gap-1.5 rounded border border-edge/70 px-1.5 py-1 text-[10px]">
+              <span class="shrink-0 rounded border px-1 py-0.5 text-[9px]" :class="crackChip(j.status)">{{ crackLabel(j.status) }}</span>
+              <span class="min-w-0 flex-1 truncate text-fglite" :title="j.name">{{ j.name }}</span>
+              <span v-if="j.status === 'queued'" class="shrink-0 text-dim">{{ t('proj.crackq_pos', { n: queuePos(j) }) }}</span>
+              <span v-else-if="j.status === 'running'" class="shrink-0 text-warn">{{ fmtDur(elapsed(j)) }}</span>
+              <span v-else-if="j.status === 'found'" class="shrink-0 text-acc">
+                {{ j.password }}<span v-if="j.wordlist" class="text-dim"> · {{ j.wordlist }}</span>
+              </span>
+              <span v-else class="shrink-0 text-dim">{{ fmtDur(elapsed(j)) }}</span>
+              <button v-if="j.status === 'queued'" type="button" @click="cancelCrack(j)"
+                      class="kb kb-danger shrink-0 px-1 py-0 text-[10px]" :aria-label="t('proj.crackq_cancel')"
+                      :title="t('proj.crackq_cancel')">✕</button>
+            </div>
+          </template>
 
           <div class="mb-1 mt-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-acc">
             <Icon name="link" :size="12" /> {{ t('proj.flag_route') }}

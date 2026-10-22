@@ -48,6 +48,9 @@ class CrackJob:
 
 
 _JOBS: dict[int, CrackJob] = {}
+# status of the project before the first crack of a batch (the jobs overlap:
+# without this, the last job would "restore" the `running` set by the first)
+_PREV: dict[str, str] = {}
 _LOCK = threading.Lock()
 _QUEUE: "queue.Queue[CrackJob]" = queue.Queue()
 _IDS = itertools.count(1)
@@ -138,6 +141,60 @@ def _worker() -> None:
 
 
 def _run(job: CrackJob) -> None:
+    """Crack one file with the project marked `running` while it works.
+
+    A crack on a `done`/`failed` project must show as a running job in the GUI;
+    when the last job of the batch ends (and nothing else is working on the
+    project) the status from before the first crack comes back — or is left
+    alone if the unlocked files started an analysis pass, which owns it."""
+    _enter(job.project_id)
+    try:
+        _crack(job)
+    finally:
+        _settle(job)
+
+
+def _enter(pid: str) -> None:
+    """Mark the project running, remembering the status before the batch."""
+    with _LOCK:
+        if pid not in _PREV:
+            _PREV[pid] = _set_status(pid, "running") or "done"
+            return
+    _set_status(pid, "running")
+
+
+def _set_status(pid: str, status: str) -> str | None:
+    """Set the project status, publish it on the bus, return the previous one.
+
+    None means the project is gone (deleted while the crack was running)."""
+    from .models import Project
+    with Session(engine) as s:
+        p = s.get(Project, pid)
+        if not p:
+            return None
+        prev = p.status
+        if prev != status:
+            p.status = status
+            s.add(p)
+            s.commit()
+            bus.publish(f"project:{pid}", {"type": "status", "status": status})
+        return prev
+
+
+def _settle(job: CrackJob) -> None:
+    """Restore the pre-batch status when nothing else is working on the project."""
+    from . import jobs as analysis
+    running = analysis.is_running(job.project_id)
+    with _LOCK:
+        others = any(j.id != job.id and j.project_id == job.project_id
+                     and j.status in ("queued", "running") for j in _JOBS.values())
+        if others or running:
+            return
+        prev = _PREV.pop(job.project_id, None)
+    _set_status(job.project_id, prev or "done")
+
+
+def _crack(job: CrackJob) -> None:
     from . import orchestrator
     with Session(engine) as s:
         node = s.get(FileNode, job.file_id)

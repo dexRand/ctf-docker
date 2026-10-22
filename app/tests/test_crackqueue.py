@@ -4,7 +4,7 @@ import time
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from backend import cracking, crackqueue, storage
 from backend.db import engine, init_db
@@ -65,3 +65,61 @@ def test_queue_runs_per_file_and_rejects_duplicates(client, monkeypatch):
     pw = [f for f in client.get(f"/api/v1/projects/{PID}/findings").json() if f["kind"] == "password"]
     assert [p["value"] for p in pw] == ["s3cret"]
     assert client.delete("/api/v1/cracks/999999").status_code == 404
+
+
+def test_crack_marks_the_project_running_then_restores_it(client, monkeypatch):
+    """A crack on a `done` project shows a running job, and the status comes
+    back when nothing else is working on it."""
+    pid = "cq-status"
+    with Session(engine) as s:
+        if not s.get(Project, pid):
+            (storage.project_dir(pid) / "uploads").mkdir(parents=True, exist_ok=True)
+            (storage.project_dir(pid) / "uploads" / "x.zip").write_bytes(b"PK")
+            s.add(Project(id=pid, name="cq-status", status="done"))
+            s.add(FileNode(project_id=pid, name="x.zip", rel_path="uploads/x.zip"))
+            s.commit()
+        node = s.exec(select(FileNode).where(FileNode.project_id == pid)).first()
+
+    gate = threading.Event()
+
+    def fake_crack(path, names, log=None, **kw):
+        gate.wait(5)
+        return {"password": None, "kind": "archive", "extracted": [],
+                "wordlist_hit": None, "wordlists": []}
+    monkeypatch.setattr(cracking, "crack_file", fake_crack)
+
+    assert client.post(f"/api/v1/projects/{pid}/crack", json={"file_id": node.id}).status_code == 200
+    assert _wait(lambda: client.get(f"/api/v1/projects/{pid}").json()["status"] == "running")
+    gate.set()
+    assert _wait(lambda: client.get(f"/api/v1/projects/{pid}").json()["status"] == "done")
+
+
+def test_a_batch_of_cracks_restores_the_original_status(client, monkeypatch):
+    """Queued jobs must not leave the project stuck on `running`: the status
+    saved for the batch is the one from before the first job."""
+    pid = "cq-batch"
+    with Session(engine) as s:
+        if not s.get(Project, pid):
+            (storage.project_dir(pid) / "uploads").mkdir(parents=True, exist_ok=True)
+            s.add(Project(id=pid, name="cq-batch", status="done"))
+            for n in ("one.zip", "two.zip"):
+                (storage.project_dir(pid) / "uploads" / n).write_bytes(b"PK")
+                s.add(FileNode(project_id=pid, name=n, rel_path=f"uploads/{n}"))
+            s.commit()
+        nodes = s.exec(select(FileNode).where(FileNode.project_id == pid)).all()
+
+    gate = threading.Event()
+
+    def fake_crack(path, names, log=None, **kw):
+        gate.wait(5)
+        return {"password": None, "kind": "archive", "extracted": [],
+                "wordlist_hit": None, "wordlists": []}
+    monkeypatch.setattr(cracking, "crack_file", fake_crack)
+
+    for node in nodes[:2]:
+        assert client.post(f"/api/v1/projects/{pid}/crack", json={"file_id": node.id}).status_code == 200
+    assert _wait(lambda: client.get(f"/api/v1/projects/{pid}").json()["status"] == "running")
+    gate.set()
+    assert _wait(lambda: all(j["status"] not in ("queued", "running")
+                             for j in client.get(f"/api/v1/cracks?project_id={pid}").json()))
+    assert _wait(lambda: client.get(f"/api/v1/projects/{pid}").json()["status"] == "done")
