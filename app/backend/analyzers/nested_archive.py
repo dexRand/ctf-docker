@@ -157,6 +157,8 @@ def peel(path: Path, workdir: Path,
             got = _extract(cur, kind, {target[0]}, workdir / f"L{i:04d}", i)
         except Encrypted:
             return layers, [cur]
+        except Exception:               # truncated/corrupt stream: keep what we have
+            return layers, [cur]
         if not got:
             return layers, [cur]
         layers.append(f"L{i:04d}: {cur.name} -> {got[0].name}")

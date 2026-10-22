@@ -101,9 +101,12 @@ class SevenZipAnalyzer(Analyzer):
             return ToolResult(self.name, status="skipped", summary="not an archive", output=blob[-4000:])
         files: list[Path] = list_files(d) if proc.returncode == 0 else []
         needs = proc.returncode != 0 and ("password" in low or "encrypted" in low or "wrong" in low)
+        status = "needs_password" if needs else "done"
+        if proc.returncode != 0 and not needs and not files:
+            status = "skipped"          # empty/corrupted archive: nothing to extract
         return ToolResult(
             self.name,
-            status="needs_password" if needs else ("done" if proc.returncode == 0 else "error"),
+            status=status,
             needs_password=needs, output=blob[-20000:], exit_code=proc.returncode,
             summary="password required" if needs else f"{len(files)} file",
             extracted=[str(f) for f in files], artifacts=_arts(files, ctx.workdir),

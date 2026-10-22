@@ -27,7 +27,7 @@ class BitPlanesAnalyzer(Analyzer):
         try:
             img = Image.open(ctx.input).convert("RGBA")
         except Exception as exc:
-            return ToolResult(self.name, status="error", summary=f"cannot open image: {exc}")
+            return ToolResult(self.name, status="skipped", summary=f"cannot open image: {exc}")
         w, h = img.size
         if w * h > MAX_PIXELS:
             return ToolResult(self.name, status="skipped", summary=f"image too big ({w}x{h})")
@@ -79,7 +79,7 @@ class ChannelRemapAnalyzer(Analyzer):
             src.load()
             img = src.convert("RGB")
         except Exception as exc:
-            return ToolResult(self.name, status="error", summary=f"cannot open image: {exc}")
+            return ToolResult(self.name, status="skipped", summary=f"cannot open image: {exc}")
         if img.size[0] * img.size[1] > MAX_PIXELS:
             return ToolResult(self.name, status="skipped", summary="image too big")
         arr = np.asarray(img)
@@ -151,7 +151,7 @@ class ImageEnhanceAnalyzer(Analyzer):
         try:
             img = Image.open(ctx.input).convert("RGB")
         except Exception as exc:
-            return ToolResult(self.name, status="error", summary=f"cannot open image: {exc}")
+            return ToolResult(self.name, status="skipped", summary=f"cannot open image: {exc}")
         if img.size[0] * img.size[1] > MAX_PIXELS:
             return ToolResult(self.name, status="skipped", summary="image too big")
         arr = np.asarray(img).astype("int16")

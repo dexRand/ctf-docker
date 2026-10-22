@@ -53,9 +53,12 @@ class GitAnalyzer(Analyzer):
                         break
                     out = dest / name
                     out.parent.mkdir(parents=True, exist_ok=True)
-                    out.write_bytes(z.read(info))
+                    try:
+                        out.write_bytes(z.read(info))
+                    except (OSError, RuntimeError):
+                        continue        # encrypted (AES) member: skip it
         except (OSError, zipfile.BadZipFile) as exc:
-            return ToolResult(self.name, status="error", summary=f"cannot unzip: {exc}")
+            return ToolResult(self.name, status="skipped", summary=f"cannot unzip: {exc}")
 
         gitdir = next((p for p in dest.rglob(".git") if p.is_dir()), None)
         if gitdir is None:

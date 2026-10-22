@@ -35,7 +35,8 @@ class SpectrogramAnalyzer(Analyzer):
         if out.exists():
             return ToolResult(self.name, status="done", summary="spectrogram",
                               artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
-        return ToolResult(self.name, status="error", output=out_of(proc)[-8000:], exit_code=proc.returncode)
+        return ToolResult(self.name, status="skipped", output=out_of(proc)[-8000:],
+                          exit_code=proc.returncode, summary="not decodable audio")
 
 
 class WaveformAnalyzer(Analyzer):
@@ -54,7 +55,8 @@ class WaveformAnalyzer(Analyzer):
         if out.exists():
             return ToolResult(self.name, status="done", summary="waveform",
                               artifacts=[{"name": out.name, "path": str(out), "size": out.stat().st_size}])
-        return ToolResult(self.name, status="error", output=out_of(proc)[-8000:], exit_code=proc.returncode)
+        return ToolResult(self.name, status="skipped", output=out_of(proc)[-8000:],
+                          exit_code=proc.returncode, summary="not decodable audio")
 
 
 class WavLsbAnalyzer(Analyzer):

@@ -476,3 +476,9 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 - [x] **Perf misurata**: `garden.jpg` 403.6 → **275.4s** (-32%), `try_me.pcap`
       225.0 → **162.6s** (-28%). Provato `HEAVY_TOOLS=2` + `TOOL_WORKERS=4`:
       nessun guadagno con il container a 3 CPU (171 vs 163s) → restano 1/3.
+- [x] **Errori "cosmetici" delle run vecchie** (135 su 250 progetti campione):
+      outguess "no data/wrong key", waveform su audio non decodificabile,
+      7z su archivi vuoti/corrotti, git su zip AES, zsteg su immagini rotte,
+      bit-planes/channel-remap/image-enhance/psimage su BMP non validi,
+      nested-archive su stream troncati → ora `done`/`skipped`, non `error`.
+      Restano 0 progetti in errore (l'unico era il vecchio nome troppo lungo).
