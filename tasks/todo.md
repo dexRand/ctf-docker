@@ -486,3 +486,9 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       (4 MP: 351 → 51s), `qr` deblur su una copia ≤500 px (garden: QR 250 → ~5s),
       `ocr` accetta un `max_dim` per chiamata. **garden.jpg 403.6 → 125.8s (-69%)**,
       **try_me.pcap 225.0 → 142.2s (-37%)**, entrambi PASS.
+- [x] **Validazione completa dopo le ottimizzazioni**: fixture **33/33**, reali
+      **35/35**, writeup **ALL CORRECT**. Tempo di analisi dei 35 casi:
+      **4084.2 → 2369.0s (-42%)**, con `-j 2` (prima era `-j 3`). Nessuna
+      soluzione persa. Esempi: weird.docm 249→16s, main.wav 44→4s,
+      webnet0 54→6s, flag.txt 122→20s, pico_img 193→82s, dolls 477→320s,
+      corrupted_file 531→342s, garden 404→220s (126s da solo), try_me 225→149s.
