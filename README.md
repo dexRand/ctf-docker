@@ -175,12 +175,12 @@ sandbox (`rev/Dockerfile`).
 | Text & encodings | `strings`, `markup-text` (SVG/HTML/XML text nodes), `xxd`/`hexyl`/`hexdump`, `decode` (base64/32/85, hex, binary, rot13, URL, high-bit, nested), `blobs` (base64/hex blocks → files/text), `pdftotext`, `morse-text` |
 | Text stego & esolangs | `zero-width` (ZW chars, two-symbol whitespace, trailing spaces), `whitespace` (interpreter), `case-bits` (binary + Bacon), `homoglyph` |
 | Image stego | `zsteg`, `lsb-carve`, `stepic`, `psimage`, `steghide`, `outguess`, `jsteg`, `openstego`, `png-chunks`, `png-pixels`, `pixel-bytes` (pixels that are another file, chains followed), `bit-planes`, `channel-remap` (+ palette-index repaint), `image-enhance` |
-| Vision | `ocr` (tesseract, EN + IT fallback), `qr`, `gif-frames` (frames, diffs, delay bits) |
+| Vision | `ocr` (tesseract, EN + IT fallback, denoise + O/0 fixes), `qr`, `gif-frames` (frames, diffs, delay bits) |
 | Audio / radio | `spectrogram`, `waveform`, `wav-lsb`, `wav-levels`, `morse`, `dtmf`, `sstv` (Scottie S1/S2) |
-| Network | `pcap` (protocols, HTTP/DNS fields, comments, reassembled UDP/TCP streams, base64 split one token per packet, text in source ports, DNS tunnels, DNS tunnels per destination server, HTTP objects, TLS with a key or a TLS 1.3 keylog, HTTP/2) |
+| Network | `pcap` (protocols, HTTP/DNS fields, comments, reassembled UDP/TCP streams, base64 split one token per packet, text in source ports, DNS tunnels, DNS tunnels per destination server, evil bit RFC 3514, HTTP objects, TLS with a key or a TLS 1.3 keylog, HTTP/2) |
 | Archives & documents | `7z`, `nested-archive`, `binwalk` (scan/extract), `foremost`, `office` (OOXML/ODF + macros), `eml`, `git` (history, reflog, every object) |
 | Windows | `evtx` (event logs as text, base64 pieces joined into the flag), GPP `cpassword` decrypted (in `markup-text`) |
-| Repair | `pngcheck`, `png-repair`, `image-repair` (JPEG/BMP/GIF headers, junk prefix), `byte-swap` (16/32-bit word-swapped files) |
+| Repair | `pngcheck`, `png-repair` (chunks, zstd IDAT), `image-repair` (JPEG/BMP/GIF headers, junk prefix, BMP height), `byte-swap` (16/32-bit word-swapped files) |
 | Binaries | `elf` (sections, dynamic info, checksec), `readelf`, `objdump` |
 
 **Flag hunt** — every tool output is scanned in several views (raw, UTF-16,

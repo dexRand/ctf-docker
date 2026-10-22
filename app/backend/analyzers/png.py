@@ -1,8 +1,14 @@
 """PNG analyzers: chunk/text dump + repair of corrupted files."""
 from __future__ import annotations
 
+import math
+import os
+import shutil
 import struct
+import subprocess
+import tempfile
 import zlib
+from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
@@ -73,6 +79,69 @@ def _next_chunk_type(buf: bytearray, start: int) -> int | None:
     return None
 
 
+_ZSTD_MAGIC = b"\x28\xb5\x2f\xfd"
+
+
+def _chunk(ctype: bytes, payload: bytes) -> bytes:
+    return (struct.pack(">I", len(payload)) + ctype + payload
+            + struct.pack(">I", zlib.crc32(ctype + payload) & 0xFFFFFFFF))
+
+
+def _idat_bytes(data: bytes) -> bytes:
+    pos, out = 8, bytearray()
+    while pos + 8 <= len(data):
+        length = struct.unpack(">I", data[pos:pos + 4])[0]
+        ctype = data[pos + 4:pos + 8]
+        if ctype == b"IDAT":
+            out += data[pos + 8:pos + 8 + length]
+        pos += 12 + length
+        if ctype == b"IEND":
+            break
+    return bytes(out)
+
+
+def _zstd_decompress(blob: bytes) -> bytes | None:
+    if not shutil.which("zstd"):
+        return None
+    fd, name = tempfile.mkstemp(suffix=".zst")
+    os.close(fd)
+    try:
+        Path(name).write_bytes(blob)
+        r = subprocess.run(["zstd", "-d", "-c", "-q", name], capture_output=True, timeout=120)
+        return r.stdout if r.returncode == 0 and r.stdout else None
+    finally:
+        Path(name).unlink(missing_ok=True)
+
+
+def rebuild_zstd_png(data: bytes, log: list[str]) -> bytes | None:
+    """miniscule.png class: the IDAT is a zstd stream of raw PNG scanlines and
+    the IHDR lies about the size (3x32 for an 800x800 image). Decompress it and
+    rebuild a PNG that actually decodes, so OCR/vision can read the content."""
+    idat = _idat_bytes(data)
+    if not idat.startswith(_ZSTD_MAGIC):
+        return None
+    raw = _zstd_decompress(idat)
+    if not raw:
+        log.append("zstd IDAT: decompression failed (zstd missing?)")
+        return None
+    # usual layouts, square-ish: RGB, RGBA, gray (one filter byte per row)
+    for ch, ctype in ((3, 2), (4, 6), (1, 0)):
+        w = math.isqrt(max(1, len(raw) // ch))
+        while w > 1 and len(raw) % (w * ch + 1):
+            w -= 1
+        if w <= 1 or len(raw) % (w * ch + 1):
+            continue
+        h = len(raw) // (w * ch + 1)
+        if h < 2 or h > w * 4:
+            continue
+        ihdr = struct.pack(">IIBBBBB", w, h, 8, ctype, 0, 0, 0)
+        log.append(f"zstd IDAT: {len(raw)} bytes -> PNG {w}x{h} ({ch} channels)")
+        return (PNG_SIG + _chunk(b"IHDR", ihdr)
+                + _chunk(b"IDAT", zlib.compress(raw, 6)) + _chunk(b"IEND", b""))
+    log.append(f"zstd IDAT: decompressed {len(raw)} bytes, size unknown")
+    return None
+
+
 def repair_png(data: bytes) -> tuple[bytes, list[str]]:
     """Best-effort PNG repair: signature, corrupted chunk types/lengths, CRCs."""
     out = bytearray(data)
@@ -134,6 +203,16 @@ class PngRepairAnalyzer(Analyzer):
                      or bytes(data[12:16]) == b'C"DR')
         if not looks_png:
             return ToolResult(self.name, status="skipped", summary="not a PNG")
+        log: list[str] = []
+        rebuilt = rebuild_zstd_png(data, log)
+        if rebuilt:
+            out = ctx.sub(self.name) / (ctx.input.name + ".zstd.png")
+            out.write_bytes(rebuilt)
+            return ToolResult(self.name, status="done", output="\n".join(log),
+                              summary="PNG rebuilt from a zstd IDAT",
+                              extracted=[str(out)],
+                              artifacts=[{"name": out.name, "path": str(out),
+                                          "size": out.stat().st_size}])
         fixed, log = repair_png(data)
         if fixed[:8] != PNG_SIG:
             return ToolResult(self.name, status="skipped", summary="not repairable")

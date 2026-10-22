@@ -426,3 +426,11 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 - [x] **Coda di crack visuale** nella SPA (sezione "crack queue": stato, posizione,
       tempo, password/wordlist, annulla i queued) e **progetto `running`** durante
       il crack con ripristino a fine (test in `test_crackqueue.py`).
+- [x] **Gap chiusi**: evil bit RFC 3514 (EBE.pcap), zstd IDAT (miniscule.png),
+      OCR denoise + correzione O/0 e l/1/i (c0rrupt.bin, tunn3l v1s10n), QR
+      sfocato con upscale/unsharp/soglia adattiva (blurry.png).
+- [ ] **Gap ancora aperti**: SAM hive + crack (samiam), Chef esolang (recipe.txt),
+      ASK (sleepy.mp3), SAME/EAS (warning.wav), Firefox profile (ictf23_web),
+      pcap repair (ictf23_forensics). `elves.bmp`: l'ELF nascosto nelle righe
+      extra è degradato (valori ±1-3, probabile JPEG) → non ricostruibile.
+      `out.qoi`: la catena QOI→…→PNG funziona, l'OCR dell'artwork non legge la flag.

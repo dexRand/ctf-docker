@@ -248,6 +248,32 @@ def _b64_per_packet(timed: list[tuple[float, bytes]]) -> str:
     return join_b64_fragments([tok for _t, tok in sorted(toks, key=lambda x: x[0])])
 
 
+def evil_bit_streams(rows: str) -> list[tuple[str, str]]:
+    """(side, text) for captures that hide one character per packet behind the
+    IPv4 reserved ("evil") bit: the packets with it and the ones without it.
+    Only one-byte payloads count, and a side must be mostly printable."""
+    sides: dict[str, list[int]] = {"without the evil bit": [], "with the evil bit": []}
+    for line in rows.splitlines():
+        rb, data = (line.split("\t") + ["", ""])[:2]
+        data = data.strip()
+        if len(data) != 2:                          # only one-byte payloads
+            continue
+        try:
+            key = "with the evil bit" if rb.strip() in ("1", "True") else "without the evil bit"
+            sides[key].append(int(data, 16))
+        except ValueError:
+            continue
+    out: list[tuple[str, str]] = []
+    for side, chars in sides.items():
+        if len(chars) < 8:
+            continue
+        raw = bytes(chars)
+        if sum(32 <= b < 127 for b in raw) / len(raw) < 0.7:
+            continue
+        out.append((side, raw.decode("latin-1")))
+    return out
+
+
 class PcapAnalyzer(Analyzer):
     name = "pcap"
     category = "network"
@@ -325,6 +351,14 @@ class PcapAnalyzer(Analyzer):
         tunnel = dns_tunnel_candidates(queries, by_server)
         if tunnel:
             parts.append("== DNS tunneling ==\n" + "\n".join(tunnel))
+        # RFC 3514 "evil bit": one character per packet, the IP reserved bit
+        # separating payload from noise. Authors may set it on the noise (EBE:
+        # the flag is in the packets *without* it) or on the data, so show both.
+        proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields",
+                        "-E", "separator=\t", "-e", "ip.flags.rb", "-e", "data.data"],
+                       timeout=180)
+        for side, text in evil_bit_streams(proc.stdout or ""):
+            parts.append(f"== evil bit ({side}) ==\n{text}")
         # export HTTP objects (become children to recurse into)
         outdir = ctx.sub(self.name)
         ctx.run(["tshark", "-r", str(ctx.input), *tls, "--export-objects",
