@@ -463,3 +463,8 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       con hashcat (rockyou + wordlist). Password recuperata: `!checkerboard1`.
       La flag attesa è `DUCTF{!checkerboard1}`: il wrapping nel formato CTF non
       viene inventato dalla pipeline (resta la password nel report).
+- [x] **Perf pipeline**: gli oggetti HTTP di un pcap diventano figli solo se
+      analizzabili (immagini/documenti/archivi/eseguibili/testo; DER, video,
+      font e blob restano artifact) e i file estratti identici sono dedupati per
+      sha256. `ictf23_forensics` resta PASS (~200s vs 266s). Aggiunto l'analyzer
+      `sqlite` (dump del testo di ogni tabella, utile per profili browser/app).
