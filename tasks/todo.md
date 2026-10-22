@@ -458,3 +458,8 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       ma il PBES2 di `key4.db` ha un **IV da 14 byte** (dovrebbe essere 16):
       il file è manomesso/troncato, quindi la decifratura NSS standard non
       funziona. Serve capire quali 2 byte mancano (o un'altra copia della chiave).
+- [x] **SAM hive** (`samiam`): analyzer `sam` — rileva la hive, trova la SYSTEM
+      tra i file del progetto, estrae gli hash con impacket (BootKey) e li cracca
+      con hashcat (rockyou + wordlist). Password recuperata: `!checkerboard1`.
+      La flag attesa è `DUCTF{!checkerboard1}`: il wrapping nel formato CTF non
+      viene inventato dalla pipeline (resta la password nel report).
