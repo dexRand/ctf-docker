@@ -445,3 +445,14 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
   Verificati sui casi reali: ictf23_forensics ✅ (266s: il pcap esporta ~130
   oggetti HTTP, la pipeline li analizza tutti — la flag è in secret.png) e
   recipe.txt ✅ (2s). Nota: l'export HTTP degli oggetti video rende il caso lento.
+- [ ] **ASK** (`sleepy.mp3`): trovato e demodulato (carrier 8 kHz, 50 baud, un
+      slot di silenzio ogni 8 bit): si legge `ictf{1_sl33py_NaYuKi_alarm_...}`
+      con ~2 bit sbagliati per la musica a 8 kHz. Serve un demod più robusto
+      (calibrazione sui slot di silenzio) prima di dichiararlo chiuso.
+- [ ] **SAME/EAS** (`warning.wav`): i toni non corrispondono all'AFSK standard
+      (sembra ricampionato) e la flag attesa è una risposta di conoscenza
+      ("3rd worst tornado outbreak"), non un dato nel file.
+- [ ] **Firefox profile** (`ictf23_web`): sessionstore decodificato come LZ4
+      block (serve il decoder), ma la flag non è nei DB né nel JSON; il login
+      `yoteachapp.com` è cifrato PBES2+AES con `key4.db` → serve libNSS o
+      pycryptodome.
