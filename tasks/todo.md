@@ -497,3 +497,6 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       UTF-8) non fanno più loop Python per carattere. Su un log da 23 MB:
       case-bits 46.7 → **2.1s**, zero-width 31.8 → **2.5s**, homoglyph 21.5 → **0.2s**.
       `bit-planes`: OCR LSB a 800 px senza re-upscale (4 MP: 351 → **22.5s**).
+- [x] **Perf (3° giro, misure)**: `misc_impossible` 617.7 → **363.9s** (-41%),
+      `corrupted_file` 530.9 → **195.9s** (-63%), `dolls.jpg` 476.7 → **138.9s**
+      (-71%), `buildings.png` 52.1 → **31.7s** (-39%) — tutti PASS.
