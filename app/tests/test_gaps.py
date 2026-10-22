@@ -100,3 +100,12 @@ def test_long_http_object_names_are_truncated():
     from backend.storage import sanitize_name
     name = sanitize_name("videoplayback?" + "a" * 400 + ".webm")
     assert len(name) <= 120 and name.endswith(".webm")
+
+
+def test_sam_hashes_are_parsed_and_blank_ones_skipped():
+    from backend.analyzers.sam import parse_hashes
+    text = ("Administrator:500:aad3b435b51404eeaad3b435b51404ee:"
+            "476b4dddbbffde29e739b618580adb1e:::\n"
+            "Guest:501:aad3b435b51404eeaad3b435b51404ee:"
+            "31d6cfe0d16ae931b73c59d7e0c089c0:::")
+    assert parse_hashes(text) == {"Administrator": "476b4dddbbffde29e739b618580adb1e"}

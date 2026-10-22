@@ -7,5 +7,7 @@ Pillow==12.3.0
 numpy==2.5.3
 alembic==1.20.0
 python-evtx==0.8.1
+# offline Windows registry: SAM/SYSTEM hive hashes (analyzers/sam.py)
+impacket==0.13.1
 # httpx: HTTP client required by starlette's TestClient in the CI unit-test job
 httpx
