@@ -473,3 +473,6 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       su una copia a 1000 px (6 passate tesseract su una foto 4MP costavano
       decine di secondi), crack SAM che si ferma appena tutti gli hash sono noti.
       Suite completa verde: fixture 33/33, reali 35/35 (4084s totali), writeup ALL CORRECT.
+- [x] **Perf misurata**: `garden.jpg` 403.6 → **275.4s** (-32%), `try_me.pcap`
+      225.0 → **162.6s** (-28%). Provato `HEAVY_TOOLS=2` + `TOOL_WORKERS=4`:
+      nessun guadagno con il container a 3 CPU (171 vs 163s) → restano 1/3.
