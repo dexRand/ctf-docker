@@ -468,3 +468,8 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       font e blob restano artifact) e i file estratti identici sono dedupati per
       sha256. `ictf23_forensics` resta PASS (~200s vs 266s). Aggiunto l'analyzer
       `sqlite` (dump del testo di ogni tabella, utile per profili browser/app).
+- [x] **Perf**: hex dump a 32 KiB (erano 128 KiB × 3 tool per file, e il flag hunt
+      scansiona ogni output più volte), rotazioni OCR solo se il testo c'è già e
+      su una copia a 1000 px (6 passate tesseract su una foto 4MP costavano
+      decine di secondi), crack SAM che si ferma appena tutti gli hash sono noti.
+      Suite completa verde: fixture 33/33, reali 35/35 (4084s totali), writeup ALL CORRECT.

@@ -4,14 +4,15 @@ from __future__ import annotations
 from .base import Analyzer, ToolContext, ToolResult, which
 from .registry import register, subprocess_analyzer
 
-LIMIT = 131072  # bytes to dump (128 KiB) to keep output bounded
-MAX_OUT = 400000
+LIMIT = 32768   # bytes to dump (32 KiB): three hex tools per file, and the
+                # flag hunt scans each output several times (128 KiB was 4x this)
+MAX_OUT = 120000
 
 
 class HexylAnalyzer(Analyzer):
     name = "hexyl"
     category = "hex"
-    description = "Coloured hex viewer with byte classification (first 128 KiB)."
+    description = "Coloured hex viewer with byte classification (first 32 KiB)."
     display_order = 145
 
     def run(self, ctx: ToolContext) -> ToolResult:
@@ -27,8 +28,8 @@ class HexylAnalyzer(Analyzer):
 
 register(HexylAnalyzer())
 subprocess_analyzer("xxd", ["xxd", "-g", "1", "-l", str(LIMIT), "{input}"], "hex",
-                    "Plain hex dump with offsets (xxd -g1, first 128 KiB).", order=146,
+                    "Plain hex dump with offsets (xxd -g1, first 32 KiB).", order=146,
                     max_output=MAX_OUT)
 subprocess_analyzer("hexdump", ["hexdump", "-C", "-n", str(LIMIT), "{input}"], "hex",
-                    "Canonical hex + ASCII dump (hexdump -C, first 128 KiB).", order=147,
+                    "Canonical hex + ASCII dump (hexdump -C, first 32 KiB).", order=147,
                     max_output=MAX_OUT)

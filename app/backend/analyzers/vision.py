@@ -153,10 +153,16 @@ def ocr_image(path: Path, timeout: int = 90, thorough: bool = True) -> str:
         dn = _denoised_text(base, timeout)
         if dn and dn not in texts:
             texts.append(dn)
-    if thorough and not any(_KNOWN_FLAG.search(t) for t in texts):
+    if thorough and not any(_KNOWN_FLAG.search(t) for t in texts) and sum(len(t) for t in texts) >= 20:
         # handwritten flags are often rotated ("Congrats!" on ictf): straighten
         # the red channel (blue ink on white is dark there) and retry
         red = base.convert("RGB").getchannel("R")
+        # the rotated text is large: a 1000 px copy is still readable and makes
+        # six tesseract passes affordable on a multi-megapixel photo
+        if max(red.size) > 1000:
+            f = 1000 / max(red.size)
+            red = red.resize((max(1, round(red.width * f)), max(1, round(red.height * f))),
+                             Image.LANCZOS)
         for ang in (-30, -25, -20, 20, 25, 30):
             rot = red.rotate(ang, expand=True, fillcolor=255)
             t = _tess(rot, 6, timeout)
