@@ -492,3 +492,8 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       soluzione persa. Esempi: weird.docm 249→16s, main.wav 44→4s,
       webnet0 54→6s, flag.txt 122→20s, pico_img 193→82s, dolls 477→320s,
       corrupted_file 531→342s, garden 404→220s (126s da solo), try_me 225→149s.
+- [x] **Perf (3° giro)**: `bits_to_ints` con numpy per flussi grandi; zero-width
+      (regex + Counter), homoglyph (translate + numpy) e case-bits (numpy sui byte
+      UTF-8) non fanno più loop Python per carattere. Su un log da 23 MB:
+      case-bits 46.7 → **2.1s**, zero-width 31.8 → **2.5s**, homoglyph 21.5 → **0.2s**.
+      `bit-planes`: OCR LSB a 800 px senza re-upscale (4 MP: 351 → **22.5s**).

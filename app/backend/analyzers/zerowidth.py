@@ -9,6 +9,7 @@ Both decode to bytes, which we emit so the flag hunt scans them.
 """
 from __future__ import annotations
 
+import re
 from collections import Counter
 
 from .base import Analyzer, ToolContext, ToolResult
@@ -16,6 +17,8 @@ from .registry import register
 from .util import TEXT_EXT, bits_to_bytes, is_printable
 
 _ZW = ("\u200b", "\u200c", "\u200d", "\ufeff", "\u2060", "\u00ad", "\u180e")
+_ZW_RE = re.compile("[" + "".join(_ZW) + "]")
+_TRAIL_RE = re.compile(r"[ \t]+(?=\r?\n|$)")
 _MAX_OUT = 50_000
 
 
@@ -50,23 +53,24 @@ class ZeroWidthAnalyzer(Analyzer):
         text = data.decode("utf-8", "replace")
         out: list[str] = []
 
-        seq = [c for c in text if c in _ZW]
+        seq = _ZW_RE.findall(text)
         if len(seq) >= 16:
             out += [f"[zero-width {len(seq)} chars] " + d for d in _decode_two_symbols(seq)]
 
         # a whole text written with two symbols only (e.g. em-space / space,
-        # picoCTF "WhitePages"): the symbols are the bits
-        body = [c for c in text if c not in "\r\n"]
-        top = Counter(body).most_common(3)
-        if len(body) >= 64 and len(top) >= 2 and top[0][1] + top[1][1] >= 0.98 * len(body):
+        # picoCTF "WhitePages"): the symbols are the bits. Count at C speed and
+        # build the list only when the condition holds (logs are 20 MB).
+        counts = Counter(text.replace("\r", "").replace("\n", ""))
+        body_len = sum(counts.values())
+        top = counts.most_common(3)
+        if body_len >= 64 and len(top) >= 2 and top[0][1] + top[1][1] >= 0.98 * body_len:
+            body = [c for c in text if c not in "\r\n"]
             pair = f"U+{ord(top[0][0]):04X}/U+{ord(top[1][0]):04X}"
             out += [f"[two-symbol {pair} {len(body)} chars] " + d
                     for d in _decode_two_symbols(body)]
 
-        tw: list[int] = []
-        for line in text.split("\n"):
-            for ch in line[len(line.rstrip(" \t")):]:
-                tw.append(0 if ch == " " else 1)
+        tw: list[int] = [0 if ch == " " else 1
+                         for match in _TRAIL_RE.findall(text) for ch in match]
         if len(tw) >= 16:
             dec = bits_to_bytes(tw)
             if is_printable(dec):

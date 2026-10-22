@@ -33,12 +33,24 @@ class CaseBitsAnalyzer(Analyzer):
         except OSError as exc:
             return ToolResult(self.name, status="error", summary=f"cannot read: {exc}")
         text = data.decode("utf-8", "replace")
-        letters = [c for c in text if c.isalpha() and (c.isupper() or c.islower())]
-        if len(letters) < _MIN_LETTERS:
-            return ToolResult(self.name, status="skipped", summary="too few letters")
+        # a 20 MB log has millions of letters: extract them as UTF-8 bytes and
+        # keep the case as a numpy bool array (the per-char loop was ~15s)
+        try:
+            import numpy as np
+            arr = np.frombuffer(text.encode("utf-8", "ignore"), dtype=np.uint8)
+            letters = arr[((arr >= 65) & (arr <= 90)) | ((arr >= 97) & (arr <= 122))]
+            if letters.size < _MIN_LETTERS:
+                return ToolResult(self.name, status="skipped", summary="too few letters")
+            upper = letters < 97
+            pairs = (("upper=1", upper), ("lower=1", ~upper))
+        except Exception:
+            letters_l = [c for c in text if c.isalpha() and (c.isupper() or c.islower())]
+            if len(letters_l) < _MIN_LETTERS:
+                return ToolResult(self.name, status="skipped", summary="too few letters")
+            pairs = (("upper=1", [1 if c.isupper() else 0 for c in letters_l]),
+                     ("lower=1", [0 if c.isupper() else 1 for c in letters_l]))
         results: list[str] = []
-        for tag, bits in (("upper=1", [1 if c.isupper() else 0 for c in letters]),
-                          ("lower=1", [0 if c.isupper() else 1 for c in letters])):
+        for tag, bits in pairs:
             raw = bits_to_bytes(bits)
             if is_printable(raw):
                 dec = raw.decode("latin-1", "replace")

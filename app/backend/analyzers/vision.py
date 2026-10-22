@@ -126,7 +126,8 @@ def ocr_image(path: Path, timeout: int = 90, thorough: bool = True,
     texts: list[str] = []
     gray = base.convert("L")
     w, h = gray.size
-    if max(w, h) < 1000:
+    if max_dim is None and max(w, h) < 1000:
+        # tiny images get upscaled for OCR; an explicit max_dim is a hard cap
         f = max(2, (1000 // max(w, h)) + 1)
         gray = gray.resize((w * f, h * f), Image.LANCZOS)
     for psm in (6, 7):

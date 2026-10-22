@@ -21,13 +21,30 @@ ARCHIVE_EXT = (".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".tbz", ".tbz2", ".
 
 # --- bits ---------------------------------------------------------------------
 
-def bits_to_ints(bits: list[int], width: int = 8) -> list[int]:
-    """MSB-first groups of `width` bits (a trailing partial group is dropped)."""
+def bits_to_ints(bits, width: int = 8) -> list[int]:
+    """MSB-first groups of `width` bits (a trailing partial group is dropped).
+
+    Large streams (a 20 MB log has millions of letters) are packed with numpy:
+    the per-bit Python loop is the reason those analyzers took tens of seconds."""
+    n = len(bits) - len(bits) % width
+    if n == 0:
+        return []
+    try:
+        import numpy as np
+        arr = bits if isinstance(bits, np.ndarray) else np.asarray(bits, dtype=np.uint8)
+        if arr.dtype == np.bool_:
+            arr = arr.astype(np.uint8)
+        if n > 100_000:
+            groups = arr[:n].reshape(-1, width).astype(np.uint32)
+            weights = (1 << np.arange(width - 1, -1, -1)).astype(np.uint32)
+            return (groups * weights).sum(axis=1).tolist()
+    except Exception:
+        pass
     out = []
-    for i in range(0, len(bits) - len(bits) % width, width):
+    for i in range(0, n, width):
         val = 0
         for b in bits[i:i + width]:
-            val = (val << 1) | b
+            val = (val << 1) | int(b)
         out.append(val)
     return out
 

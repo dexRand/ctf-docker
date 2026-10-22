@@ -8,6 +8,8 @@ Two things:
 """
 from __future__ import annotations
 
+import re
+
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
 from .util import TEXT_EXT, bits_to_bytes, is_printable
@@ -26,6 +28,13 @@ _CONFUSABLES = {
     "Ν": "N", "Ο": "O", "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X", "Λ": "L", "Θ": "O",
 }
 _MIN_HITS = 6
+_TRANS = str.maketrans(_CONFUSABLES)
+_HIT_RE = re.compile("[" + "".join(re.escape(c) for c in _CONFUSABLES) + "]")
+# keep only letters (ASCII + confusables), then map: confusable -> 1, ASCII -> 0
+_BIT_KEEP_RE = re.compile("[^A-Za-z" + "".join(re.escape(c) for c in _CONFUSABLES) + "]")
+_BIT_TRANS = str.maketrans({**{k: "1" for k in _CONFUSABLES},
+                            **{chr(c): "0" for c in range(65, 91)},
+                            **{chr(c): "0" for c in range(97, 123)}})
 
 
 class HomoglyphAnalyzer(Analyzer):
@@ -41,23 +50,23 @@ class HomoglyphAnalyzer(Analyzer):
         except OSError as exc:
             return ToolResult(self.name, status="error", summary=f"cannot read: {exc}")
         text = data.decode("utf-8", "replace")
-        hits = [c for c in text if c in _CONFUSABLES]
+        hits = _HIT_RE.findall(text)
         if len(hits) < _MIN_HITS:
             return ToolResult(self.name, status="skipped", summary="no homoglyphs")
 
-        cleaned = "".join(_CONFUSABLES.get(c, c) for c in text)
+        cleaned = text.translate(_TRANS)
         results = [f"[de-homoglyph {len(hits)} chars] " + cleaned[:4000]]
 
         # bits: ASCII Latin letter = 0, confusable (look-alike) letter = 1
-        bits: list[int] = []
-        for c in text:
-            if c in _CONFUSABLES:
-                bits.append(1)
-            elif c.isascii() and c.isalpha():
-                bits.append(0)
+        compact = _BIT_KEEP_RE.sub("", text).translate(_BIT_TRANS)
+        try:
+            import numpy as np
+            bits = np.frombuffer(compact.encode("ascii", "ignore"), dtype=np.uint8) - 48
+        except Exception:
+            bits = [1 if c == "1" else 0 for c in compact]
         if len(bits) >= 64:
             for inv in (False, True):
-                b2 = [1 - b for b in bits] if inv else bits
+                b2 = (1 - bits) if inv else bits
                 dec = bits_to_bytes(b2)
                 if is_printable(dec) and dec.strip():
                     results.append(f"[homoglyph bits{' (inv)' if inv else ''}] "

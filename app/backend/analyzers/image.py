@@ -49,7 +49,7 @@ class BitPlanesAnalyzer(Analyzer):
                 m = re.search(r"_([RGBA])(\d)\.png$", f.name)
                 if not m or m.group(1) not in "RGB" or int(m.group(2)) != 0:
                     continue
-                t = ocr_image(f, thorough=False, max_dim=1000)
+                t = ocr_image(f, thorough=False, max_dim=800)
                 if t:
                     lines.append(f"{f.name}: {t}")
         except Exception:
