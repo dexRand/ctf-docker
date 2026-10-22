@@ -453,6 +453,8 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       (sembra ricampionato) e la flag attesa è una risposta di conoscenza
       ("3rd worst tornado outbreak"), non un dato nel file.
 - [ ] **Firefox profile** (`ictf23_web`): sessionstore decodificato come LZ4
-      block (serve il decoder), ma la flag non è nei DB né nel JSON; il login
-      `yoteachapp.com` è cifrato PBES2+AES con `key4.db` → serve libNSS o
-      pycryptodome.
+      block; la flag non è nei DB, nel JSON né nei 127 file del profilo. Il login
+      `yoteachapp.com` è cifrato 3DES-CBC con la chiave master in `nssPrivate`,
+      ma il PBES2 di `key4.db` ha un **IV da 14 byte** (dovrebbe essere 16):
+      il file è manomesso/troncato, quindi la decifratura NSS standard non
+      funziona. Serve capire quali 2 byte mancano (o un'altra copia della chiave).
