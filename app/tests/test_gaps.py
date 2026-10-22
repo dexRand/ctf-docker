@@ -109,3 +109,29 @@ def test_sam_hashes_are_parsed_and_blank_ones_skipped():
             "Guest:501:aad3b435b51404eeaad3b435b51404ee:"
             "31d6cfe0d16ae931b73c59d7e0c089c0:::")
     assert parse_hashes(text) == {"Administrator": "476b4dddbbffde29e739b618580adb1e"}
+
+
+def test_http_objects_are_filtered(tmp_path):
+    from backend.analyzers.pcap import analysable_object
+    png = tmp_path / "a.png"; png.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\0" * 100)
+    der = tmp_path / "a.der"; der.write_bytes(b"\x30\x82" + b"\0" * 100)
+    empty = tmp_path / "e"; empty.write_bytes(b"")
+    webm = tmp_path / "v.webm"; webm.write_bytes(b"\x1aE\xdf\xa3" + b"\0" * 1000)
+    assert analysable_object(png)
+    assert not analysable_object(der)
+    assert not analysable_object(empty)
+    assert not analysable_object(webm)
+
+
+def test_sqlite_dump_reads_table_text(tmp_path):
+    import sqlite3 as _s
+    from backend.analyzers.sqlite import dump_sqlite
+    db = tmp_path / "places.sqlite"
+    con = _s.connect(db)
+    con.execute("create table moz_places(url text, title text)")
+    con.execute("insert into moz_places values (?,?)",
+                ("https://example.test/flag", "picoCTF{from_a_db}"))
+    con.commit(); con.close()
+    out = dump_sqlite(db)
+    assert "== moz_places ==" in out and "picoCTF{from_a_db}" in out
+    assert dump_sqlite(tmp_path / "nope.sqlite") == ""

@@ -19,6 +19,32 @@ from .util import B64_TOKEN, join_b64_fragments, printable_ratio
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
 
+# HTTP objects include TLS certificates (DER), video segments and fonts: turning
+# every one into a child node makes the analysis explode (the Firefox capture
+# exports 130 of them, mostly noise). Only analysable objects become children;
+# the rest stays listed as artifacts of the capture run.
+_KEEP_MAGIC = (b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"BM", b"II*\x00", b"MM\x00*",
+               b"RIFF", b"%PDF", b"PK\x03\x04", b"\x1f\x8b", b"7z\xbc\xaf", b"Rar!",
+               b"SQLite format 3", b"\x7fELF", b"MZ", b"BZh", b"\xfd7zXZ")
+_MAX_OBJECT = 4 << 20
+
+
+def analysable_object(path: Path) -> bool:
+    """Images, documents, archives, executables and text objects are worth a
+    child node; DER certificates, video segments and other blobs are noise."""
+    try:
+        size = path.stat().st_size
+        head = path.read_bytes()[:64]
+    except OSError:
+        return False
+    if size < 16 or size > _MAX_OBJECT:
+        return False
+    if any(head.startswith(m) for m in _KEEP_MAGIC):
+        return True
+    return printable_ratio(head) > 0.9          # JSON, HTML, plain text
+
+
+
 _PCAP_MAGICS = (b"\xd4\xc3\xb2\xa1", b"\xa1\xb2\xc3\xd4", b"\x0a\x0d\x0d\x0a")
 
 
@@ -403,9 +429,11 @@ class PcapAnalyzer(Analyzer):
         ctx.run(["tshark", "-r", str(cap), *tls, "--export-objects",
                  f"http,{outdir}"], timeout=180)
         files = list_files(outdir)
-        extracted = [str(f) for f in files]
+        keep = [f for f in files if analysable_object(f)]
+        extracted = [str(f) for f in keep]
         artifacts = [{"name": f.name, "path": str(f), "size": f.stat().st_size} for f in files]
-        summary = f"{len(extracted)} object(s) exported" if extracted else "no HTTP object"
+        summary = (f"{len(keep)} object(s) to analyse, {len(files)} exported"
+                   if files else "no HTTP object")
         if tunnel:
             summary += f", {len(tunnel)} tunnel DNS"
         if keys:
