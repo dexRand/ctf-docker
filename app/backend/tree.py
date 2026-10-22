@@ -21,12 +21,12 @@ def _next_order(session: Session, pid: str) -> int:
 def _store_extracted(session: Session, pid: str, parent: FileNode, src: Path,
                      tool: str | None = None) -> FileNode:
     name = storage.sanitize_name(src.name)
-    # a re-run re-extracts the same children: reuse the node instead of duplicating it
+    # the same bytes extracted twice (a zip found again under another name, an
+    # archive carved by two tools) are the same node: analysing them again only
+    # repeats the same tools and multiplies their children
     sha, md5, size = storage.hashes_of(src)
     same = session.exec(select(FileNode).where(FileNode.project_id == pid)
-                        .where(FileNode.parent_id == parent.id)
-                        .where(FileNode.sha256 == sha)
-                        .where(FileNode.name == name)).first()
+                        .where(FileNode.sha256 == sha)).first()
     if same:
         src.unlink(missing_ok=True)
         return same
