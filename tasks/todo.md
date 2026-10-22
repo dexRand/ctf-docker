@@ -434,3 +434,11 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       pcap repair (ictf23_forensics). `elves.bmp`: l'ELF nascosto nelle righe
       extra è degradato (valori ±1-3, probabile JPEG) → non ricostruibile.
       `out.qoi`: la catena QOI→…→PNG funziona, l'OCR dell'artwork non legge la flag.
+- [x] **Gap chiusi (2° giro)**: pcap repair (magic + `incl_len` corrotti, catena
+      ricostruita da `orig_len`; oggetti HTTP esportati → OCR), Chef esolang con
+      due quantità ignote (brute-force x/y, flag), OCR con rotazione ±30° e
+      correzione `@→0` (flag scritta a mano), nomi di estrazione troncati (gli
+      oggetti HTTP con URL lunghissimi facevano fallire l'analisi).
+- [ ] **Ancora aperti**: SAM hive + crack (`samiam`), ASK (`sleepy.mp3`),
+      SAME/EAS (`warning.wav`), Firefox profile (`ictf23_web`: DB/SQLite e
+      sessionstore con byte spuri). `elves.bmp`: ELF degradato, non ricostruibile.

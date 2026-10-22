@@ -8,7 +8,7 @@ import zlib
 import pytest
 from PIL import Image
 
-from backend.analyzers.pcap import evil_bit_streams
+from backend.analyzers.pcap import evil_bit_streams, repaired_pcap
 from backend.analyzers.png import PNG_SIG, rebuild_zstd_png
 from backend.analyzers.vision import _confusable_variants
 
@@ -66,3 +66,37 @@ def test_rebuild_zstd_png_from_lying_ihdr():
     assert im.size == (4, 4)
     assert im.getpixel((0, 0)) == (0x10, 0x20, 0x30)
     assert any("zstd IDAT" in line for line in log)
+
+
+def test_repaired_pcap_fixes_magic_and_record_lengths():
+    payload = b"\x00" * 14          # a short ethernet frame
+    global_hdr = b"\xde\xad\xbe\xef" + struct.pack("<HHiiii", 2, 4, 0, 0, 262144, 1)
+    rec = struct.pack("<IIII", 1, 2, 999999, len(payload)) + payload
+    out = repaired_pcap(global_hdr + rec)
+    assert out and out[:4] == b"\xd4\xc3\xb2\xa1"
+    assert struct.unpack_from("<I", out, 24 + 8)[0] == len(payload)
+    # a valid capture is left alone
+    good = b"\xd4\xc3\xb2\xa1" + struct.pack("<HHiiii", 2, 4, 0, 0, 262144, 1) + rec
+    assert repaired_pcap(good) is None
+
+
+def test_chef_recipe_with_two_unknown_quantities():
+    from backend.analyzers.chef import decode_chef
+    text = """Ingredients.
+1 cup water
+5 kg salt
+Method.
+Put water into 1st mixing bowl.
+Add salt to 1st mixing bowl.
+Put water into 1st mixing bowl.
+Add water to 1st mixing bowl.
+Add salt to 1st mixing bowl.
+"""
+    # group 1: x + 5 + y = 65; group 2: 2x + 5 + y = 66 -> x=1, y=59
+    assert (1, 59, "AB") in decode_chef(text)
+
+
+def test_long_http_object_names_are_truncated():
+    from backend.storage import sanitize_name
+    name = sanitize_name("videoplayback?" + "a" * 400 + ".webm")
+    assert len(name) <= 120 and name.endswith(".webm")

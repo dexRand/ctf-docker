@@ -22,9 +22,18 @@ def new_project_id() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
 
 
+_MAX_NAME = 120          # filesystem limit is 255 bytes; HTTP object names are URLs
+
+
 def sanitize_name(name: str) -> str:
     name = (name or "file").replace("\\", "/").split("/")[-1].strip()
     name = re.sub(r"[^A-Za-z0-9._-]+", "_", name)
+    if len(name) > _MAX_NAME:
+        stem, dot, ext = name.rpartition(".")
+        if dot and 1 <= len(ext) <= 10:
+            name = stem[:_MAX_NAME - len(ext) - 1] + "." + ext
+        else:
+            name = name[:_MAX_NAME]
     return name or "file"
 
 

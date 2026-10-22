@@ -10,6 +10,7 @@ TLS traffic is decrypted with tshark and the plaintext HTTP is inspected too.
 from __future__ import annotations
 
 import base64
+import struct
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, list_files, which
@@ -17,6 +18,39 @@ from .registry import register
 from .util import B64_TOKEN, join_b64_fragments, printable_ratio
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
+
+_PCAP_MAGICS = (b"\xd4\xc3\xb2\xa1", b"\xa1\xb2\xc3\xd4", b"\x0a\x0d\x0d\x0a")
+
+
+def repaired_pcap(data: bytes) -> bytes | None:
+    """Rebuild a capture whose global-header magic and per-record incl_len were
+    corrupted (ictf23 "forensics"): the original length is still in orig_len and
+    the packets are intact, so the chain is walked and fixed."""
+    if len(data) < 24 or data[:4] in _PCAP_MAGICS:
+        return None
+    snaplen = struct.unpack_from("<I", data, 16)[0]
+    if not 0 < snaplen <= 64 << 20:
+        snaplen = 262144
+    network = struct.unpack_from("<I", data, 20)[0]
+    if network > 1024:
+        network = 1
+    out = bytearray(data)
+    struct.pack_into("<IHHiiii", out, 0, 0xA1B2C3D4, 2, 4, 0, 0, snaplen, network)
+    off, n = 24, 0
+    while off + 16 <= len(out):
+        incl, orig = struct.unpack_from("<II", out, off + 8)
+        if incl != orig and 0 < orig <= snaplen:
+            struct.pack_into("<I", out, off + 8, orig)
+            incl = orig
+        if incl <= 0 or off + 16 + incl > len(out):
+            return None
+        off += 16 + incl
+        n += 1
+    if n < 1 or off != len(out):
+        return None
+    return bytes(out)
+
+
 
 
 def _key_files(ctx: ToolContext) -> list[Path]:
@@ -284,10 +318,15 @@ class PcapAnalyzer(Analyzer):
     def run(self, ctx: ToolContext) -> ToolResult:
         if not which("tshark"):
             return ToolResult(self.name, status="skipped", summary="tshark not installed")
+        cap = ctx.input
+        fixed = repaired_pcap(cap.read_bytes())
+        if fixed:
+            cap = ctx.sub(self.name) / "repaired.pcap"
+            cap.write_bytes(fixed)
         keys = _key_files(ctx)
         tls = _tls_options(keys)
         parts: list[str] = []
-        proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-q", "-z", "io,phs"], timeout=180)
+        proc = ctx.run(["tshark", "-r", str(cap), *tls, "-q", "-z", "io,phs"], timeout=180)
         if proc.returncode == 0 and (proc.stdout or "").strip():
             parts.append("== protocols ==\n" + proc.stdout.strip())
         # TLS with a provided key: decrypted HTTP request/response rows. This is the
@@ -295,7 +334,7 @@ class PcapAnalyzer(Analyzer):
         # is kept right after the protocols and *before* the bulky request-body hex:
         # that way it survives the report/transcript truncation.
         if tls:
-            proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-Y", "http",
+            proc = ctx.run(["tshark", "-r", str(cap), *tls, "-Y", "http",
                             "-T", "fields", "-e", "http.request.full_uri",
                             "-e", "http.response.line"], timeout=180)
             rows = [l for l in (proc.stdout or "").splitlines() if l.strip()]
@@ -307,21 +346,21 @@ class PcapAnalyzer(Analyzer):
         # HTTP/2 sits behind TLS; tshark decodes its headers (custom headers such
         # as `flag-header` carry the flag). Only meaningful with a key.
         if tls:
-            proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-Y", "http2",
+            proc = ctx.run(["tshark", "-r", str(cap), *tls, "-Y", "http2",
                             "-T", "fields", "-e", "http2.header.name",
                             "-e", "http2.header.value"], timeout=180)
             rows = [l for l in (proc.stdout or "").splitlines() if l.strip()]
             if rows:
                 parts.append("== TLS decrypted (HTTP/2) ==\n" + "\n".join(rows)[:20000])
         # pcapng per-packet comments often hide a flag ("comments are hard to find")
-        proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields",
+        proc = ctx.run(["tshark", "-r", str(cap), "-T", "fields",
                         "-e", "frame.comment"], timeout=180)
         comments = [l.strip() for l in (proc.stdout or "").splitlines() if l.strip()]
         if comments:
             parts.append("== comments ==\n" + "\n".join(dict.fromkeys(comments))[:12000])
         # flags are often in request URIs or raw HTTP bodies
         proc = ctx.run([
-            "tshark", "-r", str(ctx.input), *tls, "-T", "fields",
+            "tshark", "-r", str(cap), *tls, "-T", "fields",
             "-e", "http.request.full_uri", "-e", "http.host", "-e", "http.file_data",
             "-e", "data.data",
         ], timeout=180)
@@ -334,7 +373,7 @@ class PcapAnalyzer(Analyzer):
         if streams:
             parts.append("== streams ==\n" + streams)
         # DNS tunneling: chunk-per-query exfiltration (ExtractionD'ADNs style)
-        proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields", "-E", "separator=\t",
+        proc = ctx.run(["tshark", "-r", str(cap), "-T", "fields", "-E", "separator=\t",
                         "-e", "ip.dst", "-e", "dns.qry.name", "-e", "dns.flags.response"], timeout=180)
         queries: list[str] = []
         by_server: dict[str, list[str]] = {}
@@ -354,14 +393,14 @@ class PcapAnalyzer(Analyzer):
         # RFC 3514 "evil bit": one character per packet, the IP reserved bit
         # separating payload from noise. Authors may set it on the noise (EBE:
         # the flag is in the packets *without* it) or on the data, so show both.
-        proc = ctx.run(["tshark", "-r", str(ctx.input), "-T", "fields",
+        proc = ctx.run(["tshark", "-r", str(cap), "-T", "fields",
                         "-E", "separator=\t", "-e", "ip.flags.rb", "-e", "data.data"],
                        timeout=180)
         for side, text in evil_bit_streams(proc.stdout or ""):
             parts.append(f"== evil bit ({side}) ==\n{text}")
         # export HTTP objects (become children to recurse into)
         outdir = ctx.sub(self.name)
-        ctx.run(["tshark", "-r", str(ctx.input), *tls, "--export-objects",
+        ctx.run(["tshark", "-r", str(cap), *tls, "--export-objects",
                  f"http,{outdir}"], timeout=180)
         files = list_files(outdir)
         extracted = [str(f) for f in files]

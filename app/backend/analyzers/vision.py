@@ -16,7 +16,7 @@ _KNOWN_FLAG = re.compile(r"(?i)(picoCTF|ITS|flag|CTF|HTB)\{[^}\n]{2,}\}")
 
 # OCR confuses 0 with O and 1 with l/I. Inside a flag body (never the prefix)
 # fix the obvious cases: O/I surrounded by lowercase, l next to a digit.
-_CONFUSE = {"O": "0", "I": "1"}
+_CONFUSE = {"O": "0", "I": "1", "@": "0"}
 _FLAG_TOKEN = re.compile(r"(?i)(picoCTF|ITS|flag|CTF|HTB|SEKAI|DUCTF|tjctf|ictf|lactf|uiuctf)\{([^}]{2,180})\}")
 
 
@@ -153,6 +153,17 @@ def ocr_image(path: Path, timeout: int = 90, thorough: bool = True) -> str:
         dn = _denoised_text(base, timeout)
         if dn and dn not in texts:
             texts.append(dn)
+    if thorough and not any(_KNOWN_FLAG.search(t) for t in texts):
+        # handwritten flags are often rotated ("Congrats!" on ictf): straighten
+        # the red channel (blue ink on white is dark there) and retry
+        red = base.convert("RGB").getchannel("R")
+        for ang in (-30, -25, -20, 20, 25, 30):
+            rot = red.rotate(ang, expand=True, fillcolor=255)
+            t = _tess(rot, 6, timeout)
+            if t and t not in texts:
+                texts.append(t)
+            if _KNOWN_FLAG.search(t or ""):
+                break
     if thorough and OCR_EXTRA_LANGS and not any(_KNOWN_FLAG.search(t) for t in texts):
         # no flag in English: one more pass with the extra language(s) (e.g. ita)
         extra = _combined_langs(OCR_LANGS, OCR_EXTRA_LANGS)
