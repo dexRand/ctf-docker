@@ -8,6 +8,7 @@ IMAGE="${STEGSUITE_IMAGE:-ctf-stegsuite}"
 
 docker run --rm \
   -v "$PWD/app:/w/app:ro" \
+  -v "$PWD/tools:/w/tools:ro" \
   -w /w \
   -e DATA_DIR=/tmp/stegsuite-test-data \
   "$IMAGE" \

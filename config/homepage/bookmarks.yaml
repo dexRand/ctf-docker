@@ -26,3 +26,6 @@
     - RevShells:
         - abbr: RS
           href: https://www.revshells.com/
+    - photo-geolocate (CLI):
+        - abbr: PG
+          href: https://github.com/dexRand/ctf-docker/blob/main/tools/photo-geolocate/README.md

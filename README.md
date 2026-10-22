@@ -160,7 +160,6 @@ create_ctf → add_challenge(start) → project_status … → get_flags
 | Audio | **Whisper-WebUI** | http://localhost:19017 | Speech-to-text with timestamps (SRT/VTT) | `audio` |
 | Rev/Pwn | **rev sandbox** | http://localhost:19018 | Web terminal for ELF/PE/APK: Ghidra headless, radare2, gdb, strace/ltrace, upx, apktool, jadx, pwntools, qemu-user · no internet | `rev` |
 | Rev/Pwn | **rev workbench** | http://localhost:19020 | Browser workbench: auto report (`rev-report`), Unicorn emulation + brute (`emulate`), angr symbolic execution | `rev` |
-| Rev/Pwn | **shell** | http://localhost:19021 | Pure terminal in the rev sandbox: panes and tabs (zellij), every tool (pwntools, gdb, radare2, Ghidra, z3, angr) · `Alt+n` split, `Alt+t` tab | `rev` |
 
 Every upstream image is pinned by digest (`tag@sha256:…`), so a new machine
 runs exactly what was tested; `python3 tools/pin_images.py` shows newer builds
@@ -211,11 +210,10 @@ force-directed graph of the flag route, report and transcript, responsive.
 Three ways into the same isolated ELF/PE/APK sandbox (profile `rev`):
 
 - **terminal** (`:19018`) — plain web shell with the tool menu (`menu`), no internet
-- **shell** (`:19021`) — the same tools in a zellij session: `Alt+n` splits a pane, `Alt+t` opens a tab, the session survives a page reload
 - **workbench** (`:19020`) — upload a binary and it runs `rev-report` automatically; emulate a function with Unicorn (also brute-forcing the first argument) or solve it with angr
+- **VS Code** (`:19022`, `term`) — its `rev` terminal profile runs `docker exec` into this sandbox; panes and tabs come from VS Code
 
 <p align="center">
-  <img src="docs/screenshots/shell-zellij.png" alt="Shell with two panes" width="820">
   <img src="docs/screenshots/rev-workbench.png" alt="Rev workbench" width="820">
 </p>
 
@@ -232,6 +230,7 @@ Three ways into the same isolated ELF/PE/APK sandbox (profile `rev`):
 ./ctf scan <file>…      # analyze with StegSuite, print flags (exit 1 on error)
 ./ctf reports           # browse ./data in FileBrowser
 ./ctf dork [target]     # dork generator (--update syncs the GHDB)
+./ctf geo <photo>…      # photo-geolocate: EXIF/GPS, sun position, OCR, map links
 ./ctf test [-j 3]       # regression + real CTF challenges (see below)
 ./ctf ui-smoke          # headless-browser smoke test of the SPA
 ```
@@ -325,7 +324,7 @@ app/                  StegSuite: backend/ (FastAPI), frontend/ (Vue 3), tests/, 
   backend/analyzers/  one module per analyzer + util.py (shared helpers)
   backend/            pipeline, jobs, flaghunt, crackflow, report, ctfs, mcp_server, api/
 config/               homepage dashboard, dork generator, filebrowser, whisper, zap
-rev/                  reversing sandbox image (ttyd + zellij + Ghidra headless + tools) + rev-report/emulate/angr and the web workbench
+rev/                  reversing sandbox image (ttyd + Ghidra headless + tools) + rev-report/emulate/angr and the web workbench
 zap/                  ZAP image with extra add-ons
 tools/                stegsuite_client, scan, check_consistency, dork, photo-geolocate
 osint/                separate OSINT area (compose override, own README)

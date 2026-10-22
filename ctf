@@ -60,7 +60,6 @@ hashtopolis|hashcat|Hashtopolis|HASHTOPOLIS_FRONTEND_PORT|19016|/|crack
 whisper|audio stt|Whisper-WebUI|WHISPER_PORT|19017|/|audio
 rev|elf pe apk|rev sandbox (terminale)|REV_PORT|19018|/|rev
 rev-web|workbench|rev workbench (browser)|REV_WEB_PORT|19020|/|rev
-shell|term|shell (terminale con pane)|SHELL_PORT|19021|/|rev
 osint||OSINT (override osint/)|OSINT_PORT|19050|/|osint
 "
 
@@ -247,6 +246,13 @@ EOF
   dork-test)
     echo "== Dork generator: self-test =="
     python3 tools/dork/test_dork.py
+    ;;
+  geo|geolocate)
+    shift || true
+    [ "$#" -eq 0 ] && { echo "uso: ./ctf geo <foto> [--geocode] [--json out.json] [--offline]"; exit 1; }
+    docker image inspect ctf-stegsuite >/dev/null 2>&1 \
+      || docker compose build stegsuite >/dev/null
+    exec tools/photo-geolocate/run.sh "$@"
     ;;
   test)
     shift || true

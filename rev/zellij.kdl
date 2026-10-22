@@ -1,7 +1,0 @@
-// zellij — terminale web del sandbox rev.
-// Ogni pane/tab e' una shell completa del container (tutti i tool).
-//   Alt+n nuovo pane (split)   Alt+t nuova tab   Alt+frecce focus
-//   Alt+[ / Alt+] resize       Ctrl+s scroll     Ctrl+o sessioni
-default_shell "bash"
-show_startup_tips false
-show_release_notes false

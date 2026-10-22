@@ -408,9 +408,10 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 - [x] Rev workbench registrato in `ctf` SERVICES, `app/backend/services.py` e
       Homepage (`HOMEPAGE_VAR_REV_WEB_PORT`); `check_consistency` 0 problemi.
 - [ ] Regressione `./ctf test` dopo il merge e push (chiedere prima).
-- [x] `shell` (`:19021`): terminale puro con zellij (pane/tab/persistenza) e
-      tutti i tool del sandbox rev; `:19018` resta il terminale con menu.
-      zellij 0.45.1, banner/scorciatoie anche nelle pane non-login, tema della casa.
+- [x] ~~`shell` (`:19021`) con zellij~~ — rimosso: code-server (`term`, :19022)
+      ha gia' il profilo terminale `rev` (`docker exec` nella sandbox), quindi
+      pane/tab si fanno da VS Code e il servizio era ridondante. `:19018` resta
+      il terminale semplice con menu; tema verde anche li'.
 - [x] **Terminale StegSuite (:19022)**: code-server 4.141.0 nell'immagine StegSuite,
       tema della suite, AI/chat e git disattivati, estensioni Open VSX (hex, asm, smali,
       solidity, verilog, jinja, toml, proto, pdf, sqlite, csv, icone), progetti
@@ -420,3 +421,8 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       acceso non ancora provato.
 - [ ] Prima del push: build StegSuite + `run_unit.sh` + regressione + reali
       (anche per le regole planner di opencode `IMG_DECODERS`/`STEG_DECODERS`).
+- [x] `photo-geolocate` integrato: `./ctf geo <foto>` (usa l'immagine StegSuite),
+      bookmark in dashboard, riga nei README EN/IT, test `app/tests/test_geolocate.py`.
+- [x] **Coda di crack visuale** nella SPA (sezione "crack queue": stato, posizione,
+      tempo, password/wordlist, annulla i queued) e **progetto `running`** durante
+      il crack con ripristino a fine (test in `test_crackqueue.py`).

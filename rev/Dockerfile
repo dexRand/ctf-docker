@@ -30,27 +30,6 @@ RUN ( apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-i
            "https://github.com/tsl0922/ttyd/releases/download/1.7.7/$a" \
       && chmod +x /usr/local/bin/ttyd )
 
-# ---- zellij: pane/tab nel terminale web ----
-# Il terminale di :19018 e' una sessione zellij: Alt+n apre un pane (split),
-# Alt+t una tab, Alt+frecce sposta il focus. La sessione resta viva quando la
-# pagina viene ricaricata. Variante `-no-web`: niente server web di zellij,
-# inutile qui (il browser arriva gia' da ttyd).
-ARG ZELLIJ_VER=0.45.1
-RUN case "$(uname -m)" in \
-        x86_64) a=x86_64 ;; \
-        aarch64|arm64) a=aarch64 ;; \
-        *) a=x86_64 ;; \
-      esac \
- && curl -fsSL -o /tmp/zellij.tgz \
-      "https://github.com/zellij-org/zellij/releases/download/v${ZELLIJ_VER}/zellij-no-web-${a}-unknown-linux-musl.tar.gz" \
- && tar -xzf /tmp/zellij.tgz -C /usr/local/bin zellij \
- && chmod +x /usr/local/bin/zellij \
- && rm -f /tmp/zellij.tgz \
- && zellij --version
-
-# configurazione minima: shell di default e niente tips/release notes all'avvio
-COPY zellij.kdl /root/.config/zellij/config.kdl
-
 ENV TERM=xterm-256color
 WORKDIR /work
 # no "checking for new versions" noise (the sandbox has no network anyway)
@@ -97,7 +76,7 @@ RUN chmod +x /usr/local/bin/emulate /usr/local/bin/rev-web \
 # web terminal + emulation GUI: banner + scorciatoie ad ogni login shell
 COPY profile.sh /etc/profile.d/rev.sh
 RUN chmod 0644 /etc/profile.d/rev.sh \
- && printf '\n# rev sandbox: scorciatoie e banner anche nelle pane zellij (shell non-login)\n. /etc/profile.d/rev.sh\n' >> /root/.bashrc
+ && printf '\n# rev sandbox: scorciatoie e banner anche nelle shell non-login (code-server)\n. /etc/profile.d/rev.sh\n' >> /root/.bashrc
 
 # 7681 = terminale web (ttyd), 8080 = GUI di emulazione. Entrambe sono
 # raggiunte solo tramite i proxy localhost del compose: il sandbox non ha egress.
