@@ -507,3 +507,5 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       `key4.db` manomesso (IV da 14 byte) non è un problema perché ci pensa NSS.
       Password recuperata (`yoteachapp.com`). La flag però è nei **log della chat
       sul server**, non nel profilo → il caso resta FAIL per costruzione.
+  Verificato nel pipeline: su `logins.json` il tool riporta **done, 1 login
+  decifrato** (la flag attesa non è nell'artefatto).
