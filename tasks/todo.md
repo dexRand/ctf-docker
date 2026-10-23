@@ -382,14 +382,12 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 
 - [x] **CI spostata al suo posto**: `git mv ci/ci.yml .github/workflows/ci.yml`
       (fatto, sovrascritta la vecchia) e pushato.
-- [ ] **Coda di crack visuale** nella SPA: elenco job in coda/in corso/finiti per
-      file, con stato e progresso (API `crackqueue` già esistente → endpoint + vista).
-- [ ] **Job di nuovo `running`** quando si avvia un crack su un progetto fermo
-      (`done`/`failed`): lo stato del job deve riflettere il crack in corso e
-      tornare `done` a fine crack (incluso il rianalisi dei file estratti).
-- [ ] Verifica gate10 non completata prima del push: rilanciare la suite completa
-      (extra, regressione fixture, 35 reali, `verify_flags.py`) e confrontare
-      con `real-extra8.json`. Unit test: 239 verdi.
+- [x] **Coda di crack visuale** nella SPA: sezione con job in coda/in corso/finiti,
+      stato, posizione, tempo, password/wordlist e annulla per i queued.
+- [x] **Job `running` durante un crack** (e ripristino dello stato a fine batch,
+      incluso il caso di più job in coda) — implementato e coperto da test.
+- [x] Verifica gate10: superata dalla gate12 e dalle suite complete successive
+      (fixture 33/33, reali 35/35, writeup ALL CORRECT).
 - [ ] Fase 6 (RevSuite / rev auto-finder) ancora da approvare.
 - [x] **Gate10 — 2 regressioni sistemate (gate12: extra 18/18, fixture 33/33, reali 35/35, ALL CORRECT)**: extra 17/18
       (`nothing.png` FAIL, got=[]), fixture 33/33, reali 34/35 (`dolls.jpg` /
@@ -407,7 +405,7 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       su nodi decodificati ignorato (pipeline + `locked_files`).
 - [x] Rev workbench registrato in `ctf` SERVICES, `app/backend/services.py` e
       Homepage (`HOMEPAGE_VAR_REV_WEB_PORT`); `check_consistency` 0 problemi.
-- [ ] Regressione `./ctf test` dopo il merge e push (chiedere prima).
+- [x] Regressione `./ctf test` dopo merge e push: verde più volte.
 - [x] ~~`shell` (`:19021`) con zellij~~ — rimosso: code-server (`term`, :19022)
       ha gia' il profilo terminale `rev` (`docker exec` nella sandbox), quindi
       pane/tab si fanno da VS Code e il servizio era ridondante. `:19018` resta
@@ -419,8 +417,8 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       (`docker exec` via `term-proxy`: solo GET + exec, `run`/`stop` → Forbidden).
       Su un altro host impostare `DOCKER_GID` in `.env`. Profilo `rev` con rev
       acceso non ancora provato.
-- [ ] Prima del push: build StegSuite + `run_unit.sh` + regressione + reali
-      (anche per le regole planner di opencode `IMG_DECODERS`/`STEG_DECODERS`).
+- [x] Build StegSuite + `run_unit.sh` + regressione + reali (anche per le regole
+      planner `IMG_DECODERS`/`STEG_DECODERS`): verde, 257 unit test.
 - [x] `photo-geolocate` integrato: `./ctf geo <foto>` (usa l'immagine StegSuite),
       bookmark in dashboard, riga nei README EN/IT, test `app/tests/test_geolocate.py`.
 - [x] **Coda di crack visuale** nella SPA (sezione "crack queue": stato, posizione,
@@ -429,19 +427,20 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 - [x] **Gap chiusi**: evil bit RFC 3514 (EBE.pcap), zstd IDAT (miniscule.png),
       OCR denoise + correzione O/0 e l/1/i (c0rrupt.bin, tunn3l v1s10n), QR
       sfocato con upscale/unsharp/soglia adattiva (blurry.png).
-- [ ] **Gap ancora aperti**: SAM hive + crack (samiam), Chef esolang (recipe.txt),
-      ASK (sleepy.mp3), SAME/EAS (warning.wav), Firefox profile (ictf23_web),
-      pcap repair (ictf23_forensics). `elves.bmp`: l'ELF nascosto nelle righe
-      extra è degradato (valori ±1-3, probabile JPEG) → non ricostruibile.
-      `out.qoi`: la catena QOI→…→PNG funziona, l'OCR dell'artwork non legge la flag.
+- [x] **Gap chiusi**: SAM (hash+password), Chef, pcap repair, evil bit, zstd IDAT,
+      OCR (denoise/rotazioni/correzioni), QR sfocato.
+- [ ] **Gap ancora aperti**: ASK (1 char/4 bit singoli ambigui), SAME/EAS
+      (risposta di conoscenza), Firefox (`key4.db` con IV troncato).
+      `elves.bmp`: ELF degradato da JPEG → non ricostruibile.
+      `out.qoi`: catena QOI→…→PNG ok, OCR dell'artwork non legge la flag.
 - [x] **Gap chiusi (2° giro)**: pcap repair (magic + `incl_len` corrotti, catena
       ricostruita da `orig_len`; oggetti HTTP esportati → OCR), Chef esolang con
       due quantità ignote (brute-force x/y, flag), OCR con rotazione ±30° e
       correzione `@→0` (flag scritta a mano), nomi di estrazione troncati (gli
       oggetti HTTP con URL lunghissimi facevano fallire l'analisi).
-- [ ] **Ancora aperti**: SAM hive + crack (`samiam`), ASK (`sleepy.mp3`),
-      SAME/EAS (`warning.wav`), Firefox profile (`ictf23_web`: DB/SQLite e
-      sessionstore con byte spuri). `elves.bmp`: ELF degradato, non ricostruibile.
+- [x] SAM (`samiam`): analyzer `sam` (impacket + hashcat) → password recuperata.
+- [ ] **Ancora aperti**: ASK (`sleepy.mp3`), SAME/EAS (`warning.wav`), Firefox
+      (`ictf23_web`, `key4.db` con IV troncato). `elves.bmp`: non ricostruibile.
   Verificati sui casi reali: ictf23_forensics ✅ (266s: il pcap esporta ~130
   oggetti HTTP, la pipeline li analizza tutti — la flag è in secret.png) e
   recipe.txt ✅ (2s). Nota: l'export HTTP degli oggetti video rende il caso lento.
