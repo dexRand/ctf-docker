@@ -135,3 +135,12 @@ def test_sqlite_dump_reads_table_text(tmp_path):
     out = dump_sqlite(db)
     assert "== moz_places ==" in out and "picoCTF{from_a_db}" in out
     assert dump_sqlite(tmp_path / "nope.sqlite") == ""
+
+
+def test_firefox_logins_skips_non_login_json(tmp_path):
+    from backend.analyzers.firefox import FirefoxLoginsAnalyzer
+    from backend.analyzers.base import ToolContext
+    p = tmp_path / "logins.json"
+    p.write_text('{"logins": [], "potentials": []}')
+    r = FirefoxLoginsAnalyzer().run(ToolContext(input=p, workdir=tmp_path / "w"))
+    assert r.status == "skipped" and "not a Firefox logins" in r.summary

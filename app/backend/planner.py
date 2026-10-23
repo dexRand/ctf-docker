@@ -18,7 +18,7 @@ DEFAULT_PLAN = [
     "zsteg", "lsb-carve", "stepic", "psimage", "png-chunks", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
     "pixel-bytes", "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
-    "pcap", "evtx", "sam",
+    "pcap", "evtx", "sam", "firefox-logins",
     "nested-archive", "git", "sqlite", "7z", "office", "eml", "binwalk-extract", "foremost", "pngcheck",
     "png-repair", "image-repair", "byte-swap",
 ]

@@ -502,3 +502,8 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 - [x] **Suite completa finale**: fixture **33/33**, reali **35/35**, writeup
       **ALL CORRECT**. Analisi dei 35 casi: **4084.2 → 2239.0s (-45%)**,
       nessuna soluzione persa.
+- [x] **Firefox** (`ictf23_web`): analyzer `firefox-logins` — decifra i login
+      salvati con **libnss3** (`NSS_Init` + `PK11SDR_Decrypt`, come firefed):
+      `key4.db` manomesso (IV da 14 byte) non è un problema perché ci pensa NSS.
+      Password recuperata (`yoteachapp.com`). La flag però è nei **log della chat
+      sul server**, non nel profilo → il caso resta FAIL per costruzione.
