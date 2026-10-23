@@ -68,11 +68,15 @@ class FirefoxLoginsAnalyzer(Analyzer):
         prof = ctx.sub(self.name) / "profile"
         prof.mkdir(parents=True, exist_ok=True)
         for src, head, _size in ctx.siblings(1 << 20):
-            if src.name.lower() in _DB_FILES:
-                try:
-                    shutil.copy2(src, prof / src.name)
-                except OSError:
-                    continue
+            # on disk the children are stored as `0034__logins.json`
+            low = src.name.lower()
+            db = next((d for d in _DB_FILES if low.endswith(d)), None)
+            if not db:
+                continue
+            try:
+                shutil.copy2(src, prof / db)
+            except OSError:
+                continue
         if not (prof / "key4.db").is_file():
             return ToolResult(self.name, status="skipped",
                               summary="key4.db missing (cannot unlock the logins)")
