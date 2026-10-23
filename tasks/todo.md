@@ -499,3 +499,6 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 - [x] **Perf (3° giro, misure)**: `misc_impossible` 617.7 → **363.9s** (-41%),
       `corrupted_file` 530.9 → **195.9s** (-63%), `dolls.jpg` 476.7 → **138.9s**
       (-71%), `buildings.png` 52.1 → **31.7s** (-39%) — tutti PASS.
+- [x] **Suite completa finale**: fixture **33/33**, reali **35/35**, writeup
+      **ALL CORRECT**. Analisi dei 35 casi: **4084.2 → 2239.0s (-45%)**,
+      nessuna soluzione persa.
