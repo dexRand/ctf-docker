@@ -35,8 +35,10 @@ on-demand). Il token serve con scope **`workflow`**.
 - **P33 sweep challenge picoCTF extra**: provate altre challenge reali. **Passano**
   e sono state aggiunte a `CASES` + `docs/CHALLENGES.md`: **WhitePages** (spazi
   Unicode → bit), **shark on wire 1** (`capture.pcap`, UDP), **Wireshark doo dooo**
-  (`shark1.pcapng`); **MacroHard WeakEdge** era già coperta. Non risolte (sezione
-  H): Investigative Reversing 0/2, pastaAAA.
+  (`shark1.pcapng`); **MacroHard WeakEdge** era già coperta. Investigative
+  Reversing 2 risolta poi da `lsb-bits` (P35); **pastaAAA** (flag visiva nei piani
+  R) e **Investigative Reversing 0** (shift per-range nel tail) restano limiti
+  documentati in `docs/CHALLENGES.md`.
 - **P32 Analyzer `lsb-carve` + password da file "fratello"**: estrae un file
   nascosto (zip/png/pdf…) dai piani **LSB** di un PNG/BMP (`zsteg -e`) e, se il
   file è protetto, prova le password suggerite da un file **fratello** (`psw: …`).
@@ -388,6 +390,13 @@ on-demand). Il token serve con scope **`workflow`**.
 - [x] Correzione OCR `1↔i/l`, `0↔o`, `5↔s`: **decisione = accettarla come limite**
   (troppo rischiosa: corromperebbe flag reali). Chi si trova vicino al flag lo
   legge dal contesto/report.
+- [x] **Investigative Reversing 2** (2019, `encoded.bmp`) → **RISOLTA** da
+  `lsb-bits` (LSB dei byte grezzi, offset 2000, LSB-first, `+5`). Caso reale PASS.
+- [x] **pastaAAA** (2019, `ctf.png`) → flag **visiva** nei piani R0/R1 (font
+  stilizzato): `bit-planes` produce gli artefatti, l'OCR non legge il font.
+  **Limite visivo accettato.**
+- [x] **Investigative Reversing 0** (2019, `mystery.png`) → flag appesa dopo
+  `IEND` con shift **per-range**: reversing bespoke, **fuori scope** (documentato).
 
 ## Gap challenge noti
 Vedi `docs/CHALLENGES.md` → "Altri casi provati": **c0rrupt** (PNG repair

@@ -363,6 +363,9 @@ del tutto. Restano qui come riferimento e come TODO per nuovi analyzer.
 | like1000 | 2019 | `picoCTF{l0t5_0f_TAR5}` | **risolta strutturalmente** da `nested-archive`: apre i 1000 tar annidati in un colpo solo e arriva a `flag.png`; l'OCR legge `l0t5_0f_TAR5` come `lOtS Of TAR5S` (confusione `0/O`, `5/S` del font) |
 | tunn3l v1s10n | 2021 | `picoCTF{qu1t3_a_v13w_2020}` | **risolta strutturalmente** da `image-repair` (header BMP standard + altezza ricalcolata); resta il near-miss OCR (`1→i`, spazi) |
 | m00nwalk | 2019 | `picoCTF{beep_boop_im_in_space}` | **decodificata** da `sstv` (Scottie S1, frame verificato contro QSSTV); il testo è trasmesso capovolto in un frame 320×256 rumoroso → OCR near-miss |
+| pastaAAA | 2019 | `picoCTF{pa$ta_1s_lyf3}` | flag **visiva** nei piani bit 0/1 del canale R (font stilizzato): `bit-planes` genera già gli artefatti R0/R1 apribili in preview, ma l'OCR non legge il font → limite visivo accettato |
+| Investigative Reversing 0 | 2019 | `picoCTF{f0und_1t_5266a857}` | flag appesa dopo `IEND` con shift **per-range** (`+5` sui byte 6–14, `-3` sul 15°): richiede reversing bespoke del binario → fuori scope; `mystery.png` è però analizzato (tail/strings) |
+| Investigative Reversing 2 | 2019 | `picoCTF{n3xt_0n300000000000000000000000006c732cee}` | **risolta** da `lsb-bits` (bit nei byte grezzi a offset 2000, LSB-first, `+5`) |
 
 ## Formati di flag non standard
 
