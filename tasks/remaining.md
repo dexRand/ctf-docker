@@ -17,6 +17,20 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P34 preview per tipo reale (MIME dal contenuto)**: la preview in StegSuite
+  non dipende più solo dall'estensione. Il backend rileva il MIME dai **magic
+  bytes** (`storage.sniff_mime`) per upload ed extracted, fa **backfill** dei nodi
+  vecchi con `mime=None`, e serve il contenuto **inline** (tolto
+  `Content-Disposition: attachment`, che in alcuni browser forzava il download).
+  Il frontend classifica per `mime` (fallback estensione) → immagini/audio/video/
+  testo (anche senza estensione, es. `mystery`) si vedono in preview. Test:
+  `app/tests/test_mime.py` (magic bytes + upload senza estensione → `image/png`
+  inline). Suite **271**.
+- **P33 sweep challenge picoCTF extra**: provate altre challenge reali. **Passano**
+  e sono state aggiunte a `CASES` + `docs/CHALLENGES.md`: **WhitePages** (spazi
+  Unicode → bit), **shark on wire 1** (`capture.pcap`, UDP), **Wireshark doo dooo**
+  (`shark1.pcapng`); **MacroHard WeakEdge** era già coperta. Non risolte (sezione
+  H): Investigative Reversing 0/2, pastaAAA.
 - **P32 Analyzer `lsb-carve` + password da file "fratello"**: estrae un file
   nascosto (zip/png/pdf…) dai piani **LSB** di un PNG/BMP (`zsteg -e`) e, se il
   file è protetto, prova le password suggerite da un file **fratello** (`psw: …`).

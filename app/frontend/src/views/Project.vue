@@ -62,6 +62,23 @@ const IMG = /\.(png|jpe?g|gif|bmp|webp|tiff?)$/i
 const AUD = /\.(wav|mp3|flac|ogg|m4a|aac|au)$/i
 const VID = /\.(mp4|mkv|webm|avi|mov)$/i
 const TXT = /\.(txt|md|json|xml|csv|log|strings|out|py)$/i
+// preview type from the detected MIME first (an extracted file often has no or
+// a lying extension), then from the extension as a fallback
+function fileKind(n) {
+  if (!n) return 'other'
+  const m = String(n.mime || '').toLowerCase()
+  if (m.startsWith('image/')) return 'image'
+  if (m.startsWith('audio/')) return 'audio'
+  if (m.startsWith('video/')) return 'video'
+  if (m.startsWith('text/') || ['application/json', 'application/xml', 'application/javascript'].includes(m)
+      || m.endsWith('+json') || m.endsWith('+xml')) return 'text'
+  const name = n.name || ''
+  if (IMG.test(name)) return 'image'
+  if (AUD.test(name)) return 'audio'
+  if (VID.test(name)) return 'video'
+  if (TXT.test(name)) return 'text'
+  return 'other'
+}
 
 const tree = computed(() => (project.value?.tree || []).slice().sort((a, b) => a.order_index - b.order_index))
 const treeById = computed(() => Object.fromEntries(tree.value.map((n) => [n.id, n])))
@@ -136,6 +153,7 @@ const runsByFile = computed(() => {
 const logRuns = computed(() => runs.value.slice().sort((a, b) => b.id - a.id))
 const lockedIds = computed(() => new Set(locked.value.map((l) => l.file_id)))
 const selectedNode = computed(() => tree.value.find((n) => n.id === selected.value) || null)
+const selectedKind = computed(() => fileKind(selectedNode.value))
 const childrenOf = (id) => tree.value.filter((n) => n.parent_id === id)
 const selectedRuns = computed(() => runsByFile.value[selected.value] || [])
 const flags = computed(() => findings.value.filter((f) => f.kind === 'flag'))
@@ -438,7 +456,7 @@ function fileUrl(n) { return `/api/v1/projects/${props.id}/files/${n.id}/content
 
 async function loadPreview(id) {
   const n = tree.value.find((x) => x.id === id)
-  if (!n || !TXT.test(n.name)) return
+  if (!n || fileKind(n) !== 'text') return
   const key = 'file' + id
   if (outputs.value[key] != null) return
   try { outputs.value[key] = await api(`/projects/${props.id}/files/${id}/content`) }
@@ -710,12 +728,12 @@ onBeforeUnmount(() => {
           <template v-else>
             <div v-if="!selectedNode" class="text-xs text-dim">{{ t('proj.select_file') }}</div>
             <div v-else>
-              <div v-if="IMG.test(selectedNode.name) && !previewErr">
+              <div v-if="selectedKind === 'image' && !previewErr">
                 <img :src="fileUrl(selectedNode)" class="max-h-[55vh] cursor-zoom-in rounded border border-edge bg-ink" @click="lightbox = fileUrl(selectedNode)" @error="previewErr = true" />
               </div>
-              <audio v-else-if="AUD.test(selectedNode.name)" :src="fileUrl(selectedNode)" controls class="w-full" />
-              <video v-else-if="VID.test(selectedNode.name)" :src="fileUrl(selectedNode)" controls class="max-h-[55vh] w-full rounded" />
-              <pre v-else-if="TXT.test(selectedNode.name)" class="out max-h-[55vh] overflow-auto rounded border border-edge bg-ink p-2 text-fglite">{{ outputs['file'+selectedNode.id] }}</pre>
+              <audio v-else-if="selectedKind === 'audio'" :src="fileUrl(selectedNode)" controls class="w-full" />
+              <video v-else-if="selectedKind === 'video'" :src="fileUrl(selectedNode)" controls class="max-h-[55vh] w-full rounded" />
+              <pre v-else-if="selectedKind === 'text'" class="out max-h-[55vh] overflow-auto rounded border border-edge bg-ink p-2 text-fglite">{{ outputs['file'+selectedNode.id] }}</pre>
               <div v-else class="text-xs text-dim">
                 <a :href="fileUrl(selectedNode)" class="flex items-center gap-1 text-info hover:underline" download>
                   <Icon name="download" :size="13" />{{ selectedNode.name }}

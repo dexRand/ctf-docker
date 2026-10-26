@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import hashlib
+import mimetypes
 import re
 import shutil
 import uuid
@@ -89,6 +90,66 @@ def save_upload(pid: str, filename: str, src: BinaryIO) -> dict:
     with open(dest, "wb") as out:
         shutil.copyfileobj(src, out)
     sha, md5, size = hashes_of(dest)
-    return {"name": dest.name, "path": dest, "sha256": sha, "md5": md5, "size": size}
+    return {"name": dest.name, "path": dest, "sha256": sha, "md5": md5,
+            "size": size, "mime": sniff_mime(dest)}
+
+
+# magic bytes -> media type. Content beats the file name: an extracted file
+# often has no (or a lying) extension, and the UI needs the real type to pick a
+# preview instead of falling back to "download".
+_MAGIC = [
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+    (b"BM", "image/bmp"),
+    (b"II*\x00", "image/tiff"),
+    (b"MM\x00*", "image/tiff"),
+    (b"%PDF-", "application/pdf"),
+    (b"PK\x03\x04", "application/zip"),
+    (b"PK\x05\x06", "application/zip"),
+    (b"\x1f\x8b", "application/gzip"),
+    (b"7z\xbc\xaf\x27\x1c", "application/x-7z-compressed"),
+    (b"Rar!\x1a\x07", "application/vnd.rar"),
+    (b"\x7fELF", "application/x-elf"),
+    (b"MZ", "application/x-dosexec"),
+    (b"OggS", "audio/ogg"),
+    (b"fLaC", "audio/flac"),
+    (b"ID3", "audio/mpeg"),
+    (b"\xff\xfb", "audio/mpeg"),
+    (b"SQLite format 3\x00", "application/vnd.sqlite3"),
+    (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", "application/x-ole-storage"),
+]
+
+
+def sniff_mime(path: Path) -> str | None:
+    """Detect a file's media type from its bytes, falling back to its name."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(8192)
+    except OSError:
+        return mimetypes.guess_type(str(path))[0]
+    for sig, mime in _MAGIC:
+        if head.startswith(sig):
+            return mime
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    if head[:4] == b"RIFF" and head[8:12] == b"WAVE":
+        return "audio/wav"
+    if head[:4] == b"RIFF" and head[8:12] == b"AVI ":
+        return "video/x-msvideo"
+    if head[4:8] == b"ftyp":
+        return "video/mp4"
+    if len(head) >= 262 and head[257:262] == b"ustar":
+        return "application/x-tar"
+    # no NUL and valid UTF-8 in the sample -> plain text (covers extensionless
+    # text files such as `flag.txt` renamed or carved dumps)
+    if b"\x00" not in head:
+        try:
+            head.decode("utf-8")
+            return "text/plain"
+        except UnicodeDecodeError:
+            pass
+    return mimetypes.guess_type(str(path))[0]
 
 

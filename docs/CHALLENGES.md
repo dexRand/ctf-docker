@@ -33,6 +33,11 @@ Test: `app/tests/real_challenges.py` (scarica i file dai mirror GitHub, perché
 | Glory of the Garden | 2019 | `garden.jpg` | `picoCTF{more_than_m33ts_the_3y35a97d3bB}` |
 | extensions | 2019 | `flag.txt` (è un PNG) | `picoCTF{now_you_know_about_extensions}` |
 | Weird File | 2021 | `weird.docm` | `picoCTF{m4cr0s_r_d4ng3r0us}` |
+| MacroHard WeakEdge | 2021 | `Forensics is fun.pptm` | `picoCTF{D1d_u_kn0w_ppts_r_z1p5}` |
+| St3g0 | 2022 | `pico.flag.png` | `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}` |
+| WhitePages | 2019 | `whitepages.txt` | `picoCTF{not_all_spaces_are_created_equal_<instance>}` |
+| shark on wire 1 | 2019 | `capture.pcap` | `picoCTF{StaT31355_636f6e6e}` |
+| Wireshark doo dooo do doo… | 2021 | `shark1.pcapng` | `picoCTF{p33kab00_1_s33_u_deadbeef}` |
 | WebNet0 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{nongshim.shrimp.crackers}` (TLS decifrato) |
 | WebNet1 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{honey.roasted.peanuts}` (TLS → metadata JPEG) |
 | St3g0 | 2022 | `pico.flag.png` | `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}` (LSB → `zsteg`) |

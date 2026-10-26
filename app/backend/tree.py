@@ -44,8 +44,8 @@ def _store_extracted(session: Session, pid: str, parent: FileNode, src: Path,
         shutil.copy2(src, dest)
     origin = f"extracted:{tool}:{parent.id}" if tool else f"extracted:{parent.id}"
     node = FileNode(project_id=pid, parent_id=parent.id, name=name, rel_path=rel,
-                    size=size, mime=None, sha256=sha, md5=md5, depth=parent.depth + 1,
-                    order_index=order, origin=origin)
+                    size=size, mime=storage.sniff_mime(dest), sha256=sha, md5=md5,
+                    depth=parent.depth + 1, order_index=order, origin=origin)
     session.add(node)
     session.flush()
     return node

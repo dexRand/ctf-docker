@@ -41,7 +41,7 @@ def create_from_uploads(session: Session, files: list[UploadFile], name: str = "
     session.add(Event(project_id=pid, message=f"created with {len(files)} file(s)"))
     for i, up in enumerate(files):
         meta = storage.save_upload(pid, up.filename or "file", up.file)
-        mime, _ = mimetypes.guess_type(meta["name"])
+        mime = meta.get("mime") or mimetypes.guess_type(meta["name"])[0]
         session.add(FileNode(project_id=pid, parent_id=None, name=meta["name"],
                              rel_path=f"uploads/{meta['name']}", size=meta["size"],
                              mime=mime, sha256=meta["sha256"], md5=meta["md5"],
@@ -121,6 +121,18 @@ def get_project(pid: str, session: Session = Depends(get_session)) -> dict:
         raise HTTPException(404, "project not found")
     nodes = session.exec(select(FileNode).where(FileNode.project_id == pid)
                          .order_by(FileNode.order_index, FileNode.id)).all()
+    # older rows were stored with mime=None (extracted files, extensionless
+    # uploads); detect it from the bytes so the UI can preview them inline
+    changed = False
+    for n in nodes:
+        if not n.mime:
+            mime = storage.sniff_mime(storage.project_dir(pid) / n.rel_path)
+            if mime:
+                n.mime = mime
+                session.add(n)
+                changed = True
+    if changed:
+        session.commit()
     return {**_project_dict(p, files=len(nodes)), "tree": [_node_dict(n) for n in nodes]}
 
 
@@ -159,5 +171,11 @@ def file_content(pid: str, fid: int, session: Session = Depends(get_session)):
     path = storage.project_dir(pid) / node.rel_path
     if not path.is_file():
         raise HTTPException(404, "file missing on disk")
-    return FileResponse(path, filename=node.name,
-                        media_type=node.mime or "application/octet-stream")
+    mime = node.mime or storage.sniff_mime(path) or "application/octet-stream"
+    if not node.mime:
+        node.mime = mime
+        session.add(node)
+        session.commit()
+    # no `filename=` here: that adds Content-Disposition: attachment, which
+    # makes some browsers download instead of rendering the preview inline
+    return FileResponse(path, media_type=mime)
