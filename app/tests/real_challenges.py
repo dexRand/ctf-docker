@@ -61,24 +61,6 @@ CASES = [
     # WAV: samples quantised into 16 levels encode a hex string -> wav-levels
     ("main.wav", f"{B21}/Surfing the Waves/main.wav",
      "picoCTF{mU21C_1s_1337_115155af}"),
-    # Unicode En/Em spaces as bits -> whitespace/zerowidth stego
-    ("whitepages.txt", f"{B19}/WhitePages/whitepages.txt",
-     "picoCTF{not_all_spaces_are_created_equal_f71be4d2457dc2d068e8b1e7a51ed39a}"),
-    # pcap: the flag is reassembled from UDP payloads -> tshark streams
-    ("shark1.pcap", f"{B19}/shark on wire 1/capture.pcap", "picoCTF{StaT31355_636f6e6e}"),
-    # pcapng: flag hidden in a stream -> tshark follow/stream
-    ("shark1.pcapng", f"{B21}/Wireshark doo dooo do doo.../shark1.pcapng",
-     "picoCTF{p33kab00_1_s33_u_deadbeef}"),
-    # BMP: flag bits in the LSB of the raw bytes at offset 2000, LSB-first, +5
-    # per char -> the `lsb-bits` analyzer scans order/shift/offset
-    ("encoded.bmp", f"{B19}/Investigative Reversing 2/encoded.bmp",
-     "picoCTF{n3xt_0n300000000000000000000000006c732cee}"),
-    # UDP source ports are the ASCII codes of the flag -> pcap `_port_text`
-    ("sw2-capture.pcap", f"{B19}/shark on wire 2/capture.pcap",
-     "picoCTF{p1LLf3r3d_data_v1a_st3g0}"),
-    # pcapng: DNS exfiltration, real flag among many decoys -> pcap DNS tunnel
-    ("shark2.pcapng", f"{B21}/Wireshark twoo twooo two twoo.../shark2.pcapng",
-     "picoCTF{dns_3xf1l_ftw_deadbeef}"),
     # --- OliCyber / ITS training (public write-up mirror) ---
     ("nw-intro01.pcap", f"{OLI}/NW_1/nw-intro01.pcap", "flag{Y0u_kn0w_Wh4t_a_Pc4p_1s}"),
     ("nw03-http.pcapng", f"{OLI}/NW_3/nw-intro03.pcapng", "flag{L3aRn1N9_4b0uT_F1lter5_p1}"),

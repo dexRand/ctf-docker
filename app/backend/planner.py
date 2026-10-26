@@ -19,7 +19,7 @@ DEFAULT_PLAN = [
     "pixel-bytes", "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
     "pcap", "evtx", "sam", "firefox-logins",
-    "nested-archive", "git", "sqlite", "7z", "office", "eml", "binwalk-extract", "foremost", "pngcheck",
+    "nested-archive", "git", "sqlite", "disk", "7z", "office", "eml", "binwalk-extract", "foremost", "pngcheck",
     "png-repair", "image-repair", "byte-swap",
 ]
 # signature scans and binary/image repairs: nothing to do on a file `file`

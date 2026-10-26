@@ -17,6 +17,11 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P38 Analyzer `disk` (sleuthkit)**: immagine disco → `mmls`/`fls`/`icat`;
+  estrae file leggibili (e prioritari: `*flag*`, `root.txt`, testi) come figli,
+  con supporto `.gz` (decompressione interna). `sleuthkit` aggiunto al
+  Dockerfile. Risolve **Disk, disk, sleuth!** (2021, ext4) → caso reale PASS
+  (166s). Unit test del parser `fls`/priorità. Suite **277**.
 - **P37 shark2 / DNS exfil verificata**: `pcap` risolve
   **Wireshark twoo twooo two twoo…** (`shark2.pcapng`, DNS tunneling; la flag
   vera è tra molti decoy) → aggiunta a `CASES` + docs. Nota: caso **lento**

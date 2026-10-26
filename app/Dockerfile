@@ -26,7 +26,7 @@ RUN apt-get update \
         curl ca-certificates \
         xxd hexyl bsdmainutils binutils git tree \
         tesseract-ocr tesseract-ocr-ita multimon-ng sox zbar-tools qrencode tshark zstd \
-        unzip zip fcrackzip pdfcrack hashcat pocl-opencl-icd libmhash2 \
+        unzip zip fcrackzip pdfcrack hashcat pocl-opencl-icd libmhash2 sleuthkit \
  && curl -fsSL -o /tmp/stegseek.deb \
         https://github.com/RickdeJager/stegseek/releases/download/v0.6/stegseek_0.6-1.deb \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends /tmp/stegseek.deb \

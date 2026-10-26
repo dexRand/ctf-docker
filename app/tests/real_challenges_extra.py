@@ -63,6 +63,13 @@ EXTRA = [
 EXTRA += [
     # picoCTF 2019 shark on wire 2: text in UDP source ports (5000 + ASCII)
     ("sow2.pcap", f"{P19}/shark on wire 2/capture.pcap", "picoCTF{p1LLf3r3d_data_v1a_st3g0}"),
+    # picoCTF 2019 Investigative Reversing 2: flag bits in the raw-byte LSB at
+    # offset 2000, LSB-first, +5 per char -> lsb-bits
+    ("encoded.bmp", f"{P19}/Investigative Reversing 2/encoded.bmp",
+     "picoCTF{n3xt_0n300000000000000000000000006c732cee}"),
+    # picoCTF 2021 Disk, disk, sleuth!: ext4 image, flag in a file -> sleuthkit
+    ("dds1-alpine.flag.img.gz", f"{P21}/Disk, disk, sleuth!/dds1-alpine.flag.img.gz",
+     "picoCTF{f0r3ns1c4t0r_n30phyt3_a011c142}"),
     # DUCTF 2024 Bad Policies: GPP cpassword in Groups.xml (published AES key)
     ("badpolicies.zip", f"{DU24}/forensics/badpolicies/publish/badpolicies.zip",
      "DUCTF{D0n7_Us3_P4s5w0rds_1n_Gr0up_P0l1cy}"),
