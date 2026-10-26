@@ -376,8 +376,9 @@ custom), **tunn3l v1s10n** e **like1000** (risolte strutturalmente, resta il
 near-miss OCR).
 
 ## TODO immediati
-- **Dorking**: valutare un tool/`./ctf dork` che genera query Google/GitHub/Shodan
-  da un target (richiesta utente; tocca lo scope OSINT, decidere prima).
+- **Dorking**: **deciso di saltare** (fuori scope: OSINT non è stego/forensics e
+  aggiungerebbe un servizio/`./ctf dork` non richiesto dal core). Rivalutare solo
+  su richiesta esplicita.
 
 ## Limiti noti
 - Flag **visive** via OCR (buono, non perfetto; alcune immagini rumorose non
