@@ -76,6 +76,9 @@ CASES = [
     # UDP source ports are the ASCII codes of the flag -> pcap `_port_text`
     ("sw2-capture.pcap", f"{B19}/shark on wire 2/capture.pcap",
      "picoCTF{p1LLf3r3d_data_v1a_st3g0}"),
+    # pcapng: DNS exfiltration, real flag among many decoys -> pcap DNS tunnel
+    ("shark2.pcapng", f"{B21}/Wireshark twoo twooo two twoo.../shark2.pcapng",
+     "picoCTF{dns_3xf1l_ftw_deadbeef}"),
     # --- OliCyber / ITS training (public write-up mirror) ---
     ("nw-intro01.pcap", f"{OLI}/NW_1/nw-intro01.pcap", "flag{Y0u_kn0w_Wh4t_a_Pc4p_1s}"),
     ("nw03-http.pcapng", f"{OLI}/NW_3/nw-intro03.pcapng", "flag{L3aRn1N9_4b0uT_F1lter5_p1}"),

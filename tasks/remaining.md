@@ -17,6 +17,10 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P37 shark2 / DNS exfil verificata**: `pcap` risolve
+  **Wireshark twoo twooo two twoo…** (`shark2.pcapng`, DNS tunneling; la flag
+  vera è tra molti decoy) → aggiunta a `CASES` + docs. Nota: caso **lento**
+  (~306s, pcapng 3.4 MB).
 - **P36 shark on wire 2 verificata (porte → ASCII)**: il decoder `_port_text` del
   `pcap` ricostruisce la flag dai **source port** UDP (port = codice ASCII).
   Aggiunta a `CASES` + `docs/CHALLENGES.md` (PASS 8.5s). **B1g_Mac** saltata:

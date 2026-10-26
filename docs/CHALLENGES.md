@@ -40,6 +40,7 @@ Test: `app/tests/real_challenges.py` (scarica i file dai mirror GitHub, perché
 | Wireshark doo dooo do doo… | 2021 | `shark1.pcapng` | `picoCTF{p33kab00_1_s33_u_deadbeef}` |
 | Investigative Reversing 2 | 2019 | `encoded.bmp` | `picoCTF{n3xt_0n300000000000000000000000006c732cee}` |
 | shark on wire 2 | 2019 | `capture.pcap` | `picoCTF{p1LLf3r3d_data_v1a_st3g0}` (source port = codice ASCII) |
+| Wireshark twoo twooo two twoo… | 2021 | `shark2.pcapng` | `picoCTF{dns_3xf1l_ftw_deadbeef}` (DNS exfil, tra molti decoy) |
 | WebNet0 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{nongshim.shrimp.crackers}` (TLS decifrato) |
 | WebNet1 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{honey.roasted.peanuts}` (TLS → metadata JPEG) |
 | St3g0 | 2022 | `pico.flag.png` | `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}` (LSB → `zsteg`) |
