@@ -17,6 +17,12 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P35 Analyzer `lsb-bits` (Investigative Reversing)**: cerca bit di flag
+  nell'**LSB dei byte grezzi** del file con **offset, ordine di bit e shift del
+  char ignoti**: prova i prefissi noti per ordine LSB/MSB e shift 0..31, trova il
+  pattern nel bitstream e decodifica in avanti. Risolve **Investigative Reversing 2**
+  (`encoded.bmp`: flag a offset 2000, LSB-first, +5 per char) → caso reale PASS.
+  Unit test `test_lsb_bits.py`. Suite **275**.
 - **P34 preview per tipo reale (MIME dal contenuto)**: la preview in StegSuite
   non dipende più solo dall'estensione. Il backend rileva il MIME dai **magic
   bytes** (`storage.sniff_mime`) per upload ed extracted, fa **backfill** dei nodi
