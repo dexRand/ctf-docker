@@ -17,6 +17,11 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P36 shark on wire 2 verificata (porte → ASCII)**: il decoder `_port_text` del
+  `pcap` ricostruisce la flag dai **source port** UDP (port = codice ASCII).
+  Aggiunta a `CASES` + `docs/CHALLENGES.md` (PASS 8.5s). **B1g_Mac** saltata:
+  reversing di un `.exe` Windows che modifica immagini (fuori scope); la
+  `picoCTF{fake_flag}` del README è un decoy.
 - **P35 Analyzer `lsb-bits` (Investigative Reversing)**: cerca bit di flag
   nell'**LSB dei byte grezzi** del file con **offset, ordine di bit e shift del
   char ignoti**: prova i prefissi noti per ordine LSB/MSB e shift 0..31, trova il
