@@ -70,6 +70,10 @@ EXTRA += [
     # picoCTF 2021 Disk, disk, sleuth!: ext4 image, flag in a file -> sleuthkit
     ("dds1-alpine.flag.img.gz", f"{P21}/Disk, disk, sleuth!/dds1-alpine.flag.img.gz",
      "picoCTF{f0r3ns1c4t0r_n30phyt3_a011c142}"),
+    # Disk, disk, sleuth! II: partitioned ext4; flag drawn in ASCII-art boxes,
+    # read by `decode` (boxed chars) after `disk` extracts the file
+    ("dds2-alpine.flag.img.gz", f"{P21}/Disk, disk, sleuth! II/dds2-alpine.flag.img.gz",
+     "picoCTF{f0r3ns1c4t0r_n0v1c3_0ba8d02d}"),
     # DUCTF 2024 Bad Policies: GPP cpassword in Groups.xml (published AES key)
     ("badpolicies.zip", f"{DU24}/forensics/badpolicies/publish/badpolicies.zip",
      "DUCTF{D0n7_Us3_P4s5w0rds_1n_Gr0up_P0l1cy}"),

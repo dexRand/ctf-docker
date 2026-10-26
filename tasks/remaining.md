@@ -17,6 +17,10 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P39 Disk, disk, sleuth! II + decoder "boxed chars"**: `disk` ora regge un'immagine
+  **partizionata** (offset da `mmls`) e `decode` ricostruisce le flag disegnate in
+  **box ASCII** `( p ) ( i ) ...` (anche spezzate su più righe con decorazioni tra
+  loro, richiedendo `{...}`). Caso reale **PASS** (144s). Unit test boxed. Suite **279**.
 - **P38 Analyzer `disk` (sleuthkit)**: immagine disco → `mmls`/`fls`/`icat`;
   estrae file leggibili (e prioritari: `*flag*`, `root.txt`, testi) come figli,
   con supporto `.gz` (decompressione interna). `sleuthkit` aggiunto al

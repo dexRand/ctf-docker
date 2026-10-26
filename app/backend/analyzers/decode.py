@@ -70,6 +70,15 @@ def candidates(data: bytes) -> dict[str, bytes]:
     t = codecs.encode(s.decode("utf-8", "replace"), "rot13").encode()
     if t != s and _ok(t, 0.8):
         out["rot13"] = t
+    # characters drawn in ASCII-art boxes: "( p ) ( i ) ( c ) ..." -> "pico..."
+    # (the flag is often split across several boxed rows with art between them,
+    # so collect every single-char box in the text and require a brace)
+    text = s.decode("utf-8", "replace")
+    boxed = re.findall(r"\(\s*([^)\s])\s*\)", text)
+    if len(boxed) >= 8:
+        joined = "".join(boxed).encode()
+        if _ok(joined) and b"{" in joined and b"}" in joined:
+            out["boxed"] = joined
     try:
         u = urllib.parse.unquote(s.decode("utf-8", "replace")).encode()
         if u != s and _ok(u, 0.8):

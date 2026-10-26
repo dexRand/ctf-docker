@@ -42,6 +42,7 @@ Test: `app/tests/real_challenges.py` (scarica i file dai mirror GitHub, perché
 | shark on wire 2 | 2019 | `capture.pcap` | `picoCTF{p1LLf3r3d_data_v1a_st3g0}` (source port = codice ASCII) |
 | Wireshark twoo twooo two twoo… | 2021 | `shark2.pcapng` | `picoCTF{dns_3xf1l_ftw_deadbeef}` (DNS exfil, tra molti decoy) |
 | Disk, disk, sleuth! | 2021 | `dds1-alpine.flag.img.gz` | `picoCTF{f0r3ns1c4t0r_n30phyt3_a011c142}` (sleuthkit: `disk`) |
+| Disk, disk, sleuth! II | 2021 | `dds2-alpine.flag.img.gz` | `picoCTF{f0r3ns1c4t0r_n0v1c3_0ba8d02d}` (partitioned ext4 + flag in box ASCII → `disk` + `decode` boxed) |
 | WebNet0 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{nongshim.shrimp.crackers}` (TLS decifrato) |
 | WebNet1 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{honey.roasted.peanuts}` (TLS → metadata JPEG) |
 | St3g0 | 2022 | `pico.flag.png` | `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}` (LSB → `zsteg`) |
