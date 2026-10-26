@@ -74,6 +74,11 @@ EXTRA += [
     # read by `decode` (boxed chars) after `disk` extracts the file
     ("dds2-alpine.flag.img.gz", f"{P21}/Disk, disk, sleuth! II/dds2-alpine.flag.img.gz",
      "picoCTF{f0r3ns1c4t0r_n0v1c3_0ba8d02d}"),
+    # picoCTF 2022 Operation Orchid: disk -> flag.txt.enc + .ash_history password
+    # (artifact only on picoCTF's CDN; use the web.archive.org mirror)
+    ("orchid.img.gz",
+     "https://web.archive.org/web/20220321025118id_/https://artifacts.picoctf.net/c/236/disk.flag.img.gz",
+     "picoCTF{h4un71ng_p457_0a710765}"),
     # DUCTF 2024 Bad Policies: GPP cpassword in Groups.xml (published AES key)
     ("badpolicies.zip", f"{DU24}/forensics/badpolicies/publish/badpolicies.zip",
      "DUCTF{D0n7_Us3_P4s5w0rds_1n_Gr0up_P0l1cy}"),

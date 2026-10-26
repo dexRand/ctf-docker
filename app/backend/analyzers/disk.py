@@ -85,6 +85,10 @@ def _score(path: str) -> int:
         s += 100
     if name in ("root.txt", "user.txt", "proof.txt"):
         s += 90
+    if name in (".ash_history", ".bash_history", ".zsh_history") or "history" in name:
+        s += 60
+    if name.endswith((".enc", ".aes", ".encrypted", ".gpg", ".age")):
+        s += 50
     if name.endswith((".txt", ".md", ".log", ".conf", ".json", ".sh", ".py")):
         s += 20
     return s
@@ -106,35 +110,44 @@ class DiskAnalyzer(Analyzer):
         if not image.is_file():
             return ToolResult(self.name, status="skipped", summary="cannot read image")
 
-        listing, files, offset = "", [], 0
+        listing_parts: list[str] = []
+        tagged: list[tuple[int, int, int, str]] = []   # (score, offset, inode, path)
+        seen: list[int] = []
         for off in (*(_partitions(image) or []), 0):
+            if off in seen:
+                continue
             out, found = _files_at(image, off)
-            if found:
-                listing, files, offset = out, found, off
-                break
-        if not files:
+            if not found:
+                continue
+            seen.append(off)
+            listing_parts.append(f"[partition offset {off}] {len(found)} file(s)\n{out[:_MAX_LISTING]}")
+            tagged.extend((_score(p), off, inode, p) for inode, p in found)
+        if not tagged:
             return ToolResult(self.name, status="skipped", summary="no filesystem found")
 
+        tagged.sort(key=lambda x: x[0], reverse=True)
         outdir = ctx.sub(self.name)
         outdir.mkdir(parents=True, exist_ok=True)
         produced: list[Path] = []
-        for inode, path in sorted(files, key=lambda x: _score(x[1]), reverse=True)[:_MAX_CANDIDATES]:
+        for score, off, inode, path in tagged[:_MAX_CANDIDATES]:
             if len(produced) >= _MAX_FILES:
                 break
-            proc = run_cmd(["icat", "-o", str(offset), str(image), str(inode)],
+            proc = run_cmd(["icat", "-o", str(off), str(image), str(inode)],
                            timeout=180, binary=True)
             data = proc.stdout or b""
             if not data or len(data) > _MAX_FILE:
                 continue
-            if not magic_ext(data) and printable_ratio(data) < 0.85:
+            keep = (magic_ext(data) or printable_ratio(data) >= 0.85
+                    or score >= 50 or data.startswith(b"Salted__"))
+            if not keep:
                 continue
             name = PurePosixPath(path).name or f"inode{inode}"
             dest = outdir / f"{inode:06d}__{name}"
             dest.write_bytes(data)
             produced.append(dest)
 
-        head = (f"[partition offset {offset}] {len(files)} file(s)\n" + listing)[:_MAX_LISTING]
-        summary = f"{len(files)} file(s), {len(produced)} extracted"
+        head = "\n".join(listing_parts)[:_MAX_LISTING * 2]
+        summary = f"{len(tagged)} file(s) over {len(seen)} partition(s), {len(produced)} extracted"
         return ToolResult(
             self.name, status="done", summary=summary, output=head,
             extracted=[str(p) for p in produced],
