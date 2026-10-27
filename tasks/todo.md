@@ -509,3 +509,9 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
       sul server**, non nel profilo → il caso resta FAIL per costruzione.
   Verificato nel pipeline: su `logins.json` il tool riporta **done, 1 login
   decifrato** (la flag attesa non è nell'artefatto).
+
+### Review 27/10 — issue aperte (dettagli: `tasks/review-2026-10-27.md`)
+- [ ] dexRand/ctf-docker#1 XSS file inline · #2 NSS in-process · #3 `_PREV` crackqueue
+- [ ] #4 limiti di dimensione · #5 bug minori analyzer
+- [ ] #6 magic bytes unificati · #7 png.py zstd doppio · #8 prefissi/bit-plane · #9 sam/qr helper
+- [ ] #10 minori + README (70 analyzer)
