@@ -570,3 +570,35 @@ unit 281 passed · fixture 33/33 · reali 35/35 · extra 18/18 · writeup ALL CO
 **6. Da approvare con l'utente prima di iniziare**
 - [ ] Fase 6 — RevSuite (auto-triage binari + terminale per progetto).
 - [ ] Profilo terminale `rev` in code-server (:19022) con rev acceso: mai provato.
+
+**7. Nuovi analyzer (issue #11–#16) — SOLO se super ottimizzati**
+
+Vincoli obbligatori per ciascuno (altrimenti non si fa):
+- parte solo se magic/mime/protocollo lo giustifica (gating nel planner); sui file
+  che non lo riguardano costo ~0, nessun processo lanciato;
+- niente letture intere per decidere: header ≤ 64 KB o metadati già calcolati;
+- timeout per comando, tetto su input/output e numero di figli; tool pesanti dietro `_HEAVY_SEM`;
+- early exit appena si trova un prefisso flag noto;
+- la suite (fixture + 35 reali + extra) non deve rallentare > 5% su gate12;
+- fixture minima + unit test (niente rete); helper comuni, niente duplicati;
+- tool upstream solo da pacchetti/pip pinnati in `app/Dockerfile`.
+
+Priorità (le prime sbloccano casi delle 32 CTF nuove):
+- [ ] #11 **pcap+**: USB HID (tastiera→testo, mouse→tracciato), credenziali in chiaro
+      (ftp/telnet/http-basic/smtp), export SMB/TFTP/IMF, RTP→wav→audio analyzer,
+      Wi-Fi (WPA/WEP decrypt, handshake→hashcat), canali nascosti (icmp/ttl/ip.id/tcp-seq).
+      Sblocca UTCTF keyboard, BuckeyeCTF needle-in-the-wifi, TJCTF packet-palette.
+- [ ] #12 **decode+/cifrari**: base58/62/91/45, uuencode, quoted-printable; Atbash,
+      Caesar (tutti gli shift), Vigenère (chiave dal contesto), rail fence, A1Z26, tap code;
+      esolang Brainfuck/Ook!, JSFuck, Piet (immagine). Tutto in-process, brute-force limitato.
+- [ ] #13 **memoria/sistemi**: Volatility 3 (pslist/cmdline/files/hashdump), hive registro
+      (RegRipper), LNK/Prefetch/$MFT/PowerShell history, `.DS_Store`, boot.img/ramdisk Android,
+      core dump. Sblocca ImaginaryCTF obfuscated, BuckeyeCTF replace-me/wreck, TJCTF footprint.
+- [ ] #14 **documenti+**: PDF a fondo (versioni incrementali, JS, allegati, testo sotto
+      immagini); macro Office `olevba` + deoffusca VBA, fogli/revisioni/commenti nascosti;
+      crack password via `*2john` + hashcat (KeePass/Office/PDF/RAR/7z/SSH). Sblocca BuckeyeCTF the_cia.
+- [ ] #15 **stego+**: frame video→OCR/QR + sottotitoli/allegati MKV; audio canale L−R,
+      reverse/speed; frame APNG; detector F5/DeepSound (solo rilevamento).
+- [ ] #16 **reversing leggero + comodità**: `.pyc` decompile + PyInstaller extract,
+      deoffusca JS/PowerShell, wasm2wat; hash recognizer (hash nudo → coda crack);
+      flag-wrapping (password/risposta → candidata `PREFISSO{valore}`, mai auto-risolta).
