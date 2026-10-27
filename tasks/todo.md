@@ -510,6 +510,16 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
   Verificato nel pipeline: su `logins.json` il tool riporta **done, 1 login
   decifrato** (la flag attesa non è nell'artefatto).
 
+## Gate finale (27/10, 23:20) ✅
+
+`./ctf test -j 2 --extra`: fixture **33/33**, challenge reali **63/63** (35 core
++ 28 extra), writeup **ALL CORRECT**, zero FAIL. Prestazioni sui 35 core:
+**3112.5 s → 2239.9 s (-28%)** (`dolls.jpg` 563→366, `pico_img.png` 222→75,
+`corrupted_file` 392→297, `pico.flag.png` 110→25, `weird.docm` 96→14); unici
+aumenti `misc_impossible` +12 s e due pcap +6 s, nessuna soluzione persa.
+Issue #1–#10 chiuse dal push (`main` = `3deba2c`), #11–#16 aperte con i casi
+dello smistamento.
+
 ## Stato (27/10, sera) — issue #1–#10 chiuse ✅
 
 Fatte tutte le issue della review (`tasks/review-2026-10-27.md`): XSS dei file
