@@ -123,3 +123,13 @@ def test_a_batch_of_cracks_restores_the_original_status(client, monkeypatch):
     assert _wait(lambda: all(j["status"] not in ("queued", "running")
                              for j in client.get(f"/api/v1/cracks?project_id={pid}").json()))
     assert _wait(lambda: client.get(f"/api/v1/projects/{pid}").json()["status"] == "done")
+
+
+def test_settle_forgets_the_batch_when_an_analysis_owns_the_status(monkeypatch):
+    from backend import crackqueue as cq, jobs as analysis
+    monkeypatch.setattr(analysis, "is_running", lambda pid: True)
+    job = cq.CrackJob(999999, "pid-settle", 1, "x", None, {})
+    job.status = "not_found"
+    cq._PREV["pid-settle"] = "failed"
+    cq._settle(job)
+    assert "pid-settle" not in cq._PREV      # no stale status for the next crack

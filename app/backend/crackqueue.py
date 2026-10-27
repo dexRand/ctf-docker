@@ -182,15 +182,20 @@ def _set_status(pid: str, status: str) -> str | None:
 
 
 def _settle(job: CrackJob) -> None:
-    """Restore the pre-batch status when nothing else is working on the project."""
+    """Restore the pre-batch status when nothing else is working on the project.
+
+    If the unlocked files started an analysis, that job owns the status: drop
+    the saved state anyway, or the next crack would restore a stale one."""
     from . import jobs as analysis
     running = analysis.is_running(job.project_id)
     with _LOCK:
         others = any(j.id != job.id and j.project_id == job.project_id
                      and j.status in ("queued", "running") for j in _JOBS.values())
-        if others or running:
-            return
+        if others:
+            return                      # the batch goes on: keep the saved state
         prev = _PREV.pop(job.project_id, None)
+    if running:
+        return                          # the analysis job sets the status
     _set_status(job.project_id, prev or "done")
 
 
