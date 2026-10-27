@@ -64,6 +64,31 @@ def init_db() -> None:
     command.upgrade(cfg, "head")
 
 
+def backfill_mime(limit: int = 5000) -> int:
+    """One-time: fill `FileNode.mime` for rows written before content sniffing.
+
+    Runs at startup (bounded) instead of on every `GET /projects/{id}`: the old
+    code re-sniffed the same files on each page load and never stopped retrying
+    for bytes it could not identify. Undetectable content gets the generic
+    `application/octet-stream`, so it is not retried forever.
+    """
+    from . import storage
+    from .models import FileNode
+
+    fixed = 0
+    with Session(engine) as session:
+        rows = session.exec(select(FileNode).where(
+            (FileNode.mime.is_(None)) | (FileNode.mime == "")).limit(limit)).all()
+        for node in rows:
+            mime = storage.sniff_mime(storage.project_dir(node.project_id) / node.rel_path)
+            node.mime = mime or "application/octet-stream"
+            session.add(node)
+            fixed += 1
+        if fixed:
+            session.commit()
+    return fixed
+
+
 def delete_project_rows(session: Session, pid: str) -> None:
     """Delete a project and all its rows (filesystem is the caller's job)."""
     from .models import Artifact, Event, FileNode, Finding, Project, ToolRun

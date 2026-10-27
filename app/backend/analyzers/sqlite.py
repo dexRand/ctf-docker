@@ -32,13 +32,14 @@ def dump_sqlite(path: Path) -> str:
             "select name from sqlite_master where type='table' and name not like 'sqlite_%'")]
         lines: list[str] = []
         for table in tables:
-            cols = [r[1] for r in con.execute(f'pragma table_info("{table}")')]
-            if not cols:
-                continue
+            quoted = table.replace('"', '""')      # a table name can contain `"`
             try:
-                rows = con.execute(f'select * from "{table}" limit {_MAX_ROWS}').fetchall()
+                cols = [r[1] for r in con.execute(f'pragma table_info("{quoted}")')]
+                if not cols:
+                    continue
+                rows = con.execute(f'select * from "{quoted}" limit {_MAX_ROWS}').fetchall()
             except sqlite3.Error:
-                continue
+                continue                            # skip this table, not the database
             values: list[str] = []
             for row in rows:
                 for value in row:
@@ -70,7 +71,9 @@ class SqliteAnalyzer(Analyzer):
 
     def run(self, ctx: ToolContext) -> ToolResult:
         try:
-            if ctx.input.open("rb").read(16) != _SQLITE_MAGIC:
+            with ctx.input.open("rb") as fh:
+                magic = fh.read(16)
+            if magic != _SQLITE_MAGIC:
                 return ToolResult(self.name, status="skipped", summary="not a SQLite database")
         except OSError:
             return ToolResult(self.name, status="skipped", summary="unreadable")

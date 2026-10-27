@@ -79,69 +79,6 @@ def _next_chunk_type(buf: bytearray, start: int) -> int | None:
     return None
 
 
-_ZSTD_MAGIC = b"\x28\xb5\x2f\xfd"
-
-
-def _chunk(ctype: bytes, payload: bytes) -> bytes:
-    return (struct.pack(">I", len(payload)) + ctype + payload
-            + struct.pack(">I", zlib.crc32(ctype + payload) & 0xFFFFFFFF))
-
-
-def _idat_bytes(data: bytes) -> bytes:
-    pos, out = 8, bytearray()
-    while pos + 8 <= len(data):
-        length = struct.unpack(">I", data[pos:pos + 4])[0]
-        ctype = data[pos + 4:pos + 8]
-        if ctype == b"IDAT":
-            out += data[pos + 8:pos + 8 + length]
-        pos += 12 + length
-        if ctype == b"IEND":
-            break
-    return bytes(out)
-
-
-def _zstd_decompress(blob: bytes) -> bytes | None:
-    if not shutil.which("zstd"):
-        return None
-    fd, name = tempfile.mkstemp(suffix=".zst")
-    os.close(fd)
-    try:
-        Path(name).write_bytes(blob)
-        r = subprocess.run(["zstd", "-d", "-c", "-q", name], capture_output=True, timeout=120)
-        return r.stdout if r.returncode == 0 and r.stdout else None
-    finally:
-        Path(name).unlink(missing_ok=True)
-
-
-def rebuild_zstd_png(data: bytes, log: list[str]) -> bytes | None:
-    """miniscule.png class: the IDAT is a zstd stream of raw PNG scanlines and
-    the IHDR lies about the size (3x32 for an 800x800 image). Decompress it and
-    rebuild a PNG that actually decodes, so OCR/vision can read the content."""
-    idat = _idat_bytes(data)
-    if not idat.startswith(_ZSTD_MAGIC):
-        return None
-    raw = _zstd_decompress(idat)
-    if not raw:
-        log.append("zstd IDAT: decompression failed (zstd missing?)")
-        return None
-    # usual layouts, square-ish: RGB, RGBA, gray (one filter byte per row)
-    for ch, ctype in ((3, 2), (4, 6), (1, 0)):
-        w = math.isqrt(max(1, len(raw) // ch))
-        while w > 1 and len(raw) % (w * ch + 1):
-            w -= 1
-        if w <= 1 or len(raw) % (w * ch + 1):
-            continue
-        h = len(raw) // (w * ch + 1)
-        if h < 2 or h > w * 4:
-            continue
-        ihdr = struct.pack(">IIBBBBB", w, h, 8, ctype, 0, 0, 0)
-        log.append(f"zstd IDAT: {len(raw)} bytes -> PNG {w}x{h} ({ch} channels)")
-        return (PNG_SIG + _chunk(b"IHDR", ihdr)
-                + _chunk(b"IDAT", zlib.compress(raw, 6)) + _chunk(b"IEND", b""))
-    log.append(f"zstd IDAT: decompressed {len(raw)} bytes, size unknown")
-    return None
-
-
 def repair_png(data: bytes) -> tuple[bytes, list[str]]:
     """Best-effort PNG repair: signature, corrupted chunk types/lengths, CRCs."""
     out = bytearray(data)
@@ -203,16 +140,6 @@ class PngRepairAnalyzer(Analyzer):
                      or bytes(data[12:16]) == b'C"DR')
         if not looks_png:
             return ToolResult(self.name, status="skipped", summary="not a PNG")
-        log: list[str] = []
-        rebuilt = rebuild_zstd_png(data, log)
-        if rebuilt:
-            out = ctx.sub(self.name) / (ctx.input.name + ".zstd.png")
-            out.write_bytes(rebuilt)
-            return ToolResult(self.name, status="done", output="\n".join(log),
-                              summary="PNG rebuilt from a zstd IDAT",
-                              extracted=[str(out)],
-                              artifacts=[{"name": out.name, "path": str(out),
-                                          "size": out.stat().st_size}])
         fixed, log = repair_png(data)
         if fixed[:8] != PNG_SIG:
             return ToolResult(self.name, status="skipped", summary="not repairable")
@@ -232,69 +159,116 @@ register(PngChunksAnalyzer())
 register(PngRepairAnalyzer())
 
 
+_IDAT_MAX = 256 << 20        # a decoded IDAT above this is a bomb, not a picture
+
+
+def _chunk(ctype: bytes, payload: bytes) -> bytes:
+    return (struct.pack(">I", len(payload)) + ctype + payload
+            + struct.pack(">I", zlib.crc32(ctype + payload) & 0xFFFFFFFF))
+
+
+def _idat_bytes(data: bytes) -> bytes:
+    pos, out = 8, bytearray()
+    while pos + 8 <= len(data):
+        length = struct.unpack(">I", data[pos:pos + 4])[0]
+        ctype = data[pos + 4:pos + 8]
+        if ctype == b"IDAT":
+            out += data[pos + 8:pos + 8 + length]
+        pos += 12 + length
+        if ctype == b"IEND":
+            break
+    return bytes(out)
+
+
+def _zstd_limited(blob: bytes, limit: int, tmpdir: Path) -> bytes | None:
+    """zstd -d with a hard output cap (a decompression bomb must not fill RAM)."""
+    if not shutil.which("zstd"):
+        return None
+    tmpdir.mkdir(parents=True, exist_ok=True)
+    tmp = tmpdir / "idat.bin"
+    tmp.write_bytes(blob)
+    try:
+        proc = subprocess.Popen(["zstd", "-d", "-c", "-q", str(tmp)],
+                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        try:
+            return proc.stdout.read(limit + 1) or None
+        finally:
+            proc.kill()
+            proc.wait(timeout=10)
+    except OSError:
+        return None
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def rebuild_idat_png(data: bytes, log: list[str], tmpdir: Path) -> bytes | None:
+    """Rebuild a PNG whose IDAT is zstd/raw deflate instead of zlib.
+
+    The IHDR can lie about the size (miniscule: 3x32 for an 800x800 image), so
+    the width/height are inferred from the decompressed scanlines."""
+    idat = _idat_bytes(data)
+    if not idat:
+        return None
+    try:
+        zlib.decompressobj().decompress(idat, 64)
+        return None                              # a normal zlib IDAT
+    except zlib.error:
+        pass
+    raw, how = _zstd_limited(idat, _IDAT_MAX, tmpdir), "zstd"
+    if not raw:
+        try:
+            raw = zlib.decompressobj(-15).decompress(idat, _IDAT_MAX + 1)
+            how = "raw deflate"
+        except zlib.error:
+            raw = None
+    if not raw:
+        log.append("IDAT: not zlib/zstd/deflate")
+        return None
+    if len(raw) > _IDAT_MAX:
+        log.append(f"IDAT: decompresses over {_IDAT_MAX >> 20} MiB")
+        return None
+    for ch, ctype in ((3, 2), (4, 6), (1, 0)):
+        w = math.isqrt(max(1, len(raw) // ch))
+        while w > 1 and len(raw) % (w * ch + 1):
+            w -= 1
+        if w <= 1 or len(raw) % (w * ch + 1):
+            continue
+        h = len(raw) // (w * ch + 1)
+        if h < 2 or h > w * 4:
+            continue
+        log.append(f"IDAT: {len(raw)} B ({how}) -> PNG {w}x{h} ({ch} channels)")
+        ihdr = struct.pack(">IIBBBBB", w, h, 8, ctype, 0, 0, 0)
+        return (PNG_SIG + _chunk(b"IHDR", ihdr)
+                + _chunk(b"IDAT", zlib.compress(raw, 6)) + _chunk(b"IEND", b""))
+    log.append(f"IDAT: decompressed {len(raw)} B, size unknown")
+    return None
+
+
 class PngIdatAnalyzer(Analyzer):
     """PNG whose IDAT is not zlib (e.g. zstd): TJCTF 2023 "miniscule".
 
     A normal PNG compresses IDAT with zlib. When that fails, try zstd / raw
-    deflate, rebuild a valid PNG from the decompressed scanlines and hand it to
-    the pipeline so OCR/vision can read whatever is drawn in it.
+    deflate, rebuild a valid PNG from the decompressed scanlines (inferring the
+    real size) and hand it to the pipeline so OCR/vision can read it.
     """
     name = "png-idat"
     category = "steg"
     description = "PNG with a non-zlib IDAT (zstd / raw deflate): rebuild a valid PNG."
     accepts = (".png",)
-    display_order = 336
-
-    @staticmethod
-    def _chunk(t: bytes, c: bytes) -> bytes:
-        return struct.pack(">I", len(c)) + t + c + struct.pack(">I", zlib.crc32(t + c) & 0xFFFFFFFF)
+    display_order = 334
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        data = ctx.input.read_bytes()
+        try:
+            data = ctx.input.read_bytes()
+        except OSError:
+            return ToolResult(self.name, status="skipped", summary="unreadable")
         if data[:8] != PNG_SIG:
             return ToolResult(self.name, status="skipped", summary="not a PNG")
-        pos, ihdr, idat = 8, None, b""
-        while pos + 8 <= len(data):
-            try:
-                length = struct.unpack(">I", data[pos:pos + 4])[0]
-            except struct.error:
-                break
-            ctype = data[pos + 4:pos + 8]
-            chunk = data[pos + 8:pos + 8 + length]
-            if ctype == b"IHDR":
-                ihdr = chunk
-            elif ctype == b"IDAT":
-                idat += chunk
-            elif ctype == b"IEND":
-                break
-            pos += 12 + length
-        if not ihdr or not idat:
-            return ToolResult(self.name, status="skipped", summary="no IHDR/IDAT")
-        try:
-            zlib.decompress(idat)
-            return ToolResult(self.name, status="skipped", summary="standard zlib IDAT")
-        except zlib.error:
-            pass
-        raw, how = None, ""
-        tmp = ctx.sub(self.name) / "idat.bin"
-        tmp.parent.mkdir(parents=True, exist_ok=True)
-        tmp.write_bytes(idat)
-        try:
-            proc = subprocess.run(["zstd", "-d", "-c", str(tmp)],
-                                  capture_output=True, timeout=180)
-            if proc.returncode == 0 and proc.stdout:
-                raw, how = proc.stdout, "zstd"
-        except Exception:
-            pass
-        if raw is None:
-            try:
-                raw, how = zlib.decompress(idat, -15), "raw deflate"
-            except zlib.error:
-                raw = None
-        if not raw:
-            return ToolResult(self.name, status="skipped", summary="IDAT not zlib/zstd/deflate")
-        png = (PNG_SIG + self._chunk(b"IHDR", ihdr)
-               + self._chunk(b"IDAT", zlib.compress(raw, 9)) + self._chunk(b"IEND", b""))
+        log: list[str] = []
+        png = rebuild_idat_png(data, log, ctx.sub(self.name))
+        if not png:
+            return ToolResult(self.name, status="skipped", summary="IDAT is zlib or unknown",
+                              output="\n".join(log))
         out = ctx.sub(self.name) / (ctx.input.stem + ".idat.png")
         out.write_bytes(png)
         try:                                   # normalise so OCR reads it reliably
@@ -305,8 +279,8 @@ class PngIdatAnalyzer(Analyzer):
         except Exception:
             pass
         return ToolResult(self.name, status="done",
-                          summary=f"IDAT rebuilt from {how}",
-                          output=f"decompressed {len(raw)} B with {how}",
+                          summary=log[-1] if log else "IDAT rebuilt",
+                          output="\n".join(log),
                           extracted=[str(out)],
                           artifacts=[{"name": out.name, "path": str(out),
                                       "size": out.stat().st_size}])

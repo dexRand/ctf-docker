@@ -22,7 +22,7 @@ class PngPixelsAnalyzer(Analyzer):
     category = "steg"
     description = "Decode data hidden in low-bit-depth / palette PNG pixel values."
     accepts = (".png", "image/png")
-    display_order = 337
+    display_order = 333
 
     def run(self, ctx: ToolContext) -> ToolResult:
         try:

@@ -1,8 +1,6 @@
 """QR / barcode decoder (zbarimg)."""
 from __future__ import annotations
 
-import shutil
-import tempfile
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, out_of, which
@@ -53,15 +51,11 @@ class QrAnalyzer(Analyzer):
         proc = ctx.run(["zbarimg", "--quiet", "--raw", str(ctx.input)], timeout=120)
         out = out_of(proc)
         if not out.strip():
-            tmpdir = Path(tempfile.mkdtemp(prefix="stegsuite-qr-"))
-            try:
-                for img in _deblurred(ctx.input, tmpdir):
-                    proc = ctx.run(["zbarimg", "--quiet", "--raw", str(img)], timeout=60)
-                    out = out_of(proc)
-                    if out.strip():
-                        break
-            finally:
-                shutil.rmtree(tmpdir, ignore_errors=True)
+            for img in _deblurred(ctx.input, ctx.sub(self.name)):
+                proc = ctx.run(["zbarimg", "--quiet", "--raw", str(img)], timeout=60)
+                out = out_of(proc)
+                if out.strip():
+                    break
         if not out.strip():
             # zbarimg exits 4 when no symbol is found: informational, not an error
             return ToolResult(self.name, status="skipped", summary="no QR/barcode",

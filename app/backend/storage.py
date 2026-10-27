@@ -97,29 +97,7 @@ def save_upload(pid: str, filename: str, src: BinaryIO) -> dict:
 # magic bytes -> media type. Content beats the file name: an extracted file
 # often has no (or a lying) extension, and the UI needs the real type to pick a
 # preview instead of falling back to "download".
-_MAGIC = [
-    (b"\x89PNG\r\n\x1a\n", "image/png"),
-    (b"\xff\xd8\xff", "image/jpeg"),
-    (b"GIF87a", "image/gif"),
-    (b"GIF89a", "image/gif"),
-    (b"BM", "image/bmp"),
-    (b"II*\x00", "image/tiff"),
-    (b"MM\x00*", "image/tiff"),
-    (b"%PDF-", "application/pdf"),
-    (b"PK\x03\x04", "application/zip"),
-    (b"PK\x05\x06", "application/zip"),
-    (b"\x1f\x8b", "application/gzip"),
-    (b"7z\xbc\xaf\x27\x1c", "application/x-7z-compressed"),
-    (b"Rar!\x1a\x07", "application/vnd.rar"),
-    (b"\x7fELF", "application/x-elf"),
-    (b"MZ", "application/x-dosexec"),
-    (b"OggS", "audio/ogg"),
-    (b"fLaC", "audio/flac"),
-    (b"ID3", "audio/mpeg"),
-    (b"\xff\xfb", "audio/mpeg"),
-    (b"SQLite format 3\x00", "application/vnd.sqlite3"),
-    (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", "application/x-ole-storage"),
-]
+from .magic import mime_of
 
 
 def sniff_mime(path: Path) -> str | None:
@@ -129,9 +107,9 @@ def sniff_mime(path: Path) -> str | None:
             head = fh.read(8192)
     except OSError:
         return mimetypes.guess_type(str(path))[0]
-    for sig, mime in _MAGIC:
-        if head.startswith(sig):
-            return mime
+    mime = mime_of(head)
+    if mime:
+        return mime
     if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
         return "image/webp"
     if head[:4] == b"RIFF" and head[8:12] == b"WAVE":

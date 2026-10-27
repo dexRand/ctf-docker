@@ -193,8 +193,11 @@ class EasAnalyzer(Analyzer):
         if not which("multimon-ng"):
             return ToolResult(self.name, status="skipped", summary="multimon-ng not installed")
         wav = ctx.sub(self.name) / "audio.wav"
-        ctx.run(["ffmpeg", "-y", "-i", str(ctx.input), "-ac", "1", "-ar", "22050", str(wav)],
-                timeout=300)
+        conv = ctx.run(["ffmpeg", "-y", "-i", str(ctx.input), "-ac", "1", "-ar", "22050", str(wav)],
+                       timeout=300)
+        if conv.returncode != 0 or not wav.is_file():
+            return ToolResult(self.name, status="skipped",
+                              summary="cannot decode the audio (ffmpeg)")
         parts: list[str] = []
         for mode in ("EAS", "AFSK1200", "AFSK2400", "FSK9600"):
             proc = ctx.run(["multimon-ng", "-t", "wav", "-a", mode, "-q", str(wav)], timeout=300)

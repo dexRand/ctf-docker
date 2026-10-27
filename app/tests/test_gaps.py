@@ -9,7 +9,7 @@ import pytest
 from PIL import Image
 
 from backend.analyzers.pcap import evil_bit_streams, repaired_pcap
-from backend.analyzers.png import PNG_SIG, rebuild_zstd_png
+from backend.analyzers.png import PNG_SIG, rebuild_idat_png
 from backend.analyzers.vision import _confusable_variants
 
 
@@ -42,12 +42,12 @@ def test_rebuild_zstd_png_leaves_a_normal_png_alone(tmp_path):
     buf = io.BytesIO()
     Image.new("RGB", (3, 3), (1, 2, 3)).save(buf, format="PNG")
     log: list[str] = []
-    assert rebuild_zstd_png(buf.getvalue(), log) is None
+    assert rebuild_idat_png(buf.getvalue(), log, tmp_path / "w") is None
     assert log == []
 
 
 @pytest.mark.skipif(not shutil.which("zstd"), reason="zstd not installed")
-def test_rebuild_zstd_png_from_lying_ihdr():
+def test_rebuild_zstd_png_from_lying_ihdr(tmp_path):
     # 4x4 RGB scanlines (filter byte 0 + pixels), compressed with zstd and put
     # into a PNG whose IHDR claims 1x1 (the picoCTF "miniscule" trick)
     raw = b"".join(b"\x00" + b"\x10\x20\x30" * 4 for _ in range(4))
@@ -60,12 +60,12 @@ def test_rebuild_zstd_png_from_lying_ihdr():
     png = (PNG_SIG + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
            + chunk(b"IDAT", zst) + chunk(b"IEND", b""))
     log: list[str] = []
-    out = rebuild_zstd_png(png, log)
+    out = rebuild_idat_png(png, log, tmp_path / "w")
     assert out and out.startswith(PNG_SIG)
     im = Image.open(io.BytesIO(out))
     assert im.size == (4, 4)
     assert im.getpixel((0, 0)) == (0x10, 0x20, 0x30)
-    assert any("zstd IDAT" in line for line in log)
+    assert any(line.startswith("IDAT:") for line in log)
 
 
 def test_repaired_pcap_fixes_magic_and_record_lengths():

@@ -9,8 +9,8 @@ keeping the printable reads that contain a flag yields the plaintext.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
+from ..flagpatterns import FLAG_PREFIXES
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
 
@@ -19,7 +19,8 @@ _OP = re.compile(r"^(Add|Remove)\s+(.+?)\s+(?:to|from)\s+", re.I)
 _FLAG = re.compile(r"[A-Za-z0-9_.-]{2,}\{[ -~]{2,}\}")
 # a decoding is only trusted when it starts with a known CTF prefix: the
 # brute force produces dozens of printable strings that contain braces
-_KNOWN = re.compile(r"(?i)^(picoCTF|DUCTF|SEKAI|ITS|flag|CTF|HTB|tjctf|ictf|lactf|uiuctf|uiuctf|hxp|corctf|amateursCTF|buckeye|wctf)\{")
+_PREFIXES = tuple(FLAG_PREFIXES) + ("hxp", "amateursCTF", "buckeye")
+_KNOWN = re.compile(r"(?i)^(" + "|".join(re.escape(p) for p in _PREFIXES) + r")\{")
 _CLEAN = re.compile(r"^[A-Za-z0-9_{}!@#$%^&*()+=:;,.?/ \-]+$")
 
 

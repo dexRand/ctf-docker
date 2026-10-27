@@ -46,6 +46,9 @@ def _detect_ext(ftype: str) -> str:
         ("wave audio", ".wav"), ("mpeg audio", ".mp3"), ("mp3", ".mp3"),
         ("flac", ".flac"), ("ogg", ".ogg"), ("iso media", ".mp4"),
         ("ms windows vista event log", ".evtx"),
+        ("sqlite 3.x database", ".sqlite"),
+        ("pcap capture file", ".pcap"), ("pcapng capture file", ".pcap"),
+        ("ms windows registry file", ".regf"),
     ):
         if key in low:
             return ext
@@ -67,9 +70,9 @@ CAPTURE_EXT = (".pcap", ".pcapng", ".cap")
 # another decoder's output is mostly noise (it made the recursion explode).
 STEG_DECODERS = {"zsteg", "bit-planes", "png-pixels", "lsb-carve", "channel-remap",
                  "image-enhance", "psimage", "gif-frames", "blobs", "decode",
-                 "image-repair", "png-repair"}
+                 "image-repair", "png-repair", "png-idat"}
 IMG_DECODERS = {"zsteg", "bit-planes", "png-pixels", "lsb-carve", "channel-remap",
-                "image-enhance", "psimage", "image-repair", "png-repair"}
+                "image-enhance", "psimage", "image-repair", "png-repair", "png-idat"}
 
 
 def origin_tool(origin: str) -> str:

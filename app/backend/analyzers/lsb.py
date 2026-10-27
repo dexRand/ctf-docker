@@ -35,8 +35,7 @@ def lsb_stream(arr, spec: str) -> bytes:
     a = arr[:, :, [_CHAN[c] for c in chans]]
     planes = [(a >> b) & 1 for b in range(n - 1, -1, -1)]
     bits = np.stack(planes, axis=-1).reshape(-1)
-    bits = bits[: len(bits) - len(bits) % 8]
-    return np.packbits(bits, bitorder="big" if order == "lsb" else "little").tobytes()
+    return _pack_bits(bits, "big" if order == "lsb" else "little")
 
 
 def _rgba_head(path: Path, max_pixels: int = _MAX_NUMPY_PIXELS):
@@ -154,16 +153,27 @@ class StepicAnalyzer(Analyzer):
 register(StepicAnalyzer())
 
 
-_MSB_PREFIXES = (b"picoCTF{", b"flag{", b"FLAG{", b"ITS{", b"CTF{", b"HTB{")
+from ..flagpatterns import FLAG_PREFIXES
+_MSB_PREFIXES = tuple((p + "{").encode() for p in FLAG_PREFIXES) + \
+    tuple((p.upper() + "{").encode() for p in FLAG_PREFIXES)
+
+
+def _pack_bits(bits, bitorder: str) -> bytes:
+    """Pack a bit array MSB/LSB first (shared by the LSB and MSB streams)."""
+    import numpy as np
+    bits = bits[: len(bits) - len(bits) % 8]
+    return np.packbits(bits, bitorder=bitorder).tobytes()
+
+
+def plane_stream(arr, chans: str, bit: int, bitorder: str) -> bytes:
+    """One bit plane of the given channels, packed into bytes."""
+    a = arr[:, :, [_CHAN[c] for c in chans]]
+    return _pack_bits(((a >> bit) & 1).reshape(-1), bitorder)
 
 
 def msb_stream(arr, chans: str, bitorder: str) -> bytes:
     """The bit 7 (MSB) of the given channels, packed into bytes."""
-    import numpy as np
-    a = arr[:, :, [_CHAN[c] for c in chans]]
-    bits = ((a >> 7) & 1).reshape(-1)
-    bits = bits[: len(bits) - len(bits) % 8]
-    return np.packbits(bits, bitorder=bitorder).tobytes()
+    return plane_stream(arr, chans, 7, bitorder)
 
 
 def find_msb_flag(arr) -> list[str]:
@@ -200,17 +210,12 @@ class MsbBitsAnalyzer(Analyzer):
     def run(self, ctx: ToolContext) -> ToolResult:
         try:
             import numpy as np
-            from PIL import Image
         except Exception as exc:
-            return ToolResult(self.name, status="skipped", summary=f"PIL/numpy missing: {exc}")
-        try:
-            im = Image.open(ctx.input).convert("RGBA")
-            im.load()
-        except Exception as exc:
-            return ToolResult(self.name, status="skipped", summary=f"cannot open image: {exc}")
-        if im.width * im.height > self.MAX_PIXELS:
-            return ToolResult(self.name, status="skipped", summary="image too big")
-        flags = find_msb_flag(np.asarray(im))
+            return ToolResult(self.name, status="skipped", summary=f"numpy missing: {exc}")
+        arr = _rgba_head(ctx.input, max_pixels=self.MAX_PIXELS)
+        if arr is None:
+            return ToolResult(self.name, status="skipped", summary="not an RGB/RGBA image")
+        flags = find_msb_flag(arr)
         if not flags:
             return ToolResult(self.name, status="skipped", summary="no MSB-encoded flag")
         return ToolResult(self.name, status="done", summary=f"{len(flags)} MSB flag(s)",

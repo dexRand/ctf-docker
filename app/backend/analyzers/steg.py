@@ -108,7 +108,7 @@ class OpenStegoAnalyzer(Analyzer):
     description = "Extract data embedded with OpenStego (unencrypted or with a known password)."
     needs_password = True
     accepts = (".png", ".bmp", ".gif", ".jpg", ".jpeg", ".tiff", ".tif")
-    display_order = 340
+    display_order = 341
 
     def run(self, ctx: ToolContext) -> ToolResult:
         if not which("openstego"):

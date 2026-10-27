@@ -9,11 +9,13 @@ candidate order/shift, then decode forward from there.
 """
 from __future__ import annotations
 
+from ..flagpatterns import FLAG_PREFIXES
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
-from .util import IMG_EXT
+from .util import IMG_EXT, bits_to_ints
 
-_PREFIXES = ["picoCTF{", "flag{", "FLAG{", "ITS{", "CTF{", "ctf{", "HTB{"]
+# every known prefix, both cases (the bit search is case-sensitive)
+_PREFIXES = [p + "{" for p in FLAG_PREFIXES] + [p.upper() + "{" for p in FLAG_PREFIXES]
 _MAX_BYTES = 8_000_000
 
 
@@ -23,16 +25,17 @@ def _char_bits(v: int, lsb_first: bool) -> str:
     return "".join("1" if (v >> i) & 1 else "0" for i in order)
 
 
-def _decode(bits: str, start: int, lsb_first: bool, shift: int, cap: int = 160) -> str:
+def _decode(bits, start: int, lsb_first: bool, shift: int, cap: int = 400) -> str:
+    """Decode up to `cap` chars from bit `start` (numpy: millions of bits)."""
+    seg = bits[start:start + 8 * cap]
+    n = len(seg) // 8
+    if not n:
+        return ""
+    rows = seg[:n * 8].reshape(n, 8)
+    if lsb_first:
+        rows = rows[:, ::-1]                  # bit 0 first in each character
     out: list[str] = []
-    for k in range(cap):
-        chunk = bits[start + k * 8: start + k * 8 + 8]
-        if len(chunk) < 8:
-            break
-        v = 0
-        for j, c in enumerate(chunk):
-            if c == "1":
-                v |= (1 << j) if lsb_first else (1 << (7 - j))
+    for v in bits_to_ints(rows.reshape(-1).copy(), 8):
         ch = chr((v + shift) & 0xFF)
         out.append(ch)
         if ch == "}":
@@ -41,14 +44,16 @@ def _decode(bits: str, start: int, lsb_first: bool, shift: int, cap: int = 160) 
 
 
 def find_lsb_flags(raw: bytes) -> list[str]:
-    bits = "".join("1" if b & 1 else "0" for b in raw)
+    import numpy as np
+    bits = np.frombuffer(raw, dtype=np.uint8) & 1      # the LSB plane, as 0/1
+    as_text = (bits + 48).tobytes()                    # b"0101..." for the search
     found: list[str] = []
     seen: set[str] = set()
     for lsb_first in (True, False):
         for shift in range(32):
             for pre in _PREFIXES:
                 enc = "".join(_char_bits((ord(c) - shift) & 0xFF, lsb_first) for c in pre)
-                start = bits.find(enc)
+                start = as_text.find(enc.encode())
                 if start == -1:
                     continue
                 text = _decode(bits, start, lsb_first, shift)

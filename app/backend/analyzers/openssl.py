@@ -23,7 +23,7 @@ class OpensslAnalyzer(Analyzer):
         if not which("openssl"):
             return ToolResult(self.name, status="skipped", summary="openssl not installed")
         try:
-            if ctx.input.read_bytes()[:8] != b"Salted__":
+            if ctx.input.open("rb").read(8) != b"Salted__":
                 return ToolResult(self.name, status="skipped", summary="not an OpenSSL salted file")
         except OSError as exc:
             return ToolResult(self.name, status="skipped", summary=f"cannot read: {exc}")

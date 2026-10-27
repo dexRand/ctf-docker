@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from .api import routers
 from .auth import authorized
 from .config import API_KEY, VERSION, rate_limit
-from .db import init_db
+from .db import backfill_mime, init_db
 from .ratelimit import client_ip, get_bucket
 from .retention import purge_old_projects
 from .storage import InvalidId
@@ -35,6 +35,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 @app.on_event("startup")
 def _startup() -> None:
     init_db()
+    backfill_mime()
     orchestrator.reconcile_orphans()
     orchestrator.dedupe_findings()
     purge_old_projects()

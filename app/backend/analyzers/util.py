@@ -122,17 +122,19 @@ def assemble_flag_fragments(pieces: list[str]) -> list[str]:
 
 # --- magic bytes --------------------------------------------------------------
 # (signature, extension); longer/more specific signatures first
-MAGICS = (
-    (b"\x89PNG\r\n\x1a\n", ".png"), (b"\xff\xd8\xff", ".jpg"), (b"GIF89a", ".gif"),
-    (b"GIF87a", ".gif"), (b"PK\x03\x04", ".zip"), (b"%PDF", ".pdf"), (b"\x7fELF", ".elf"),
-    (b"7z\xbc\xaf\x27\x1c", ".7z"), (b"Rar!", ".rar"), (b"\xfd7zXZ", ".xz"),
-    (b"\x1f\x8b\x08", ".gz"), (b"BZh", ".bz2"), (b"RIFF", ".wav"), (b"BM", ".bmp"),
-)
+from ..magic import MAGICS, ext_of  # one table for signatures/extensions
+
+# RIFF and a few container variants are not simple prefixes
+_RIFF = ((b"RIFF", 8, b"WAVE", ".wav"), (b"RIFF", 8, b"AVI ", ".avi"),
+         (b"RIFF", 8, b"WEBP", ".webp"))
 
 
 def magic_ext(blob: bytes) -> str:
     """Extension for a known file signature at the start of `blob`, else ""."""
-    for sig, ext in MAGICS:
-        if blob.startswith(sig):
-            return ext
+    ext = ext_of(blob)
+    if ext:
+        return ext
+    for sig, off, marker, ri in _RIFF:
+        if blob.startswith(sig) and blob[off:off + 4] == marker:
+            return ri
     return ""

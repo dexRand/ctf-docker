@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, list_files, which
 from .registry import register
+from ..magic import mime_of
 from .util import B64_TOKEN, join_b64_fragments, printable_ratio
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
@@ -23,9 +24,12 @@ PCAP_EXT = (".pcap", ".pcapng", ".cap")
 # every one into a child node makes the analysis explode (the Firefox capture
 # exports 130 of them, mostly noise). Only analysable objects become children;
 # the rest stays listed as artifacts of the capture run.
-_KEEP_MAGIC = (b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"BM", b"II*\x00", b"MM\x00*",
-               b"RIFF", b"%PDF", b"PK\x03\x04", b"\x1f\x8b", b"7z\xbc\xaf", b"Rar!",
-               b"SQLite format 3", b"\x7fELF", b"MZ", b"BZh", b"\xfd7zXZ")
+# signatures worth a child node: images, documents, archives, executables,
+# databases; audio/video objects are noise (and heavy to analyse)
+_KEEP_MIME = ("image/", "application/pdf", "application/zip", "application/x-7z",
+              "application/vnd.rar", "application/gzip", "application/x-bzip2",
+              "application/x-xz", "application/x-elf", "application/x-dosexec",
+              "application/vnd.sqlite3", "application/x-ole-storage")
 _MAX_OBJECT = 4 << 20
 
 
@@ -34,13 +38,14 @@ def analysable_object(path: Path) -> bool:
     child node; DER certificates, video segments and other blobs are noise."""
     try:
         size = path.stat().st_size
-        head = path.read_bytes()[:64]
+        head = path.open("rb").read(64)
     except OSError:
         return False
     if size < 16 or size > _MAX_OBJECT:
         return False
-    if any(head.startswith(m) for m in _KEEP_MAGIC):
-        return True
+    mime = mime_of(head)
+    if mime:
+        return mime.startswith(_KEEP_MIME)
     return printable_ratio(head) > 0.9          # JSON, HTML, plain text
 
 
@@ -345,7 +350,13 @@ class PcapAnalyzer(Analyzer):
         if not which("tshark"):
             return ToolResult(self.name, status="skipped", summary="tshark not installed")
         cap = ctx.input
-        fixed = repaired_pcap(cap.read_bytes())
+        fixed = None
+        try:
+            magic = cap.open("rb").read(4)
+            if magic not in _PCAP_MAGICS and cap.stat().st_size <= 512 << 20:
+                fixed = repaired_pcap(cap.read_bytes())
+        except OSError:
+            fixed = None
         if fixed:
             cap = ctx.sub(self.name) / "repaired.pcap"
             cap.write_bytes(fixed)

@@ -13,6 +13,7 @@ from pathlib import Path, PurePosixPath
 from .base import Analyzer, ToolContext, ToolResult, run_cmd, which
 from .registry import register
 from .util import magic_ext, printable_ratio
+from .. import storage
 
 DISK_EXT = (".img", ".dd", ".raw", ".iso", ".vhd", ".vmdk", ".gz")
 _MAX_FILES = 40
@@ -21,6 +22,26 @@ _MAX_CANDIDATES = 400
 _MAX_LISTING = 20000
 
 _FLS_RE = re.compile(r"^([rdv])/([rdv\-])[a-z\-/]*\s+\*?\s*(\d+):\s*(.*)$")
+_MAX_IMAGE = 4 << 30          # 4 GiB: a bigger "disk image" is a decompression bomb
+_HEAD = 1 << 17               # enough for the MBR/GPT and every FS superblock
+
+
+def _looks_disk(head: bytes) -> bool:
+    """MBR/GPT or a filesystem superblock in the first 128 KiB."""
+    if len(head) >= 512 and head[510:512] == b"\x55\xaa":
+        return True                                   # MBR boot signature
+    checks = (
+        (512, b"EFI PART"),                           # GPT
+        (3, b"NTFS    "),                             # NTFS
+        (54, b"FAT12"), (54, b"FAT16"), (82, b"FAT32"),  # FAT
+        (1080, b"\x53\xef"),                          # ext2/3/4
+        (0, b"XFSB"),                                 # XFS
+        (65600, b"_BHRfS_M"),                         # btrfs
+        (32769, b"CD001"),                            # ISO 9660
+        (1024, b"H+"),                                # HFS+
+    )
+    return any(len(head) >= off + len(sig) and head[off:off + len(sig)] == sig
+               for off, sig in checks)
 
 
 def _is_gzip(path: Path) -> bool:
@@ -44,9 +65,23 @@ def _decompress(ctx: ToolContext) -> Path | None:
                      else name + ".img")
     try:
         with gzip.open(ctx.input, "rb") as src, open(dest, "wb") as out:
+            head = src.read(_HEAD)
+            if not _looks_disk(head):
+                # most .gz files here are tar.gz/bombs: stop before unpacking
+                out.close()
+                dest.unlink(missing_ok=True)
+                return None
+            out.write(head)
+            total = len(head)
             while chunk := src.read(1 << 20):
+                total += len(chunk)
+                if total > _MAX_IMAGE:
+                    out.close()
+                    dest.unlink(missing_ok=True)
+                    return None
                 out.write(chunk)
-    except OSError:
+    except (OSError, EOFError):
+        dest.unlink(missing_ok=True)
         return None
     return dest
 
@@ -99,7 +134,7 @@ class DiskAnalyzer(Analyzer):
     category = "forensics"
     description = "Disk image (sleuthkit): list partitions/files and extract readable files."
     accepts = DISK_EXT
-    display_order = 340
+    display_order = 342
 
     def run(self, ctx: ToolContext) -> ToolResult:
         if not which("fls") or not which("icat"):
@@ -141,7 +176,7 @@ class DiskAnalyzer(Analyzer):
                     or score >= 50 or data.startswith(b"Salted__"))
             if not keep:
                 continue
-            name = PurePosixPath(path).name or f"inode{inode}"
+            name = storage.sanitize_name(PurePosixPath(path).name or f"inode{inode}")
             dest = outdir / f"{inode:06d}__{name}"
             dest.write_bytes(data)
             produced.append(dest)

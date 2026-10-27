@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 import shutil
-import subprocess
+import time
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, which
@@ -51,8 +51,9 @@ class SamAnalyzer(Analyzer):
             if "system" in name or "sys" in name:
                 return path
             try:
-                if _SYSTEM_MARK in path.open("rb").read(1 << 20):
-                    return path
+                with path.open("rb") as fh:
+                    if _SYSTEM_MARK in fh.read(1 << 20):
+                        return path
             except OSError:
                 continue
         return None
@@ -66,7 +67,8 @@ class SamAnalyzer(Analyzer):
 
     def run(self, ctx: ToolContext) -> ToolResult:
         try:
-            head = ctx.input.open("rb").read(1 << 20)
+            with ctx.input.open("rb") as fh:
+                head = fh.read(1 << 20)
         except OSError:
             return ToolResult(self.name, status="skipped", summary="unreadable")
         if head[:4] != _REGF or _SAM_MARK not in head or b"Account" not in head:
@@ -95,13 +97,8 @@ class SamAnalyzer(Analyzer):
                           output="\n".join(lines))
 
     def _crack(self, hashes: dict[str, str], ctx: ToolContext) -> dict[str, str]:
-        wordlists: list[Path] = []
-        rock = Path("/opt/wordlists/rockyou.txt")
-        if rock.is_file():
-            wordlists.append(rock)
-        for d in (Path("/wordlists"), Path("/data/wordlists")):
-            if d.is_dir():
-                wordlists += sorted(p for p in d.iterdir() if p.is_file() and p.stat().st_size > 0)[:8]
+        # the shared resolver also sees the wordlists uploaded by the user
+        wordlists = [p for p in cracking.resolve_wordlists() if p.is_file()]
         if not wordlists:
             return {}
         tmp = Path(ctx.sub(self.name))
@@ -109,9 +106,14 @@ class SamAnalyzer(Analyzer):
         hf.write_text("\n".join(hashes.values()) + "\n", encoding="utf-8")
         pot = tmp / "sam-nt.pot"
         found: dict[str, str] = {}
-        for wl in wordlists:
+        deadline = time.time() + 240          # a miss must not stall the analysis
+        for wl in sorted(wordlists, key=lambda p: p.stat().st_size):
+            left = int(deadline - time.time())
+            if left <= 5:
+                break
             ctx.run(cracking.hashcat_args(1000, str(hf), wordlist=str(wl),
-                                          potfile=str(pot), runtime=120), timeout=180)
+                                          potfile=str(pot), runtime=min(90, left)),
+                    timeout=min(150, left + 30))
             found = self._show(hf, pot, hashes)
             if len(found) == len(hashes):
                 break
@@ -119,17 +121,13 @@ class SamAnalyzer(Analyzer):
 
     @staticmethod
     def _show(hf: Path, pot: Path, hashes: dict[str, str]) -> dict[str, str]:
-        show = subprocess.run(["hashcat", "-m", "1000", str(hf), "--show",
-                               "--potfile-path", str(pot)],
-                              capture_output=True, text=True, timeout=60)
+        from .base import run_cmd
+        show = run_cmd(["hashcat", "-m", "1000", str(hf), "--show",
+                        "--potfile-path", str(pot)], timeout=60)
         found: dict[str, str] = {}
-        by_hash = {h: u for u, h in hashes.items()}
-        for line in (show.stdout or "").splitlines():
-            if ":" not in line:
-                continue
-            h, pw = line.rsplit(":", 1)
-            user = by_hash.get(h.strip().lower())
-            if user:
+        for user, h in hashes.items():
+            pw = cracking._pot_password(show.stdout or "", h)
+            if pw:
                 found[user] = pw
         return found
 

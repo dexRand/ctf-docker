@@ -7,17 +7,19 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from ..flagpatterns import FLAG_PREFIXES
 from .base import Analyzer, ToolContext, ToolResult, run_cmd
 from ..config import OCR_EXTRA_LANGS, OCR_LANGS, OCR_MAX_DIM
 from .registry import register
 from .util import IMG_EXT
 
-_KNOWN_FLAG = re.compile(r"(?i)(picoCTF|ITS|flag|CTF|HTB)\{[^}\n]{2,}\}")
+_PREFIX_ALT = "|".join(re.escape(p) for p in FLAG_PREFIXES)
+_KNOWN_FLAG = re.compile(r"(?i)(" + _PREFIX_ALT + r")\{[^}\n]{2,}\}")
 
 # OCR confuses 0 with O and 1 with l/I. Inside a flag body (never the prefix)
 # fix the obvious cases: O/I surrounded by lowercase, l next to a digit.
 _CONFUSE = {"O": "0", "I": "1", "@": "0"}
-_FLAG_TOKEN = re.compile(r"(?i)(picoCTF|ITS|flag|CTF|HTB|SEKAI|DUCTF|tjctf|ictf|lactf|uiuctf)\{([^}]{2,180})\}")
+_FLAG_TOKEN = re.compile(r"(?i)(" + _PREFIX_ALT + r")\{([^}]{2,180})\}")
 
 
 def _confusable_variants(text: str) -> str:
