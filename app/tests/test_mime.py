@@ -61,3 +61,41 @@ def test_extensionless_png_upload_is_served_as_an_image(client):
     assert content.headers["content-type"].startswith("image/png")
     # inline preview: no attachment disposition
     assert "attachment" not in content.headers.get("content-disposition", "")
+
+
+def _upload(client, name, data, mime="application/octet-stream"):
+    r = client.post("/api/v1/projects", files=[("files", (name, data, mime))],
+                    data={"mode": "check", "name": f"xss-{name}"})
+    assert r.status_code in (200, 201), r.text
+    pid = r.json()["id"]
+    node = client.get(f"/api/v1/projects/{pid}").json()["tree"][0]
+    return pid, node
+
+
+def test_html_with_binary_prefix_is_never_inline(client):
+    # a NUL in the first 8 KiB makes sniff_mime fall back to the extension
+    evil = b"<html><script>alert(1)</script>\x00</html>"
+    pid, node = _upload(client, "evil.html", evil, "text/html")
+    assert node["mime"] == "text/html"
+    r = client.get(f"/api/v1/projects/{pid}/files/{node['id']}/content")
+    assert "attachment" in r.headers.get("content-disposition", "")
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert "sandbox" in r.headers.get("content-security-policy", "")
+
+
+def test_svg_with_binary_prefix_is_never_inline(client):
+    evil = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script>\x00</svg>'
+    pid, node = _upload(client, "evil.svg", evil, "image/svg+xml")
+    assert node["mime"] == "image/svg+xml"
+    r = client.get(f"/api/v1/projects/{pid}/files/{node['id']}/content")
+    assert "attachment" in r.headers.get("content-disposition", "")
+    assert r.headers["x-content-type-options"] == "nosniff"
+
+
+def test_png_preview_is_still_inline_but_hardened(client):
+    pid, node = _upload(client, "pic.png", PNG)
+    r = client.get(f"/api/v1/projects/{pid}/files/{node['id']}/content")
+    assert r.headers["content-type"].startswith("image/png")
+    assert "attachment" not in r.headers.get("content-disposition", "")
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert "sandbox" in r.headers.get("content-security-policy", "")
