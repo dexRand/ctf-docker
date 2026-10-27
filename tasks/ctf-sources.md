@@ -43,3 +43,14 @@ aggiungerli a `EXTRA`/`GAPS`.
 2. Lanciarli con `real_challenges.py --extra --only-new -k <nome>`:
    quelli risolti vanno in `EXTRA`, gli altri in `GAPS` con la tecnica mancante.
 3. HTB: aggiungere al runner lo scompattamento degli zip con password nota.
+
+## Stato (27/10)
+
+Aggiunti 32 casi a `CANDIDATES` (`app/tests/real_challenges_extra.py`), da
+lanciare con `--candidates`. URL verificati (nessun puntatore Git LFS). Esclusi:
+- HackTheBox (cyber-apocalypse-2024/2025, business-ctf-2024): le repo hanno solo i
+  writeup con screenshot, non i file della challenge;
+- SekaiCTF 2023: flag non presenti nei file della repo;
+- BYUCTF 2024: flag placeholder (`byuctf{flag}`, `byuctf{ip.address}`) o domande;
+- OSINT/servizi/jail (TJCTF airport, ICTF zoom/significant, DUCTF beginner web/crypto);
+- DUCTF 2025 `beepbeep.wav`: puntatore Git LFS (19 byte).

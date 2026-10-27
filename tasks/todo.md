@@ -515,3 +515,8 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
 - [ ] #4 limiti di dimensione · #5 bug minori analyzer
 - [ ] #6 magic bytes unificati · #7 png.py zstd doppio · #8 prefissi/bit-plane · #9 sam/qr helper
 - [ ] #10 minori + README (70 analyzer)
+- [ ] **32 nuove CTF reali da smistare** (`CANDIDATES` in `real_challenges_extra.py`:
+      TJCTF 2025, ImaginaryCTF 2025, BuckeyeCTF 2023/24, DUCTF 2022/25, UTCTF 2024).
+      `cd app/tests && python3 real_challenges.py -j 3 --candidates --only-new --json-out …`
+      poi spostare ogni caso in `EXTRA` (risolto) o `GAPS` (tecnica mancante). 3 casi hanno
+      il handout incerto (commento nel file). Fonti e scarti: `tasks/ctf-sources.md`.

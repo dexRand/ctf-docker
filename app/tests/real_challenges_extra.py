@@ -124,3 +124,56 @@ GAPS = [
     ("warning.wav", f"{UI23}/misc/tornado_warning/warning.wav",
      "uiuctf{3rd_w0rst_tor_outbre@k_ev3r}"),                                            # SAME x3 with deliberate errors (raw demod)
 ]
+
+# Candidates harvested on 2026-10-27 from public challenge repos (file + official
+# flag from flag.txt / challenge.yaml / metadata.yaml / README, read via the
+# GitHub API). NOT run yet: `real_challenges.py --candidates --only-new`, then
+# move each case to EXTRA (solved) or GAPS (with the missing technique).
+# HackTheBox repos (cyber-apocalypse-2024/2025, business-ctf-2024) only hold
+# write-ups, not the handouts; DUCTF 2025 beepbeep.wav is a Git LFS pointer.
+TJ25 = "https://raw.githubusercontent.com/TJCSec/tjctf-2025-challenges/main"
+IC25 = "https://raw.githubusercontent.com/ImaginaryCTF/ImaginaryCTF-2025-Challenges/main"
+BK24 = "https://raw.githubusercontent.com/cscosu/buckeyectf-2024-public/master"
+BK23 = "https://raw.githubusercontent.com/cscosu/buckeyectf-2023-public/master"
+DU22 = "https://raw.githubusercontent.com/DownUnderCTF/Challenges_2022_Public/main"
+DU25 = "https://raw.githubusercontent.com/DownUnderCTF/Challenges_2025_Public/main"
+UT24 = "https://raw.githubusercontent.com/utisss/UTCTF-24/main"
+CANDIDATES = [
+    # --- TJCTF 2025 (flag: flag.txt / challenge.yaml)
+    ("tj25-albumcover.png", f"{TJ25}/forensics/album-cover/albumcover.png", "tjctf{THIS-EASTER-EGG-IS-PRETTY-COOL}"),  # audio -> image (enc.py)
+    ("tj25-deep-layers.png", f"{TJ25}/forensics/deep-layers/chall.png", "tjctf{p0lygl0t_r3bb1t_h0l3}"),  # polyglot
+    ("tj25-footprint.DS_Store", f"{TJ25}/forensics/footprint/files/.DS_Store", "tjctf{ds_store_is_useful?}"),  # .DS_Store
+    ("tj25-suspicious.png", f"{TJ25}/forensics/hidden-message/suspicious.png", "tjctf{steganography_is_fun}"),  # stego
+    ("tj25-packet-palette.pcapng", f"{TJ25}/forensics/packet-palette/chall.pcapng", "tjctf{usb1p_f13g_1ns1d3_3_pr0t0c0l}"),  # USB/IP
+    ("tj25-quant-lost.jpg", f"{TJ25}/forensics/quant/lost.jpg", "tjctf{th3_Li0n_d0esNt_qUanT1ze}"),  # handout incerto (lost.jpg vs thelion.jpg)
+    ("tj25-pietty-runme.png", f"{TJ25}/forensics/thats-pietty-cool/chall/runme.png", "tjctf{p1et_pr1nt3r}"),  # Piet
+    ("tj25-masked-qrcode.png", f"{TJ25}/misc/masked/qrcode.png", "tjctf{n0tc4tchingc0vid}"),  # QR mascherato
+    # --- ImaginaryCTF 2025 (flag: metadata.yaml / README)
+    ("ic25-dinosaur-mosaic.png", f"{IC25}/Forensics/dinosaur/challenge/reconstructed_mosaic.png", "ictf{get_baited_its_actually_an_ankylosaurus}"),  # handout incerto (mosaic vs qr_code.bmp)
+    ("ic25-nightcore.mp3", f"{IC25}/Forensics/nightcore/challenge/nightcore.mp3", "ictf{12345678}"),  # ENF (frequenza di rete): probabile gap
+    ("ic25-obfuscated-Users.zip", f"{IC25}/Forensics/obfuscated-1/dist/Users.zip", "ictf{Slay4U!!}"),  # profilo Windows
+    ("ic25-thrift-capture.pcap", f"{IC25}/Forensics/thrift-store/dist/capture.pcap", "ictf{l1k3_gRPC_bUt_l3ss_g0ogly}"),  # Apache Thrift
+    ("ic25-wave.wav", f"{IC25}/Forensics/wave/dist/wave.wav", "ictf{obligatory_metadata_challenge}"),  # metadati
+    ("ic25-x-tension.pcapng", f"{IC25}/Forensics/x-tension/dist/chal.pcapng", "ictf{extensions_might_just_suck}"),  # 29 MB
+    # --- BuckeyeCTF 2024 / 2023 (flag: challenge.yaml / README)
+    ("bk24-couch_potato.wav", f"{BK24}/forensics/couch_potato/dump1.wav", "bctf{1_11k3_5p4m_w17h_my_h4m}"),  # 22 MB, probabile SSTV
+    ("bk24-duck-pics.pcapng", f"{BK24}/forensics/duck-pics/capture.pcapng", "bctf{St0p_s3nd1Ng_m3_DuCK_p1c$}"),  # handout incerto (capture vs whole-capture)
+    ("bk24-hall-effect.pcapng", f"{BK24}/forensics/hall-effect/capture.pcapng", "bctf{Wh0s3_g0NNa_CarRY_Th3B0atS}"),
+    ("bk24-the_cia.pdf", f"{BK24}/forensics/the_cia/protected-cia-document.pdf", "bctf{U_c4N_d0_TH1s_On_w0rd_docs_T0O}"),  # PDF protetto
+    ("bk24-unknown.zip", f"{BK24}/forensics/unknown/unknown.zip", "bctf{f1l3_3x73n510n5_4r3_n07_r34l}"),
+    ("bk24-wreck-dump", f"{BK24}/forensics/wreck/dump", "bctf{D4MN_7h47_c0r3_dvmp_907_4_GY477}"),  # core dump 38 MB
+    ("bk23-replace-me-boot.img", f"{BK23}/forensics-replace-me/boot.img", "bctf{gr33n_r0b0t_ph0N3}"),  # Android boot.img
+    ("bk23-wifi-frames.pcap", f"{BK23}/misc-needle-in-the-wifi-stack/dist/frames.pcap", "bctf{tw0_po1nt_4_g33_c0ng3s7i0n}"),  # 802.11
+    ("bk23-weather.wav", f"{BK23}/misc-weather/dist/weather.wav", "bctf{0mg_i_10v3_FSK_i75_my_f4v0ri73_m0du147i0n}"),  # FSK
+    # --- DownUnderCTF 2022 / 2025 (flag: challenge.yaml)
+    ("du22-doxme", f"{DU22}/dfir/doxme/publish/doxme", "DUCTF{WOrd_D0Cs_Ar3_R34L1Y_W3ird}"),  # docx senza estensione
+    ("du22-mate.aussie", f"{DU22}/misc/land_down_under/publish/mate.aussie", "DUCTF{ƐƖSSn∀_ɹ_n_sƖɥʇ_D∀Ɛɹ_NㄣƆ_∩0⅄_ℲI}"),  # esolang, flag capovolta
+    ("du22-rage.wav", f"{DU22}/misc/rage/publish/rage.wav", "DUCTF{RAGINGTOWEIRDLIBIDO}"),
+    ("du25-fishy-capture.pcapng", f"{DU25}/misc/fishy_website/publish/capture.pcapng", "DUCTF{1_gu355_y0u_c4n_d3cRyPT_TLS_tr4ff1c}"),  # TLS da decifrare
+    ("du25-scrapbooking-warped.png", f"{DU25}/misc/scrapbooking/publish/warped.png", "DUCTF{kn1tting_with_pngs}"),
+    ("du25-yo-dawg.zip", f"{DU25}/misc/yodawg/publish/yo-dawg.zip", "DUCTF{1995_to_2025}"),
+    # --- UTCTF 2024 (flag: README)
+    ("ut24-GitWebsite.tar.gz", f"{UT24}/forensics-git/GitWebsite.tar.gz", "utflag{gitR3fl0g}"),  # git reflog
+    ("ut24-keyboard.pcapng", f"{UT24}/forensics-keyboard/keyboard.pcapng", "utflag{learning_stenography_on_a_qwerty_keyboard_is_quite_difficult}"),  # USB keyboard
+    ("ut24-contract.pdf", f"{UT24}/forensics-wizardry/contract.pdf", "utflag{s1mple_w1z4rding_mist4k3s}"),
+]
