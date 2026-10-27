@@ -19,6 +19,9 @@ MAX_UPLOAD = int(float(os.environ.get("MAX_UPLOAD_MB", "1024")) * 1024 * 1024)
 
 # recursion depth for extracted children (nested archives)
 MAX_DEPTH = int(os.environ.get("MAX_DEPTH", "6"))
+# Nodes analysed per project (0 = no limit). Uploads are always analysed; when
+# an archive unpacks more files than this, the most promising ones win.
+MAX_NODES = int(os.environ.get("MAX_NODES", "400"))
 
 # auto-delete projects older than N days (0 = never); read per call so tests
 # and a future reload can change it at runtime

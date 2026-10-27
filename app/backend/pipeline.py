@@ -20,7 +20,7 @@ from sqlmodel import Session, select
 from . import storage
 from .analyzers import get as get_tool
 from .analyzers.base import ToolContext, ToolResult
-from .config import MAX_DEPTH
+from .config import MAX_DEPTH, MAX_NODES
 from .crackflow import _auto_crack
 from .ctfs import update_solved
 from .db import engine
@@ -148,6 +148,22 @@ def record_run(session: Session, pid: str, node: FileNode, tool_name: str,
     return run
 
 
+# relevance of an extracted file when a project is over the node budget
+_PRIORITY_EXT = (".txt", ".json", ".xml", ".html", ".htm", ".csv", ".log", ".md",
+                 ".sqlite", ".db", ".regf", ".evtx", ".hive", ".dat", ".py", ".sh",
+                 ".zip", ".gz", ".tar", ".7z", ".rar", ".png", ".jpg", ".jpeg", ".gif",
+                 ".bmp", ".pdf", ".pcap", ".pcapng", ".wav", ".mp3", ".elf", ".exe",
+                 ".docx", ".xlsx", ".pptx", ".eml", ".pem", ".key")
+
+
+def _priority(node: FileNode) -> tuple:
+    """Sort key for the node budget: shallow and known-file-type first."""
+    name = (node.name or "").lower()
+    ext = "." + name.rsplit(".", 1)[-1] if "." in name else ""
+    known = _PRIORITY_EXT.index(ext) if ext in _PRIORITY_EXT else len(_PRIORITY_EXT)
+    return (-node.depth, known, -(node.size or 0))
+
+
 def _run(pid: str, job: Job) -> None:
     work = storage.project_dir(pid)
     with Session(engine) as session:
@@ -166,6 +182,18 @@ def _run(pid: str, job: Job) -> None:
         if job.only_new:
             seen = set(session.exec(select(ToolRun.file_id).where(ToolRun.project_id == pid)).all())
             nodes = [n for n in nodes if n.id not in seen]
+        if MAX_NODES and len(nodes) > MAX_NODES:
+            # a pathological archive (a whole OS profile, 460 files) must not
+            # keep the project in "running" for minutes: uploads always run,
+            # the most promising extracted files run, the rest stay in the tree
+            roots = [n for n in nodes if n.depth == 0]
+            extra = sorted((n for n in nodes if n.depth > 0), key=_priority, reverse=True)
+            keep = roots + extra[:max(0, MAX_NODES - len(roots))]
+            deferred = len(nodes) - len(keep)
+            _event(session, pid, f"node budget: {deferred} extracted file(s) not analysed "
+                                 f"(MAX_NODES={MAX_NODES})", "warn")
+            session.commit()
+            nodes = keep
         pending: list[FileNode] = list(nodes)
         processed: set[str] = set()
         depth_limit = MAX_DEPTH  # nested archives (Matryoshka doll) can be several levels deep
@@ -207,7 +235,8 @@ def _run(pid: str, job: Job) -> None:
             if detected and not node.name.lower().endswith(detected):
                 plan_name = node.name + detected
             made_by = origin_tool(node.origin)
-            plan = _plan_for(plan_name, node.mime, is_text, made_by)
+            plan = _plan_for(plan_name, node.mime, is_text, made_by,
+                             size=node.size, depth=node.depth)
 
             for wave in _waves([t for t in plan if t != "file"]):
                 if job.cancelled:

@@ -62,6 +62,14 @@ CARVERS = {"binwalk-scan", "binwalk-extract", "foremost"}
 # pcap analyzer exports whole (shark2: 310 extra files, never a flag in the
 # real-challenge history); binwalk-extract still carves the capture.
 CAPTURE_EXT = (".pcap", ".pcapng", ".cap")
+# binwalk/foremost look for *embedded* files: on a 200-byte .dat extracted from
+# a Windows profile there is nothing to find, and a profile zip with 460 members
+# spent 44% of its analysis time carving noise (18 MB profile: 472 s of 1083 s).
+_CARVE_MIME = ("image/", "application/pdf", "application/zip", "application/gzip",
+               "application/x-7z", "application/vnd.rar", "application/x-bzip2",
+               "application/x-xz", "application/x-elf", "application/x-dosexec",
+               "application/vnd.sqlite3", "application/x-ole-storage",
+               "application/x-tar", "audio/wav", "video/x-msvideo")
 
 
 # Tools whose output is a *decoded* stream (pixels, LSB planes, re-encoded
@@ -101,9 +109,11 @@ def _raw_carve(name: str, made_by: str) -> bool:
     return made_by in CARVERS and bool(_HEX_PIECE.fullmatch(name))
 
 
-def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "") -> list[str]:
+def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "",
+              size: int = 0, depth: int = 0) -> list[str]:
     """Analyzers for one file, in plan order. `made_by` is the tool that
-    extracted it ('' for uploads)."""
+    extracted it ('' for uploads); `size`/`depth` keep the carvers away from
+    the hundreds of little files a profile archive unpacks."""
     plan = []
     for tool in DEFAULT_PLAN:
         a = get_tool(tool)
@@ -113,8 +123,13 @@ def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "") -> 
             continue
         if tool in BINARY_ONLY and is_text:
             continue
-        if tool in CARVERS and _raw_carve(name, made_by):
-            continue
+        if tool in CARVERS:
+            if _raw_carve(name, made_by):
+                continue
+            if size and size < 4096:
+                continue                 # too small to hold a second file
+            if depth > 0 and not (mime or "").startswith(_CARVE_MIME):
+                continue                 # a leaf extracted from an archive
         if tool == "foremost" and name.lower().endswith(CAPTURE_EXT):
             continue
         if tool in IMG_DECODERS and made_by in IMG_DECODERS:

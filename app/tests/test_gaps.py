@@ -178,3 +178,15 @@ def test_git_analyzer_reads_a_tarred_repo(tmp_path):
     r = GitAnalyzer().run(ToolContext(input=archive, workdir=tmp_path / "w"))
     assert r.status == "done", r.summary
     assert "utflag{gitR3fl0g}" in (r.output or "")
+
+
+def test_node_budget_prefers_shallow_known_files():
+    from types import SimpleNamespace
+    from backend.pipeline import _priority
+    deep_txt = SimpleNamespace(name="a.txt", depth=3, size=10)
+    shallow_lnk = SimpleNamespace(name="b.lnk", depth=1, size=10)
+    big_zip = SimpleNamespace(name="c.zip", depth=2, size=9_000_000)
+    ordered = sorted([deep_txt, shallow_lnk, big_zip], key=_priority, reverse=True)
+    assert ordered[0] is shallow_lnk          # shallowest first
+    assert ordered[1] is big_zip              # then a known container
+    assert ordered[2] is deep_txt

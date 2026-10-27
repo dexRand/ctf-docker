@@ -218,3 +218,16 @@ def test_no_foremost_on_captures():
     from backend.planner import _plan_for
     plan = _plan_for("capture.pcapng", None, False)
     assert "foremost" not in plan and "binwalk-extract" in plan and "pcap" in plan
+
+
+def test_carvers_skip_small_files_and_archive_leaves():
+    # a Windows-profile zip unpacks 460 tiny files: carving each one was 44% of
+    # its analysis time and never found anything
+    from backend.planner import _plan_for
+    carvers = {"binwalk-scan", "binwalk-extract", "foremost"}
+    leaf = dict(made_by="7z", depth=1)
+    assert not carvers & set(_plan_for("x.dat", None, False, size=1200, **leaf))
+    assert not carvers & set(_plan_for("x.dat", None, False, size=8192, **leaf))
+    assert carvers <= set(_plan_for("x.png", "image/png", False, size=8192, **leaf))
+    assert carvers <= set(_plan_for("x.bin", None, False, size=8192))  # an upload
+    assert not carvers & set(_plan_for("x.bin", None, False, size=200))  # too small
