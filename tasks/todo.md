@@ -528,17 +528,21 @@ dimensione (png-idat/disk/pcap/openssl/msb-bits), bug minori (nomi disk, ffmpeg
 eas, escape sqlite, handle aperti), duplicazioni (una tabella magic in
 `backend/magic.py`, un solo rebuilder IDAT, prefissi da `FLAG_PREFIXES`,
 `resolve_wordlists`/`_pot_password`/`ctx.sub`), backfill MIME all'avvio
-(`db.backfill_mime`), `display_order` unici, README EN/IT a 70 analyzer.
-Restano: **smistamento delle 32 CTF candidate** (punto 5) e gli analyzer
-#11–#16 (punto 7).
+(`db.backfill_mime`), `display_order` unici, README EN/IT a **73 analyzer**
+(+ `pdf`, `pdf-images`, `usb-hid`).
+Smistamento delle 32 candidate fatto (4 risolte, 28 in `GAPS`). Restano solo gli
+analyzer **#11–#16** e i 28 GAPS documentati.
 
-## ▶ PROSSIMA AI — lavoro da fare, in quest'ordine (27/10)
+## ▶ PROSSIMA AI — cosa resta (stato al 27/10, fine sessione)
 
-Dettagli di ogni punto: `tasks/review-2026-10-27.md` e le issue GitHub
-`dexRand/ctf-docker#1`…`#10`. Fonti delle CTF nuove: `tasks/ctf-sources.md`.
+**Sessione chiusa.** Tutto il lavoro 27/10 è pushato: `main` = `5fac480`, CI verde,
+albero pulito. Issue **#1–#10 chiuse**; restano aperte **#11–#16** (nuovi analyzer)
+e i **28 GAPS** con la tecnica mancante scritta accanto in
+`app/tests/real_challenges_extra.py`.
 
-**Baseline da non peggiorare** (gate12, commit `23896d2` + lavoro 22–27/10):
-unit 281 passed · fixture 33/33 · reali 35/35 · extra 18/18 · writeup ALL CORRECT.
+**Baseline da non peggiorare** (aggiornata al 27/10 sera, `./ctf test -j 2 --extra`):
+unit **294** passed · fixture **33/33** · reali **63/63** (35 core + 28 extra) ·
+writeup **ALL CORRECT** · 35 casi core in **2239.9 s**.
 
 **Regole**
 - Un commit per issue, messaggio con `Fixes #N` (chiude l'issue al push).
@@ -596,8 +600,8 @@ unit 281 passed · fixture 33/33 · reali 35/35 · extra 18/18 · writeup ALL CO
 - **Nuovi analyzer** (73 totali): `pdf` (rileva `/Encrypt` → auto-crack),
   `pdf-images` (immagini incorporate, solo quelle piccole se il PDF ha già testo:
   le pagine intere costavano 220s di OCR), `usb-hid` (report HID → testo).
-- **Perf** (una candidate andava in timeout a 900s): carvers mai su file < 4 KiB
-  né su foglie estratte da archivi (era il 44% del tempo), `MAX_NODES=400` per
+- **Perf** (una candidate andava in timeout a 900s): carvers mai su foglie
+  estratte da archivi sotto i 4 KiB (era il 44% del tempo), `MAX_NODES=400` per
   progetto con priorità (shallow + tipo noto), `pdf-images` non rianalizza le
   copie carvate del PDF, varianti OCR limitate. `ic25-obfuscated-Users.zip`
   901s (timeout) → **621s**; `ut24-contract.pdf` 267s → **44.9s**.
@@ -641,3 +645,25 @@ Priorità (le prime sbloccano casi delle 32 CTF nuove):
 - [ ] #16 **reversing leggero + comodità**: `.pyc` decompile + PyInstaller extract,
       deoffusca JS/PowerShell, wasm2wat; hash recognizer (hash nudo → coda crack);
       flag-wrapping (password/risposta → candidata `PREFISSO{valore}`, mai auto-risolta).
+
+## Chiusura sessione 27/10 — da dove ripartire
+
+Stato verificato (commit `5fac480`, CI verde):
+- issue **#1–#10** chiuse e pushate (un commit per tema, `Fixes #N`);
+- **73 analyzer**, unit 294, fixture 33/33, reali 63/63, writeup ALL CORRECT;
+- 35 casi core: 3112.5 → **2239.9 s (-28%)** senza soluzioni perse;
+- 32 candidate smistate: 4 in `EXTRA`, 28 in `GAPS`, `CANDIDATES` vuota;
+- commenti con i casi reali sulle issue #11–#16.
+
+Prossimi passi consigliati, in ordine:
+1. **#13 memoria/sistemi** — registry hive (`hivex`/`regipy`): sblocca
+   `ic25-obfuscated-Users.zip` (oggi 621 s e nessuna flag) ed è la tecnica più
+   riusata nei forensics Windows.
+2. **#11 pcap+** — USB/IP (`tj25-packet-palette`), 802.11 (`bk23-wifi-frames`),
+   TLS con keylog assente (`du25-fishy`), Thrift (`ic25-thrift`).
+3. **#15 stego** — `.DS_Store`, QR mascherato, DQT azzerate, audio FSK/ENF.
+4. **#14/#16** — .NET resources (`du25-yo-dawg`), boot.img Android, Piet/aussie.
+5. Fase 6 con l'utente: profilo terminale `rev` in code-server (mai provato).
+
+Regola invariata: un commit per tema con `Fixes #N`, un test per ogni fix, e
+push solo dopo `./ctf test -j 2 --extra` verde (nessuna flag persa).
