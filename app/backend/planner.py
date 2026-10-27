@@ -15,7 +15,7 @@ DEFAULT_PLAN = [
     "binwalk-scan",
     "decode", "chef", "blobs", "zero-width", "whitespace", "case-bits", "homoglyph", "morse-text",
     "ocr", "qr",
-    "zsteg", "lsb-carve", "lsb-bits", "stepic", "psimage", "png-chunks", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
+    "zsteg", "lsb-carve", "lsb-bits", "msb-bits", "stepic", "psimage", "png-chunks", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
     "pixel-bytes", "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
     "pcap", "evtx", "sam", "firefox-logins",

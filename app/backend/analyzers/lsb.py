@@ -152,3 +152,70 @@ class StepicAnalyzer(Analyzer):
 
 
 register(StepicAnalyzer())
+
+
+_MSB_PREFIXES = (b"picoCTF{", b"flag{", b"FLAG{", b"ITS{", b"CTF{", b"HTB{")
+
+
+def msb_stream(arr, chans: str, bitorder: str) -> bytes:
+    """The bit 7 (MSB) of the given channels, packed into bytes."""
+    import numpy as np
+    a = arr[:, :, [_CHAN[c] for c in chans]]
+    bits = ((a >> 7) & 1).reshape(-1)
+    bits = bits[: len(bits) - len(bits) % 8]
+    return np.packbits(bits, bitorder=bitorder).tobytes()
+
+
+def find_msb_flag(arr) -> list[str]:
+    """Flag bytes hidden in the most significant bit of the pixel channels.
+
+    Tries the common channel orders (RGB/BGR/RGBA/BGRA) and both bit orders,
+    then looks for a known flag prefix and cuts it at the closing brace.
+    """
+    found: list[str] = []
+    for chans in ("rgb", "bgr", "rgba", "bgra"):
+        for order in ("big", "little"):
+            data = msb_stream(arr, chans, order)
+            for pre in _MSB_PREFIXES:
+                i = data.find(pre)
+                if i == -1:
+                    continue
+                j = data.find(b"}", i)
+                if j == -1 or j - i > 200:
+                    continue
+                value = data[i:j + 1].decode("latin-1", "replace")
+                if value not in found:
+                    found.append(value)
+    return found
+
+
+class MsbBitsAnalyzer(Analyzer):
+    name = "msb-bits"
+    category = "steg"
+    description = "Flag bits in the most significant bit (MSB plane) of the image pixels."
+    accepts = (".png", ".bmp", ".gif", ".tif", ".tiff")
+    display_order = 340
+    MAX_PIXELS = 40_000_000
+
+    def run(self, ctx: ToolContext) -> ToolResult:
+        try:
+            import numpy as np
+            from PIL import Image
+        except Exception as exc:
+            return ToolResult(self.name, status="skipped", summary=f"PIL/numpy missing: {exc}")
+        try:
+            im = Image.open(ctx.input).convert("RGBA")
+            im.load()
+        except Exception as exc:
+            return ToolResult(self.name, status="skipped", summary=f"cannot open image: {exc}")
+        if im.width * im.height > self.MAX_PIXELS:
+            return ToolResult(self.name, status="skipped", summary="image too big")
+        flags = find_msb_flag(np.asarray(im))
+        if not flags:
+            return ToolResult(self.name, status="skipped", summary="no MSB-encoded flag")
+        return ToolResult(self.name, status="done", summary=f"{len(flags)} MSB flag(s)",
+                          output="\n".join(flags))
+
+
+register(MsbBitsAnalyzer())
+

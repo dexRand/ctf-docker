@@ -17,6 +17,11 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P41 Analyzer `msb-bits` (MSB dei pixel)**: estrae flag dai **bit alti (bit 7)**
+  dei canali R/G/B, provando ordini RGB/BGR/RGBA/BGRA e i due bit order, e cerca i
+  prefissi noti nel flusso. Copre le challenge "MSB-plane" (es. picoCTF 2023 *MSB*)
+  che `bit-planes` mostrava solo come immagini. Unit test sintetico + E2E su PNG
+  generato (`picoCTF{msb_e2e_ok}`). Suite **281**.
 - **P40 Operation Orchid — RISOLTA**: `disk` scansiona **tutte le partizioni**
   (Orchid ha l'ext4 utile a offset 411648, non la prima) e prioritizza
   `.ash_history`/`.enc`; nuovo analyzer **`openssl`**: su un file **`Salted__`**
