@@ -39,6 +39,10 @@ def _looks_disk(head: bytes) -> bool:
         (65600, b"_BHRfS_M"),                         # btrfs
         (32769, b"CD001"),                            # ISO 9660
         (1024, b"H+"),                                # HFS+
+        (0, b"QFI\xfb"),                              # qcow2
+        (0, b"KDMV"), (0, b"# Disk DescriptorFile"),  # VMDK
+        (0, b"conectix"),                             # VHD
+        (64, b"<<< Oracle VM VirtualBox Disk Image >>>"),  # VDI
     )
     return any(len(head) >= off + len(sig) and head[off:off + len(sig)] == sig
                for off, sig in checks)

@@ -38,7 +38,8 @@ def analysable_object(path: Path) -> bool:
     child node; DER certificates, video segments and other blobs are noise."""
     try:
         size = path.stat().st_size
-        head = path.open("rb").read(64)
+        with path.open("rb") as fh:
+            head = fh.read(64)
     except OSError:
         return False
     if size < 16 or size > _MAX_OBJECT:
@@ -352,7 +353,8 @@ class PcapAnalyzer(Analyzer):
         cap = ctx.input
         fixed = None
         try:
-            magic = cap.open("rb").read(4)
+            with cap.open("rb") as fh:
+                magic = fh.read(4)
             if magic not in _PCAP_MAGICS and cap.stat().st_size <= 512 << 20:
                 fixed = repaired_pcap(cap.read_bytes())
         except OSError:
