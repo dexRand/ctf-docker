@@ -11,14 +11,15 @@ from .analyzers.util import ARCHIVE_EXT
 # ordered analysis plan (order matters: metadata -> text -> steg -> extract)
 DEFAULT_PLAN = [
     "file", "exiftool", "identify", "ffprobe", "pdfinfo",
-    "strings", "markup-text", "hexyl", "xxd", "pdftotext", "pdfid", "elf", "readelf", "objdump",
+    "strings", "markup-text", "hexyl", "xxd", "pdf", "pdftotext", "pdfid", "pdf-images",
+    "elf", "readelf", "objdump",
     "binwalk-scan",
     "decode", "chef", "blobs", "zero-width", "whitespace", "case-bits", "homoglyph", "morse-text",
     "ocr", "qr",
     "zsteg", "lsb-carve", "lsb-bits", "msb-bits", "stepic", "psimage", "png-chunks", "png-idat", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
     "pixel-bytes", "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "eas", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
-    "pcap", "evtx", "sam", "firefox-logins",
+    "pcap", "usb-hid", "evtx", "sam", "firefox-logins",
     "nested-archive", "git", "sqlite", "disk", "openssl", "7z", "office", "eml", "binwalk-extract", "foremost", "pngcheck",
     "png-repair", "image-repair", "byte-swap",
 ]
@@ -123,6 +124,8 @@ def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "",
             continue
         if tool in BINARY_ONLY and is_text:
             continue
+        if tool == "pdf-images" and _raw_carve(name, made_by):
+            continue                     # the parent PDF already gave its images
         if tool in CARVERS:
             if _raw_carve(name, made_by):
                 continue

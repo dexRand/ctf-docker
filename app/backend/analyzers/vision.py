@@ -19,7 +19,9 @@ _KNOWN_FLAG = re.compile(r"(?i)(" + _PREFIX_ALT + r")\{[^}\n]{2,}\}")
 # OCR confuses 0 with O and 1 with l/I. Inside a flag body (never the prefix)
 # fix the obvious cases: O/I surrounded by lowercase, l next to a digit.
 _CONFUSE = {"O": "0", "I": "1", "@": "0"}
-_FLAG_TOKEN = re.compile(r"(?i)(" + _PREFIX_ALT + r")\{([^}]{2,180})\}")
+# any `prefix{body}` token, not just the known CTF prefixes: the variants must
+# keep the real prefix (`utflag{...}`, not the inner `flag{...}`)
+_FLAG_TOKEN = re.compile(r"([A-Za-z][A-Za-z0-9_]{1,15})\{([^}]{2,180})\}")
 
 
 def _confusable_variants(text: str) -> str:
@@ -28,6 +30,13 @@ def _confusable_variants(text: str) -> str:
     extra: list[str] = []
     for m in _FLAG_TOKEN.finditer(text):
         body = re.sub(r"\s+", "", m.group(2))   # OCR may wrap the flag on two lines
+        # OCR also splits a prefix ("ut  flag{...}"): the real flag carries it
+        pre = text[max(0, m.start() - 16):m.start()]
+        # only a wide gap is an OCR split ("ut  flag{"); "see flag{" is prose
+        glued = re.search(r"([A-Za-z][A-Za-z0-9_]{0,3})\s{2,}$", pre)
+        prefixes = [m.group(1)]
+        if glued:
+            prefixes.append(glued.group(1) + m.group(1))
         fixed: list[str] = []
         for i, ch in enumerate(body):
             prev = body[i - 1] if i else ""
@@ -40,12 +49,15 @@ def _confusable_variants(text: str) -> str:
                 fixed.append(ch)
         v = "".join(fixed)
         if v != body:
-            extra.append(f"{m.group(1)}{{{v}}}")
-        # a leet-style body (several digits) may have read 1 as i ("qu1t3")
-        if sum(c.isdigit() for c in body) >= 2 and "i" in v:
-            leet = v.replace("i", "1")
-            if leet != v:
-                extra.append(f"{m.group(1)}{{{leet}}}")
+            extra += [f"{pre}{{{v}}}" for pre in prefixes]
+        # a leet-style body (several digits) may have read 1 as i or as a
+        # lowercase l ("qu1t3", "s1mple" -> "s lmple"): one position at a time,
+        # replacing every l would turn "slmple" into "s1mp1e"
+        if sum(c.isdigit() for c in v) >= 2:
+            for i, ch in enumerate(v):
+                if ch in "il":
+                    fixed_l = v[:i] + "1" + v[i + 1:]
+                    extra += [f"{pre}{{{fixed_l}}}" for pre in prefixes]
     return "\n".join(dict.fromkeys(extra))
 
 

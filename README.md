@@ -27,7 +27,7 @@ OSINT, reversing, password cracking — each with a **web interface**, behind a
 dashboard that lists them by phase of work.
 
 At its core is **StegSuite**, an analysis workbench that takes the challenge
-files, runs **70 analyzers** recursively, hunts the flag, cracks what is locked
+files, runs **73 analyzers** recursively, hunts the flag, cracks what is locked
 and tells you **how** it got there. It works **per CTF**: create the event, drop
 in its challenges, let the **autosolver** take the easy ones and keep working on
 the rest — yourself, or through an **AI agent** connected over **MCP**.
@@ -47,7 +47,7 @@ the rest — yourself, or through an **AI agent** connected over **MCP**.
 - **One CTF = one project** — a CTF holds its challenges and its flag format;
   a flag in that format marks the challenge **solved**; a scoreboard shows them all.
 - **Autosolver** — analyzes every unsolved challenge, a few at a time.
-- **70 analyzers**, recursive: metadata, strings/encodings/esolangs, image stego
+- **73 analyzers**, recursive: metadata, strings/encodings/esolangs, image stego
   (LSB, steghide, outguess, zsteg…), OCR/QR, audio (spectrogram, morse, DTMF,
   SSTV, WAV LSB/levels), network (tshark, TLS with keys/keylog, streams, DNS
   tunnels), archives/office/email/git, ELF.
@@ -91,7 +91,7 @@ flowchart LR
   agent([AI agent]) -->|MCP| api
   cli([./ctf scan / scripts]) -->|REST| api
   ss --> api[StegSuite API]
-  api --> pipe[analysis pipeline<br/>70 analyzers · flag hunt · cracking]
+  api --> pipe[analysis pipeline<br/>73 analyzers · flag hunt · cracking]
   pipe --> data[(./data<br/>projects · files · reports)]
   api --> svc[service catalog]
   svc -.-> tools[CyberChef · ZAP · Wireshark · SageMath ·<br/>SpiderFoot · Whisper · rev sandbox · …]
@@ -145,7 +145,7 @@ create_ctf → add_challenge(start) → project_status … → get_flags
 | Phase | Tool | URL | What it is for | Profile |
 | --- | --- | --- | --- | --- |
 | Dashboard | Homepage | http://localhost:19001 | Every tool, grouped by phase, with live status | core |
-| Analysis | **StegSuite** | http://localhost:19014 | CTFs/challenges, 70 analyzers, flag hunt, cracking, reports, REST + MCP | core |
+| Analysis | **StegSuite** | http://localhost:19014 | CTFs/challenges, 73 analyzers, flag hunt, cracking, reports, REST + MCP | core |
 | Analysis | **Terminal** | http://localhost:19022 | VS Code in the browser (code-server, suite theme) on `./data/projects`: file tree, hex editor, PDF/SQLite viewers, asm/smali/solidity syntax, terminals `stegsuite` (every tool, `cdp <project>`) and `rev` (sandbox) · `` Ctrl+` `` terminal | core |
 | Analysis | FileBrowser | http://localhost:19012 | Browse `./data`: projects, extracted files, reports | core |
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hashes, JWT and much more | core |
@@ -173,6 +173,7 @@ sandbox (`rev/Dockerfile`).
 | --- | --- |
 | Identify / metadata | `file`, `exiftool`, `identify`, `ffprobe`, `pdfinfo`, `pdfid` |
 | Text & encodings | `strings`, `markup-text` (SVG/HTML/XML text nodes), `xxd`/`hexyl`/`hexdump`, `decode` (base64/32/85, hex, binary, rot13, URL, high-bit, nested), `blobs` (base64/hex blocks → files/text), `pdftotext`, `morse-text` |
+| PDF & keyboards | `pdf` (encrypted → auto-crack), `pdf-images` (embedded pictures → OCR), `usb-hid` (HID keyboard reports → typed text) |
 | Text stego & esolangs | `zero-width` (ZW chars, two-symbol whitespace, trailing spaces), `whitespace` (interpreter), `case-bits` (binary + Bacon), `homoglyph`, `chef` (recipes with unknown quantities), `sqlite` (table text: history, cookies, app data) |
 | Image stego | `zsteg`, `lsb-carve`, `lsb-bits` (raw-byte LSB), `msb-bits` (MSB plane), `stepic`, `psimage`, `steghide`, `outguess`, `jsteg`, `openstego`, `png-chunks`, `png-idat` (zstd/deflate IDAT), `png-pixels`, `pixel-bytes` (pixels that are another file, chains followed), `bit-planes`, `channel-remap` (+ palette-index repaint), `image-enhance` |
 | Vision | `ocr` (tesseract, EN + IT fallback, denoise + O/0 fixes), `qr`, `gif-frames` (frames, diffs, delay bits) |

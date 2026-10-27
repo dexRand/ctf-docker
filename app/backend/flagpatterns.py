@@ -123,4 +123,5 @@ def _canon_flag(value: str) -> str:
 # OCR often reads '{' as f/F/l/L/[/( and ']'/'}' as ] or ). This fuzzy pattern
 # rescues flags found by OCR/vision tools and normalises them back.
 _FUZZY_RE = re.compile(
-    rb"(picoCTF|ITS|FLAG|flag|HTB|ctf|CTF)[\{\[\(fFlL]([ -~]{1,180}?)[\}\]\)]", re.IGNORECASE)
+    rb"(?<![A-Za-z0-9_])([A-Za-z0-9_]{0,15}?(?:picoCTF|ITS|FLAG|flag|HTB|ctf|CTF))"
+    rb"[\{\[\(fFlL]([ -~]{1,180}?)[\}\]\)]", re.IGNORECASE)

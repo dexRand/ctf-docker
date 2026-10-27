@@ -571,13 +571,30 @@ unit 281 passed · fixture 33/33 · reali 35/35 · extra 18/18 · writeup ALL CO
       `docs/API.md` (coda crack), import inutilizzati (`firefox.py`, `chef.py`).
 
 **5. 32 CTF reali nuove da smistare**
-- [ ] `cd app/tests && python3 real_challenges.py -j 3 --candidates --only-new --json-out <file>`
+- [x] `cd app/tests && python3 real_challenges.py -j 3 --candidates --only-new --json-out <file>`
       (TJCTF 2025, ImaginaryCTF 2025, BuckeyeCTF 2023/24, DUCTF 2022/25, UTCTF 2024).
       Ogni caso da `CANDIDATES` a `EXTRA` (risolto) o `GAPS` (con la tecnica mancante
       in commento). 3 handout incerti (`quant`, `dinosaur`, `duck-pics`): se falliscono
       provare l'altro file della cartella. A fine smistamento `CANDIDATES` deve essere vuota.
-- [ ] Per i GAPS nuovi più frequenti, proporre un analyzer (con test) — non inventare
+- [x] Per i GAPS nuovi più frequenti, proporre un analyzer (con test) — non inventare
       il wrapping della flag (es. `DUCTF{password}`): la pipeline riporta il dato trovato.
+
+### Smistamento 32 candidate (27/10 sera) — **3/32 → 4/32 dopo i fix**
+- **PASS → EXTRA**: `tj25-suspicious.png`, `ic25-wave.wav`, `ut24-GitWebsite.tar.gz`
+  (nuovo: `git` legge anche i `.tar.gz` estraendo solo `.git`), `ut24-contract.pdf`
+  (nuovo: `pdf-images` + varianti OCR prefisso/case → 44.9s).
+- **Nuovi analyzer** (73 totali): `pdf` (rileva `/Encrypt` → auto-crack),
+  `pdf-images` (immagini incorporate, solo quelle piccole se il PDF ha già testo:
+  le pagine intere costavano 220s di OCR), `usb-hid` (report HID → testo).
+- **Perf** (una candidate andava in timeout a 900s): carvers mai su file < 4 KiB
+  né su foglie estratte da archivi (era il 44% del tempo), `MAX_NODES=400` per
+  progetto con priorità (shallow + tipo noto), `pdf-images` non rianalizza le
+  copie carvate del PDF, varianti OCR limitate. `ic25-obfuscated-Users.zip`
+  901s (timeout) → **621s**; `ut24-contract.pdf` 267s → **44.9s**.
+- **Restano 28 GAPS** (dettaglio in `real_challenges_extra.py`): USB/IP, steno,
+  .DS_Store, Piet, DQT azzerate, QR mascherato, ENF, Thrift, 802.11, FSK, boot.img
+  Android, .NET resources, esolang "aussie", PDF cifrato (password non in rockyou),
+  core dump, TLS da decifrare, ecc.
 
 **6. Da approvare con l'utente prima di iniziare**
 - [ ] Fase 6 — RevSuite (auto-triage binari + terminale per progetto).
