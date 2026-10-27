@@ -144,3 +144,37 @@ def test_firefox_logins_skips_non_login_json(tmp_path):
     p.write_text('{"logins": [], "potentials": []}')
     r = FirefoxLoginsAnalyzer().run(ToolContext(input=p, workdir=tmp_path / "w"))
     assert r.status == "skipped" and "not a Firefox logins" in r.summary
+
+
+def test_git_analyzer_reads_a_tarred_repo(tmp_path):
+    # UTCTF 2024 "GitWebsite": the repo ships as a .tar.gz, not a .zip
+    import shutil as _sh
+    import subprocess as _sp
+    import tarfile as _tar
+    if not _sh.which("git"):
+        import pytest
+        pytest.skip("git not installed")
+    from backend.analyzers.base import ToolContext
+    from backend.analyzers.git import GitAnalyzer
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args):
+        _sp.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                cwd=repo, check=True, capture_output=True)
+
+    git("init", "-q")
+    (repo / "index.html").write_text("<p>hello</p>\n")
+    git("add", "-A")
+    git("commit", "-qm", "initial")
+    (repo / "secret.txt").write_text("utflag{gitR3fl0g}\n")
+    git("add", "-A")
+    git("commit", "-qm", "add some secrets")
+    (repo / "secret.txt").unlink()
+    git("commit", "-qam", "remove the secret")
+    archive = tmp_path / "repo.tar.gz"
+    with _tar.open(archive, "w:gz") as t:
+        t.add(repo, arcname="repo")
+    r = GitAnalyzer().run(ToolContext(input=archive, workdir=tmp_path / "w"))
+    assert r.status == "done", r.summary
+    assert "utflag{gitR3fl0g}" in (r.output or "")
