@@ -17,13 +17,13 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
-- **P43 Analyzer `eas` (SAME/EAS + AFSK) — DA VERIFICARE**: audio → ffmpeg WAV,
-  poi `multimon-ng` su **EAS**, AFSK1200/2400, FSK9600. I toni SAME
-  (1562/2083 Hz) sono presenti in `warning.wav` (UIUCTF 2023). **Bloccato**:
-  Docker è **giù** (daemon non attivo, niente `dockerd`/systemd; serve Docker
-  Desktop), quindi non ho potuto fare il test E2E di `warning.wav`/`sleepy.mp3`.
-  Appena riavvii Docker: `./ctf up`, poi upload di `warning.wav` (EXTRA) e
-  controllo della flag `uiuctf{3rd_w0rst_tor_outbre@k_ev3r}`.
+- **P43 Analyzer `eas` (SAME/EAS + AFSK)**: audio → ffmpeg WAV, poi `multimon-ng`
+  su EAS/AFSK1200/2400/FSK9600. Verificato che gira e decodifica header SAME
+  standard. **Caso speciale**: `warning.wav` (UIUCTF 2023 *tornado_warning*) ha le
+  **3 copie del header con errori voluti** e la flag è **negli errori**; multimon
+  applica la correzione (restituisce `NNNN`). Servirebbe un demod SAME **grezzo** +
+  confronto delle 3 copie (lo script ufficiale usa `nwsrx`). Resta in **GAPS**
+  (fuori scope per ora). `sleepy.mp3` (ASK) non tentata.
 - **P42 Analyzer `png-idat` (IDAT zstd/deflate)**: se l'IDAT non è zlib (TJCTF
   "miniscule" lo comprime con **zstd**), decomprime con `zstd -d` (o raw deflate),
   ricostruisce un PNG valido e lo passa alla pipeline → OCR legge la flag.

@@ -122,5 +122,5 @@ GAPS = [
     ("EBE.pcap", f"{LA}/2023/misc/ebe/EBE.pcap",
      "lactf{3V1L_817_3xf1l7R4710N_4_7H3_W1N_51D43c8000034d0c}"),                        # evil-bit filter
     ("warning.wav", f"{UI23}/misc/tornado_warning/warning.wav",
-     "uiuctf{3rd_w0rst_tor_outbre@k_ev3r}"),                                            # SAME/EAS AFSK
+     "uiuctf{3rd_w0rst_tor_outbre@k_ev3r}"),                                            # SAME x3 with deliberate errors (raw demod)
 ]
