@@ -17,19 +17,16 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
-- **P40 Operation Orchid (QUASI risolta — da verificare)**: `disk` ora scansiona
-  **tutte le partizioni** (Orchid ha l'ext4 utile a offset 411648, non la prima) e
-  prioritizza `.ash_history`/`.enc`; nuovo analyzer **`openssl`**: su un file
-  **`Salted__`** (`.enc`) legge la password da un file **sibling** (history/log:
+- **P40 Operation Orchid — RISOLTA**: `disk` scansiona **tutte le partizioni**
+  (Orchid ha l'ext4 utile a offset 411648, non la prima) e prioritizza
+  `.ash_history`/`.enc`; nuovo analyzer **`openssl`**: su un file **`Salted__`**
+  (`.enc`) legge la password da un file **sibling** (history/log:
   `openssl … -k <pw>`) e decifra (`-md md5/sha256`); tollera `rc=1` ("bad decrypt"
   di padding) se l'output è stampabile con `{`.
-  Catena verificata **a mano**: password `unbreakablepassword1234567` →
-  `picoCTF{h4un71ng_p457_0a710765}`. **Da fare**: run end-to-end (dopo l'ultimo
-  rebuild) — l'artefatto è solo sul CDN picoCTF, quindi c'è il mirror web.archive
-  già in `real_challenges_extra.py` (`orchid.img.gz`). Test veloce senza il disco
-  da 400MB: upload di `flag.txt.enc` + `.ash_history` estratti (stanno in
-  `/tmp/opencode/` sulla vecchia postazione; su un'altra si possono ri-estrarre
-  con `icat -o 411648 orchid.img 1782/1875`).
+  **Verificata** con upload dei due file estratti (`flag.txt.enc` + `.ash_history`,
+  `icat -o 411648` inode 1782/1875): flag `picoCTF{h4un71ng_p457_0a710765}`.
+  L'artefatto è solo sul CDN picoCTF → mirror web.archive già in
+  `real_challenges_extra.py` (`orchid.img.gz`).
 - **P39 Disk, disk, sleuth! II + decoder "boxed chars"**: `disk` ora regge un'immagine
   **partizionata** (offset da `mmls`) e `decode` ricostruisce le flag disegnate in
   **box ASCII** `( p ) ( i ) ...` (anche spezzate su più righe con decorazioni tra

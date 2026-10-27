@@ -43,6 +43,7 @@ Test: `app/tests/real_challenges.py` (scarica i file dai mirror GitHub, perché
 | Wireshark twoo twooo two twoo… | 2021 | `shark2.pcapng` | `picoCTF{dns_3xf1l_ftw_deadbeef}` (DNS exfil, tra molti decoy) |
 | Disk, disk, sleuth! | 2021 | `dds1-alpine.flag.img.gz` | `picoCTF{f0r3ns1c4t0r_n30phyt3_a011c142}` (sleuthkit: `disk`) |
 | Disk, disk, sleuth! II | 2021 | `dds2-alpine.flag.img.gz` | `picoCTF{f0r3ns1c4t0r_n0v1c3_0ba8d02d}` (partitioned ext4 + flag in box ASCII → `disk` + `decode` boxed) |
+| Operation Orchid | 2022 | `disk.flag.img.gz` | `picoCTF{h4un71ng_p457_0a710765}` (second ext4 partition; `.ash_history` password → `openssl` decrypts `flag.txt.enc`) |
 | WebNet0 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{nongshim.shrimp.crackers}` (TLS decifrato) |
 | WebNet1 | 2019 | `capture.pcap` + `picopico.key` | `picoCTF{honey.roasted.peanuts}` (TLS → metadata JPEG) |
 | St3g0 | 2022 | `pico.flag.png` | `picoCTF{7h3r3_15_n0_5p00n_96ae0ac1}` (LSB → `zsteg`) |
