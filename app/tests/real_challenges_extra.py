@@ -86,6 +86,10 @@ EXTRA += [
     ("pals.png", f"{TJ24}/pals/pals.png", "tjctf{not_very_palatable_9623c1c9}"),
     # ImaginaryCTF 2024 packed: Packet Tracer .pkz (zip) with the flag in an image (OCR)
     ("routed.pkz", f"{IC24}/packed/routed.pkz", "ictf{ab4697882634d4aeb6f21141ea2724d0}"),
+    # TJCTF 2023 miniscule: IDAT is zstd (not zlib) -> png-idat rebuilds the PNG
+    ("miniscule.png", f"{TJ23}/miniscule/miniscule.png", "tjctf{zlib_compression_bad_9c8b342}"),
+    # ImaginaryCTF 2023 blurry: heavily blurred QR -> qr deblur/upscale
+    ("blurry.png", f"{IC23}/blurry/challenge/chall.png", "ictf{blurR1ng_is_n0_m4tch_4_u_2ab140c2}"),
 ]
 
 # Known gaps: techniques not implemented yet (backlog, see tasks/plan-refactor.md)
@@ -106,9 +110,7 @@ GAPS = [
     ("blinkybill.wav", f"{DU23}/beginner/blinky-bill/publish/blinkybill.wav",
      "DUCTF{BRINGBACKTHETREES}"),                                                       # morse over music
     ("robot.wav", f"{TJ23}/beep-boop-robot/robot.wav", "tjctf{thisisallonewordlmao}"),   # morse, bare text
-    ("miniscule.png", f"{TJ23}/miniscule/miniscule.png", "tjctf{zlib_compression_bad_9c8b342}"),  # zstd IDAT
     ("out.qoi", f"{TJ24}/purified/out.qoi", "tjctf{r1bbit_ribb1t_69bb0e1d}"),            # QOI recursion
-    ("blurry.png", f"{IC23}/blurry/challenge/chall.png", "ictf{blurR1ng_is_n0_m4tch_4_u_2ab140c2}"),  # damaged QR
     ("ictf23_forensics.zip", f"{IC23}/forensics/forensics.zip",
      "ictf{n0_corruption_can_stop_u_1b53d8c4}"),                                        # pcap repair
     ("ictf23_web.zip", f"{IC23}/web/challenge/web.zip",

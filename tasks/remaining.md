@@ -17,6 +17,11 @@ CI: `.github/workflows/ci.yml` (compose, backend+pytest, frontend build; job `e2
 on-demand). Il token serve con scope **`workflow`**.
 
 ## Fatto di recente ✅
+- **P42 Analyzer `png-idat` (IDAT zstd/deflate)**: se l'IDAT non è zlib (TJCTF
+  "miniscule" lo comprime con **zstd**), decomprime con `zstd -d` (o raw deflate),
+  ricostruisce un PNG valido e lo passa alla pipeline → OCR legge la flag.
+  `miniscule.png` **PASS** (`tjctf{zlib_compression_bad_9c8b342}`), spostato da
+  GAPS a EXTRA insieme a `blurry` (QR danneggiato: già coperto da `qr`, PASS).
 - **P41 Analyzer `msb-bits` (MSB dei pixel)**: estrae flag dai **bit alti (bit 7)**
   dei canali R/G/B, provando ordini RGB/BGR/RGBA/BGRA e i due bit order, e cerca i
   prefissi noti nel flusso. Copre le challenge "MSB-plane" (es. picoCTF 2023 *MSB*)
