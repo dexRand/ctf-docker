@@ -12,7 +12,7 @@ import struct
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
-from .util import MAGICS
+from ..magic import MAGICS
 
 _DIB_SIZES = {12, 40, 52, 56, 64, 108, 124}
 _BMP_SIG = b"BM"

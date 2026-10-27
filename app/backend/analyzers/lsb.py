@@ -208,10 +208,6 @@ class MsbBitsAnalyzer(Analyzer):
     MAX_PIXELS = 40_000_000
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        try:
-            import numpy as np
-        except Exception as exc:
-            return ToolResult(self.name, status="skipped", summary=f"numpy missing: {exc}")
         arr = _rgba_head(ctx.input, max_pixels=self.MAX_PIXELS)
         if arr is None:
             return ToolResult(self.name, status="skipped", summary="not an RGB/RGBA image")

@@ -32,7 +32,8 @@ class FirefoxLoginsAnalyzer(Analyzer):
         if b'"encryptedPassword"' not in data:
             return ToolResult(self.name, status="skipped", summary="not a Firefox logins file")
         try:
-            logins = json.loads(data).get("logins") or []
+            if not json.loads(data).get("logins"):
+                return ToolResult(self.name, status="skipped", summary="no saved logins")
         except ValueError:
             return ToolResult(self.name, status="skipped", summary="invalid logins.json")
         # NSS wants a directory with the DB files: rebuild a minimal profile

@@ -121,8 +121,8 @@ def assemble_flag_fragments(pieces: list[str]) -> list[str]:
 
 
 # --- magic bytes --------------------------------------------------------------
-# (signature, extension); longer/more specific signatures first
-from ..magic import MAGICS, ext_of  # one table for signatures/extensions
+# one table for signatures/extensions/mime lives in backend/magic.py
+from ..magic import ext_of
 
 # RIFF and a few container variants are not simple prefixes
 _RIFF = ((b"RIFF", 8, b"WAVE", ".wav"), (b"RIFF", 8, b"AVI ", ".avi"),

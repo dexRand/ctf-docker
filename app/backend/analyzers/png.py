@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 import math
-import os
 import shutil
 import struct
 import subprocess
-import tempfile
 import zlib
 from pathlib import Path
 
