@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..flagpatterns import FLAG_PREFIXES
 from .base import Analyzer, ToolContext, ToolResult, run_cmd, which
 from .util import magic_ext, printable_ratio
 from .registry import register
@@ -153,7 +154,6 @@ class StepicAnalyzer(Analyzer):
 register(StepicAnalyzer())
 
 
-from ..flagpatterns import FLAG_PREFIXES
 _MSB_PREFIXES = tuple((p + "{").encode() for p in FLAG_PREFIXES) + \
     tuple((p.upper() + "{").encode() for p in FLAG_PREFIXES)
 
