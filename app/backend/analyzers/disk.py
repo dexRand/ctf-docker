@@ -145,7 +145,11 @@ class DiskAnalyzer(Analyzer):
             return ToolResult(self.name, status="skipped", summary="sleuthkit not installed")
         image = ctx.input
         if image.suffix.lower() == ".gz" or _is_gzip(ctx.input):
-            image = _decompress(ctx) or image
+            # a tar.gz or a bomb is not a disk image: don't hand it to mmls/fls
+            image = _decompress(ctx)
+            if not image:
+                return ToolResult(self.name, status="skipped",
+                                  summary="gzip that is not a disk image")
         if not image.is_file():
             return ToolResult(self.name, status="skipped", summary="cannot read image")
 

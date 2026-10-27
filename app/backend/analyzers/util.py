@@ -124,17 +124,8 @@ def assemble_flag_fragments(pieces: list[str]) -> list[str]:
 # one table for signatures/extensions/mime lives in backend/magic.py
 from ..magic import ext_of
 
-# RIFF and a few container variants are not simple prefixes
-_RIFF = ((b"RIFF", 8, b"WAVE", ".wav"), (b"RIFF", 8, b"AVI ", ".avi"),
-         (b"RIFF", 8, b"WEBP", ".webp"))
 
 
 def magic_ext(blob: bytes) -> str:
     """Extension for a known file signature at the start of `blob`, else ""."""
-    ext = ext_of(blob)
-    if ext:
-        return ext
-    for sig, off, marker, ri in _RIFF:
-        if blob.startswith(sig) and blob[off:off + 4] == marker:
-            return ri
-    return ""
+    return ext_of(blob)

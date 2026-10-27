@@ -29,7 +29,8 @@ PCAP_EXT = (".pcap", ".pcapng", ".cap")
 _KEEP_MIME = ("image/", "application/pdf", "application/zip", "application/x-7z",
               "application/vnd.rar", "application/gzip", "application/x-bzip2",
               "application/x-xz", "application/x-elf", "application/x-dosexec",
-              "application/vnd.sqlite3", "application/x-ole-storage")
+              "application/vnd.sqlite3", "application/x-ole-storage",
+              "audio/wav", "video/x-msvideo")
 _MAX_OBJECT = 4 << 20
 
 

@@ -110,12 +110,6 @@ def sniff_mime(path: Path) -> str | None:
     mime = mime_of(head)
     if mime:
         return mime
-    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
-        return "image/webp"
-    if head[:4] == b"RIFF" and head[8:12] == b"WAVE":
-        return "audio/wav"
-    if head[:4] == b"RIFF" and head[8:12] == b"AVI ":
-        return "video/x-msvideo"
     if head[4:8] == b"ftyp":
         return "video/mp4"
     if len(head) >= 262 and head[257:262] == b"ustar":

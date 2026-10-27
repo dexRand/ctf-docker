@@ -35,12 +35,21 @@ SIGNATURES = (
 # carving/extension table (signature, extension), kept as a tuple for callers
 MAGICS = tuple((sig, ext) for sig, ext, _mime in SIGNATURES)
 
+# RIFF containers: the marker sits at offset 8, not at the start
+_RIFF = ((8, b"WAVE", ".wav", "audio/wav"),
+         (8, b"AVI ", ".avi", "video/x-msvideo"),
+         (8, b"WEBP", ".webp", "image/webp"))
+
 
 def ext_of(blob: bytes) -> str:
     """Extension for a known signature at the start of `blob`, else ''."""
     for sig, ext, _mime in SIGNATURES:
         if blob.startswith(sig):
             return ext
+    if blob[:4] == b"RIFF":
+        for off, marker, ext, _mime in _RIFF:
+            if blob[off:off + 4] == marker:
+                return ext
     return ""
 
 
@@ -49,4 +58,8 @@ def mime_of(head: bytes) -> str | None:
     for sig, _ext, mime in SIGNATURES:
         if head.startswith(sig):
             return mime
+    if head[:4] == b"RIFF":
+        for off, marker, _ext, mime in _RIFF:
+            if head[off:off + 4] == marker:
+                return mime
     return None
