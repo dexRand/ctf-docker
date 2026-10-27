@@ -510,13 +510,63 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
   Verificato nel pipeline: su `logins.json` il tool riporta **done, 1 login
   decifrato** (la flag attesa non è nell'artefatto).
 
-### Review 27/10 — issue aperte (dettagli: `tasks/review-2026-10-27.md`)
-- [ ] dexRand/ctf-docker#1 XSS file inline · #2 NSS in-process · #3 `_PREV` crackqueue
-- [ ] #4 limiti di dimensione · #5 bug minori analyzer
-- [ ] #6 magic bytes unificati · #7 png.py zstd doppio · #8 prefissi/bit-plane · #9 sam/qr helper
-- [ ] #10 minori + README (70 analyzer)
-- [ ] **32 nuove CTF reali da smistare** (`CANDIDATES` in `real_challenges_extra.py`:
-      TJCTF 2025, ImaginaryCTF 2025, BuckeyeCTF 2023/24, DUCTF 2022/25, UTCTF 2024).
-      `cd app/tests && python3 real_challenges.py -j 3 --candidates --only-new --json-out …`
-      poi spostare ogni caso in `EXTRA` (risolto) o `GAPS` (tecnica mancante). 3 casi hanno
-      il handout incerto (commento nel file). Fonti e scarti: `tasks/ctf-sources.md`.
+## ▶ PROSSIMA AI — lavoro da fare, in quest'ordine (27/10)
+
+Dettagli di ogni punto: `tasks/review-2026-10-27.md` e le issue GitHub
+`dexRand/ctf-docker#1`…`#10`. Fonti delle CTF nuove: `tasks/ctf-sources.md`.
+
+**Baseline da non peggiorare** (gate12, commit `23896d2` + lavoro 22–27/10):
+unit 281 passed · fixture 33/33 · reali 35/35 · extra 18/18 · writeup ALL CORRECT.
+
+**Regole**
+- Un commit per issue, messaggio con `Fixes #N` (chiude l'issue al push).
+- Niente helper duplicati: usare `analyzers/util.py`, `base.py` (`run_cmd`,
+  `ctx.sub`, `ctx.siblings`), `flagpatterns.FLAG_PREFIXES`, `cracking.resolve_wordlists`.
+- Ogni fix con un test in `app/tests/`.
+- Prima del push: `docker compose build stegsuite && docker compose up -d stegsuite term`,
+  `app/tests/run_unit.sh`, `./ctf test -j 3`, `cd app/tests && python3 real_challenges.py
+  -j 3 --only-new --extra`. Push solo se nessuna flag persa rispetto alla baseline.
+- Se `docker` non risponde in WSL: chiedere all'utente di riavviare Docker Desktop.
+
+**1. Sicurezza (subito)**
+- [ ] #1 XSS: `GET …/files/{fid}/raw` serve HTML/SVG inline sull'origin dell'app.
+      Inline solo allowlist (immagini raster, audio, video, pdf, `text/plain`), il resto
+      `attachment`; header `X-Content-Type-Options: nosniff` + `Content-Security-Policy: sandbox`.
+      Test: `.html`/`.svg` (anche con byte non UTF-8 nei primi 8 KB) mai inline.
+- [ ] #2 `firefox-logins`: NSS dentro il processo + ThreadPool → crash. Spostare la
+      decifratura in un sottoprocesso (`run_cmd` + script) con timeout; liberare gli item.
+
+**2. Bug e robustezza**
+- [ ] #3 `crackqueue._settle`: `_PREV.pop(pid)` anche quando c'è un'analisi in corso + test.
+- [ ] #4 limiti di dimensione: `png-idat` (decompress con `max_length`), `disk` (gunzip
+      con tetto, `.gz` solo se immagine disco), `pcap` / `openssl` (leggere solo l'header),
+      `msb-bits` (usare `_rgba_head`).
+- [ ] #5 `disk` (nomi via `sanitize_name`), `eas` (controllare ffmpeg), `sqlite`
+      (escape `"` nei nomi tabella, errore per tabella), handle aperti in `sam`/`sqlite`.
+
+**3. Duplicazioni**
+- [ ] #6 una sola tabella magic bytes in `util` (firma, estensione, mime) usata da
+      `storage.sniff_mime`, `pcap`, `planner._detect_ext` (+ SQLite/pcap/regf).
+- [ ] #7 `png.py`: un solo ricostruttore zstd IDAT; `png-idat` in
+      `STEG_DECODERS`/`IMG_DECODERS`.
+- [ ] #8 prefissi flag da `FLAG_PREFIXES` (lsbbits, lsb `_MSB_PREFIXES`, chef, vision);
+      `msb_stream` → parametro di `lsb_stream`; `lsbbits` usa `bits_to_ints`.
+- [ ] #9 `sam.py` con `run_cmd` + `resolve_wordlists` + `_pot_password`; `qr.py` con `ctx.sub`.
+
+**4. Minori + doc**
+- [ ] #10 backfill mime una tantum (non nel `GET`), `display_order` doppio
+      (msb-bits/disk), README EN/IT "70 analyzer" + nuovi analyzer documentati,
+      `docs/API.md` (coda crack), import inutilizzati (`firefox.py`, `chef.py`).
+
+**5. 32 CTF reali nuove da smistare**
+- [ ] `cd app/tests && python3 real_challenges.py -j 3 --candidates --only-new --json-out <file>`
+      (TJCTF 2025, ImaginaryCTF 2025, BuckeyeCTF 2023/24, DUCTF 2022/25, UTCTF 2024).
+      Ogni caso da `CANDIDATES` a `EXTRA` (risolto) o `GAPS` (con la tecnica mancante
+      in commento). 3 handout incerti (`quant`, `dinosaur`, `duck-pics`): se falliscono
+      provare l'altro file della cartella. A fine smistamento `CANDIDATES` deve essere vuota.
+- [ ] Per i GAPS nuovi più frequenti, proporre un analyzer (con test) — non inventare
+      il wrapping della flag (es. `DUCTF{password}`): la pipeline riporta il dato trovato.
+
+**6. Da approvare con l'utente prima di iniziare**
+- [ ] Fase 6 — RevSuite (auto-triage binari + terminale per progetto).
+- [ ] Profilo terminale `rev` in code-server (:19022) con rev acceso: mai provato.
