@@ -129,8 +129,8 @@ def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "",
         if tool in CARVERS:
             if _raw_carve(name, made_by):
                 continue
-            if size and size < 4096:
-                continue                 # too small to hold a second file
+            if depth > 0 and size and size < 4096:
+                continue                 # a tiny leaf: nothing embedded in it
             if depth > 0 and not (mime or "").startswith(_CARVE_MIME):
                 continue                 # a leaf extracted from an archive
         if tool == "foremost" and name.lower().endswith(CAPTURE_EXT):

@@ -229,5 +229,7 @@ def test_carvers_skip_small_files_and_archive_leaves():
     assert not carvers & set(_plan_for("x.dat", None, False, size=1200, **leaf))
     assert not carvers & set(_plan_for("x.dat", None, False, size=8192, **leaf))
     assert carvers <= set(_plan_for("x.png", "image/png", False, size=8192, **leaf))
-    assert carvers <= set(_plan_for("x.bin", None, False, size=8192))  # an upload
-    assert not carvers & set(_plan_for("x.bin", None, False, size=200))  # too small
+    # an upload is always carved: a small PNG can still hide an appended zip
+    # (fixture "real-challenge": ITS{stego_z1p_appended})
+    assert carvers <= set(_plan_for("x.bin", None, False, size=200))
+    assert carvers <= set(_plan_for("x.bin", None, False, size=8192))
