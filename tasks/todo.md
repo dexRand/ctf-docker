@@ -510,6 +510,18 @@ Nuove reali in `app/tests/real_challenges_extra.py` (`--extra`, `--gaps`).
   Verificato nel pipeline: su `logins.json` il tool riporta **done, 1 login
   decifrato** (la flag attesa non è nell'artefatto).
 
+## Stato (27/10, sera) — issue #1–#10 chiuse ✅
+
+Fatte tutte le issue della review (`tasks/review-2026-10-27.md`): XSS dei file
+serviti inline, NSS in sottoprocesso, `_PREV` della coda di crack, limiti di
+dimensione (png-idat/disk/pcap/openssl/msb-bits), bug minori (nomi disk, ffmpeg
+eas, escape sqlite, handle aperti), duplicazioni (una tabella magic in
+`backend/magic.py`, un solo rebuilder IDAT, prefissi da `FLAG_PREFIXES`,
+`resolve_wordlists`/`_pot_password`/`ctx.sub`), backfill MIME all'avvio
+(`db.backfill_mime`), `display_order` unici, README EN/IT a 70 analyzer.
+Restano: **smistamento delle 32 CTF candidate** (punto 5) e gli analyzer
+#11–#16 (punto 7).
+
 ## ▶ PROSSIMA AI — lavoro da fare, in quest'ordine (27/10)
 
 Dettagli di ogni punto: `tasks/review-2026-10-27.md` e le issue GitHub
@@ -529,32 +541,32 @@ unit 281 passed · fixture 33/33 · reali 35/35 · extra 18/18 · writeup ALL CO
 - Se `docker` non risponde in WSL: chiedere all'utente di riavviare Docker Desktop.
 
 **1. Sicurezza (subito)**
-- [ ] #1 XSS: `GET …/files/{fid}/raw` serve HTML/SVG inline sull'origin dell'app.
+- [x] #1 XSS: `GET …/files/{fid}/raw` serve HTML/SVG inline sull'origin dell'app.
       Inline solo allowlist (immagini raster, audio, video, pdf, `text/plain`), il resto
       `attachment`; header `X-Content-Type-Options: nosniff` + `Content-Security-Policy: sandbox`.
       Test: `.html`/`.svg` (anche con byte non UTF-8 nei primi 8 KB) mai inline.
-- [ ] #2 `firefox-logins`: NSS dentro il processo + ThreadPool → crash. Spostare la
+- [x] #2 `firefox-logins`: NSS dentro il processo + ThreadPool → crash. Spostare la
       decifratura in un sottoprocesso (`run_cmd` + script) con timeout; liberare gli item.
 
 **2. Bug e robustezza**
-- [ ] #3 `crackqueue._settle`: `_PREV.pop(pid)` anche quando c'è un'analisi in corso + test.
-- [ ] #4 limiti di dimensione: `png-idat` (decompress con `max_length`), `disk` (gunzip
+- [x] #3 `crackqueue._settle`: `_PREV.pop(pid)` anche quando c'è un'analisi in corso + test.
+- [x] #4 limiti di dimensione: `png-idat` (decompress con `max_length`), `disk` (gunzip
       con tetto, `.gz` solo se immagine disco), `pcap` / `openssl` (leggere solo l'header),
       `msb-bits` (usare `_rgba_head`).
-- [ ] #5 `disk` (nomi via `sanitize_name`), `eas` (controllare ffmpeg), `sqlite`
+- [x] #5 `disk` (nomi via `sanitize_name`), `eas` (controllare ffmpeg), `sqlite`
       (escape `"` nei nomi tabella, errore per tabella), handle aperti in `sam`/`sqlite`.
 
 **3. Duplicazioni**
-- [ ] #6 una sola tabella magic bytes in `util` (firma, estensione, mime) usata da
+- [x] #6 una sola tabella magic bytes in `util` (firma, estensione, mime) usata da
       `storage.sniff_mime`, `pcap`, `planner._detect_ext` (+ SQLite/pcap/regf).
-- [ ] #7 `png.py`: un solo ricostruttore zstd IDAT; `png-idat` in
+- [x] #7 `png.py`: un solo ricostruttore zstd IDAT; `png-idat` in
       `STEG_DECODERS`/`IMG_DECODERS`.
-- [ ] #8 prefissi flag da `FLAG_PREFIXES` (lsbbits, lsb `_MSB_PREFIXES`, chef, vision);
+- [x] #8 prefissi flag da `FLAG_PREFIXES` (lsbbits, lsb `_MSB_PREFIXES`, chef, vision);
       `msb_stream` → parametro di `lsb_stream`; `lsbbits` usa `bits_to_ints`.
-- [ ] #9 `sam.py` con `run_cmd` + `resolve_wordlists` + `_pot_password`; `qr.py` con `ctx.sub`.
+- [x] #9 `sam.py` con `run_cmd` + `resolve_wordlists` + `_pot_password`; `qr.py` con `ctx.sub`.
 
 **4. Minori + doc**
-- [ ] #10 backfill mime una tantum (non nel `GET`), `display_order` doppio
+- [x] #10 backfill mime una tantum (non nel `GET`), `display_order` doppio
       (msb-bits/disk), README EN/IT "70 analyzer" + nuovi analyzer documentati,
       `docs/API.md` (coda crack), import inutilizzati (`firefox.py`, `chef.py`).
 

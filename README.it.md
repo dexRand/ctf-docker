@@ -27,7 +27,7 @@ reversing, cracking di password — ognuno con **interfaccia web**, dietro una
 dashboard che li elenca per fase di lavoro.
 
 Il cuore è **StegSuite**, un banco di analisi che prende i file della challenge,
-esegue **60 analyzer** in modo ricorsivo, cerca la flag, cracca ciò che è
+esegue **70 analyzer** in modo ricorsivo, cerca la flag, cracca ciò che è
 bloccato e ti dice **come** ci è arrivato. Lavora **per CTF**: crei l'evento,
 carichi le sue challenge, lasci che l'**autosolver** risolva quelle facili e
 continui sulle altre — da solo, o tramite un'**IA** collegata via **MCP**.
@@ -47,7 +47,7 @@ continui sulle altre — da solo, o tramite un'**IA** collegata via **MCP**.
 - **Una CTF = un progetto** — la CTF contiene le sue challenge e il formato
   flag; una flag in quel formato segna la challenge **risolta**; uno scoreboard le mostra tutte.
 - **Autosolver** — analizza tutte le challenge aperte, poche alla volta.
-- **60 analyzer** ricorsivi: metadati, stringhe/encoding/esolang, stego su
+- **70 analyzer** ricorsivi: metadati, stringhe/encoding/esolang, stego su
   immagini (LSB, steghide, outguess, zsteg…), OCR/QR, audio (spettrogramma,
   morse, DTMF, SSTV, LSB/livelli WAV), rete (tshark, TLS con chiavi/keylog,
   flussi, tunnel DNS), archivi/office/email/git, ELF.
@@ -92,7 +92,7 @@ flowchart LR
   ia([IA]) -->|MCP| api
   cli([./ctf scan / script]) -->|REST| api
   ss --> api[API StegSuite]
-  api --> pipe[pipeline di analisi<br/>60 analyzer · caccia alla flag · cracking]
+  api --> pipe[pipeline di analisi<br/>70 analyzer · caccia alla flag · cracking]
   pipe --> data[(./data<br/>progetti · file · report)]
   api --> svc[catalogo servizi]
   svc -.-> tools[CyberChef · ZAP · Wireshark · SageMath ·<br/>SpiderFoot · Whisper · sandbox rev · …]
@@ -146,7 +146,7 @@ create_ctf → add_challenge(start) → project_status … → get_flags
 | Fase | Tool | URL | A cosa serve | Profilo |
 | --- | --- | --- | --- | --- |
 | Dashboard | Homepage | http://localhost:19001 | Tutti i tool per fase, con stato in tempo reale | core |
-| Analisi | **StegSuite** | http://localhost:19014 | CTF/challenge, 60 analyzer, flag, cracking, report, REST + MCP | core |
+| Analisi | **StegSuite** | http://localhost:19014 | CTF/challenge, 70 analyzer, flag, cracking, report, REST + MCP | core |
 | Analisi | **Terminale** | http://localhost:19022 | VS Code nel browser (code-server, tema della suite) su `./data/projects`: albero file, hex editor, viewer PDF/SQLite, sintassi asm/smali/solidity, terminali `stegsuite` (tutti i tool, `cdp <progetto>`) e `rev` (sandbox) · `` Ctrl+` `` terminale | core |
 | Analisi | FileBrowser | http://localhost:19012 | Sfoglia `./data`: progetti, estratti, report | core |
 | Crypto/Encoding | **CyberChef** | http://localhost:19002 | Base64, XOR, RSA, hash, JWT e molto altro | core |
@@ -174,14 +174,14 @@ build più nuove e `--write` le aggiorna. Tre immagini sono costruite in locale:
 | --- | --- |
 | Identificazione / metadati | `file`, `exiftool`, `identify`, `ffprobe`, `pdfinfo`, `pdfid` |
 | Testo ed encoding | `strings`, `markup-text` (testo di SVG/HTML/XML), `xxd`/`hexyl`/`hexdump`, `decode` (base64/32/85, hex, binario, rot13, URL, bit alto, annidati), `blobs` (blocchi base64/hex → file/testo), `pdftotext`, `morse-text` |
-| Stego su testo ed esolang | `zero-width` (caratteri ZW, whitespace a due simboli, spazi finali), `whitespace` (interprete), `case-bits` (binario + Bacon), `homoglyph` |
-| Stego su immagini | `zsteg`, `lsb-carve`, `stepic`, `psimage`, `steghide`, `outguess`, `jsteg`, `openstego`, `png-chunks`, `png-pixels`, `pixel-bytes` (pixel che sono un altro file, catene seguite), `bit-planes`, `channel-remap` (+ ricolorazione per indice di palette), `image-enhance` |
+| Stego su testo ed esolang | `zero-width` (caratteri ZW, whitespace a due simboli, spazi finali), `whitespace` (interprete), `case-bits` (binario + Bacon), `homoglyph`, `chef` (ricette con quantità ignote), `sqlite` (testo nelle tabelle: history, cookie, dati app) |
+| Stego su immagini | `zsteg`, `lsb-carve`, `lsb-bits` (LSB dei byte grezzi), `msb-bits` (piano MSB), `stepic`, `psimage`, `steghide`, `outguess`, `jsteg`, `openstego`, `png-chunks`, `png-idat` (IDAT zstd/deflate), `png-pixels`, `pixel-bytes` (pixel che sono un altro file, catene seguite), `bit-planes`, `channel-remap` (+ ricolorazione per indice di palette), `image-enhance` |
 | Vision | `ocr` (tesseract, EN + fallback IT, denoise + correzioni O/0), `qr`, `gif-frames` (frame, differenze, bit nei ritardi) |
-| Audio / radio | `spectrogram`, `waveform`, `wav-lsb`, `wav-levels`, `morse`, `dtmf`, `sstv` (Scottie S1/S2) |
+| Audio / radio | `spectrogram`, `waveform`, `wav-lsb`, `wav-levels`, `morse`, `dtmf`, `sstv` (Scottie S1/S2), `eas` (SAME/EAS + AFSK via multimon-ng) |
 | Rete | `pcap` (protocolli, campi HTTP/DNS, commenti, flussi UDP/TCP ricomposti, base64 spezzato un token per pacchetto, testo nelle porte sorgente, tunnel DNS, tunnel DNS per server di destinazione, evil bit RFC 3514, oggetti HTTP, TLS con chiave o keylog TLS 1.3, HTTP/2) |
-| Archivi e documenti | `7z`, `nested-archive`, `binwalk` (scan/estrazione), `foremost`, `office` (OOXML/ODF + macro), `eml`, `git` (storia, reflog, tutti gli oggetti) |
-| Windows | `evtx` (log eventi come testo, pezzi base64 riuniti nella flag), `cpassword` GPP decifrata (in `markup-text`) |
-| Riparazione | `pngcheck`, `png-repair` (chunk, IDAT zstd), `image-repair` (header JPEG/BMP/GIF, prefisso spazzatura, altezza BMP), `byte-swap` (file con parole da 16/32 bit invertite) |
+| Archivi e documenti | `7z`, `nested-archive`, `binwalk` (scan/estrazione), `foremost`, `office` (OOXML/ODF + macro), `eml`, `git` (storia, reflog, tutti gli oggetti), `disk` (sleuthkit: partizioni, fls/icat), `openssl` (`Salted__` + password dai sibling) |
+| Windows | `evtx` (log eventi come testo, pezzi base64 riuniti nella flag), `sam` (hash locali + hashcat), `firefox-logins` (login salvati via libnss3), `cpassword` GPP decifrata (in `markup-text`) |
+| Riparazione | `pngcheck`, `png-repair` (chunk), `image-repair` (header JPEG/BMP/GIF, prefisso spazzatura, altezza BMP), `byte-swap` (file con parole da 16/32 bit invertite) |
 | Binari | `elf` (sezioni, info dinamiche, checksec), `readelf`, `objdump` |
 
 **Caccia alla flag** — ogni output è scansionato in più viste (grezzo, UTF-16,
