@@ -182,8 +182,34 @@ class DtmfAnalyzer(Analyzer):
                           summary="DTMF")
 
 
+class EasAnalyzer(Analyzer):
+    name = "eas"
+    category = "radio"
+    description = "Decode SAME/EAS emergency headers and AFSK from audio (multimon-ng)."
+    accepts = AV_EXT
+    display_order = 426
+
+    def run(self, ctx: ToolContext) -> ToolResult:
+        if not which("multimon-ng"):
+            return ToolResult(self.name, status="skipped", summary="multimon-ng not installed")
+        wav = ctx.sub(self.name) / "audio.wav"
+        ctx.run(["ffmpeg", "-y", "-i", str(ctx.input), "-ac", "1", "-ar", "22050", str(wav)],
+                timeout=300)
+        parts: list[str] = []
+        for mode in ("EAS", "AFSK1200", "AFSK2400", "FSK9600"):
+            proc = ctx.run(["multimon-ng", "-t", "wav", "-a", mode, "-q", str(wav)], timeout=300)
+            text = out_of(proc)
+            if text.strip():
+                parts.append(f"[{mode}]\n{text}")
+        if not parts:
+            return ToolResult(self.name, status="skipped", summary="no EAS/AFSK data")
+        return ToolResult(self.name, status="done", output="\n".join(parts),
+                          summary="EAS/AFSK")
+
+
 register(SpectrogramAnalyzer())
 register(WaveformAnalyzer())
 register(WavLsbAnalyzer())
 register(WavLevelsAnalyzer())
 register(DtmfAnalyzer())
+register(EasAnalyzer())
