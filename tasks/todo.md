@@ -667,3 +667,27 @@ Prossimi passi consigliati, in ordine:
 
 Regola invariata: un commit per tema con `Fixes #N`, un test per ogni fix, e
 push solo dopo `./ctf test -j 2 --extra` verde (nessuna flag persa).
+
+## Sessione 02/11 — verifica del lavoro 27/10 + fix + feature
+
+- [x] Verifica `67e7e05..35348ec`: issue #1–#10 chiuse (6 complete, 4 parziali);
+      gate13 verde (extra 28/28, fixture 33/33, reali 35/35, ALL CORRECT).
+- [x] Aperte e risolte #17–#22 (carving silenzioso sui file da archivi,
+      MAX_NODES invertito, pdf-images, usb-hid sempre attivo, msb-bits palette,
+      residui sicurezza/magic/prefissi). Carving: si carva una foglia estratta se
+      `magic.has_embedded` trova una firma; mai le immagini disco estratte (le
+      legge `disk`), che in gate14/15 tenevano occupato lo slot dei tool pesanti.
+- [x] Feature: `decode` (base58/62/91/45, QP, uu, A1Z26, Caesar/Atbash con
+      prefisso noto, Brainfuck/Ook!), `ds-store`, `android-boot`, pcap (parametri
+      URL esfiltrati con XOR da prefisso, SSID Wi-Fi), wordlist di contesto con
+      hint base64/hex (iTXt). Provati sui file reali: footprint, replace-me (OCR
+      `bctf(…phON3}`, da verificare e2e), x-tension, needle-in-the-wifi, deep-layers.
+- [x] 29 nuove CTF reali in `CANDIDATES` (DUCTF 2021, ICTF 2022, TJCTF 2022,
+      UIUCTF 2021, TAMU 2023/24, UofT 2024, HeroCTF v5, Buckeye 2025, WaniCTF
+      2023/24, TCP1P 2023, corCTF 2023).
+- [ ] Da gate16: smistare `CANDIDATES` in EXTRA/GAPS, spostare in EXTRA i GAPS
+      ora risolti, confrontare i tempi con gate13.
+- [ ] GAPS confermati non risolvibili offline / senza inventare il wrapping:
+      `ic25-thrift` (serve il server), `du22-rage` e `bk24-unknown` (flag da
+      avvolgere a mano), `tj25-pietty` (programma Piet nascosto campionando
+      1 colonna su 15 e 1 riga su 100), `du22-doxme` (flag in due immagini + O/0).
