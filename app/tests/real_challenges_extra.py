@@ -125,6 +125,79 @@ GAPS = [
      "uiuctf{3rd_w0rst_tor_outbre@k_ev3r}"),                                            # SAME x3 with deliberate errors (raw demod)
 ]
 
+# 02/11: solved by the new analyzers / fixes (ds-store, android-boot + OCR,
+# URL-parameter exfil, Wi-Fi SSIDs, decoded hints) and new public challenges
+EXTRA += [
+    ('tj25-footprint.DS_Store', 'https://raw.githubusercontent.com/TJCSec/tjctf-2025-challenges/main/forensics/footprint/files/.DS_Store',
+     'tjctf{ds_store_is_useful?}'),
+    ('bk23-replace-me-boot.img', 'https://raw.githubusercontent.com/cscosu/buckeyectf-2023-public/master/forensics-replace-me/boot.img',
+     'bctf{gr33n_r0b0t_ph0N3}'),
+    ('ic25-x-tension.pcapng', 'https://raw.githubusercontent.com/ImaginaryCTF/ImaginaryCTF-2025-Challenges/main/Forensics/x-tension/dist/chal.pcapng',
+     'ictf{extensions_might_just_suck}'),
+    ('bk23-wifi-frames.pcap', 'https://raw.githubusercontent.com/cscosu/buckeyectf-2023-public/master/misc-needle-in-the-wifi-stack/dist/frames.pcap',
+     'bctf{tw0_po1nt_4_g33_c0ng3s7i0n}'),
+    ('tj25-deep-layers.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2025-challenges/main/forensics/deep-layers/chall.png',
+     'tjctf{p0lygl0t_r3bb1t_h0l3}'),
+    ('du21-retro-og.jpg', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/retro/challenge/og.jpg',
+     'DUCTF{sicc_paint_skillz!}'),
+    ('tj22-fake-geoguessr-lake.jpg', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/fake-geoguessr/lake.jpg',
+     'tjctf{thats_a_lot_of_metadata}'),
+    ('bk25-professors.docx', 'https://raw.githubusercontent.com/cscosu/buckeyectf-2025-public/master/beginner/the_professors_files/OSU_Ethics_Report.docx',
+     'bctf{docx_is_zip}'),
+    ('wani23-just.mp4', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/Just_mp4/file/chall.mp4',
+     'FLAG{H4v1n_fun_1nn1t}'),
+    ('wani23-lowkey.pcap', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/lowkey_messedup/file/chall.pcap',
+     'FLAG{Big_br0ther_is_watching_y0ur_keyb0ard}'),
+    ('wani24-tiny_usb.iso', 'https://raw.githubusercontent.com/wani-hackase/wanictf2024-writeup/main/for/tiny_usb/file/chal_tiny_usb.iso',
+     'FLAG{hey_i_just_bought_a_usb}'),
+]
+
+# 02/11 harvest: not solved yet (missing technique in the comment)
+GAPS += [
+    ('du21-notmyname.pcapng.7z', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/Thats_Not_My_Name/challenge/notmyname.pcapng.7z',
+     'DUCTF{c4t_g07_y0ur_n4m3}'),  # esfiltrazione nel pcap non rilevata (da investigare)
+    ('du21-challenge.gif', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/how-to-pronounce-gif/challenge/challenge.gif',
+     'DUCTF{aM_1_haXX0r_n0w?}'),  # QR spezzato su piu' frame GIF: frame da comporre prima di zbar
+    ('tj22-cool-school.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/cool-school/image.png',
+     'tjctf{l0l_st3g_s0_co0l}'),  # stego immagine non coperta (da investigare)
+    ('tj22-sneaker-zipper.zip', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/sneaker-zipper/chall.zip',
+     'tjctf{sneakers_with_zippers_are_hip_no?_874d174bb26fcf95}'),  # trucco sullo zip non coperto (da investigare)
+    ('tj22-fried-clams', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/misc/fried-clams/bin/chall',
+     'tjctf{noooo_not_clam_b64b833796b08d47}'),  # formato non riconosciuto (da investigare)
+    ('tj22-spongebob.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/spongebob/image.png',
+     'tjctf{such_pogg3rs_ctf}'),  # stego immagine non coperta (da investigare)
+    ('ui21-megacorp-01.cap', 'https://raw.githubusercontent.com/sigpwny/UIUCTF-2021-Public/master/misc/CEO/megacorp-01.cap',
+     'uiuctf{nanotechnology}'),  # WPA: handshake da craccare (hashcat 22000) e traffico da decifrare (#11)
+    ('tamu24-smp.log', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2024/master/forensics/smp/smp.log',
+     'gigem{w3_l0v3_pl1y1n_mc_smp}'),  # log Minecraft: serve uno script dedicato
+    ('uoft24-illusion.pcapng', 'https://raw.githubusercontent.com/UofTCTF/uoftctf-2024-chals-public/master/Forensics/Illusion/traffic.pcapng',
+     'uoftctf{Tr3V0r_C2_1s_H4rd_T0_D3t3c7}'),  # C2 TrevorC2: decifratura AES con la chiave di default
+    ('tamu23-discordance.zip', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2023/master/forensics/discordance/package.zip',
+     'gigem{d15c0rd_k3ep5_d3l37ed_f1l3s?!?!}'),  # pacchetto dati Discord: file cancellati referenziati nei messaggi
+    ('hero5-strange.pdf', 'https://raw.githubusercontent.com/HeroCTF/HeroCTF_v5/main/Steganography/PDF-Mess/strange.pdf',
+     'Hero{M4L1C10U5_C0D3_1N_PDF}'),  # PDF: codice negli oggetti/stream (#14)
+    ('wani23-apocalypse.png', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/Apocalypse/file/chall.png',
+     'FLAG{Watch_out_4_2023_21036}'),  # aCropalypse (CVE-2023-21036): dati dopo IEND da ricostruire
+    ('wani23-peg.pcapng', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/beg_for_a_peg/file/log.pcapng',
+     'FLAG{Hug_a_pug_less_than_three}'),  # JPEG ricostruito dallo stream TCP (porta 4500) ma testo stilizzato: OCR non esatto
+    ('wani23-updog', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/whats_happening/file/updog',
+     'FLAG{n0th1ng_much}'),  # flag rot13 esca; quella vera altrove (da investigare)
+    ('wani24-streamer.pcap', 'https://raw.githubusercontent.com/wani-hackase/wanictf2024-writeup/main/for/I_wanna_be_a_streamer/file/file.pcap',
+     'FLAG{Th4nk_y0u_f0r_W4tching}'),  # video in RTP/RTSP da ricostruire (#11)
+    ('tcp1p23-compromised.pcap', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Compromised/dist/compromised.pcap',
+     'TCP1P{3xpl0171n6_pr3d1c74bl3__p1d_533d_f0r_7h3_w1n_98ef246706}'),  # FTPS da decifrare con la chiave privata
+    ('tcp1p23-reminiscence.pcap', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Reminiscence/dist/reminiscence.pcap',
+     'TCP1P{r3min1scing_s0meth1ng_b4ck_in_th3_0ld_days_a01fef0086}'),  # da investigare (pcap)
+    ('tcp1p23-ez.pdf', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Ez%20PDF/TCP1P-CTF.pdf',
+     'TCP1P{D01n9_F023n51C5_0N_pdf_f1L35_15_345y_15N7_17_l3jaf9ci293m1d}'),  # PDF (da investigare, #14)
+    ('tcp1p23-hide-split.zip', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/hide%20and%20split/dist/challenge.zip',
+     'TCP1P{hidden_flag_in_the_extended_attributes_fea73c5920aa8f1c}'),  # flag negli extended attributes
+    ('tcp1p23-scrambled-egg.zip', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/scrambled%20egg/dist/scrambled_egg.zip',
+     'TCP1P{y0Ur_u5u4L_pN9_cHUnk_ch4LL}'),  # chunk PNG rimescolati da riordinare
+    ('cor23-sanitycheck.png', 'https://raw.githubusercontent.com/Crusaders-of-Rust/corCTF-2023-public-challenge-archive/master/misc/sanity-check/sanitycheck.png',
+     'corctf{aaaaaaaaaaaaaaaaaaaaaaaa}'),  # flag disegnata (OCR): testo non letto
+]
+
 # Candidates harvested on 2026-10-27 from public challenge repos (file + official
 # flag from flag.txt / challenge.yaml / metadata.yaml / README, read via the
 # GitHub API). Run with `real_challenges.py --candidates --only-new`, then
@@ -138,65 +211,7 @@ BK23 = "https://raw.githubusercontent.com/cscosu/buckeyectf-2023-public/master"
 DU22 = "https://raw.githubusercontent.com/DownUnderCTF/Challenges_2022_Public/main"
 DU25 = "https://raw.githubusercontent.com/DownUnderCTF/Challenges_2025_Public/main"
 UT24 = "https://raw.githubusercontent.com/utisss/UTCTF-24/main"
-CANDIDATES = [
-    # --- 02/11 harvest: DUCTF 2021, ICTF 2022, TJCTF 2022, UIUCTF 2021, TAMU 2023/24,
-    # UofTCTF 2024, HeroCTF v5, BuckeyeCTF 2025, WaniCTF 2023/24, TCP1P 2023, corCTF 2023
-    # (file + official flag from flag.txt / challenge.yaml / README via the GitHub API)
-    ('du21-notmyname.pcapng.7z', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/Thats_Not_My_Name/challenge/notmyname.pcapng.7z',
-     'DUCTF{c4t_g07_y0ur_n4m3}'),  # Challenges_2021_Public, 52446588 B
-    ('du21-challenge.gif', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/how-to-pronounce-gif/challenge/challenge.gif',
-     'DUCTF{aM_1_haXX0r_n0w?}'),  # Challenges_2021_Public, 106214 B
-    ('du21-retro-og.jpg', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/retro/challenge/og.jpg',
-     'DUCTF{sicc_paint_skillz!}'),  # Challenges_2021_Public, 123612 B
-    ('tj22-cool-school.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/cool-school/image.png',
-     'tjctf{l0l_st3g_s0_co0l}'),  # tjctf-2022-challenges, 672954 B
-    ('tj22-fake-geoguessr-lake.jpg', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/fake-geoguessr/lake.jpg',
-     'tjctf{thats_a_lot_of_metadata}'),  # tjctf-2022-challenges, 692450 B
-    ('tj22-sneaker-zipper.zip', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/sneaker-zipper/chall.zip',
-     'tjctf{sneakers_with_zippers_are_hip_no?_874d174bb26fcf95}'),  # tjctf-2022-challenges, 20965 B
-    ('tj22-spongebob.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/spongebob/image.png',
-     'tjctf{such_pogg3rs_ctf}'),  # tjctf-2022-challenges, 265797 B
-    ('tj22-fried-clams', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/misc/fried-clams/bin/chall',
-     'tjctf{noooo_not_clam_b64b833796b08d47}'),  # tjctf-2022-challenges, 14472 B
-    ('ui21-megacorp-01.cap', 'https://raw.githubusercontent.com/sigpwny/UIUCTF-2021-Public/master/misc/CEO/megacorp-01.cap',
-     'uiuctf{nanotechnology}'),  # UIUCTF-2021-Public, 99046 B
-    ('tamu23-discordance.zip', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2023/master/forensics/discordance/package.zip',
-     'gigem{d15c0rd_k3ep5_d3l37ed_f1l3s?!?!}'),  # tamuctf-2023, 54800 B
-    ('tamu24-smp.log', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2024/master/forensics/smp/smp.log',
-     'gigem{w3_l0v3_pl1y1n_mc_smp}'),  # tamuctf-2024, 25900071 B
-    ('uoft24-illusion.pcapng', 'https://raw.githubusercontent.com/UofTCTF/uoftctf-2024-chals-public/master/Forensics/Illusion/traffic.pcapng',
-     'uoftctf{Tr3V0r_C2_1s_H4rd_T0_D3t3c7}'),  # uoftctf-2024-chals-public, 14843284 B
-    ('hero5-strange.pdf', 'https://raw.githubusercontent.com/HeroCTF/HeroCTF_v5/main/Steganography/PDF-Mess/strange.pdf',
-     'Hero{M4L1C10U5_C0D3_1N_PDF}'),  # HeroCTF_v5, 231077 B
-    ('bk25-professors.docx', 'https://raw.githubusercontent.com/cscosu/buckeyectf-2025-public/master/beginner/the_professors_files/OSU_Ethics_Report.docx',
-     'bctf{docx_is_zip}'),  # buckeyectf-2025-public, 6362 B
-    ('wani23-apocalypse.png', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/Apocalypse/file/chall.png',
-     'FLAG{Watch_out_4_2023_21036}'),  # wanictf2023-writeup, 36410 B
-    ('wani23-just.mp4', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/Just_mp4/file/chall.mp4',
-     'FLAG{H4v1n_fun_1nn1t}'),  # wanictf2023-writeup, 152254 B
-    ('wani23-peg.pcapng', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/beg_for_a_peg/file/log.pcapng',
-     'FLAG{Hug_a_pug_less_than_three}'),  # wanictf2023-writeup, 65104 B
-    ('wani23-lowkey.pcap', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/lowkey_messedup/file/chall.pcap',
-     'FLAG{Big_br0ther_is_watching_y0ur_keyb0ard}'),  # wanictf2023-writeup, 11116 B
-    ('wani23-updog', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/whats_happening/file/updog',
-     'FLAG{n0th1ng_much}'),  # wanictf2023-writeup, 382976 B
-    ('wani24-streamer.pcap', 'https://raw.githubusercontent.com/wani-hackase/wanictf2024-writeup/main/for/I_wanna_be_a_streamer/file/file.pcap',
-     'FLAG{Th4nk_y0u_f0r_W4tching}'),  # wanictf2024-writeup, 21622714 B
-    ('wani24-tiny_usb.iso', 'https://raw.githubusercontent.com/wani-hackase/wanictf2024-writeup/main/for/tiny_usb/file/chal_tiny_usb.iso',
-     'FLAG{hey_i_just_bought_a_usb}'),  # wanictf2024-writeup, 1245184 B
-    ('tcp1p23-compromised.pcap', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Compromised/dist/compromised.pcap',
-     'TCP1P{3xpl0171n6_pr3d1c74bl3__p1d_533d_f0r_7h3_w1n_98ef246706}'),  # TCP1P-CTF-2023-Challenges, 780136 B
-    ('tcp1p23-ez.pdf', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Ez%20PDF/TCP1P-CTF.pdf',
-     'TCP1P{D01n9_F023n51C5_0N_pdf_f1L35_15_345y_15N7_17_l3jaf9ci293m1d}'),  # TCP1P-CTF-2023-Challenges, 80573 B
-    ('tcp1p23-reminiscence.pcap', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Reminiscence/dist/reminiscence.pcap',
-     'TCP1P{r3min1scing_s0meth1ng_b4ck_in_th3_0ld_days_a01fef0086}'),  # TCP1P-CTF-2023-Challenges, 122226 B
-    ('tcp1p23-hide-split.zip', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/hide%20and%20split/dist/challenge.zip',
-     'TCP1P{hidden_flag_in_the_extended_attributes_fea73c5920aa8f1c}'),  # TCP1P-CTF-2023-Challenges, 127784 B
-    ('tcp1p23-scrambled-egg.zip', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/scrambled%20egg/dist/scrambled_egg.zip',
-     'TCP1P{y0Ur_u5u4L_pN9_cHUnk_ch4LL}'),  # TCP1P-CTF-2023-Challenges, 6199905 B
-    ('cor23-sanitycheck.png', 'https://raw.githubusercontent.com/Crusaders-of-Rust/corCTF-2023-public-challenge-archive/master/misc/sanity-check/sanitycheck.png',
-     'corctf{aaaaaaaaaaaaaaaaaaaaaaaa}'),  # corCTF-2023-public-challenge-archive, 82169 B
-]   # smistate il 2026-10-27: 4 risolte (in EXTRA), 28 in GAPS
+CANDIDATES: list[tuple[str, str, str]] = []   # smistate il 2026-10-27: 4 risolte (in EXTRA), 28 in GAPS
 
 
 # --- smistate il 2026-10-27 (ex CANDIDATES, risolte) ---
@@ -210,8 +225,6 @@ EXTRA += [
 # --- candidate 2026-10-27 non risolte: tecnica mancante ---
 GAPS += [
     ("tj25-albumcover.png", f"{TJ25}/forensics/album-cover/albumcover.png", "tjctf{THIS-EASTER-EGG-IS-PRETTY-COOL}"),  # payload audio/immagine prodotto da enc.py: non riconosciuto
-    ("tj25-deep-layers.png", f"{TJ25}/forensics/deep-layers/chall.png", "tjctf{p0lygl0t_r3bb1t_h0l3}"),  # polyglot: password in iTXt (p0lwds0tp3ssw0rd), membro nascosto non estratto
-    ("tj25-footprint.DS_Store", f"{TJ25}/forensics/footprint/files/.DS_Store", "tjctf{ds_store_is_useful?}"),  # serve il parser .DS_Store (record Iloc/nomi UTF-16BE)
     ("tj25-packet-palette.pcapng", f"{TJ25}/forensics/packet-palette/chall.pcapng", "tjctf{usb1p_f13g_1ns1d3_3_pr0t0c0l}"),  # USB/IP incapsulato in TCP: l'HID non arriva a tshark come usbhid.data
     ("tj25-quant-lost.jpg", f"{TJ25}/forensics/quant/lost.jpg", "tjctf{th3_Li0n_d0esNt_qUanT1ze}"),  # tabelle DQT azzerate: vanno ricostruite per decodificare (handout incerto: thelion.jpg)
     ("tj25-pietty-runme.png", f"{TJ25}/forensics/thats-pietty-cool/chall/runme.png", "tjctf{p1et_pr1nt3r}"),  # Piet esolang: serve un interprete
@@ -220,15 +233,12 @@ GAPS += [
     ("ic25-nightcore.mp3", f"{IC25}/Forensics/nightcore/challenge/nightcore.mp3", "ictf{12345678}"),  # ENF (frequenza di rete) nel rumore: demodulazione dedicata
     ("ic25-obfuscated-Users.zip", f"{IC25}/Forensics/obfuscated-1/dist/Users.zip", "ictf{Slay4U!!}"),  # profilo Windows: ora finisce (621s) ma servono i registry hive (hivex/Volatility)
     ("ic25-thrift-capture.pcap", f"{IC25}/Forensics/thrift-store/dist/capture.pcap", "ictf{l1k3_gRPC_bUt_l3ss_g0ogly}"),  # protocollo Apache Thrift: serve un decode binario
-    ("ic25-x-tension.pcapng", f"{IC25}/Forensics/x-tension/dist/chal.pcapng", "ictf{extensions_might_just_suck}"),  # 29 MB: il flag sta nel nome/estensione di un oggetto HTTP
     ("bk24-couch_potato.wav", f"{BK24}/forensics/couch_potato/dump1.wav", "bctf{1_11k3_5p4m_w17h_my_h4m}"),  # 22 MB: probabile SSTV/spettro su un canale non coperto
     ("bk24-duck-pics.pcapng", f"{BK24}/forensics/duck-pics/capture.pcapng", "bctf{St0p_s3nd1Ng_m3_DuCK_p1c$}"),  # handout incerto (capture vs whole-capture)
     ("bk24-hall-effect.pcapng", f"{BK24}/forensics/hall-effect/capture.pcapng", "bctf{Wh0s3_g0NNa_CarRY_Th3B0atS}"),  # protocollo/dato non emerso: da investigare
     ("bk24-the_cia.pdf", f"{BK24}/forensics/the_cia/protected-cia-document.pdf", "bctf{U_c4N_d0_TH1s_On_w0rd_docs_T0O}"),  # PDF cifrato: pdfcrack+rockyou non lo apre (il lock ora viene segnalato)
     ("bk24-unknown.zip", f"{BK24}/forensics/unknown/unknown.zip", "bctf{f1l3_3x73n510n5_4r3_n07_r34l}"),  # il file contiene `ctf{...}`, l'atteso e' `bctf{...}`: il wrapping non si inventa
     ("bk24-wreck-dump", f"{BK24}/forensics/wreck/dump", "bctf{D4MN_7h47_c0r3_dvmp_907_4_GY477}"),  # core dump 37 MB: il flag non e' in chiaro (analisi heap/GDB)
-    ("bk23-replace-me-boot.img", f"{BK23}/forensics-replace-me/boot.img", "bctf{gr33n_r0b0t_ph0N3}"),  # Android boot.img: serve unpacks (bootimg) del ramdisk
-    ("bk23-wifi-frames.pcap", f"{BK23}/misc-needle-in-the-wifi-stack/dist/frames.pcap", "bctf{tw0_po1nt_4_g33_c0ng3s7i0n}"),  # 802.11: servono SSID/probe e decifratura dei frame
     ("bk23-weather.wav", f"{BK23}/misc-weather/dist/weather.wav", "bctf{0mg_i_10v3_FSK_i75_my_f4v0ri73_m0du147i0n}"),  # FSK (meteo): demodulatore FSK dedicato
     ("du22-doxme", f"{DU22}/dfir/doxme/publish/doxme", "DUCTF{WOrd_D0Cs_Ar3_R34L1Y_W3ird}"),  # docx senza estensione: il flag non e' in document.xml (header/footer/media)
     ("du22-mate.aussie", f"{DU22}/misc/land_down_under/publish/mate.aussie", "DUCTF{ƐƖSSn∀_ɹ_n_sƖɥʇ_D∀Ɛɹ_NㄣƆ_∩0⅄_ℲI}"),  # esolang 'aussie' con flag capovolta: serve un interprete

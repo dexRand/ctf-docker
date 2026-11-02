@@ -204,14 +204,15 @@ def test_carved_files_are_not_carved_again():
     up = _plan_for("x.bin", None, False)
     carved = _plan_for("x.bin", None, False, made_by="foremost")
     from_archive = _plan_for("x.bin", None, False, made_by="7z")
-    assert {"binwalk-scan", "binwalk-extract", "foremost"} <= set(up)
+    assert {"binwalk-extract", "foremost"} <= set(up) and "binwalk-scan" not in up
     assert not {"binwalk-scan", "binwalk-extract", "foremost"} & set(carved)
     assert set(from_archive) == set(up)
     assert "strings" in carved and "7z" in _plan_for("x.zip", None, False, made_by="foremost")
     # binwalk: raw `<hex offset>` pieces are not carved again, decompressed members are
     carvers = {"binwalk-scan", "binwalk-extract", "foremost"}
+    run = {"binwalk-extract", "foremost"}            # binwalk-scan is folded into -e
     assert not carvers & set(_plan_for("29A4.zip", None, False, made_by="binwalk-extract"))
-    assert carvers <= set(_plan_for("2_c.jpg", "image/jpeg", False, made_by="binwalk-extract"))
+    assert run <= set(_plan_for("2_c.jpg", "image/jpeg", False, made_by="binwalk-extract"))
 
 
 def test_no_foremost_on_captures():
@@ -230,9 +231,9 @@ def test_carvers_skip_small_files_and_archive_leaves():
     assert not carvers & set(_plan_for("x.dat", None, False, size=1200, embedded=False, **leaf))
     assert not carvers & set(_plan_for("x.dat", None, False, size=8192, embedded=False, **leaf))
     # ...but a leaf that hides another file is carved, whatever its size (#17)
-    assert carvers <= set(_plan_for("x.dat", None, False, size=1200, embedded=True, **leaf))
-    assert carvers <= set(_plan_for("x.png", "image/png", False, size=8192, **leaf))
+    assert carvers - {'binwalk-scan'} <= set(_plan_for("x.dat", None, False, size=1200, embedded=True, **leaf))
+    assert carvers - {'binwalk-scan'} <= set(_plan_for("x.png", "image/png", False, size=8192, **leaf))
     # an upload is always carved: a small PNG can still hide an appended zip
     # (fixture "real-challenge": ITS{stego_z1p_appended})
-    assert carvers <= set(_plan_for("x.bin", None, False, size=200))
-    assert carvers <= set(_plan_for("x.bin", None, False, size=8192))
+    assert carvers - {'binwalk-scan'} <= set(_plan_for("x.bin", None, False, size=200))
+    assert carvers - {'binwalk-scan'} <= set(_plan_for("x.bin", None, False, size=8192))

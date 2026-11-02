@@ -27,6 +27,7 @@ def test_unknown_leaf_with_an_embedded_file_is_carved(tmp_path):
     plan = _plan_for("mystery", None, False, "7z", size=200, depth=1,
                      embedded=has_embedded(blob))
     assert {"binwalk-extract", "foremost"} <= set(plan)
+    assert "binwalk-scan" not in plan                   # folded into binwalk -e
 
 
 def test_unknown_leaf_without_signatures_is_not_carved(tmp_path):
@@ -177,4 +178,4 @@ def test_disk_images_unpacked_by_the_disk_analyzer_are_not_carved_again():
                          embedded=True)
         assert not CARVERS & set(plan), made_by
     # an uploaded image is still carved (deleted files, slack space)
-    assert CARVERS <= set(_plan_for("disk.img", None, False, "", size=400 << 20, depth=0))
+    assert CARVERS - {"binwalk-scan"} <= set(_plan_for("disk.img", None, False, "", size=400 << 20, depth=0))

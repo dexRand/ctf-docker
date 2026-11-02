@@ -155,4 +155,6 @@ def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "",
         if tool in HEAVY_EXTRACT and made_by in STEG_DECODERS:
             continue
         plan.append(tool)
+    if "binwalk-extract" in plan and "binwalk-scan" in plan:
+        plan.remove("binwalk-scan")      # `binwalk -e` prints the same signature table
     return plan
