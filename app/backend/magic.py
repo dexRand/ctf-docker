@@ -36,6 +36,8 @@ SIGNATURES = (
     (b"\x0a\x0d\x0d\x0a", ".pcapng", "application/x-pcapng"),
     (b"ElfFile\x00", ".evtx", "application/x-ms-evtx"),
     (b"regf", ".regf", "application/x-ms-registry"),
+    (b"\x00\x00\x00\x01Bud1", ".DS_Store", "application/x-apple-ds-store"),
+    (b"ANDROID!", ".img", "application/x-android-bootimg"),
     (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", ".doc", "application/x-ole-storage"),
 )
 

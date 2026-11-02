@@ -10,13 +10,16 @@ TLS traffic is decrypted with tshark and the plaintext HTTP is inspected too.
 from __future__ import annotations
 
 import base64
+import binascii
+import re
 import struct
+import urllib.parse
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, list_files, which
 from .registry import register
 from ..magic import mime_of
-from .util import B64_TOKEN, join_b64_fragments, printable_ratio
+from .util import B64_TOKEN, join_b64_fragments, printable_ratio, xor_known_prefix
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
 
@@ -84,6 +87,44 @@ def repaired_pcap(data: bytes) -> bytes | None:
     return bytes(out)
 
 
+
+
+def param_exfil(uris: list[str], min_values: int = 6) -> list[str]:
+    """Data leaked a few bytes per HTTP request in a query parameter
+    (`/?t=5e`, `/?t=54`, …: an extension/keylogger beaconing). Values of the
+    same path+parameter are joined in request order, then read as text, hex or
+    base64, each also tried with the single-byte XOR a known prefix implies."""
+    series: dict[tuple[str, str], list[str]] = {}
+    for uri in uris:
+        parsed = urllib.parse.urlsplit(uri.strip())
+        for key, value in urllib.parse.parse_qsl(parsed.query, keep_blank_values=False):
+            if len(value) <= 16:
+                series.setdefault((parsed.path or "/", key), []).append(value)
+    lines: list[str] = []
+    for (path, key), values in series.items():
+        if len(values) < min_values:
+            continue
+        joined = "".join(values)
+        blobs = [("text", joined.encode())]
+        if re.fullmatch(r"[0-9a-fA-F]+", joined) and len(joined) % 2 == 0:
+            blobs.append(("hex", bytes.fromhex(joined)))
+        try:
+            blobs.append(("base64", base64.b64decode(joined + "=" * (-len(joined) % 4),
+                                                     validate=True)))
+        except (binascii.Error, ValueError):
+            pass
+        # key down + key up: every byte sent twice in a row -> keep one of each
+        for how, blob in list(blobs):
+            if len(blob) >= 4 and len(blob) % 2 == 0 and blob[0::2] == blob[1::2]:
+                blobs.append((how + " de-doubled", blob[0::2]))
+        for how, blob in blobs:
+            if printable_ratio(blob) >= 0.9:
+                lines.append(f"{path}?{key}= ({len(values)} requests, {how}): "
+                             + blob.decode("latin-1")[:4000])
+            for k, dec in xor_known_prefix(blob):
+                lines.append(f"{path}?{key}= ({len(values)} requests, {how} ^ 0x{k:02x}): "
+                             + dec.decode("latin-1", "replace")[:4000])
+    return lines
 
 
 def _key_files(ctx: ToolContext) -> list[Path]:
@@ -404,9 +445,13 @@ class PcapAnalyzer(Analyzer):
             "-e", "http.request.full_uri", "-e", "http.host", "-e", "http.file_data",
             "-e", "data.data",
         ], timeout=180)
-        fields = " ".join(line for line in (proc.stdout or "").splitlines() if line.strip())
+        rows = [line for line in (proc.stdout or "").splitlines() if line.strip()]
+        fields = " ".join(rows)
         if fields:
             parts.append("== fields ==\n" + fields[:20000])
+        exfil = param_exfil([r.split("\t", 1)[0] for r in rows if r.split("\t", 1)[0]])
+        if exfil:
+            parts.append("== URL parameters (one value per request) ==\n" + "\n".join(exfil))
         # reassembled UDP/TCP conversations: a flag sent one char per packet
         # ("follow UDP stream") only appears when the payloads are joined
         streams = _streams_text(ctx, tls)

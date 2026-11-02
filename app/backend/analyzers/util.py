@@ -129,3 +129,20 @@ from ..magic import ext_of
 def magic_ext(blob: bytes) -> str:
     """Extension for a known file signature at the start of `blob`, else ""."""
     return ext_of(blob)
+
+
+def xor_known_prefix(data: bytes) -> list[tuple[int, bytes]]:
+    """Single-byte XOR keys that turn the start of `data` into a known flag
+    prefix + "{": (key, decoded). One XOR per candidate prefix, no brute force."""
+    from ..flagpatterns import FLAG_PREFIXES
+    out: list[tuple[int, bytes]] = []
+    for prefix in FLAG_PREFIXES:
+        want = (prefix + "{").encode()
+        if len(data) < len(want):
+            continue
+        for variant in (want, want.lower()):
+            key = data[0] ^ variant[0]
+            if key and all(data[i] ^ key == variant[i] for i in range(len(variant))):
+                if all(k != key for k, _ in out):
+                    out.append((key, bytes(b ^ key for b in data)))
+    return out
