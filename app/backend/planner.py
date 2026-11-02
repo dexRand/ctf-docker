@@ -63,8 +63,9 @@ CARVERS = {"binwalk-scan", "binwalk-extract", "foremost"}
 # pcap analyzer exports whole (shark2: 310 extra files, never a flag in the
 # real-challenge history); binwalk-extract still carves the capture.
 CAPTURE_EXT = (".pcap", ".pcapng", ".cap")
-# a disk image the `disk` analyzer unpacked (.img.gz -> .img): carving 400 MB of
-# filesystem re-cuts the files sleuthkit already lists (orchid: 1166 pieces)
+# a disk image extracted from an upload (.img.gz -> .img by `disk` or `7z`): the
+# disk analyzer lists its files with sleuthkit; carving 400 MB of filesystem
+# re-cut them (orchid: 1166 pieces) and held the heavy-tool slot for minutes
 _DISK_IMAGE_EXT = (".img", ".dd", ".raw", ".iso", ".vhd", ".vmdk")
 # binwalk/foremost look for *embedded* files: on a 200-byte .dat extracted from
 # a Windows profile there is nothing to find, and a profile zip with 460 members
@@ -145,7 +146,7 @@ def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "",
                 continue
             if carving_useless(depth, mime, embedded):
                 continue
-            if made_by == "disk" and name.lower().endswith(_DISK_IMAGE_EXT):
+            if depth > 0 and name.lower().endswith(_DISK_IMAGE_EXT):
                 continue                 # the disk analyzer walks it file by file (sleuthkit)
         if tool == "foremost" and name.lower().endswith(CAPTURE_EXT):
             continue
