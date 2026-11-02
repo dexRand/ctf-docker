@@ -106,6 +106,19 @@ def _tess(img, psm: int, timeout: int, langs: str | None = None) -> str:
             pass
 
 
+def flatten_alpha(im):
+    """Composite a transparent image on white, as a viewer shows it. Dropping
+    the alpha channel instead (convert("L")) reveals the colour stored under
+    the transparent pixels, which can hide the text (BuckeyeCTF 2023 replace-me:
+    a gray+alpha PNG read as noise)."""
+    from PIL import Image
+    if im.mode in ("RGBA", "LA", "PA") or (im.mode == "P" and "transparency" in im.info):
+        rgba = im.convert("RGBA")
+        bg = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+        return Image.alpha_composite(bg, rgba).convert("RGB")
+    return im
+
+
 def ocr_image(path: Path, timeout: int = 90, thorough: bool = True,
               max_dim: int | None = None) -> str:
     """Run tesseract on a file and return recognized text ('' if unavailable).
@@ -129,6 +142,7 @@ def ocr_image(path: Path, timeout: int = 90, thorough: bool = True,
         base.load()  # decode now so a truncated image degrades to "" instead of raising later
     except Exception:
         return ""
+    base = flatten_alpha(base)
     # downscale huge images: tesseract on multi-MP photos is very slow and the
     # flags in them are large text anyway
     limit = max_dim or OCR_MAX_DIM
@@ -146,6 +160,12 @@ def ocr_image(path: Path, timeout: int = 90, thorough: bool = True,
         gray = gray.resize((w * f, h * f), Image.LANCZOS)
     for psm in (6, 7):
         t = _tess(gray, psm, timeout)
+        if t and t not in texts:
+            texts.append(t)
+    if not any(_KNOWN_FLAG.search(t) for t in texts):
+        # automatic page segmentation: text in a small graphic with other shapes
+        # around it (icons, charger images) is only found as its own block
+        t = _tess(gray, 3, timeout)
         if t and t not in texts:
             texts.append(t)
     if thorough and not any(_KNOWN_FLAG.search(t) for t in texts):

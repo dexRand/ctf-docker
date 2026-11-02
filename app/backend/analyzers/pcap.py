@@ -301,6 +301,31 @@ _MAX_CARVE_STREAM = 8 << 20   # bytes kept per one-way stream for carving
 _MAX_CARVE_FILES = 32
 
 
+def assemble_segments(segs: dict[int, bytes], by_seq: bool = True) -> bytes:
+    """Join one direction of a conversation. TCP: in sequence-number order,
+    overlapping retransmitted bytes dropped (the key is the relative seq)."""
+    data = bytearray()
+    base = min(segs) if segs else 0
+    for pos in sorted(segs):
+        chunk = segs[pos]
+        off = pos - base
+        if by_seq and off < len(data):
+            chunk = chunk[len(data) - off:]
+        data += chunk
+    return bytes(data)
+
+
+def carvable_payload(data: bytes) -> bytes:
+    """What is worth carving in a one-way stream: an HTTP response's body
+    (also on ports tshark does not dissect as HTTP), nothing for a request."""
+    if data[:5] == b"HTTP/":
+        _head, sep, body = data.partition(b"\r\n\r\n")
+        return body if sep else b""
+    if data[:8].split(b" ")[0] in (b"GET", b"POST", b"PUT", b"HEAD", b"OPTIONS"):
+        return b""
+    return data
+
+
 def _streams_text(ctx: ToolContext, tls: list[str]) -> tuple[str, list[tuple[str, bytes]]]:
     """Payload of every UDP/TCP conversation joined in order, shown as text
     (non-printables as '.') when it reads like text or holds a brace; plus
@@ -309,12 +334,15 @@ def _streams_text(ctx: ToolContext, tls: list[str]) -> tuple[str, list[tuple[str
     proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-T", "fields", "-E", "separator=\t",
                     "-e", "frame.time_epoch", "-e", "udp.stream", "-e", "udp.payload",
                     "-e", "tcp.stream", "-e", "tcp.payload",
-                    "-e", "udp.srcport", "-e", "tcp.srcport"], timeout=180)
+                    "-e", "udp.srcport", "-e", "tcp.srcport", "-e", "tcp.seq"], timeout=180)
     joined: dict[tuple[str, str], bytearray] = {}
-    oneway: dict[tuple[str, str, str], bytearray] = {}
+    # one-way segments by sequence number: retransmissions and reordering
+    # would otherwise corrupt a file sent over the socket
+    oneway: dict[tuple[str, str, str], dict[int, bytes]] = {}
+    oneway_size: dict[tuple[str, str, str], int] = {}
     timed: list[tuple[float, bytes]] = []
     for line in (proc.stdout or "").splitlines():
-        cols = line.split("\t") + ["", "", "", "", "", "", ""]
+        cols = line.split("\t") + ["", "", "", "", "", "", "", ""]
         for proto, sid, payload, sport in (("udp", cols[1], cols[2], cols[5]),
                                            ("tcp", cols[3], cols[4], cols[6])):
             if not sid or not payload:
@@ -330,9 +358,16 @@ def _streams_text(ctx: ToolContext, tls: list[str]) -> tuple[str, list[tuple[str
             buf = joined.setdefault((proto, sid), bytearray())
             if len(buf) < _MAX_STREAM:
                 buf += chunk
-            one = oneway.setdefault((proto, sid, sport), bytearray())
-            if len(one) < _MAX_CARVE_STREAM:
-                one += chunk
+            key = (proto, sid, sport)
+            segs = oneway.setdefault(key, {})
+            if oneway_size.get(key, 0) < _MAX_CARVE_STREAM:
+                try:
+                    pos = int(cols[7]) if proto == "tcp" and cols[7] else len(segs)
+                except ValueError:
+                    pos = len(segs)
+                if pos not in segs:              # a retransmission repeats its seq
+                    segs[pos] = chunk
+                    oneway_size[key] = oneway_size.get(key, 0) + len(chunk)
     out = []
     for (proto, sid), buf in joined.items():
         if len(buf) < 4:
@@ -347,10 +382,10 @@ def _streams_text(ctx: ToolContext, tls: list[str]) -> tuple[str, list[tuple[str
         out.append(f"[base64 per packet, time order] {tokens}")
     out += _port_text(ctx)
     carve: list[tuple[str, bytes]] = []
-    for (proto, sid, sport), buf in oneway.items():
-        data = bytes(buf)
-        if len(data) < 64 or b"HTTP/1." in data[:4096] or not has_signature(data):
-            continue                     # HTTP objects are exported by tshark already
+    for (proto, sid, sport), segs in oneway.items():
+        data = carvable_payload(assemble_segments(segs, proto == "tcp"))
+        if len(data) < 64 or not has_signature(data):
+            continue                     # same bytes as an exported object -> deduped by sha
         carve.append((f"{proto}stream{sid}_from{sport or 'x'}.bin", data))
         if len(carve) >= _MAX_CARVE_FILES:
             break

@@ -40,3 +40,20 @@ def test_ssid_report_decodes_hex_then_base64_and_lists_rare_first():
     report = ssid_report([noise] * 50 + [flag] * 50 + ["HomeWiFi"])
     assert report.splitlines()[0].strip().startswith("1")          # rarest first
     assert "bctf{w1f1_s51d}" in report
+
+
+def test_tcp_segments_reordered_and_retransmissions_dropped():
+    from backend.analyzers.pcap import assemble_segments
+    # body sent before the headers (seq 69 then seq 1) + a retransmission overlap
+    segs = {69: b"BODY-PART-1", 1: b"H" * 68, 75: b"PART-1-MORE"}
+    out = assemble_segments(segs)
+    assert out.startswith(b"H" * 68 + b"BODY-PART-1")
+    assert out.endswith(b"MORE") and out.count(b"PART-1") == 1
+
+
+def test_http_response_body_is_carved_requests_are_not():
+    from backend.analyzers.pcap import carvable_payload
+    jpeg = b"\xff\xd8\xff\xe1" + b"x" * 100
+    assert carvable_payload(b"HTTP/1.1 200 OK\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg) == jpeg
+    assert carvable_payload(b"GET /flag.jpg HTTP/1.1\r\nHost: x\r\n\r\n") == b""
+    assert carvable_payload(jpeg) == jpeg
