@@ -30,3 +30,13 @@ def test_plain_text_and_base64_series():
 
 def test_few_requests_are_ignored():
     assert param_exfil(["http://h/?a=1", "http://h/?a=2"]) == []
+
+
+def test_ssid_report_decodes_hex_then_base64_and_lists_rare_first():
+    import base64
+    from backend.analyzers.pcap import ssid_report
+    noise = base64.b64encode(b"not the network you are looking for\n").hex()
+    flag = base64.b64encode(b"bctf{w1f1_s51d}\n").hex()
+    report = ssid_report([noise] * 50 + [flag] * 50 + ["HomeWiFi"])
+    assert report.splitlines()[0].strip().startswith("1")          # rarest first
+    assert "bctf{w1f1_s51d}" in report

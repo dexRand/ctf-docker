@@ -89,6 +89,22 @@ def repaired_pcap(data: bytes) -> bytes | None:
 
 
 
+def ssid_report(raw: list[str], cap: int = 500) -> str:
+    """Unique SSIDs (rarest first) with their decoding: tshark prints a
+    non-printable SSID as hex, and challenges stack base64/hex on top."""
+    from collections import Counter
+    from .decode import chain
+    counts = Counter(x.strip() for x in raw if x.strip())
+    lines = []
+    for name, n in sorted(counts.items(), key=lambda kv: (kv[1], kv[0]))[:cap]:
+        text = name
+        if re.fullmatch(r"(?:[0-9a-fA-F]{2})+", name):
+            text = bytes.fromhex(name).decode("latin-1")
+        layers = chain(text.encode("latin-1"), depth=3)
+        lines.append(f"{n:6d}  {text[:200]}" + "".join(f"\n        {ln[:300]}" for ln in layers[:3]))
+    return "\n".join(lines)
+
+
 def param_exfil(uris: list[str], min_values: int = 6) -> list[str]:
     """Data leaked a few bytes per HTTP request in a query parameter
     (`/?t=5e`, `/?t=54`, …: an extension/keylogger beaconing). Values of the
@@ -408,8 +424,16 @@ class PcapAnalyzer(Analyzer):
         tls = _tls_options(keys)
         parts: list[str] = []
         proc = ctx.run(["tshark", "-r", str(cap), *tls, "-q", "-z", "io,phs"], timeout=180)
-        if proc.returncode == 0 and (proc.stdout or "").strip():
-            parts.append("== protocols ==\n" + proc.stdout.strip())
+        phs = proc.stdout or ""
+        if proc.returncode == 0 and phs.strip():
+            parts.append("== protocols ==\n" + phs.strip())
+        # 802.11: network names (beacons/probes) often carry the data, encoded
+        if re.search(r"^\s*wlan\b", phs, re.M):
+            ssid = ctx.run(["tshark", "-r", str(cap), "-Y", "wlan.ssid", "-T", "fields",
+                            "-e", "wlan.ssid"], timeout=180)
+            wifi = ssid_report((ssid.stdout or "").splitlines())
+            if wifi:
+                parts.append("== Wi-Fi SSIDs ==\n" + wifi)
         # TLS with a provided key: decrypted HTTP request/response rows. This is the
         # highest-signal section (flags often live in headers, e.g. Pico-Flag), so it
         # is kept right after the protocols and *before* the bulky request-body hex:

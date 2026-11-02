@@ -121,6 +121,26 @@ _EXIF_LINE = re.compile(r"^([A-Za-z][A-Za-z0-9 /_-]{1,40}?)\s*:\s(.+)$")
 _CHUNK_LINE = re.compile(r"^(?:tEXt|iTXt|zTXt): (.+)$")
 
 
+def _decoded_forms(value: str) -> list[str]:
+    """A hint stored encoded (iTXt "Password" = base64 of the password): its
+    base64 / hex decoding when that is short printable text."""
+    import base64
+    import binascii
+    out = []
+    v = value.strip()
+    if 8 <= len(v) <= 200 and re.fullmatch(r"[A-Za-z0-9+/=_-]+", v):
+        for dec in (lambda: base64.b64decode(v + "=" * (-len(v) % 4), validate=False),
+                    lambda: bytes.fromhex(v)):
+            try:
+                raw = dec()
+            except (binascii.Error, ValueError):
+                continue
+            text = raw.decode("ascii", "ignore").strip()
+            if 3 <= len(text) <= 64 and len(text) == len(raw.strip()) and text.isprintable():
+                out.append(text)
+    return out
+
+
 def context_wordlist(session: Session, pid: str, work: Path) -> Path | None:
     """Password candidates from the challenge itself: descriptive metadata
     fields (exiftool) and PNG text chunks of every file of the project, whole
@@ -144,9 +164,11 @@ def context_wordlist(session: Session, pid: str, work: Path) -> Path | None:
                     continue
                 value = m.group(2).strip()
             else:
-                value = re.split(r"[\x00=]", m.group(1), maxsplit=1)[-1].strip()
+                # iTXt: keyword \0 flag method lang \0 tkey \0 text -> the text
+                value = re.split(r"[\x00=]", m.group(1), maxsplit=1)[-1].strip(" \t\x00")
             if 3 <= len(value) <= 200:
                 cands += [value] + [w for w in re.split(r"[\s,;]+", value) if 3 <= len(w) <= 64]
+    cands += [d for c in cands for d in _decoded_forms(c)]   # base64/hex-wrapped hints
     cands = list(dict.fromkeys(cands))[:2000]
     if not cands:
         return None
