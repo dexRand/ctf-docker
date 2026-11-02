@@ -50,3 +50,14 @@ def test_pdf_images_skips_a_file_that_is_not_a_pdf(tmp_path):
     p.write_bytes(b"hello")
     r = PdfImagesAnalyzer().run(ToolContext(input=p, workdir=tmp_path / "w"))
     assert r.status == "skipped" and not r.extracted
+
+
+def test_backspace_erases_typed_characters():
+    from backend.analyzers.usbhid import decode_reports
+    # "abcx" then backspace then "d": the typed text is "abcd"
+    keys = [0x04, 0x05, 0x06, 0x1B, 0x2A, 0x07]
+    reports = []
+    for k in keys:
+        reports.append("00:00:%02x:00:00:00:00:00" % k)
+        reports.append("00:00:00:00:00:00:00:00")          # key release
+    assert decode_reports(reports) == "abcd"

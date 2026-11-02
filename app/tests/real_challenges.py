@@ -122,7 +122,7 @@ def download(url: str, dest: Path) -> None:
     if dest.exists() and dest.stat().st_size > 0:
         return
     dest.parent.mkdir(parents=True, exist_ok=True)
-    encoded = urllib.parse.quote(url, safe=":/")
+    encoded = urllib.parse.quote(url, safe=":/%")   # already-encoded URLs stay as they are
     req = urllib.request.Request(encoded, headers={"User-Agent": "stegsuite-dev"})
     with urllib.request.urlopen(req, timeout=120) as r:  # noqa: S310
         dest.write_bytes(r.read())
@@ -145,7 +145,12 @@ def run(label: str, files: list[tuple[str, str]], expect: str) -> dict:
     d = DEST / label if len(files) > 1 else DEST
     paths = []
     for name, url in files:
-        download(url, d / name)
+        try:
+            download(url, d / name)
+        except OSError as exc:                 # a moved file fails its case, not the run
+            print(f"  [FAIL] {label:<18} download error: {exc}", flush=True)
+            return {"label": label, "ok": False, "expect": expect, "status": "download-error",
+                    "flags": [], "passwords": [], "seconds": 0, "project": ""}
         paths.append(d / name)
     res = ss.analyze(paths, "auto")
     flags = res["flags"]

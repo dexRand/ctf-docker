@@ -148,8 +148,6 @@ CANDIDATES = [
      'DUCTF{aM_1_haXX0r_n0w?}'),  # Challenges_2021_Public, 106214 B
     ('du21-retro-og.jpg', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/retro/challenge/og.jpg',
      'DUCTF{sicc_paint_skillz!}'),  # Challenges_2021_Public, 123612 B
-    ('ic22-ogre-splatter.svg', 'https://raw.githubusercontent.com/ImaginaryCTF/ImaginaryCTF-2022-Challenges/master/Forensics/ogre/public/splatter.svg',
-     'ictf{onions_have_layers_images_have_layers}'),  # ImaginaryCTF-2022-Challenges, 5698 B
     ('tj22-cool-school.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/cool-school/image.png',
      'tjctf{l0l_st3g_s0_co0l}'),  # tjctf-2022-challenges, 672954 B
     ('tj22-fake-geoguessr-lake.jpg', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/fake-geoguessr/lake.jpg',
@@ -164,8 +162,6 @@ CANDIDATES = [
      'uiuctf{nanotechnology}'),  # UIUCTF-2021-Public, 99046 B
     ('tamu23-discordance.zip', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2023/master/forensics/discordance/package.zip',
      'gigem{d15c0rd_k3ep5_d3l37ed_f1l3s?!?!}'),  # tamuctf-2023, 54800 B
-    ('tamu24-fuzzy.jpg', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2024/master/forensics/fuzzy/image.jpg',
-     'gigem{P3rC3P7U41_H45H1N6_M4NY_1M4635_94721}'),  # tamuctf-2024, 74885 B
     ('tamu24-smp.log', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2024/master/forensics/smp/smp.log',
      'gigem{w3_l0v3_pl1y1n_mc_smp}'),  # tamuctf-2024, 25900071 B
     ('uoft24-illusion.pcapng', 'https://raw.githubusercontent.com/UofTCTF/uoftctf-2024-chals-public/master/Forensics/Illusion/traffic.pcapng',

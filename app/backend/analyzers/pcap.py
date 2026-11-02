@@ -18,7 +18,7 @@ from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, list_files, which
 from .registry import register
-from ..magic import mime_of
+from ..magic import has_signature, mime_of
 from .util import B64_TOKEN, join_b64_fragments, printable_ratio, xor_known_prefix
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
@@ -297,19 +297,26 @@ def _expand_http_response(line: str) -> str:
 
 _MAX_STREAM = 1_000_000      # bytes kept per conversation
 _MAX_STREAMS_OUT = 200
+_MAX_CARVE_STREAM = 8 << 20   # bytes kept per one-way stream for carving
+_MAX_CARVE_FILES = 32
 
 
-def _streams_text(ctx: ToolContext, tls: list[str]) -> str:
+def _streams_text(ctx: ToolContext, tls: list[str]) -> tuple[str, list[tuple[str, bytes]]]:
     """Payload of every UDP/TCP conversation joined in order, shown as text
-    (non-printables as '.') when it reads like text or holds a brace."""
+    (non-printables as '.') when it reads like text or holds a brace; plus
+    (name, bytes) for each one-way non-HTTP stream that carries a file
+    signature, so the carvers cut out files sent over a raw socket."""
     proc = ctx.run(["tshark", "-r", str(ctx.input), *tls, "-T", "fields", "-E", "separator=\t",
                     "-e", "frame.time_epoch", "-e", "udp.stream", "-e", "udp.payload",
-                    "-e", "tcp.stream", "-e", "tcp.payload"], timeout=180)
+                    "-e", "tcp.stream", "-e", "tcp.payload",
+                    "-e", "udp.srcport", "-e", "tcp.srcport"], timeout=180)
     joined: dict[tuple[str, str], bytearray] = {}
+    oneway: dict[tuple[str, str, str], bytearray] = {}
     timed: list[tuple[float, bytes]] = []
     for line in (proc.stdout or "").splitlines():
-        cols = line.split("\t") + ["", "", "", "", ""]
-        for proto, sid, payload in (("udp", cols[1], cols[2]), ("tcp", cols[3], cols[4])):
+        cols = line.split("\t") + ["", "", "", "", "", "", ""]
+        for proto, sid, payload, sport in (("udp", cols[1], cols[2], cols[5]),
+                                           ("tcp", cols[3], cols[4], cols[6])):
             if not sid or not payload:
                 continue
             try:
@@ -323,6 +330,9 @@ def _streams_text(ctx: ToolContext, tls: list[str]) -> str:
             buf = joined.setdefault((proto, sid), bytearray())
             if len(buf) < _MAX_STREAM:
                 buf += chunk
+            one = oneway.setdefault((proto, sid, sport), bytearray())
+            if len(one) < _MAX_CARVE_STREAM:
+                one += chunk
     out = []
     for (proto, sid), buf in joined.items():
         if len(buf) < 4:
@@ -336,7 +346,15 @@ def _streams_text(ctx: ToolContext, tls: list[str]) -> str:
     if tokens:
         out.append(f"[base64 per packet, time order] {tokens}")
     out += _port_text(ctx)
-    return "\n".join(out)
+    carve: list[tuple[str, bytes]] = []
+    for (proto, sid, sport), buf in oneway.items():
+        data = bytes(buf)
+        if len(data) < 64 or b"HTTP/1." in data[:4096] or not has_signature(data):
+            continue                     # HTTP objects are exported by tshark already
+        carve.append((f"{proto}stream{sid}_from{sport or 'x'}.bin", data))
+        if len(carve) >= _MAX_CARVE_FILES:
+            break
+    return "\n".join(out), carve
 
 
 def _port_text(ctx: ToolContext) -> list[str]:
@@ -478,7 +496,7 @@ class PcapAnalyzer(Analyzer):
             parts.append("== URL parameters (one value per request) ==\n" + "\n".join(exfil))
         # reassembled UDP/TCP conversations: a flag sent one char per packet
         # ("follow UDP stream") only appears when the payloads are joined
-        streams = _streams_text(ctx, tls)
+        streams, raw_streams = _streams_text(ctx, tls)
         if streams:
             parts.append("== streams ==\n" + streams)
         # DNS tunneling: chunk-per-query exfiltration (ExtractionD'ADNs style)
@@ -514,6 +532,14 @@ class PcapAnalyzer(Analyzer):
         files = list_files(outdir)
         keep = [f for f in files if analysable_object(f)]
         extracted = [str(f) for f in keep]
+        if raw_streams:                  # raw-socket transfers: carved as children
+            sdir = ctx.sub("pcap-streams")
+            sdir.mkdir(parents=True, exist_ok=True)
+            for name, data in raw_streams:
+                (sdir / name).write_bytes(data)
+                extracted.append(str(sdir / name))
+            parts.append("== raw streams with a file signature (carved) ==\n"
+                         + "\n".join(f"{n}  {len(d)} B" for n, d in raw_streams))
         artifacts = [{"name": f.name, "path": str(f), "size": f.stat().st_size} for f in files]
         summary = (f"{len(keep)} object(s) to analyse, {len(files)} exported"
                    if files else "no HTTP object")

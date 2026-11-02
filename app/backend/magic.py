@@ -92,6 +92,11 @@ _EMBEDDED = (b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff\xe0", b"\xff\xd8\xff\xe1", b"\
 EMBED_SCAN = 64 << 20          # bytes scanned; a bigger file is always carved
 
 
+def has_signature(data: bytes) -> bool:
+    """A whole file signature anywhere in `data` (offset 0 included)."""
+    return any(data.find(sig) != -1 for sig in _EMBEDDED)
+
+
 def has_embedded(path) -> bool:
     """True when another file's signature appears *inside* `path` (offset > 0),
     so a carver has something to cut out. Files over EMBED_SCAN, or unreadable,

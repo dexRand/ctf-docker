@@ -102,7 +102,12 @@ def decode_reports(reports: list[str]) -> str:
             pair = _KEYS.get(code)
             if not pair:
                 continue
-            out.append(pair[1] if shift else pair[0])
+            ch = pair[1] if shift else pair[0]
+            if ch == "\b":                     # backspace erases what was typed
+                if out:
+                    out.pop()
+                continue
+            out.append(ch)
     return "".join(out)
 
 
