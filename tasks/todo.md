@@ -691,3 +691,49 @@ push solo dopo `./ctf test -j 2 --extra` verde (nessuna flag persa).
       `ic25-thrift` (serve il server), `du22-rage` e `bk24-unknown` (flag da
       avvolgere a mano), `tj25-pietty` (programma Piet nascosto campionando
       1 colonna su 15 e 1 riga su 100), `du22-doxme` (flag in due immagini + O/0).
+
+## ▶ PROSSIMA AI (deepseek/opencode) — da qui, stato al 02/11 sera (`6eb879e`)
+
+**Baseline** (gate18, tutto tranne l'ultimo perf `binwalk-scan`): unit 336 · extra 28/28 ·
+fixture 33/33 · reali 35/35 · writeup ALL CORRECT. Gate19 (codice finale) interrotto a
+27/39 extra, 0 fail: **rifarlo per primo**.
+
+**1. Verifica (subito)**
+- [ ] `docker compose build stegsuite && docker compose up -d stegsuite term`,
+      `app/tests/run_unit.sh`, `cd app/tests && python3 real_challenges.py -j 3 --only-new --extra`
+      (ora **39** casi), `./ctf test -j 3`. Se qualcosa fallisce: confrontare con gate18,
+      sospetto principale il commit `perf(planner): binwalk-scan folded into binwalk-extract`.
+- [ ] Tempi: il set extra misura i casi in parallelo (-j 3), la somma per caso è
+      gonfiata dall'attesa sullo slot dei tool pesanti (`HEAVY_TOOLS=1`). Per i confronti
+      usare il tempo reale (primo start → ultimo finish dei progetti) o un caso da solo
+      (`-k <nome>`): shark2 da solo 106 s vs 871 s in parallelo.
+
+**2. Issue**
+- [ ] Verificare che #17–#22 risultino chiuse (commit `Fixes #N`), altrimenti chiuderle.
+- [ ] Aggiornare #11–#16 con un commento su cosa è fatto:
+      #11 pcap: parametri URL esfiltrati (hex/b64/XOR da prefisso, de-doubled), SSID Wi-Fi,
+      file su TCP grezzo (seq ordinati, corpo HTTP su porte non standard), USB HID con backspace;
+      #12 decode: base58/62/91/45, QP, uu, A1Z26, Caesar/Atbash con prefisso, Brainfuck/Ook!;
+      #13 `ds-store`, `android-boot`; #14 hint base64/hex nella wordlist di contesto, flag
+      spezzata nei campi EXIF; OCR: alpha appiattita su bianco + psm 3.
+      Restano aperti: Volatility/registry (#13), WPA crack + RTP + TLS/FTPS (#11),
+      olevba/PDF a fondo/*2john (#14), video/APNG/L-R (#15), pyc/.NET/wasm + hash recognizer (#16).
+
+**3. Ottimizzazione (richiesta esplicita dell'utente: "ottimizzare il tutto")**
+- [ ] Set extra +16% di tempo reale vs gate13 (801 → 930 s) per il carving delle foglie con
+      firme (#17, voluto: non perdere pezzi). Idee da misurare, una alla volta:
+      foremost solo se binwalk-extract non estrae nulla sulle foglie; `HEAVY_TOOLS=2` con
+      `cpus` più alti; cache per sha256 dei risultati dei tool (stesso file in progetti diversi).
+- [ ] Mai togliere un'analisi senza la prova che è un doppione (come binwalk-scan vs -e).
+
+**4. GAPS nuovi (64 in tutto, motivo nel commento in `real_challenges_extra.py`)**
+- [ ] Più promettenti (tecnica generica): aCropalypse (`wani23-apocalypse`), chunk PNG
+      rimescolati (`tcp1p23-scrambled-egg`), QR spezzato su frame GIF (`du21-challenge.gif`),
+      WPA handshake (`ui21-megacorp`), extended attributes (`tcp1p23-hide-split`),
+      RTP→video (`wani24-streamer`).
+- [ ] Non risolvibili per costruzione: `ic25-thrift` (serve il server), `du22-rage` /
+      `bk24-unknown` (flag da avvolgere a mano), `tj25-pietty` (Piet nascosto campionando).
+
+**Regole**: un commit per tema con `Fixes #N`, un test per fix, push solo dopo la verifica
+completa senza flag perse; niente duplicati (helper in `analyzers/util.py`, `magic.py`,
+`api/fileresp.py`).
