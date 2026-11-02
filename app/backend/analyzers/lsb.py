@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..magic import by_ext
 from ..flagpatterns import FLAG_PREFIXES
 from .base import Analyzer, ToolContext, ToolResult, run_cmd, which
 from .util import magic_ext, printable_ratio
@@ -16,9 +17,8 @@ from .registry import register
 # bit 1/2 of the low channels, both bit orders, plus one deeper plane
 _SPECS = ["b1,bgr,lsb,xy", "b1,rgba,lsb,xy", "b2,bgr,lsb,xy", "b2,rgba,lsb,xy",
           "b1,bgr,msb,xy", "b2,bgr,msb,xy", "b3,rgba,lsb,xy"]
-_MAGICS = [(b"PK\x03\x04", ".zip"), (b"\x89PNG\r\n\x1a\n", ".png"), (b"%PDF", ".pdf"),
-           (b"GIF89a", ".gif"), (b"GIF87a", ".gif"), (b"\xff\xd8\xff", ".jpg"),
-           (b"\x1f\x8b\x08", ".gz"), (b"BZh", ".bz2"), (b"\xfd7zXZ", ".xz")]
+# formats worth carving out of an LSB stream (shared table, strong signatures)
+_MAGICS = by_ext(".zip", ".png", ".pdf", ".gif", ".jpg", ".gz", ".bz2", ".xz", ".7z", ".rar")
 _MIN = 64
 _MAX_NUMPY_PIXELS = 40_000_000   # above this (or for palette/gray images) zsteg does it
 _CHAN = {"r": 0, "g": 1, "b": 2, "a": 3}
@@ -39,15 +39,16 @@ def lsb_stream(arr, spec: str) -> bytes:
     return _pack_bits(bits, "big" if order == "lsb" else "little")
 
 
-def _rgba_head(path: Path, max_pixels: int = _MAX_NUMPY_PIXELS):
-    """RGBA array of an RGB/RGBA image; for a huge image only its first rows
-    (hidden data starts at the beginning of the stream). None otherwise."""
+def _rgba_head(path: Path, max_pixels: int = _MAX_NUMPY_PIXELS, any_mode: bool = False):
+    """RGBA array of an RGB/RGBA image (any mode with `any_mode`: palette and
+    grayscale are converted); for a huge image only its first rows (hidden data
+    starts at the beginning of the stream). None otherwise."""
     try:
         from PIL import Image
         import numpy as np
         Image.MAX_IMAGE_PIXELS = None               # big challenge images are legitimate
         with Image.open(path) as im:
-            if im.mode not in ("RGB", "RGBA"):
+            if im.mode not in ("RGB", "RGBA") and not any_mode:
                 return None
             rows = max(1, min(im.height, max_pixels // max(1, im.width)))
             head = im.crop((0, 0, im.width, rows)) if rows < im.height else im
@@ -208,9 +209,9 @@ class MsbBitsAnalyzer(Analyzer):
     MAX_PIXELS = 40_000_000
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        arr = _rgba_head(ctx.input, max_pixels=self.MAX_PIXELS)
+        arr = _rgba_head(ctx.input, max_pixels=self.MAX_PIXELS, any_mode=True)
         if arr is None:
-            return ToolResult(self.name, status="skipped", summary="not an RGB/RGBA image")
+            return ToolResult(self.name, status="skipped", summary="cannot read the image")
         flags = find_msb_flag(arr)
         if not flags:
             return ToolResult(self.name, status="skipped", summary="no MSB-encoded flag")

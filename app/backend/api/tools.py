@@ -4,9 +4,9 @@ from __future__ import annotations
 import shutil
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 
 from .. import storage
+from .fileresp import file_response
 from ..analyzers import catalog as tool_catalog
 from ..analyzers import get as get_tool
 from ..analyzers import run_tool
@@ -48,4 +48,4 @@ def tool_job_file(job: str, name: str):
         raise HTTPException(404, "not found")
     if not target.is_file():
         raise HTTPException(404, "not found")
-    return FileResponse(target, filename=target.name)
+    return file_response(target, storage.sniff_mime(target), target.name)

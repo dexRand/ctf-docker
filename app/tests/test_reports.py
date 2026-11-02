@@ -226,8 +226,11 @@ def test_carvers_skip_small_files_and_archive_leaves():
     from backend.planner import _plan_for
     carvers = {"binwalk-scan", "binwalk-extract", "foremost"}
     leaf = dict(made_by="7z", depth=1)
-    assert not carvers & set(_plan_for("x.dat", None, False, size=1200, **leaf))
-    assert not carvers & set(_plan_for("x.dat", None, False, size=8192, **leaf))
+    # no file signature inside the leaf (magic.has_embedded) -> nothing to carve
+    assert not carvers & set(_plan_for("x.dat", None, False, size=1200, embedded=False, **leaf))
+    assert not carvers & set(_plan_for("x.dat", None, False, size=8192, embedded=False, **leaf))
+    # ...but a leaf that hides another file is carved, whatever its size (#17)
+    assert carvers <= set(_plan_for("x.dat", None, False, size=1200, embedded=True, **leaf))
     assert carvers <= set(_plan_for("x.png", "image/png", False, size=8192, **leaf))
     # an upload is always carved: a small PNG can still hide an appended zip
     # (fixture "real-challenge": ITS{stego_z1p_appended})

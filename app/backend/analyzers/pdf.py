@@ -77,13 +77,18 @@ class PdfImagesAnalyzer(Analyzer):
             small = [p for p in keep if _small_image(p)]
             if small:
                 keep = small
+        # every image stays listed and downloadable (artifact); only `keep`
+        # becomes a child that the image analyzers run on
+        kept = set(keep)
+        lines = [f"{p.name}  {p.stat().st_size} B"
+                 + ("" if p in kept else "  (not analysed: page background / over the cap)")
+                 for p in imgs]
         return ToolResult(self.name, status="done",
-                          summary=f"{len(keep)} embedded image(s)"
-                                  + (f" of {len(imgs)}" if len(imgs) > len(keep) else ""),
-                          output="\n".join(f"{p.name}  {p.stat().st_size} B" for p in keep),
+                          summary=f"{len(imgs)} embedded image(s), {len(keep)} analysed",
+                          output="\n".join(lines),
                           extracted=[str(p) for p in keep],
                           artifacts=[{"name": p.name, "path": str(p),
-                                      "size": p.stat().st_size} for p in keep])
+                                      "size": p.stat().st_size} for p in imgs])
 
 
 register(PdfAnalyzer())

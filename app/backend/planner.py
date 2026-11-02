@@ -66,11 +66,14 @@ CAPTURE_EXT = (".pcap", ".pcapng", ".cap")
 # binwalk/foremost look for *embedded* files: on a 200-byte .dat extracted from
 # a Windows profile there is nothing to find, and a profile zip with 460 members
 # spent 44% of its analysis time carving noise (18 MB profile: 472 s of 1083 s).
+# Containers that can carry appended data are always carved; any other leaf
+# only when magic.has_embedded finds a file signature inside it.
 _CARVE_MIME = ("image/", "application/pdf", "application/zip", "application/gzip",
                "application/x-7z", "application/vnd.rar", "application/x-bzip2",
                "application/x-xz", "application/x-elf", "application/x-dosexec",
                "application/vnd.sqlite3", "application/x-ole-storage",
-               "application/x-tar", "audio/wav", "video/x-msvideo")
+               "application/x-tar", "audio/", "video/", "application/vnd.tcpdump.pcap",
+               "application/x-pcapng")
 
 
 # Tools whose output is a *decoded* stream (pixels, LSB planes, re-encoded
@@ -110,11 +113,19 @@ def _raw_carve(name: str, made_by: str) -> bool:
     return made_by in CARVERS and bool(_HEX_PIECE.fullmatch(name))
 
 
+def carving_useless(depth: int, mime: str | None, embedded: bool) -> bool:
+    """A leaf taken out of an archive with no other file's signature inside it:
+    binwalk/foremost would find nothing (a profile zip unpacks hundreds of such
+    .dat/.LOG files). Uploads, carvable types and files that *do* contain an
+    embedded signature are always carved."""
+    return depth > 0 and not embedded and not (mime or "").startswith(_CARVE_MIME)
+
+
 def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "",
-              size: int = 0, depth: int = 0) -> list[str]:
+              size: int = 0, depth: int = 0, embedded: bool = True) -> list[str]:
     """Analyzers for one file, in plan order. `made_by` is the tool that
-    extracted it ('' for uploads); `size`/`depth` keep the carvers away from
-    the hundreds of little files a profile archive unpacks."""
+    extracted it ('' for uploads); `embedded` (magic.has_embedded) tells
+    whether the carvers have anything to cut out of an extracted leaf."""
     plan = []
     for tool in DEFAULT_PLAN:
         a = get_tool(tool)
@@ -129,10 +140,8 @@ def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "",
         if tool in CARVERS:
             if _raw_carve(name, made_by):
                 continue
-            if depth > 0 and size and size < 4096:
-                continue                 # a tiny leaf: nothing embedded in it
-            if depth > 0 and not (mime or "").startswith(_CARVE_MIME):
-                continue                 # a leaf extracted from an archive
+            if carving_useless(depth, mime, embedded):
+                continue
         if tool == "foremost" and name.lower().endswith(CAPTURE_EXT):
             continue
         if tool in IMG_DECODERS and made_by in IMG_DECODERS:

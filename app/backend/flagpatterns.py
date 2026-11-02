@@ -16,7 +16,8 @@ _LB = r"(?<![0-9A-Za-z_])"
 # pcap). Matching is case-insensitive. A CTF's own format (Ctf.flag_format)
 # is added per challenge; FLAG_PATTERN adds a global one.
 FLAG_PREFIXES = ("picoCTF", "ITS", "flag", "CTF", "HTB", "DUCTF", "ictf", "tjctf", "lactf",
-                 "uiuctf", "SEKAI", "corctf", "dice", "csawctf", "actf", "idek", "wctf", "SusCTF")
+                 "uiuctf", "SEKAI", "corctf", "dice", "csawctf", "actf", "idek", "wctf", "SusCTF",
+                 "hxp", "amateursCTF", "buckeye", "bctf", "utflag", "byuctf")
 STRICT_PATTERNS = [_LB + p + r"\{[^}\n]{1,200}\}" for p in FLAG_PREFIXES]
 GENERIC_PATTERNS = [_LB + r"[0-9A-Za-z_]{2,32}\{[A-Za-z0-9_\-!?.,:;@#$%^&*+=/ ]{1,120}\}"]
 _STRICT_RE = [re.compile(p.encode(), re.IGNORECASE) for p in STRICT_PATTERNS]

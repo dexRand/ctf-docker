@@ -116,12 +116,14 @@ def sniff_mime(path: Path) -> str | None:
         return "application/x-tar"
     # no NUL and valid UTF-8 in the sample -> plain text (covers extensionless
     # text files such as `flag.txt` renamed or carved dumps)
-    if b"\x00" not in head:
+    if head and b"\x00" not in head:
         try:
             head.decode("utf-8")
             return "text/plain"
-        except UnicodeDecodeError:
-            pass
+        except UnicodeDecodeError as exc:
+            # a multi-byte character cut by the 8 KiB sample is still text
+            if len(head) == 8192 and exc.start >= len(head) - 3:
+                return "text/plain"
     return mimetypes.guess_type(str(path))[0]
 
 

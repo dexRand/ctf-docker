@@ -5,6 +5,7 @@ import math
 import shutil
 import struct
 import subprocess
+import threading
 import zlib
 from pathlib import Path
 
@@ -15,6 +16,7 @@ TEXT_CHUNKS = {"tEXt", "iTXt", "zTXt", "eXIf"}
 KNOWN = {"IHDR", "IDAT", "IEND", "PLTE"}
 PNG_SIG = b"\x89PNG\r\n\x1a\n"
 
+_ZTXT_MAX = 1 << 20          # decoded zTXt text cap (a zlib bomb in a text chunk)
 # chunk types we accept while re-synchronising after a corrupted length/type
 _CHUNK_TYPES = {b"IHDR", b"IDAT", b"IEND", b"PLTE", b"pHYs", b"sRGB", b"tEXt", b"iTXt",
                 b"zTXt", b"gAMA", b"bKGD", b"cHRM", b"eXIf", b"tIME", b"iCCP", b"sBIT",
@@ -49,7 +51,8 @@ class PngChunksAnalyzer(Analyzer):
                     key, _, rest = cdata.partition(b"\x00")
                     try:
                         text = (key.decode("latin-1") + " = "
-                                + zlib.decompress(rest[1:]).decode("utf-8", "replace"))
+                                + zlib.decompressobj().decompress(rest[1:], _ZTXT_MAX)
+                                .decode("utf-8", "replace"))
                     except Exception:
                         text = cdata.decode("utf-8", "replace")
                 else:
@@ -188,9 +191,12 @@ def _zstd_limited(blob: bytes, limit: int, tmpdir: Path) -> bytes | None:
     try:
         proc = subprocess.Popen(["zstd", "-d", "-c", "-q", str(tmp)],
                                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        watchdog = threading.Timer(120, proc.kill)    # a stuck zstd must not hang the run
+        watchdog.start()
         try:
             return proc.stdout.read(limit + 1) or None
         finally:
+            watchdog.cancel()
             proc.kill()
             proc.wait(timeout=10)
     except OSError:

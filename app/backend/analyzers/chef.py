@@ -19,8 +19,7 @@ _OP = re.compile(r"^(Add|Remove)\s+(.+?)\s+(?:to|from)\s+", re.I)
 _FLAG = re.compile(r"[A-Za-z0-9_.-]{2,}\{[ -~]{2,}\}")
 # a decoding is only trusted when it starts with a known CTF prefix: the
 # brute force produces dozens of printable strings that contain braces
-_PREFIXES = tuple(FLAG_PREFIXES) + ("hxp", "amateursCTF", "buckeye")
-_KNOWN = re.compile(r"(?i)^(" + "|".join(re.escape(p) for p in _PREFIXES) + r")\{")
+_KNOWN = re.compile(r"(?i)^(" + "|".join(re.escape(p) for p in FLAG_PREFIXES) + r")\{")
 _CLEAN = re.compile(r"^[A-Za-z0-9_{}!@#$%^&*()+=:;,.?/ \-]+$")
 
 

@@ -4,9 +4,9 @@ from __future__ import annotations
 import mimetypes
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from sqlmodel import Session, func, select
 
+from .fileresp import file_response
 from .. import storage
 from ..config import MAX_UPLOAD
 from ..db import delete_project_rows, get_session
@@ -14,19 +14,6 @@ from ..models import Ctf, Event, FileNode, Project
 
 router = APIRouter()
 
-# Types the browser may render inline on the app origin. Anything else (HTML,
-# SVG, XML, JSON…) is served as a download: a challenge's .html/.svg uploaded
-# into a project would otherwise run scripts on localhost:19014 and could call
-# the API (same origin). A Content-Security-Policy sandbox is the second layer.
-_INLINE_MIME = {"image/png", "image/jpeg", "image/gif", "image/bmp", "image/webp",
-                "image/tiff", "image/avif", "application/pdf", "text/plain"}
-_FILE_HEADERS = {"X-Content-Type-Options": "nosniff",
-                 "Content-Security-Policy": "sandbox"}
-
-
-def _inline_ok(mime: str) -> bool:
-    m = (mime or "").split(";")[0].strip().lower()
-    return m in _INLINE_MIME or m.startswith(("audio/", "video/"))
 
 
 def _project_dict(p: Project, files: int = 0) -> dict:
@@ -182,7 +169,4 @@ def file_content(pid: str, fid: int, session: Session = Depends(get_session)):
         session.commit()
     # inline only for media the browser cannot script; everything else is a
     # download (a project's HTML/SVG must never run on the app's origin)
-    if _inline_ok(mime):
-        return FileResponse(path, media_type=mime, headers=_FILE_HEADERS)
-    return FileResponse(path, media_type="application/octet-stream",
-                        filename=node.name or "download", headers=_FILE_HEADERS)
+    return file_response(path, mime, node.name)

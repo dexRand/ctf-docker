@@ -6,10 +6,47 @@ reports is enough — no driver or gadget needed.
 """
 from __future__ import annotations
 
+import struct
+from pathlib import Path
+
 from .base import Analyzer, ToolContext, ToolResult, which
 from .registry import register
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
+# DLT/LINKTYPE values of USB captures (usbmon, USBPcap, Darwin, USB 2.0 sniffers)
+USB_LINKTYPES = {186, 189, 220, 249, 266, 288, 293, 294, 295}
+
+
+def link_types(path: Path, head_bytes: int = 1 << 16) -> set[int] | None:
+    """Link types declared in a pcap/pcapng header (first 64 KiB only).
+    None when the file is not a capture we can parse: the caller then runs tshark."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(head_bytes)
+    except OSError:
+        return None
+    if len(head) >= 24 and head[:4] in (b"\xd4\xc3\xb2\xa1", b"\x4d\x3c\xb2\xa1"):
+        return {struct.unpack_from("<I", head, 20)[0] & 0x0FFFFFFF}
+    if len(head) >= 24 and head[:4] in (b"\xa1\xb2\xc3\xd4", b"\xa1\xb2\x3c\x4d"):
+        return {struct.unpack_from(">I", head, 20)[0] & 0x0FFFFFFF}
+    if head[:4] != b"\x0a\x0d\x0d\x0a" or len(head) < 12:
+        return None
+    bom = head[8:12]
+    end = "<" if bom == b"\x4d\x3c\x2b\x1a" else ">" if bom == b"\x1a\x2b\x3c\x4d" else None
+    if not end:
+        return None
+    types: set[int] = set()
+    off = 0
+    while off + 12 <= len(head):
+        btype, blen = struct.unpack_from(end + "II", head, off)
+        if blen < 12 or blen % 4:
+            break
+        if btype == 1 and off + 10 <= len(head):          # Interface Description Block
+            types.add(struct.unpack_from(end + "H", head, off + 8)[0])
+        elif btype in (3, 6) and types:                   # first packet: all IDBs seen
+            break
+        off += blen
+    return types or None
 
 # HID usage id -> (unshifted, shifted)
 _KEYS = {
@@ -79,13 +116,22 @@ class UsbHidAnalyzer(Analyzer):
     def run(self, ctx: ToolContext) -> ToolResult:
         if not which("tshark"):
             return ToolResult(self.name, status="skipped", summary="tshark not installed")
-        reports: list[str] = []
-        for field in ("usbhid.data", "usb.capdata"):
-            proc = ctx.run(["tshark", "-r", str(ctx.input), "-Y", field,
-                            "-T", "fields", "-e", field], timeout=180)
-            reports = [ln for ln in (proc.stdout or "").splitlines() if ln.strip()]
-            if reports:
-                break
+        types = link_types(ctx.input)
+        if types is not None and not types & USB_LINKTYPES:
+            return ToolResult(self.name, status="skipped",
+                              summary=f"not a USB capture (link type {sorted(types)})")
+        # one pass for both fields: usbhid.data (parsed HID) wins over raw capdata
+        proc = ctx.run(["tshark", "-r", str(ctx.input), "-Y", "usbhid.data || usb.capdata",
+                        "-T", "fields", "-e", "usbhid.data", "-e", "usb.capdata"], timeout=180)
+        hid: list[str] = []
+        cap: list[str] = []
+        for ln in (proc.stdout or "").splitlines():
+            a, _, b = ln.partition("\t")
+            if a.strip():
+                hid.append(a.strip())
+            elif b.strip():
+                cap.append(b.strip())
+        reports = hid or cap
         if not reports:
             return ToolResult(self.name, status="skipped", summary="no HID reports")
         text = decode_reports(reports)

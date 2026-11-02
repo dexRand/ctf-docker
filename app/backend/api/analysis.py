@@ -4,10 +4,10 @@ from __future__ import annotations
 import threading
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from fastapi.responses import FileResponse, Response
 from sqlmodel import Session, select
 
 from .. import orchestrator, pipeline, storage
+from .fileresp import file_response, text_response
 from ..analyzers import get as get_tool
 from ..db import get_session
 from ..models import Artifact, Event, FileNode, Finding, Project, ToolRun
@@ -140,7 +140,7 @@ def artifact_content(pid: str, aid: int, session: Session = Depends(get_session)
     path = storage.project_dir(pid) / a.path
     if not path.is_file():
         raise HTTPException(404, "artifact missing on disk")
-    return FileResponse(path, filename=path.name)
+    return file_response(path, storage.sniff_mime(path), path.name)
 
 
 @router.get("/api/v1/projects/{pid}/files/{fid}/runs/{rid}")
@@ -151,7 +151,7 @@ def run_output(pid: str, fid: int, rid: int, session: Session = Depends(get_sess
     path = storage.project_dir(pid) / r.output_path
     if not path.is_file():
         raise HTTPException(404, "output missing")
-    return Response(path.read_text(errors="replace"), media_type="text/plain; charset=utf-8")
+    return text_response(path.read_text(errors="replace"))
 
 
 @router.get("/api/v1/projects/{pid}/events")

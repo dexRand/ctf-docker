@@ -27,7 +27,8 @@ from .db import engine
 from .events import emit as _emit, event as _event, now as _now
 from .flaghunt import hunt
 from .models import Artifact, FileNode, Finding, Project, ToolRun
-from .planner import (_HEAVY_SEM, _HEAVY_TOOLS, _detect_ext, _plan_for,
+from .magic import has_embedded
+from .planner import (_HEAVY_SEM, _HEAVY_TOOLS, _detect_ext, _plan_for, carving_useless,
                       origin_tool, unreliable_lock)
 from .tree import _store_extracted
 
@@ -157,11 +158,12 @@ _PRIORITY_EXT = (".txt", ".json", ".xml", ".html", ".htm", ".csv", ".log", ".md"
 
 
 def _priority(node: FileNode) -> tuple:
-    """Sort key for the node budget: shallow and known-file-type first."""
+    """Ascending sort key for the node budget: shallow first, then known file
+    types (in _PRIORITY_EXT order), then smaller (cheaper) files."""
     name = (node.name or "").lower()
     ext = "." + name.rsplit(".", 1)[-1] if "." in name else ""
     known = _PRIORITY_EXT.index(ext) if ext in _PRIORITY_EXT else len(_PRIORITY_EXT)
-    return (-node.depth, known, -(node.size or 0))
+    return (node.depth, known, node.size or 0)
 
 
 def _run(pid: str, job: Job) -> None:
@@ -182,20 +184,13 @@ def _run(pid: str, job: Job) -> None:
         if job.only_new:
             seen = set(session.exec(select(ToolRun.file_id).where(ToolRun.project_id == pid)).all())
             nodes = [n for n in nodes if n.id not in seen]
-        if MAX_NODES and len(nodes) > MAX_NODES:
-            # a pathological archive (a whole OS profile, 460 files) must not
-            # keep the project in "running" for minutes: uploads always run,
-            # the most promising extracted files run, the rest stay in the tree
-            roots = [n for n in nodes if n.depth == 0]
-            extra = sorted((n for n in nodes if n.depth > 0), key=_priority, reverse=True)
-            keep = roots + extra[:max(0, MAX_NODES - len(roots))]
-            deferred = len(nodes) - len(keep)
-            _event(session, pid, f"node budget: {deferred} extracted file(s) not analysed "
-                                 f"(MAX_NODES={MAX_NODES})", "warn")
-            session.commit()
-            nodes = keep
         pending: list[FileNode] = list(nodes)
         processed: set[str] = set()
+        # node budget: uploads always run; extracted files run until MAX_NODES,
+        # the most promising first (see _priority), the rest are listed
+        extracted_done = 0
+        deferred: list[FileNode] = []
+        no_carve: list[str] = []
         depth_limit = MAX_DEPTH  # nested archives (Matryoshka doll) can be several levels deep
 
         def analyze(node: FileNode) -> None:
@@ -235,8 +230,11 @@ def _run(pid: str, job: Job) -> None:
             if detected and not node.name.lower().endswith(detected):
                 plan_name = node.name + detected
             made_by = origin_tool(node.origin)
+            embedded = node.depth == 0 or has_embedded(abs_path)
             plan = _plan_for(plan_name, node.mime, is_text, made_by,
-                             size=node.size, depth=node.depth)
+                             size=node.size, depth=node.depth, embedded=embedded)
+            if carving_useless(node.depth, node.mime, embedded):
+                no_carve.append(node.name)
 
             for wave in _waves([t for t in plan if t != "file"]):
                 if job.cancelled:
@@ -273,7 +271,17 @@ def _run(pid: str, job: Job) -> None:
                     job.wait()
                     if job.cancelled:
                         break
-                    analyze(pending.pop(0))
+                    if MAX_NODES and extracted_done + len(pending) > MAX_NODES:
+                        pending.sort(key=_priority)       # over budget: best first
+                    node = pending.pop(0)
+                    if node.depth >= depth_limit or (node.sha256 and node.sha256 in processed):
+                        continue                          # nothing to do: not budgeted
+                    if node.depth > 0:
+                        if MAX_NODES and extracted_done >= MAX_NODES:
+                            deferred.append(node)
+                            continue
+                        extracted_done += 1
+                    analyze(node)
                 if job.cancelled or proj.mode != "auto" or rounds >= 3:
                     break
                 new_nodes = _auto_crack(session, pid, work, job)
@@ -292,6 +300,16 @@ def _run(pid: str, job: Job) -> None:
             _emit(pid, {"type": "status", "status": "error"})
             return
 
+        if deferred:
+            names = ", ".join(n.name for n in deferred[:30])
+            more = f" (+{len(deferred) - 30})" if len(deferred) > 30 else ""
+            _event(session, pid, f"node budget: {len(deferred)} extracted file(s) not analysed "
+                                 f"(MAX_NODES={MAX_NODES}): {names}{more}", "warn")
+        if no_carve:
+            names = ", ".join(no_carve[:30])
+            more = f" (+{len(no_carve) - 30})" if len(no_carve) > 30 else ""
+            _event(session, pid, f"carving skipped on {len(no_carve)} extracted file(s) with "
+                                 f"no embedded file signature: {names}{more}")
         update_solved(session, pid)
         proj = session.get(Project, pid) or proj
         proj.status = "cancelled" if job.cancelled else "done"

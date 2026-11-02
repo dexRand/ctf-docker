@@ -12,7 +12,7 @@ import struct
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
-from ..magic import MAGICS
+from ..magic import MAGICS, by_ext
 
 _DIB_SIZES = {12, 40, 52, 56, 64, 108, 124}
 _BMP_SIG = b"BM"
@@ -76,9 +76,11 @@ def repair_jpeg(data: bytes, log: list[str]) -> bytes | None:
     return data + _JPEG_EOI
 
 
-_IMG_MAGICS = (b"\x89PNG\r\n\x1a\n", b"GIF87a", b"GIF89a", b"BM", b"\xff\xd8")
-_EMBED_MAGICS = ((b"GIF89a", ".gif"), (b"GIF87a", ".gif"),
-                 (b"\x89PNG\r\n\x1a\n", ".png"), (b"\xff\xd8\xff", ".jpg"))
+# image signatures from the shared table ("BM" included: a file *starting*
+# with it is already a bitmap); only the strong ones are searched for inside
+_IMG_MAGICS = tuple(sig for sig, _ext in by_ext(".png", ".gif", ".jpg", ".bmp", ".tiff",
+                                                 min_len=2))
+_EMBED_MAGICS = by_ext(".gif", ".png", ".jpg")
 
 
 def carve_embedded(data: bytes, log: list[str], max_off: int = 64) -> tuple[bytes, str]:

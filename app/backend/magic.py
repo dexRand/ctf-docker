@@ -17,7 +17,7 @@ SIGNATURES = (
     (b"%PDF-", ".pdf", "application/pdf"),
     (b"PK\x03\x04", ".zip", "application/zip"),
     (b"PK\x05\x06", ".zip", "application/zip"),
-    (b"\x1f\x8b", ".gz", "application/gzip"),
+    (b"\x1f\x8b\x08", ".gz", "application/gzip"),
     (b"7z\xbc\xaf\x27\x1c", ".7z", "application/x-7z-compressed"),
     (b"Rar!\x1a\x07", ".rar", "application/vnd.rar"),
     (b"BZh", ".bz2", "application/x-bzip2"),
@@ -29,11 +29,26 @@ SIGNATURES = (
     (b"ID3", ".mp3", "audio/mpeg"),
     (b"\xff\xfb", ".mp3", "audio/mpeg"),
     (b"SQLite format 3\x00", ".sqlite", "application/vnd.sqlite3"),
+    (b"\xd4\xc3\xb2\xa1", ".pcap", "application/vnd.tcpdump.pcap"),
+    (b"\xa1\xb2\xc3\xd4", ".pcap", "application/vnd.tcpdump.pcap"),
+    (b"\x4d\x3c\xb2\xa1", ".pcap", "application/vnd.tcpdump.pcap"),
+    (b"\xa1\xb2\x3c\x4d", ".pcap", "application/vnd.tcpdump.pcap"),
+    (b"\x0a\x0d\x0d\x0a", ".pcapng", "application/x-pcapng"),
+    (b"ElfFile\x00", ".evtx", "application/x-ms-evtx"),
+    (b"regf", ".regf", "application/x-ms-registry"),
     (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", ".doc", "application/x-ole-storage"),
 )
 
 # carving/extension table (signature, extension), kept as a tuple for callers
 MAGICS = tuple((sig, ext) for sig, ext, _mime in SIGNATURES)
+
+
+def by_ext(*exts: str, min_len: int = 3) -> tuple[tuple[bytes, str], ...]:
+    """(signature, extension) for the given extensions, in table order. Short
+    signatures (< min_len bytes, e.g. "BM", "MZ") are left out: in a random
+    stream (LSB planes, junk prefixes) they match by chance."""
+    return tuple((sig, ext) for sig, ext, _mime in SIGNATURES
+                 if ext in exts and len(sig) >= min_len)
 
 # RIFF containers: the marker sits at offset 8, not at the start
 _RIFF = ((8, b"WAVE", ".wav", "audio/wav"),
@@ -63,3 +78,27 @@ def mime_of(head: bytes) -> str | None:
             if head[off:off + 4] == marker:
                 return mime
     return None
+
+
+# Signatures that mark a whole file *embedded* in another one. Long enough not
+# to show up by chance in a small binary (no "MZ", "BM", bare zlib headers).
+_EMBEDDED = (b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff\xe0", b"\xff\xd8\xff\xe1", b"\xff\xd8\xff\xdb",
+             b"GIF87a", b"GIF89a", b"%PDF-", b"PK\x03\x04", b"7z\xbc\xaf\x27\x1c", b"Rar!\x1a\x07",
+             b"\xfd7zXZ\x00", b"\x1f\x8b\x08", b"\x7fELF", b"OggS\x00", b"fLaC", b"ID3\x03",
+             b"ID3\x04", b"SQLite format 3\x00", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", b"RIFF",
+             b"BZh91AY&SY", b"ustar")
+EMBED_SCAN = 64 << 20          # bytes scanned; a bigger file is always carved
+
+
+def has_embedded(path) -> bool:
+    """True when another file's signature appears *inside* `path` (offset > 0),
+    so a carver has something to cut out. Files over EMBED_SCAN, or unreadable,
+    count as True: carving is skipped only when it is provably useless."""
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read(EMBED_SCAN + 1)
+    except OSError:
+        return True
+    if len(data) > EMBED_SCAN:
+        return True
+    return any(data.find(sig, 1) != -1 for sig in _EMBEDDED)
