@@ -127,7 +127,7 @@ GAPS = [
 
 # Candidates harvested on 2026-10-27 from public challenge repos (file + official
 # flag from flag.txt / challenge.yaml / metadata.yaml / README, read via the
-# GitHub API). NOT run yet: `real_challenges.py --candidates --only-new`, then
+# GitHub API). Run with `real_challenges.py --candidates --only-new`, then
 # move each case to EXTRA (solved) or GAPS (with the missing technique).
 # HackTheBox repos (cyber-apocalypse-2024/2025, business-ctf-2024) only hold
 # write-ups, not the handouts; DUCTF 2025 beepbeep.wav is a Git LFS pointer.
@@ -138,7 +138,69 @@ BK23 = "https://raw.githubusercontent.com/cscosu/buckeyectf-2023-public/master"
 DU22 = "https://raw.githubusercontent.com/DownUnderCTF/Challenges_2022_Public/main"
 DU25 = "https://raw.githubusercontent.com/DownUnderCTF/Challenges_2025_Public/main"
 UT24 = "https://raw.githubusercontent.com/utisss/UTCTF-24/main"
-CANDIDATES = []   # smistate il 2026-10-27: 4 risolte (in EXTRA), 28 in GAPS
+CANDIDATES = [
+    # --- 02/11 harvest: DUCTF 2021, ICTF 2022, TJCTF 2022, UIUCTF 2021, TAMU 2023/24,
+    # UofTCTF 2024, HeroCTF v5, BuckeyeCTF 2025, WaniCTF 2023/24, TCP1P 2023, corCTF 2023
+    # (file + official flag from flag.txt / challenge.yaml / README via the GitHub API)
+    ('du21-notmyname.pcapng.7z', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/Thats_Not_My_Name/challenge/notmyname.pcapng.7z',
+     'DUCTF{c4t_g07_y0ur_n4m3}'),  # Challenges_2021_Public, 52446588 B
+    ('du21-challenge.gif', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/how-to-pronounce-gif/challenge/challenge.gif',
+     'DUCTF{aM_1_haXX0r_n0w?}'),  # Challenges_2021_Public, 106214 B
+    ('du21-retro-og.jpg', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/retro/challenge/og.jpg',
+     'DUCTF{sicc_paint_skillz!}'),  # Challenges_2021_Public, 123612 B
+    ('ic22-ogre-splatter.svg', 'https://raw.githubusercontent.com/ImaginaryCTF/ImaginaryCTF-2022-Challenges/master/Forensics/ogre/public/splatter.svg',
+     'ictf{onions_have_layers_images_have_layers}'),  # ImaginaryCTF-2022-Challenges, 5698 B
+    ('tj22-cool-school.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/cool-school/image.png',
+     'tjctf{l0l_st3g_s0_co0l}'),  # tjctf-2022-challenges, 672954 B
+    ('tj22-fake-geoguessr-lake.jpg', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/fake-geoguessr/lake.jpg',
+     'tjctf{thats_a_lot_of_metadata}'),  # tjctf-2022-challenges, 692450 B
+    ('tj22-sneaker-zipper.zip', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/sneaker-zipper/chall.zip',
+     'tjctf{sneakers_with_zippers_are_hip_no?_874d174bb26fcf95}'),  # tjctf-2022-challenges, 20965 B
+    ('tj22-spongebob.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/spongebob/image.png',
+     'tjctf{such_pogg3rs_ctf}'),  # tjctf-2022-challenges, 265797 B
+    ('tj22-fried-clams', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/misc/fried-clams/bin/chall',
+     'tjctf{noooo_not_clam_b64b833796b08d47}'),  # tjctf-2022-challenges, 14472 B
+    ('ui21-megacorp-01.cap', 'https://raw.githubusercontent.com/sigpwny/UIUCTF-2021-Public/master/misc/CEO/megacorp-01.cap',
+     'uiuctf{nanotechnology}'),  # UIUCTF-2021-Public, 99046 B
+    ('tamu23-discordance.zip', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2023/master/forensics/discordance/package.zip',
+     'gigem{d15c0rd_k3ep5_d3l37ed_f1l3s?!?!}'),  # tamuctf-2023, 54800 B
+    ('tamu24-fuzzy.jpg', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2024/master/forensics/fuzzy/image.jpg',
+     'gigem{P3rC3P7U41_H45H1N6_M4NY_1M4635_94721}'),  # tamuctf-2024, 74885 B
+    ('tamu24-smp.log', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2024/master/forensics/smp/smp.log',
+     'gigem{w3_l0v3_pl1y1n_mc_smp}'),  # tamuctf-2024, 25900071 B
+    ('uoft24-illusion.pcapng', 'https://raw.githubusercontent.com/UofTCTF/uoftctf-2024-chals-public/master/Forensics/Illusion/traffic.pcapng',
+     'uoftctf{Tr3V0r_C2_1s_H4rd_T0_D3t3c7}'),  # uoftctf-2024-chals-public, 14843284 B
+    ('hero5-strange.pdf', 'https://raw.githubusercontent.com/HeroCTF/HeroCTF_v5/main/Steganography/PDF-Mess/strange.pdf',
+     'Hero{M4L1C10U5_C0D3_1N_PDF}'),  # HeroCTF_v5, 231077 B
+    ('bk25-professors.docx', 'https://raw.githubusercontent.com/cscosu/buckeyectf-2025-public/master/beginner/the_professors_files/OSU_Ethics_Report.docx',
+     'bctf{docx_is_zip}'),  # buckeyectf-2025-public, 6362 B
+    ('wani23-apocalypse.png', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/Apocalypse/file/chall.png',
+     'FLAG{Watch_out_4_2023_21036}'),  # wanictf2023-writeup, 36410 B
+    ('wani23-just.mp4', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/Just_mp4/file/chall.mp4',
+     'FLAG{H4v1n_fun_1nn1t}'),  # wanictf2023-writeup, 152254 B
+    ('wani23-peg.pcapng', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/beg_for_a_peg/file/log.pcapng',
+     'FLAG{Hug_a_pug_less_than_three}'),  # wanictf2023-writeup, 65104 B
+    ('wani23-lowkey.pcap', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/lowkey_messedup/file/chall.pcap',
+     'FLAG{Big_br0ther_is_watching_y0ur_keyb0ard}'),  # wanictf2023-writeup, 11116 B
+    ('wani23-updog', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/whats_happening/file/updog',
+     'FLAG{n0th1ng_much}'),  # wanictf2023-writeup, 382976 B
+    ('wani24-streamer.pcap', 'https://raw.githubusercontent.com/wani-hackase/wanictf2024-writeup/main/for/I_wanna_be_a_streamer/file/file.pcap',
+     'FLAG{Th4nk_y0u_f0r_W4tching}'),  # wanictf2024-writeup, 21622714 B
+    ('wani24-tiny_usb.iso', 'https://raw.githubusercontent.com/wani-hackase/wanictf2024-writeup/main/for/tiny_usb/file/chal_tiny_usb.iso',
+     'FLAG{hey_i_just_bought_a_usb}'),  # wanictf2024-writeup, 1245184 B
+    ('tcp1p23-compromised.pcap', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Compromised/dist/compromised.pcap',
+     'TCP1P{3xpl0171n6_pr3d1c74bl3__p1d_533d_f0r_7h3_w1n_98ef246706}'),  # TCP1P-CTF-2023-Challenges, 780136 B
+    ('tcp1p23-ez.pdf', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Ez%20PDF/TCP1P-CTF.pdf',
+     'TCP1P{D01n9_F023n51C5_0N_pdf_f1L35_15_345y_15N7_17_l3jaf9ci293m1d}'),  # TCP1P-CTF-2023-Challenges, 80573 B
+    ('tcp1p23-reminiscence.pcap', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Reminiscence/dist/reminiscence.pcap',
+     'TCP1P{r3min1scing_s0meth1ng_b4ck_in_th3_0ld_days_a01fef0086}'),  # TCP1P-CTF-2023-Challenges, 122226 B
+    ('tcp1p23-hide-split.zip', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/hide%20and%20split/dist/challenge.zip',
+     'TCP1P{hidden_flag_in_the_extended_attributes_fea73c5920aa8f1c}'),  # TCP1P-CTF-2023-Challenges, 127784 B
+    ('tcp1p23-scrambled-egg.zip', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/scrambled%20egg/dist/scrambled_egg.zip',
+     'TCP1P{y0Ur_u5u4L_pN9_cHUnk_ch4LL}'),  # TCP1P-CTF-2023-Challenges, 6199905 B
+    ('cor23-sanitycheck.png', 'https://raw.githubusercontent.com/Crusaders-of-Rust/corCTF-2023-public-challenge-archive/master/misc/sanity-check/sanitycheck.png',
+     'corctf{aaaaaaaaaaaaaaaaaaaaaaaa}'),  # corCTF-2023-public-challenge-archive, 82169 B
+]   # smistate il 2026-10-27: 4 risolte (in EXTRA), 28 in GAPS
 
 
 # --- smistate il 2026-10-27 (ex CANDIDATES, risolte) ---
