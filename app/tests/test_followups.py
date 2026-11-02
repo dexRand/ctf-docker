@@ -169,3 +169,11 @@ def test_ztxt_decompression_is_capped():
     import inspect
     from backend.analyzers import png
     assert "_ZTXT_MAX" in inspect.getsource(png)
+
+
+def test_disk_images_unpacked_by_the_disk_analyzer_are_not_carved_again():
+    plan = _plan_for("disk.flag.img", None, False, "disk", size=400 << 20, depth=1,
+                     embedded=True)
+    assert not CARVERS & set(plan)
+    # an uploaded image is still carved (deleted files, slack space)
+    assert CARVERS <= set(_plan_for("disk.img", None, False, "", size=400 << 20, depth=0))
