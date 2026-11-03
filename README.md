@@ -292,10 +292,11 @@ StegSuite 4 GB each), so start profiles as you need them.
 Every change is checked against real challenges, not only unit tests:
 
 ```bash
-app/tests/run_unit.sh          # 200+ pytest tests inside the StegSuite image
+app/tests/run_unit.sh          # 340+ pytest tests inside the StegSuite image
 ./ctf test -j 3                # 33 fixture cases + 35 real challenges + writeup check
-./ctf test -j 3 --extra        # + 14 more real challenges (picoCTF 2019–2025, TJCTF, LA CTF, ImaginaryCTF…)
+./ctf test -j 3 --extra        # + 45 more real challenges (picoCTF, TJCTF, DUCTF, ImaginaryCTF, WaniCTF, TCP1P…)
 ./ctf test --only-new --gaps   # known gaps: the backlog of techniques to add
+./ctf lint                     # static analysis in containers: ruff, bandit, vulture, jscpd
 ```
 
 Real challenges are downloaded from public archives/write-ups (picoCTF,

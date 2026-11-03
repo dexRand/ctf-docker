@@ -16,6 +16,8 @@ import uuid
 from pathlib import Path
 
 ROOT = os.environ.get("STEGSUITE", "http://127.0.0.1:19014").rstrip("/")
+if not ROOT.startswith(("http://", "https://")):
+    raise SystemExit(f"STEGSUITE must be an http(s) URL, got {ROOT!r}")
 API = ROOT + "/api/v1"
 API_KEY = os.environ.get("STEGSUITE_API_KEY", "").strip()
 FINAL = ("done", "error", "cancelled")
@@ -28,7 +30,7 @@ def call(path: str, method: str = "GET", data: bytes | None = None,
         req.add_header("Content-Type", ctype)
     if API_KEY:
         req.add_header("X-API-Key", API_KEY)
-    with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 (local service)
+    with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec B310 - scheme checked at import (http/https)
         raw = r.read()
     return json.loads(raw) if raw[:1] in (b"{", b"[") else raw.decode(errors="replace")
 

@@ -204,7 +204,7 @@ class GifFramesAnalyzer(Analyzer):
         seen: set[str] = set()
         distinct: list[int] = []
         for i, f in enumerate(frames):
-            h = hashlib.sha1(f.read_bytes()).hexdigest()
+            h = hashlib.sha1(f.read_bytes(), usedforsecurity=False).hexdigest()
             if h not in seen:
                 seen.add(h)
                 distinct.append(i)

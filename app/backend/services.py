@@ -44,7 +44,7 @@ SERVICES = [
 
 def _up(internal: str, path: str) -> bool:
     try:
-        with urllib.request.urlopen(f"http://{internal}{path}", timeout=1.5):  # noqa: S310 (internal)
+        with urllib.request.urlopen(f"http://{internal}{path}", timeout=1.5):  # nosec B310 - fixed http:// URL of a compose service
             return True
     except urllib.error.HTTPError:
         return True        # it answered (401/404 still means the service is up)
@@ -59,7 +59,7 @@ def catalog(check: bool = True) -> list[dict]:
             for k, n, d, prof, var, port, path, internal in SERVICES]
     if check:
         with ThreadPoolExecutor(len(rows)) as pool:
-            for row, up in zip(rows, pool.map(lambda r: _up(r["_internal"], r["_path"]), rows)):
+            for row, up in zip(rows, pool.map(lambda r: _up(r["_internal"], r["_path"]), rows), strict=False):
                 row["up"] = up
     for row in rows:
         row.pop("_internal"), row.pop("_path")

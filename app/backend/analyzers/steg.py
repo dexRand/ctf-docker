@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from .base import Analyzer, ToolContext, ToolResult, which, out_of
 from .registry import register, subprocess_analyzer
+from .util import load_image
 
 subprocess_analyzer(
     "zsteg", ["zsteg", "-a", "{input}"], "steg",
@@ -147,13 +148,11 @@ class PsImageAnalyzer(Analyzer):
     def run(self, ctx: ToolContext) -> ToolResult:
         try:
             import numpy as np
-            from PIL import Image
         except Exception as exc:
-            return ToolResult(self.name, status="skipped", summary=f"PIL/numpy missing: {exc}")
-        try:
-            img = Image.open(ctx.input).convert("RGB")
-        except Exception as exc:
-            return ToolResult(self.name, status="skipped", summary=f"cannot open image: {exc}")
+            return ToolResult(self.name, status="skipped", summary=f"numpy missing: {exc}")
+        img, err = load_image(self.name, ctx.input, "RGB")
+        if err:
+            return err
         w, h = img.size
         if w * h > self.MAX_PIXELS:
             return ToolResult(self.name, status="skipped", summary=f"image too big ({w}x{h})")

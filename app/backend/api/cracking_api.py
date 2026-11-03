@@ -22,7 +22,7 @@ def upload_wordlist(file: UploadFile = File(...)) -> dict:
     try:
         return cracking.save_wordlist(file.filename or "wordlist.txt", file.file)
     except ValueError as exc:
-        raise HTTPException(413, str(exc))
+        raise HTTPException(413, str(exc)) from exc
 
 
 @router.get("/api/v1/projects/{pid}/locked")
@@ -57,14 +57,14 @@ def crack(pid: str, payload: dict = Body(...), session: Session = Depends(get_se
         try:
             opts["budget_s"] = int(payload["budget_s"])
         except (TypeError, ValueError):
-            raise HTTPException(422, "budget_s must be an integer (seconds)")
+            raise HTTPException(422, "budget_s must be an integer (seconds)") from None
     bk = payload.get("bkcrack")
     if isinstance(bk, dict):
         opts["bkcrack"] = {"name": bk.get("name", ""), "plaintext": bk.get("plaintext", "")}
     try:
         job = crackqueue.submit(pid, fid, node.name, names, opts)
     except crackqueue.AlreadyQueued as exc:
-        raise HTTPException(409, str(exc))
+        raise HTTPException(409, str(exc)) from exc
     return {"started": pid, "file_id": fid, "job": job.id, "queued_before": crackqueue.position(job)}
 
 

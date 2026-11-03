@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
-from .util import TEXT_EXT, bits_to_bytes, bits_to_ints, is_printable
+from .util import TEXT_EXT, bits_to_bytes, bits_to_ints, is_printable, load_text
 
 _BACON = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 _MIN_LETTERS = 32
@@ -28,11 +28,9 @@ class CaseBitsAnalyzer(Analyzer):
     display_order = 130
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        try:
-            data = ctx.input.read_bytes()
-        except OSError as exc:
-            return ToolResult(self.name, status="error", summary=f"cannot read: {exc}")
-        text = data.decode("utf-8", "replace")
+        text, err = load_text(self.name, ctx.input)
+        if err:
+            return err
         # a 20 MB log has millions of letters: extract them as UTF-8 bytes and
         # keep the case as a numpy bool array (the per-char loop was ~15s)
         try:

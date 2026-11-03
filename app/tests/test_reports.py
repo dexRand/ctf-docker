@@ -192,7 +192,7 @@ def test_hunt_stores_the_encoded_token_for_decoded_flags():
 def test_old_xor_finding_recovers_the_operand(tmp_path):
     a = "flag{decoded_one}".encode()
     key = b"K" * len(a)
-    x = bytes(p ^ q for p, q in zip(a, key)).decode("latin-1")
+    x = bytes(p ^ q for p, q in zip(a, key, strict=False)).decode("latin-1")
     out = f'$m = "{x}"\n$k = "{key.decode()}"\n'
     v, f = _view_with(tmp_path, out, "xor:psimage:duck.png", "«flag{decoded_one}»")
     ev = v.evidence_for(f)

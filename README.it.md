@@ -292,10 +292,11 @@ Memoria: il core gira bene con ~4 GB liberi. I limiti `mem_limit` sommano
 Ogni modifica è verificata su challenge vere, non solo con i test unitari:
 
 ```bash
-app/tests/run_unit.sh          # 200+ test pytest dentro l'immagine StegSuite
+app/tests/run_unit.sh          # 340+ test pytest dentro l'immagine StegSuite
 ./ctf test -j 3                # 33 casi fixture + 35 challenge reali + verifica writeup
-./ctf test -j 3 --extra        # + altre 14 reali (picoCTF 2019–2025, TJCTF, LA CTF, ImaginaryCTF…)
+./ctf test -j 3 --extra        # + altre 45 reali (picoCTF, TJCTF, DUCTF, ImaginaryCTF, WaniCTF, TCP1P…)
 ./ctf test --only-new --gaps   # lacune note: il backlog delle tecniche da aggiungere
+./ctf lint                     # analisi statica in container: ruff, bandit, vulture, jscpd
 ```
 
 Le challenge reali arrivano da archivi pubblici e writeup (picoCTF,

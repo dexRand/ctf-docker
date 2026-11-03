@@ -37,7 +37,8 @@ def dump_sqlite(path: Path) -> str:
                 cols = [r[1] for r in con.execute(f'pragma table_info("{quoted}")')]
                 if not cols:
                     continue
-                rows = con.execute(f'select * from "{quoted}" limit {_MAX_ROWS}').fetchall()
+                # identifier escaped ("" inside quotes), read-only copy of the challenge DB
+                rows = con.execute(f'select * from "{quoted}" limit {_MAX_ROWS}').fetchall()  # nosec B608
             except sqlite3.Error:
                 continue                            # skip this table, not the database
             values: list[str] = []

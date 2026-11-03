@@ -172,7 +172,7 @@ def find_syncs(freq: np.ndarray, fs: int, sync_ms: float = 9.0) -> list[int]:
         starts = [0, *starts]
     if on[-1]:
         ends = [*ends, len(on)]
-    return [(s + e) // 2 for s, e in zip(starts, ends)]
+    return [(s + e) // 2 for s, e in zip(starts, ends, strict=False)]
 
 
 def _periodic_train(centers: list[int], fs: int, period_ms: float,

@@ -36,6 +36,7 @@ più una dashboard **Homepage** che li elenca ordinati per fase di lavoro.
 ./ctf logs <servizio>
 docker compose config -q  # valida il compose
 app/tests/run_unit.sh     # test pytest nell'immagine StegSuite
+./ctf lint                # ruff + bandit + vulture + jscpd (duplicati), in container
 ./ctf test -j 3           # regressione + challenge CTF reali
 ```
 
@@ -52,7 +53,7 @@ app/tests/run_unit.sh     # test pytest nell'immagine StegSuite
 1. `docker compose config -q` passa senza errori.
 2. I servizi toccati partono e rispondono a runtime (`./ctf up` + check URL);
    per StegSuite: `app/tests/run_unit.sh` + `./ctf test -j 3` senza regressioni
-   (stesse challenge risolte o di più).
+   (stesse challenge risolte o di più) e `./ctf lint` pulito.
 3. Dashboard e `README.md` coerenti con il compose.
 4. Nessun segreto committato (`.env` è in `.gitignore`).
 5. Stato aggiornato in `tasks/todo.md` e `tasks/plan.md`.

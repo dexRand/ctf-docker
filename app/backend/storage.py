@@ -68,7 +68,7 @@ def delete_project(pid: str) -> None:
 
 def hashes_of(path: Path) -> tuple[str, str, int]:
     """(sha256, md5, size) of a file, read in 1 MB chunks."""
-    md5 = hashlib.md5()
+    md5 = hashlib.md5(usedforsecurity=False)     # file identity shown to the user, not security
     sha = hashlib.sha256()
     size = 0
     with open(path, "rb") as fh:

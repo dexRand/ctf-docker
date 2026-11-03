@@ -146,3 +146,31 @@ def xor_known_prefix(data: bytes) -> list[tuple[int, bytes]]:
                 if all(k != key for k, _ in out):
                     out.append((key, bytes(b ^ key for b in data)))
     return out
+
+
+# --- shared input loading for analyzers --------------------------------------
+def load_text(name: str, path, cap: int = 64 << 20):
+    """(text, None) or ("", error ToolResult): the file decoded as UTF-8
+    (replacement chars for bad bytes), at most `cap` bytes."""
+    from .base import ToolResult
+    try:
+        with open(path, "rb") as fh:
+            return fh.read(cap).decode("utf-8", "replace"), None
+    except OSError as exc:
+        return "", ToolResult(name, status="error", summary=f"cannot read: {exc}")
+
+
+def load_image(name: str, path, mode: str | None = None):
+    """(PIL image, None) or (None, skipped ToolResult): decoded now (a truncated
+    file fails here, not later) and converted to `mode` when given."""
+    from .base import ToolResult
+    try:
+        from PIL import Image
+    except Exception as exc:                      # pragma: no cover - image ships PIL
+        return None, ToolResult(name, status="skipped", summary=f"PIL missing: {exc}")
+    try:
+        img = Image.open(path)
+        img.load()
+        return (img.convert(mode) if mode else img), None
+    except Exception as exc:
+        return None, ToolResult(name, status="skipped", summary=f"cannot open image: {exc}")

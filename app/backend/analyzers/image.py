@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
-from .util import IMG_EXT, magic_ext
+from .util import IMG_EXT, magic_ext, load_image
 
 MAX_PIXELS = 4_000_000  # larger images: skip the heavy plane generation
 
@@ -24,10 +24,9 @@ class BitPlanesAnalyzer(Analyzer):
             from PIL import Image
         except Exception as exc:
             return ToolResult(self.name, status="skipped", summary=f"PIL/numpy missing: {exc}")
-        try:
-            img = Image.open(ctx.input).convert("RGBA")
-        except Exception as exc:
-            return ToolResult(self.name, status="skipped", summary=f"cannot open image: {exc}")
+        img, err = load_image(self.name, ctx.input, "RGBA")
+        if err:
+            return err
         w, h = img.size
         if w * h > MAX_PIXELS:
             return ToolResult(self.name, status="skipped", summary=f"image too big ({w}x{h})")
@@ -74,12 +73,10 @@ class ChannelRemapAnalyzer(Analyzer):
             from PIL import Image
         except Exception as exc:
             return ToolResult(self.name, status="skipped", summary=f"PIL/numpy missing: {exc}")
-        try:
-            src = Image.open(ctx.input)
-            src.load()
-            img = src.convert("RGB")
-        except Exception as exc:
-            return ToolResult(self.name, status="skipped", summary=f"cannot open image: {exc}")
+        src, err = load_image(self.name, ctx.input)     # palette kept for the P-mode variants
+        if err:
+            return err
+        img = src.convert("RGB")
         if img.size[0] * img.size[1] > MAX_PIXELS:
             return ToolResult(self.name, status="skipped", summary="image too big")
         arr = np.asarray(img)
@@ -148,10 +145,9 @@ class ImageEnhanceAnalyzer(Analyzer):
             from PIL import Image, ImageOps
         except Exception as exc:
             return ToolResult(self.name, status="skipped", summary=f"PIL/numpy missing: {exc}")
-        try:
-            img = Image.open(ctx.input).convert("RGB")
-        except Exception as exc:
-            return ToolResult(self.name, status="skipped", summary=f"cannot open image: {exc}")
+        img, err = load_image(self.name, ctx.input, "RGB")
+        if err:
+            return err
         if img.size[0] * img.size[1] > MAX_PIXELS:
             return ToolResult(self.name, status="skipped", summary="image too big")
         arr = np.asarray(img).astype("int16")
@@ -217,12 +213,9 @@ class PixelBytesAnalyzer(Analyzer):
     display_order = 338
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        try:
-            from PIL import Image
-            img = Image.open(ctx.input)
-            img.load()
-        except Exception as exc:
-            return ToolResult(self.name, status="skipped", summary=f"cannot open image: {exc}")
+        img, err = load_image(self.name, ctx.input)
+        if err:
+            return err
         chain = [img.format or "?"]
         last_img, last_raw, file_ext = None, None, ""
         cur = img

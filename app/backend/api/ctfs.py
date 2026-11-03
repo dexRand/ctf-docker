@@ -129,9 +129,9 @@ def autosolve(cid: str, payload: dict = Body(default={}),
         run = ctfs.start_autosolve(cid, int(payload.get("parallel", 2)),
                                    bool(payload.get("include_solved", False)))
     except RuntimeError as exc:
-        raise HTTPException(409, str(exc))
+        raise HTTPException(409, str(exc)) from exc
     except (TypeError, ValueError):
-        raise HTTPException(422, "parallel must be an integer")
+        raise HTTPException(422, "parallel must be an integer") from None
     return run.status()
 
 

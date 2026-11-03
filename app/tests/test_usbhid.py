@@ -1,7 +1,6 @@
 """USB HID keyboard decoding and the PDF guard analyzer."""
 from __future__ import annotations
 
-import pytest
 
 from backend.analyzers.base import ToolContext
 from backend.analyzers.pdf import PdfAnalyzer, PdfImagesAnalyzer

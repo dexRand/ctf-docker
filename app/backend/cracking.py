@@ -59,7 +59,7 @@ def _expand(p: Path) -> Path:
         # cache keyed by source path + mtime; written to a temp name and renamed
         # so a crash mid-gunzip never leaves a truncated list behind
         st = p.stat()
-        key = hashlib.sha1(f"{p}:{st.st_mtime_ns}".encode()).hexdigest()[:12]
+        key = hashlib.sha1(f"{p}:{st.st_mtime_ns}".encode(), usedforsecurity=False).hexdigest()[:12]
         plain = Path(tempfile.gettempdir()) / f"stegsuite-wl-{key}-{p.stem}"
         if not plain.exists():
             tmp = plain.with_suffix(plain.suffix + ".part")

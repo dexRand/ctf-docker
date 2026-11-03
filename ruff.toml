@@ -1,0 +1,15 @@
+# ruff: bug-prone patterns only (no style churn). Run with `./ctf lint`.
+target-version = "py312"
+extend-exclude = ["app/backend/migrations", "third_party", "data", "app/frontend"]
+
+[lint]
+# F pyflakes, E9 syntax, B bugbear, PLE pylint errors, S bandit-style checks
+select = ["F", "E9", "B", "PLE"]
+
+[lint.flake8-bugbear]
+# FastAPI dependency markers in defaults are the framework's idiom, not a bug
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Form", "fastapi.Body",
+                          "fastapi.Query", "fastapi.Path", "Depends", "File", "Form", "Body"]
+
+[lint.per-file-ignores]
+"app/tests/*" = ["B011", "B017"]

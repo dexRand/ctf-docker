@@ -29,7 +29,7 @@ def _request(path: str, method: str, data: bytes | None, headers: dict,
     """HTTP to our own REST API -> (status, content-type, body). Tests swap this."""
     req = urllib.request.Request(LOCAL + path, data=data, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 (localhost)
+        with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec B310 - our own REST API on localhost
             return r.status, r.headers.get("content-type") or "", r.read()
     except urllib.error.HTTPError as exc:
         return exc.code, exc.headers.get("content-type") or "", exc.read()
@@ -70,7 +70,7 @@ def _fetch(url: str) -> tuple[str, bytes]:
     if urllib.parse.urlparse(url).scheme not in ("http", "https"):
         raise ToolError("only http(s) URLs")
     req = urllib.request.Request(url, headers={"User-Agent": "ctf-toolbox"})
-    with urllib.request.urlopen(req, timeout=120) as r:  # noqa: S310 (user-requested URL)
+    with urllib.request.urlopen(req, timeout=120) as r:  # nosec B310 - scheme checked above (http/https)
         data = r.read(MAX_UPLOAD + 1)
     if len(data) > MAX_UPLOAD:
         raise ToolError("file too large")
@@ -86,7 +86,7 @@ def _files_arg(args: dict) -> list[tuple[str, bytes]]:
         try:
             files.append((f["name"], base64.b64decode(f["content_base64"])))
         except (KeyError, ValueError, TypeError):
-            raise ToolError("files: [{name, content_base64}]")
+            raise ToolError("files: [{name, content_base64}]") from None
     if not files:
         raise ToolError("give `urls` and/or `files`")
     return files

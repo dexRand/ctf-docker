@@ -54,7 +54,7 @@ def decode_morse(samples, rate: int) -> tuple[str, list]:
     edges = np.flatnonzero(np.diff(on.astype(np.int8))) + 1
     starts = np.concatenate(([0], edges))
     lengths = np.diff(np.concatenate((starts, [len(on)])))
-    runs: list[tuple[bool, float]] = [(bool(on[s]), int(n) / rate) for s, n in zip(starts, lengths)]
+    runs: list[tuple[bool, float]] = [(bool(on[s]), int(n) / rate) for s, n in zip(starts, lengths, strict=False)]
     # drop leading/trailing silence
     while runs and not runs[0][0]:
         runs.pop(0)

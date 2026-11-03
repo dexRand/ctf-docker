@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from backend import cracking, crackqueue, storage
+from backend import cracking, storage
 from backend.db import engine, init_db
 from backend.models import FileNode, Project
 

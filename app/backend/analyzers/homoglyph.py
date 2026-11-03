@@ -12,7 +12,7 @@ import re
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
-from .util import TEXT_EXT, bits_to_bytes, is_printable
+from .util import TEXT_EXT, bits_to_bytes, is_printable, load_text
 
 
 _CONFUSABLES = {
@@ -23,7 +23,7 @@ _CONFUSABLES = {
     "О": "O", "Р": "P", "С": "C", "Т": "T", "У": "Y", "Х": "X", "Ѕ": "S",
     # Greek → Latin
     "α": "a", "β": "b", "ε": "e", "ι": "i", "κ": "k", "ν": "v", "ο": "o", "ρ": "p",
-    "τ": "t", "υ": "u", "χ": "x", "γ": "y", "ϲ": "c", "А": "A",
+    "τ": "t", "υ": "u", "χ": "x", "γ": "y", "ϲ": "c",
     "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H", "Ι": "I", "Κ": "K", "Μ": "M",
     "Ν": "N", "Ο": "O", "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X", "Λ": "L", "Θ": "O",
 }
@@ -45,11 +45,9 @@ class HomoglyphAnalyzer(Analyzer):
     display_order = 131
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        try:
-            data = ctx.input.read_bytes()
-        except OSError as exc:
-            return ToolResult(self.name, status="error", summary=f"cannot read: {exc}")
-        text = data.decode("utf-8", "replace")
+        text, err = load_text(self.name, ctx.input)
+        if err:
+            return err
         hits = _HIT_RE.findall(text)
         if len(hits) < _MIN_HITS:
             return ToolResult(self.name, status="skipped", summary="no homoglyphs")

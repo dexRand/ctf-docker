@@ -231,7 +231,7 @@ def reverse_geocode(lat: float, lon: float) -> dict | None:
     req = urllib.request.Request(f"https://nominatim.openstreetmap.org/reverse?{q}",
                                  headers={"User-Agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with urllib.request.urlopen(req, timeout=20) as r:  # nosec B310 - fixed https Nominatim URL
             data = json.loads(r.read().decode("utf-8", "replace"))
     except Exception as exc:                       # network blocked / rate limited
         return {"error": str(exc)}

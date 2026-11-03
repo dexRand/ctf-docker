@@ -127,6 +127,9 @@ Uso: ./ctf <comando>
   test [opzioni]    Regressione + challenge reali (+ opzioni di real_challenges.py,
                     es. -j 3, --extra, --gaps) + verifica risposte
   ui-smoke          Smoke test della SPA con un browser headless (Docker)
+  lint [--report]   Analisi statica in container: ruff (bug), bandit (sicurezza),
+                    vulture (codice morto), jscpd (duplicati); --report anche i
+                    duplicati piccoli (5+ righe)
 
 Profili: ${all_profiles[*]}
 Dashboard: $(service_url dashboard)
@@ -273,6 +276,10 @@ EOF
     echo
     echo "== Verifica risposte (writeup) =="
     ( cd app/tests && PYTHONUNBUFFERED=1 python3 verify_flags.py )
+    ;;
+  lint)
+    shift || true
+    exec tools/lint/run.sh "$@"
     ;;
   ui-smoke)
     echo "[*] Avvio StegSuite..."

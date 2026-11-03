@@ -268,7 +268,7 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         for group in by_len.values():
             for i in range(len(group)):
                 for j in range(i + 1, len(group)):
-                    x = bytes(a ^ b for a, b in zip(group[i], group[j]))
+                    x = bytes(a ^ b for a, b in zip(group[i], group[j], strict=False))
                     if b"{" in x and _printable(x):
                         _hunt(session, project_id, file_id, x.decode("latin-1", "replace"),
                               f"xor:{source}", depth + 1,

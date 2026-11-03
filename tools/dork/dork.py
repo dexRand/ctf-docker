@@ -195,7 +195,7 @@ def fetch_ghdb(url: str = GHDB_URL, page: int = 1000, timeout: int = 60) -> list
             f"{url}?draw=1&start={start}&length={page}",
             headers={"User-Agent": "Mozilla/5.0", "X-Requested-With": "XMLHttpRequest",
                      "Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 - fixed https GHDB URL
             payload = json.loads(resp.read().decode("utf-8", "replace"))
         rows = payload.get("data") or []
         out.extend(parse_ghdb_record(r) for r in rows)

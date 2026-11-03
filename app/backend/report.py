@@ -113,7 +113,7 @@ def _xor_operand(output: str, flag: str) -> str:
     for i, a in enumerate(strs):
         for b in strs[i + 1:]:
             if len(a) == len(b):
-                x = bytes(p ^ q for p, q in zip(a.encode("latin-1", "replace"), b.encode("latin-1", "replace")))
+                x = bytes(p ^ q for p, q in zip(a.encode("latin-1", "replace"), b.encode("latin-1", "replace"), strict=False))
                 if target in x:
                     return a
     return ""

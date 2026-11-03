@@ -14,7 +14,7 @@ from collections import Counter
 
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
-from .util import TEXT_EXT, bits_to_bytes, is_printable
+from .util import TEXT_EXT, bits_to_bytes, is_printable, load_text
 
 _ZW = ("\u200b", "\u200c", "\u200d", "\ufeff", "\u2060", "\u00ad", "\u180e")
 _ZW_RE = re.compile("[" + "".join(_ZW) + "]")
@@ -46,11 +46,9 @@ class ZeroWidthAnalyzer(Analyzer):
     display_order = 128
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        try:
-            data = ctx.input.read_bytes()
-        except OSError as exc:
-            return ToolResult(self.name, status="error", summary=f"cannot read: {exc}")
-        text = data.decode("utf-8", "replace")
+        text, err = load_text(self.name, ctx.input)
+        if err:
+            return err
         out: list[str] = []
 
         seq = _ZW_RE.findall(text)
