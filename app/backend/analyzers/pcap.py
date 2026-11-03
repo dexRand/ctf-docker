@@ -201,6 +201,14 @@ def _try_decodes(joined: str) -> list[tuple[str, str]]:
             out.append(("base32", text))
     except Exception:
         pass
+    if len(joined) % 2 == 0 and re.fullmatch(r"[0-9a-fA-F]+", joined):
+        # hex labels (dnscat2, DUCTF 2021 "That's Not My Name"): the payload is
+        # mostly binary (protocol headers, files), so keep its printable runs
+        raw = bytes.fromhex(joined)
+        runs = re.findall(rb"[\x20-\x7e]{6,}", raw)
+        if runs:
+            out.append(("hex (printable runs)",
+                        "\n".join(r.decode("ascii") for r in runs)[:200_000]))
     try:
         b64 = joined + "=" * ((4 - len(joined) % 4) % 4)
         text = base64.b64decode(b64, validate=False).decode("utf-8", "replace")

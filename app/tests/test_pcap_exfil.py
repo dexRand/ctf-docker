@@ -57,3 +57,13 @@ def test_http_response_body_is_carved_requests_are_not():
     assert carvable_payload(b"HTTP/1.1 200 OK\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg) == jpeg
     assert carvable_payload(b"GET /flag.jpg HTTP/1.1\r\nHost: x\r\n\r\n") == b""
     assert carvable_payload(jpeg) == jpeg
+
+
+def test_dns_tunnel_with_hex_labels_and_binary_payload():
+    from backend.analyzers.pcap import dns_tunnel_candidates
+    payload = b"\x00\x13\x37\x01" + b"junk\xff\xfe" + b"DUCTF{h3x_tunn3l}" + b"\x00\x89PNG..."
+    hexed = payload.hex()
+    chunks = [hexed[i:i + 30] for i in range(0, len(hexed), 30)]
+    queries = [f"{c}.evil-exfil.xyz" for c in chunks] + ["www.google.com", "cdn.example.org"]
+    out = dns_tunnel_candidates(queries)
+    assert any("DUCTF{h3x_tunn3l}" in o for o in out)
