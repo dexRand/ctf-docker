@@ -15,13 +15,15 @@ from .registry import register
 from .util import magic_ext, printable_ratio
 from .. import storage
 
-DISK_EXT = (".img", ".dd", ".raw", ".iso", ".vhd", ".vmdk", ".gz")
+DISK_EXT = (".img", ".dd", ".raw", ".iso", ".vhd", ".vmdk", ".ntfs", ".fat", ".ext4", ".gz")
 _MAX_FILES = 40
 _MAX_FILE = 2 << 20          # 2 MB per extracted file
 _MAX_CANDIDATES = 400
 _MAX_LISTING = 20000
 
-_FLS_RE = re.compile(r"^([rdv])/([rdv\-])[a-z\-/]*\s+\*?\s*(\d+):\s*(.*)$")
+# the address keeps the NTFS attribute ("64-128-4" is the alternate data
+# stream of inode 64): icat with the bare inode only reads the main $DATA
+_FLS_RE = re.compile(r"^([rdv])/([rdv\-])[a-z\-/]*\s+\*?\s*(\d+(?:-\d+-\d+)?):\s*(.*)$")
 _MAX_IMAGE = 4 << 30          # 4 GiB: a bigger "disk image" is a decompression bomb
 _HEAD = 1 << 17               # enough for the MBR/GPT and every FS superblock
 
@@ -106,15 +108,49 @@ def _partitions(image: Path) -> list[int]:
     return offs
 
 
-def _files_at(image: Path, offset: int) -> tuple[str, list[tuple[int, str]]]:
+def _files_at(image: Path, offset: int) -> tuple[str, list[tuple[str, str]]]:
     proc = run_cmd(["fls", "-r", "-p", "-o", str(offset), str(image)], timeout=600)
     out = proc.stdout or ""
-    files: list[tuple[int, str]] = []
+    files: list[tuple[str, str]] = []
     for line in out.splitlines():
         m = _FLS_RE.match(line.strip())
         if m and m.group(1) == "r":
-            files.append((int(m.group(3)), m.group(4).strip()))
+            files.append((m.group(3), m.group(4).strip()))
     return out, files
+
+
+_PIECE = re.compile(r"^(.*?)(\d+)$")
+
+
+def join_numbered(pieces: list[tuple[str, bytes]], min_parts: int = 3) -> list[tuple[str, bytes]]:
+    """Files/streams named <prefix>0, <prefix>1, … (a flag "split" over many
+    entries, e.g. NTFS alternate data streams flag0..flagN) joined in numeric
+    order; hex or base64 text is decoded. Returns (name, bytes) per group."""
+    import base64
+    import binascii
+    groups: dict[tuple[bool, str], list[tuple[int, bytes]]] = {}
+    for name, data in pieces:
+        stream = ":" in name                                   # NTFS alternate data stream
+        stem = name.rsplit(":", 1)[-1].rsplit(".", 1)[0]       # ADS name, or the file stem
+        m = _PIECE.match(stem)
+        if m:
+            groups.setdefault((stream, m.group(1)), []).append((int(m.group(2)), data))
+    out = []
+    for (stream, prefix), parts in groups.items():
+        if len(parts) < min_parts or len({n for n, _ in parts}) != len(parts):
+            continue
+        blob = b"".join(d for _n, d in sorted(parts))
+        text = blob.strip()
+        if re.fullmatch(rb"(?:[0-9a-fA-F]{2})+", text):
+            blob = binascii.unhexlify(text)
+        elif re.fullmatch(rb"[A-Za-z0-9+/]+={0,2}", text) and len(text) % 4 == 0:
+            try:
+                blob = base64.b64decode(text)
+            except binascii.Error:
+                pass
+        kind = "streams" if stream else "files"
+        out.append((f"joined_{kind}_{prefix or 'part'}{magic_ext(blob) or '.bin'}", blob))
+    return out
 
 
 def _score(path: str) -> int:
@@ -154,7 +190,7 @@ class DiskAnalyzer(Analyzer):
             return ToolResult(self.name, status="skipped", summary="cannot read image")
 
         listing_parts: list[str] = []
-        tagged: list[tuple[int, int, int, str]] = []   # (score, offset, inode, path)
+        tagged: list[tuple[int, int, str, str]] = []   # (score, offset, address, path)
         seen: list[int] = []
         for off in (*(_partitions(image) or []), 0):
             if off in seen:
@@ -172,9 +208,13 @@ class DiskAnalyzer(Analyzer):
         outdir = ctx.sub(self.name)
         outdir.mkdir(parents=True, exist_ok=True)
         produced: list[Path] = []
+        pieces: list[tuple[str, bytes]] = []
         for score, off, inode, path in tagged[:_MAX_CANDIDATES]:
-            if len(produced) >= _MAX_FILES:
-                break
+            fname = PurePosixPath(path).name
+            numbered = bool(_PIECE.match(fname.rsplit(":", 1)[-1].rsplit(".", 1)[0]))
+            full = len(produced) >= _MAX_FILES
+            if full and not numbered:
+                continue                 # over the cap only pieces to join are read
             proc = run_cmd(["icat", "-o", str(off), str(image), str(inode)],
                            timeout=180, binary=True)
             data = proc.stdout or b""
@@ -184,9 +224,17 @@ class DiskAnalyzer(Analyzer):
                     or score >= 50 or data.startswith(b"Salted__"))
             if not keep:
                 continue
+            if numbered and len(pieces) < _MAX_CANDIDATES:
+                pieces.append((fname, data))
+            if full:
+                continue
             name = storage.sanitize_name(PurePosixPath(path).name or f"inode{inode}")
-            dest = outdir / f"{inode:06d}__{name}"
+            dest = outdir / f"{inode.replace('-', '_')}__{name}"
             dest.write_bytes(data)
+            produced.append(dest)
+        for name, blob in join_numbered(pieces):
+            dest = outdir / storage.sanitize_name(name)
+            dest.write_bytes(blob)
             produced.append(dest)
 
         head = "\n".join(listing_parts)[:_MAX_LISTING * 2]
