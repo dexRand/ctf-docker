@@ -11,10 +11,10 @@ from .analyzers.util import ARCHIVE_EXT
 # ordered analysis plan (order matters: metadata -> text -> steg -> extract)
 DEFAULT_PLAN = [
     "file", "exiftool", "identify", "ffprobe", "pdfinfo",
-    "strings", "markup-text", "hexyl", "xxd", "pdf", "pdftotext", "pdfid", "pdf-images",
+    "strings", "markup-text", "hexyl", "xxd", "pdf", "pdftotext", "pdfid", "pdf-images", "pdf-attachments",
     "elf", "readelf", "objdump",
     "binwalk-scan",
-    "decode", "chef", "blobs", "zero-width", "whitespace", "case-bits", "homoglyph", "morse-text",
+    "decode", "cryptojs", "chef", "blobs", "zero-width", "whitespace", "case-bits", "homoglyph", "morse-text",
     "ocr", "qr",
     "zsteg", "lsb-carve", "lsb-bits", "msb-bits", "stepic", "psimage", "png-chunks", "png-idat", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
     "pixel-bytes", "bit-planes", "channel-remap", "image-enhance", "gif-frames",

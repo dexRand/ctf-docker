@@ -7,6 +7,7 @@ with `pdfcrack` only if something says the file is encrypted.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, which
@@ -91,5 +92,29 @@ class PdfImagesAnalyzer(Analyzer):
                                       "size": p.stat().st_size} for p in imgs])
 
 
+class PdfAttachmentsAnalyzer(Analyzer):
+    """Files embedded in the PDF (/EmbeddedFiles): object-based stego hides a
+    script or an archive there, invisible in any viewer (HeroCTF v5 PDF-Mess)."""
+    name = "pdf-attachments"
+    category = "extract"
+    description = "Embedded files of a PDF (pdfdetach -saveall)."
+    accepts = (".pdf",)
+    display_order = 243
+
+    def run(self, ctx: ToolContext) -> ToolResult:
+        if not which("pdfdetach"):
+            return ToolResult(self.name, status="skipped", summary="pdfdetach not installed")
+        listing = ctx.run(["pdfdetach", "-list", str(ctx.input)], timeout=60).stdout or ""
+        if not re.search(r"^\s*[1-9]\d* embedded files?", listing, re.M):
+            return ToolResult(self.name, status="skipped", summary="no embedded file")
+        outdir = ctx.sub(self.name)
+        outdir.mkdir(parents=True, exist_ok=True)
+        ctx.run(["pdfdetach", "-saveall", "-o", str(outdir), str(ctx.input)], timeout=120)
+        files = sorted(p for p in outdir.iterdir() if p.is_file() and p.stat().st_size)[:50]
+        return ToolResult(self.name, status="done", summary=f"{len(files)} embedded file(s)",
+                          output=listing[:20000], extracted=[str(p) for p in files])
+
+
 register(PdfAnalyzer())
 register(PdfImagesAnalyzer())
+register(PdfAttachmentsAnalyzer())
