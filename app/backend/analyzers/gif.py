@@ -4,7 +4,11 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from .base import Analyzer, ToolContext, ToolResult
+import base64
+import binascii
+import re
+
+from .base import Analyzer, ToolContext, ToolResult, run_cmd, which
 from .registry import register
 
 MAX_FRAMES = 500
@@ -32,6 +36,71 @@ def _try_decode_bits(values: list[int]) -> list[str]:
         if any(c.isalnum() for c in text):
             out.append(f"swap={swap}: {text}")
     return out
+
+
+_B64_ONLY = re.compile(r"^[A-Za-z0-9+/]+={0,2}$")
+
+
+def strip_strides(n: int, w: int, h: int, max_k: int = 40) -> list[int]:
+    """Strides k for which stacking every k-th frame-strip gives a roughly
+    square picture (a QR cut into horizontal strips, one per frame)."""
+    if n < 4 or h * 4 > w:
+        return []
+    out = []
+    for k in range(1, min(n, max_k) + 1):
+        rows = (n // k) * h
+        if 0.6 * w <= rows <= 1.6 * w:
+            out.append(k)
+    return out
+
+
+def stacked_qr(frames: list[Path], outdir: Path) -> list[str]:
+    """Rebuild QR codes cut into strips across GIF frames (DUCTF 2021 "how to
+    pronounce GIF": frames j, j+10, j+20 ... form one code) and decode them.
+    Base64-only texts are also joined in order (a flag split over two codes)."""
+    if not which("zbarimg") or not frames:
+        return []
+    from PIL import Image
+    imgs = [Image.open(f).convert("L") for f in frames]
+    w, h = imgs[0].size
+    if any(im.size != (w, h) for im in imgs):
+        return []
+    lines: list[str] = []
+    for k in strip_strides(len(imgs), w, h):
+        texts: list[str] = []
+        for j in range(k):
+            group = imgs[j::k]
+            text = ""
+            # the strip edges are often anti-aliased (a light line between
+            # strips breaks the QR grid): drop the edge rows and binarize
+            for top, bottom in ((0, 0), (0, 1), (1, 0), (1, 1)):
+                sh = h - top - bottom
+                canvas = Image.new("L", (w, sh * len(group)), 255)
+                for r, im in enumerate(group):
+                    canvas.paste(im.crop((0, top, w, h - bottom)), (0, r * sh))
+                if (top, bottom) != (0, 0):
+                    canvas = canvas.point(lambda v: 255 if v > 127 else 0)
+                path = outdir / f"stacked_k{k}_{j:02d}.png"
+                canvas.save(path)
+                proc = run_cmd(["zbarimg", "--quiet", "--raw", str(path)], timeout=30)
+                text = (proc.stdout or "").strip()
+                if text:
+                    break
+            if text:
+                texts.append(text)
+                lines.append(f"stacked QR (every {k}th frame from {j}): {text[:500]}")
+        if not texts:
+            continue
+        joined = "".join(t for t in texts if _B64_ONLY.match(t) and len(t) >= 4)
+        if joined:
+            try:
+                dec = base64.b64decode(joined + "=" * (-len(joined) % 4))
+                lines.append(f"base64 QR texts joined (every {k}th frame): "
+                             + dec.decode("utf-8", "replace"))
+            except (binascii.Error, ValueError):
+                pass
+        break                          # the stride that decodes is the right one
+    return lines
 
 
 class GifFramesAnalyzer(Analyzer):
@@ -89,9 +158,15 @@ class GifFramesAnalyzer(Analyzer):
         # every frame is read once, none twice. Identical frames are exported
         # once (the tree dedupes by hash anyway; this avoids the work upfront).
         exported = self._pick_exported(frames, diffs)
+        # frames that stack into readable QR codes are strips of a bigger
+        # picture: OCR or a full pipeline on each 20-px strip finds nothing and
+        # cost minutes (DUCTF 2021 gif: 120 strips). They stay artifacts.
+        stacked = stacked_qr(frames, outdir)
+        if stacked:
+            exported = []
         lines_ocr: list[tuple[int, str]] = []
         exported_set = set(exported)
-        rest = [i for i, f in enumerate(frames) if f not in exported_set]
+        rest = [] if stacked else [i for i, f in enumerate(frames) if f not in exported_set]
         if rest:
             from .vision import ocr_image
             for i in rest:
@@ -100,6 +175,7 @@ class GifFramesAnalyzer(Analyzer):
                     lines_ocr.append((i, text))
 
         lines = [f"frames: {len(frames)}", f"durations(ms): {durations}"]
+        lines += stacked
         for i, text in lines_ocr:
             lines.append(f"ocr frame {i:04d}: {text}")
         dec = _try_decode_bits(durations)
