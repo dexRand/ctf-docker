@@ -154,8 +154,6 @@ EXTRA += [
 
 # 02/11 harvest: not solved yet (missing technique in the comment)
 GAPS += [
-    ('du21-notmyname.pcapng.7z', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/Thats_Not_My_Name/challenge/notmyname.pcapng.7z',
-     'DUCTF{c4t_g07_y0ur_n4m3}'),  # esfiltrazione nel pcap non rilevata (da investigare)
     ('tj22-cool-school.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/cool-school/image.png',
      'tjctf{l0l_st3g_s0_co0l}'),  # stego immagine non coperta (da investigare)
     ('tj22-fried-clams', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/misc/fried-clams/bin/chall',
@@ -165,31 +163,27 @@ GAPS += [
     ('ui21-megacorp-01.cap', 'https://raw.githubusercontent.com/sigpwny/UIUCTF-2021-Public/master/misc/CEO/megacorp-01.cap',
      'uiuctf{nanotechnology}'),  # WPA: handshake da craccare (hashcat 22000) e traffico da decifrare (#11)
     ('tamu24-smp.log', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2024/master/forensics/smp/smp.log',
-     'gigem{w3_l0v3_pl1y1n_mc_smp}'),  # log Minecraft: serve uno script dedicato
+     'gigem{w3_l0v3_pl1y1n_mc_smp}'),  # log Minecraft: blocchi da tracciare in 3D e leggere a occhio
     ('uoft24-illusion.pcapng', 'https://raw.githubusercontent.com/UofTCTF/uoftctf-2024-chals-public/master/Forensics/Illusion/traffic.pcapng',
      'uoftctf{Tr3V0r_C2_1s_H4rd_T0_D3t3c7}'),  # C2 TrevorC2: decifratura AES con la chiave di default
     ('tamu23-discordance.zip', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2023/master/forensics/discordance/package.zip',
      'gigem{d15c0rd_k3ep5_d3l37ed_f1l3s?!?!}'),  # pacchetto dati Discord: file cancellati referenziati nei messaggi
-    ('hero5-strange.pdf', 'https://raw.githubusercontent.com/HeroCTF/HeroCTF_v5/main/Steganography/PDF-Mess/strange.pdf',
-     'Hero{M4L1C10U5_C0D3_1N_PDF}'),  # PDF: codice negli oggetti/stream (#14)
     ('wani23-apocalypse.png', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/Apocalypse/file/chall.png',
      'FLAG{Watch_out_4_2023_21036}'),  # aCropalypse (CVE-2023-21036): dati dopo IEND da ricostruire
     ('wani23-peg.pcapng', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/beg_for_a_peg/file/log.pcapng',
      'FLAG{Hug_a_pug_less_than_three}'),  # JPEG ricostruito dallo stream TCP (porta 4500) ma testo stilizzato: OCR non esatto
-    ('wani23-updog', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/whats_happening/file/updog',
-     'FLAG{n0th1ng_much}'),  # flag rot13 esca; quella vera altrove (da investigare)
     ('wani24-streamer.pcap', 'https://raw.githubusercontent.com/wani-hackase/wanictf2024-writeup/main/for/I_wanna_be_a_streamer/file/file.pcap',
      'FLAG{Th4nk_y0u_f0r_W4tching}'),  # video in RTP/RTSP da ricostruire (#11)
     ('tcp1p23-compromised.pcap', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Compromised/dist/compromised.pcap',
      'TCP1P{3xpl0171n6_pr3d1c74bl3__p1d_533d_f0r_7h3_w1n_98ef246706}'),  # FTPS da decifrare con la chiave privata
     ('tcp1p23-reminiscence.pcap', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Reminiscence/dist/reminiscence.pcap',
-     'TCP1P{r3min1scing_s0meth1ng_b4ck_in_th3_0ld_days_a01fef0086}'),  # da investigare (pcap)
+     'TCP1P{r3min1scing_s0meth1ng_b4ck_in_th3_0ld_days_a01fef0086}'),  # SSH (OpenSSH 4.3, DH group1): decifratura con chiavi deboli, non generica
     ('tcp1p23-ez.pdf', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Ez%20PDF/TCP1P-CTF.pdf',
      'TCP1P{D01n9_F023n51C5_0N_pdf_f1L35_15_345y_15N7_17_l3jaf9ci293m1d}'),  # PDF (da investigare, #14)
     ('tcp1p23-scrambled-egg.zip', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/scrambled%20egg/dist/scrambled_egg.zip',
      'TCP1P{y0Ur_u5u4L_pN9_cHUnk_ch4LL}'),  # chunk PNG rimescolati con uno schema ad hoc (scramble.py): non generico
     ('cor23-sanitycheck.png', 'https://raw.githubusercontent.com/Crusaders-of-Rust/corCTF-2023-public-challenge-archive/master/misc/sanity-check/sanitycheck.png',
-     'corctf{aaaaaaaaaaaaaaaaaaaaaaaa}'),  # flag disegnata (OCR): testo non letto
+     'corctf{aaaaaaaaaaaaaaaaaaaaaaaa}'),  # WordArt: OCR non legge, e le 'a' disegnate non sono 24 come nella flag ufficiale
 ]
 
 # 03/11: QR a strisce sui frame GIF, stream NTFS + pezzi numerati, dati sotto
@@ -201,6 +195,16 @@ EXTRA += [
      'TCP1P{hidden_flag_in_the_extended_attributes_fea73c5920aa8f1c}'),
     ('tj22-sneaker-zipper.zip', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/sneaker-zipper/chall.zip',
      'tjctf{sneakers_with_zippers_are_hip_no?_874d174bb26fcf95}'),
+]
+
+# 03/11 pomeriggio: allegati PDF + CryptoJS, OCR su piu' righe, tunnel DNS esadecimale
+EXTRA += [
+    ('hero5-strange.pdf', 'https://raw.githubusercontent.com/HeroCTF/HeroCTF_v5/main/Steganography/PDF-Mess/strange.pdf',
+     'Hero{M4L1C10U5_C0D3_1N_PDF}'),
+    ('wani23-updog', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/whats_happening/file/updog',
+     'FLAG{n0th1ng_much}'),
+    ('du21-notmyname.pcapng.7z', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/Thats_Not_My_Name/challenge/notmyname.pcapng.7z',
+     'DUCTF{c4t_g07_y0ur_n4m3}'),
 ]
 
 # Candidates harvested on 2026-10-27 from public challenge repos (file + official
