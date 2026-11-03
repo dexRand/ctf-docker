@@ -196,3 +196,12 @@ def test_png_repair_restores_rows_hidden_by_the_ihdr_height():
     assert struct.unpack(">I", fixed[20:24])[0] == h_real
     assert any("height 3 -> 6" in ln for ln in log)
     assert zlib.crc32(fixed[12:29]) & 0xffffffff == struct.unpack(">I", fixed[29:33])[0]
+
+
+def test_ocr_flag_drawn_over_several_lines_is_joined():
+    from backend.analyzers.vision import _confusable_variants, _multiline_flags
+    text = "FLAG}\nn0thing\n_much}\nnoise line"
+    joined = _multiline_flags(text)
+    assert joined == "FLAG{n0thing_much}"
+    assert "FLAG{n0th1ng_much}" in _confusable_variants(joined)
+    assert _multiline_flags("see the FLAG\nbelow") == ""

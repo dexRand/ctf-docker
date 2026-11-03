@@ -24,6 +24,33 @@ _CONFUSE = {"O": "0", "I": "1", "@": "0"}
 _FLAG_TOKEN = re.compile(r"([A-Za-z][A-Za-z0-9_]{1,15})\{([^}]{2,180})\}")
 
 
+_LINE_START = re.compile(r"(?i)^(" + _PREFIX_ALT + r")\s*[{}(\[]\s*([A-Za-z0-9_\-!?@.]*)$")
+_LINE_BODY = re.compile(r"^[A-Za-z0-9_\-!?@.]{1,40}[})\]]?$")
+
+
+def _multiline_flags(text: str) -> str:
+    """A flag drawn over several lines ("FLAG{" / "n0th1ng" / "_much}") comes
+    out of OCR one line at a time, and the opening brace is often misread
+    ("FLAG}", "FLAG("): join a `prefix` + brace line with the following
+    body-like lines up to the one that closes it (WaniCTF 2023 whats_happening)."""
+    lines = [ln.strip() for ln in text.splitlines()]
+    out: list[str] = []
+    for i, ln in enumerate(lines):
+        m = _LINE_START.match(ln)
+        if not m:
+            continue
+        body = m.group(2)
+        for nxt in lines[i + 1:i + 6]:
+            nxt = nxt.replace(" ", "")
+            if not _LINE_BODY.match(nxt):
+                break
+            if nxt[-1] in "})]":
+                out.append(f"{m.group(1)}{{{body}{nxt[:-1]}}}")
+                break
+            body += nxt
+    return "\n".join(dict.fromkeys(out))
+
+
 def _confusable_variants(text: str) -> str:
     """The same OCR text with the classic 0/O and 1/l/i misreadings corrected in
     every flag-like token, so the flag hunt can match the real flag."""
@@ -53,7 +80,7 @@ def _confusable_variants(text: str) -> str:
         # a leet-style body (several digits) may have read 1 as i or as a
         # lowercase l ("qu1t3", "s1mple" -> "s lmple"): one position at a time,
         # replacing every l would turn "slmple" into "s1mp1e"
-        if sum(c.isdigit() for c in v) >= 2:
+        if sum(c.isdigit() for c in v) >= 1:
             for i, ch in enumerate(v):
                 if ch in "il":
                     fixed_l = v[:i] + "1" + v[i + 1:]
@@ -215,6 +242,9 @@ def ocr_image(path: Path, timeout: int = 90, thorough: bool = True,
             if t and t not in texts:
                 texts.append(t)
     joined = "\n".join(texts)
+    lines_joined = _multiline_flags(joined)
+    if lines_joined:
+        joined += "\n== OCR lines joined ==\n" + lines_joined
     variants = _confusable_variants(joined)
     return joined + (("\n== OCR normalized ==\n" + variants) if variants else "")
 
