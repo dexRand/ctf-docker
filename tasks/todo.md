@@ -748,3 +748,13 @@ completa senza flag perse; niente duplicati (helper in `analyzers/util.py`, `mag
 - [x] `7z`: dati sotto una entry "cartella" dello zip → `tj22-sneaker-zipper`.
 - [x] `png-repair`: altezza IHDR che nasconde righe ripristinata (`spongebob`: resta l'OCR).
 - [x] Commenti di avanzamento su #11–#16; #17–#22 chiuse.
+
+### 03/11 sera — gate23 verde, push completo (CI compresa)
+- [x] gate23: unit 349 · lint pulito · extra **45/45** · fixture 33/33 · reali 35/35 · ALL CORRECT.
+- [x] Nuovo: `pdf-attachments`, `cryptojs` (U2FsdGVkX1… + stringhe del file), OCR su più righe,
+      tunnel DNS esadecimali (dnscat2), `./ctf lint` (ruff, bandit, vulture, jscpd) + job CI.
+- [x] Token GitHub locale con scope `workflow`: la CI si pusha normalmente.
+- [ ] GAPS rimasti (58): i più generici sono WPA handshake (#11), RTP→video (#11),
+      aCropalypse, Volatility/registry (#13), olevba/JS deoffuscato (#14), video/APNG (#15).
+- [ ] Ottimizzazione: il set extra misura ~4158 s di somma con -j 3 (45 casi); per i
+      confronti usare il tempo reale o i casi da soli (vedi sezione PROSSIMA AI).
