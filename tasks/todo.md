@@ -737,3 +737,14 @@ fixture 33/33 · reali 35/35 · writeup ALL CORRECT. Gate19 (codice finale) inte
 **Regole**: un commit per tema con `Fixes #N`, un test per fix, push solo dopo la verifica
 completa senza flag perse; niente duplicati (helper in `analyzers/util.py`, `magic.py`,
 `api/fileresp.py`).
+
+### 03/11 — verifica e nuove tecniche (gate21 verde)
+- [x] gate21 sul codice finale: unit 344 · extra **42**/42 (39 + 3 nuovi) · fixture 33/33 ·
+      reali 35/35 · writeup ALL CORRECT.
+- [x] `gif-frames`: QR tagliati a strisce sui frame (passo k, bordi rifilati, base64 unito)
+      → `du21-challenge.gif` da 660–800 s a ~30 s con la flag; OCR/figli per-frame saltati.
+- [x] `disk`: stream NTFS (indirizzo `64-128-4` conservato), pezzi numerati uniti
+      (hex/base64) anche oltre il tetto di 40 figli, `.ntfs/.fat/.ext4` → `tcp1p23-hide-split`.
+- [x] `7z`: dati sotto una entry "cartella" dello zip → `tj22-sneaker-zipper`.
+- [x] `png-repair`: altezza IHDR che nasconde righe ripristinata (`spongebob`: resta l'OCR).
+- [x] Commenti di avanzamento su #11–#16; #17–#22 chiuse.

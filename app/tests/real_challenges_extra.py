@@ -156,16 +156,12 @@ EXTRA += [
 GAPS += [
     ('du21-notmyname.pcapng.7z', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/Thats_Not_My_Name/challenge/notmyname.pcapng.7z',
      'DUCTF{c4t_g07_y0ur_n4m3}'),  # esfiltrazione nel pcap non rilevata (da investigare)
-    ('du21-challenge.gif', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/how-to-pronounce-gif/challenge/challenge.gif',
-     'DUCTF{aM_1_haXX0r_n0w?}'),  # QR spezzato su piu' frame GIF: frame da comporre prima di zbar
     ('tj22-cool-school.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/cool-school/image.png',
      'tjctf{l0l_st3g_s0_co0l}'),  # stego immagine non coperta (da investigare)
-    ('tj22-sneaker-zipper.zip', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/sneaker-zipper/chall.zip',
-     'tjctf{sneakers_with_zippers_are_hip_no?_874d174bb26fcf95}'),  # trucco sullo zip non coperto (da investigare)
     ('tj22-fried-clams', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/misc/fried-clams/bin/chall',
      'tjctf{noooo_not_clam_b64b833796b08d47}'),  # formato non riconosciuto (da investigare)
     ('tj22-spongebob.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/spongebob/image.png',
-     'tjctf{such_pogg3rs_ctf}'),  # stego immagine non coperta (da investigare)
+     'tjctf{such_pogg3rs_ctf}'),  # altezza IHDR corretta da png-repair; flag piccola bianca con contorno: OCR non la legge
     ('ui21-megacorp-01.cap', 'https://raw.githubusercontent.com/sigpwny/UIUCTF-2021-Public/master/misc/CEO/megacorp-01.cap',
      'uiuctf{nanotechnology}'),  # WPA: handshake da craccare (hashcat 22000) e traffico da decifrare (#11)
     ('tamu24-smp.log', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2024/master/forensics/smp/smp.log',
@@ -190,12 +186,21 @@ GAPS += [
      'TCP1P{r3min1scing_s0meth1ng_b4ck_in_th3_0ld_days_a01fef0086}'),  # da investigare (pcap)
     ('tcp1p23-ez.pdf', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Ez%20PDF/TCP1P-CTF.pdf',
      'TCP1P{D01n9_F023n51C5_0N_pdf_f1L35_15_345y_15N7_17_l3jaf9ci293m1d}'),  # PDF (da investigare, #14)
-    ('tcp1p23-hide-split.zip', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/hide%20and%20split/dist/challenge.zip',
-     'TCP1P{hidden_flag_in_the_extended_attributes_fea73c5920aa8f1c}'),  # flag negli extended attributes
     ('tcp1p23-scrambled-egg.zip', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/scrambled%20egg/dist/scrambled_egg.zip',
-     'TCP1P{y0Ur_u5u4L_pN9_cHUnk_ch4LL}'),  # chunk PNG rimescolati da riordinare
+     'TCP1P{y0Ur_u5u4L_pN9_cHUnk_ch4LL}'),  # chunk PNG rimescolati con uno schema ad hoc (scramble.py): non generico
     ('cor23-sanitycheck.png', 'https://raw.githubusercontent.com/Crusaders-of-Rust/corCTF-2023-public-challenge-archive/master/misc/sanity-check/sanitycheck.png',
      'corctf{aaaaaaaaaaaaaaaaaaaaaaaa}'),  # flag disegnata (OCR): testo non letto
+]
+
+# 03/11: QR a strisce sui frame GIF, stream NTFS + pezzi numerati, dati sotto
+# una entry 'cartella' di uno zip
+EXTRA += [
+    ('du21-challenge.gif', 'https://raw.githubusercontent.com/DownUnderCTF/Challenges_2021_Public/main/forensics/how-to-pronounce-gif/challenge/challenge.gif',
+     'DUCTF{aM_1_haXX0r_n0w?}'),
+    ('tcp1p23-hide-split.zip', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/hide%20and%20split/dist/challenge.zip',
+     'TCP1P{hidden_flag_in_the_extended_attributes_fea73c5920aa8f1c}'),
+    ('tj22-sneaker-zipper.zip', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/sneaker-zipper/chall.zip',
+     'tjctf{sneakers_with_zippers_are_hip_no?_874d174bb26fcf95}'),
 ]
 
 # Candidates harvested on 2026-10-27 from public challenge repos (file + official
