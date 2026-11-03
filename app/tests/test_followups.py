@@ -179,3 +179,20 @@ def test_disk_images_unpacked_by_the_disk_analyzer_are_not_carved_again():
         assert not CARVERS & set(plan), made_by
     # an uploaded image is still carved (deleted files, slack space)
     assert CARVERS - {"binwalk-scan"} <= set(_plan_for("disk.img", None, False, "", size=400 << 20, depth=0))
+
+
+def test_png_repair_restores_rows_hidden_by_the_ihdr_height():
+    import struct
+    import zlib
+    from backend.analyzers.png import repair_png
+    w, h_real, h_fake = 4, 6, 3
+    raw = b"".join(b"\x00" + bytes([i] * w * 3) for i in range(h_real))
+    ihdr = struct.pack(">IIBBBBB", w, h_fake, 8, 2, 0, 0, 0)
+    chunk = lambda t, d: (struct.pack(">I", len(d)) + t + d                       # noqa: E731
+                          + struct.pack(">I", zlib.crc32(t + d) & 0xffffffff))
+    png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(raw))
+           + chunk(b"IEND", b""))
+    fixed, log = repair_png(png)
+    assert struct.unpack(">I", fixed[20:24])[0] == h_real
+    assert any("height 3 -> 6" in ln for ln in log)
+    assert zlib.crc32(fixed[12:29]) & 0xffffffff == struct.unpack(">I", fixed[29:33])[0]

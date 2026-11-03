@@ -121,7 +121,40 @@ def repair_png(data: bytes) -> tuple[bytes, list[str]]:
         o = dend + 4
         if name == b"IEND":
             break
+    _fix_height(out, log)
     return bytes(out), log
+
+
+_CHANNELS = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
+
+
+def _fix_height(out: bytearray, log: list[str]) -> None:
+    """IHDR height that hides rows (TJCTF 2022 spongebob: 778 declared, 1011 in
+    the data): set it to the number of scanlines the IDAT stream holds."""
+    if bytes(out[12:16]) != b"IHDR" or len(out) < 33:
+        return
+    width, height, depth, ctype = struct.unpack(">IIBB", bytes(out[16:26]))
+    if ctype not in _CHANNELS or not width or depth not in (1, 2, 4, 8, 16):
+        return
+    idat, o = bytearray(), 8
+    while o + 8 <= len(out):
+        length = int.from_bytes(out[o:o + 4], "big")
+        if bytes(out[o + 4:o + 8]) == b"IDAT":
+            idat += out[o + 8:o + 8 + length]
+        if bytes(out[o + 4:o + 8]) == b"IEND":
+            break
+        o += 12 + length
+    try:
+        raw = zlib.decompressobj().decompress(bytes(idat), _IDAT_MAX)
+    except zlib.error:
+        return
+    row = 1 + (width * _CHANNELS[ctype] * depth + 7) // 8
+    rows, rest = divmod(len(raw), row)
+    if rest or rows <= height or rows > 65535:
+        return
+    out[20:24] = rows.to_bytes(4, "big")
+    out[29:33] = (zlib.crc32(bytes(out[12:29])) & 0xffffffff).to_bytes(4, "big")
+    log.append(f"IHDR height {height} -> {rows} (rows hidden in the IDAT data)")
 
 
 class PngRepairAnalyzer(Analyzer):
