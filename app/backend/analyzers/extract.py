@@ -82,6 +82,29 @@ def _sibling_passwords(ctx: ToolContext) -> list[str]:
     return out
 
 
+def zip_dir_payloads(path: Path, outdir: Path) -> list[Path]:
+    """Data stored under a *directory* entry ("flag/" with a body): every
+    extractor creates the folder and drops the bytes (TJCTF 2022
+    sneaker-zipper; `unzip -p chall.zip flag/` shows them)."""
+    if not zipfile.is_zipfile(path):
+        return []
+    out: list[Path] = []
+    try:
+        with zipfile.ZipFile(path) as z:
+            for zi in z.infolist():
+                if not zi.is_dir() or zi.file_size == 0 or zi.flag_bits & 0x1:
+                    continue
+                if zi.file_size > 64 << 20 or len(out) >= 50:
+                    continue
+                name = re.sub(r"[^A-Za-z0-9._-]+", "_", zi.filename.strip("/")) or "dir"
+                dest = outdir / f"{name}.dir-data"
+                dest.write_bytes(z.read(zi))
+                out.append(dest)
+    except (OSError, zipfile.BadZipFile, RuntimeError):
+        return out
+    return out
+
+
 class SevenZipAnalyzer(Analyzer):
     name = "7z"
     category = "extract"
@@ -100,6 +123,8 @@ class SevenZipAnalyzer(Analyzer):
         if proc.returncode != 0 and ("can't open as archive" in low or "is not archive" in low):
             return ToolResult(self.name, status="skipped", summary="not an archive", output=blob[-4000:])
         files: list[Path] = list_files(d) if proc.returncode == 0 else []
+        if proc.returncode == 0:
+            files += zip_dir_payloads(ctx.input, d)
         needs = proc.returncode != 0 and ("password" in low or "encrypted" in low or "wrong" in low)
         status = "needs_password" if needs else "done"
         if proc.returncode != 0 and not needs and not files:
