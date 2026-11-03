@@ -26,11 +26,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck
-        run: shellcheck ctf app/tests/ui_smoke.sh
+        run: shellcheck ctf app/tests/ui_smoke.sh tools/lint/run.sh
       - name: dork generator self-test
         run: python3 tools/dork/test_dork.py
       - name: tools compile
         run: python3 -m py_compile tools/scan.py tools/stegsuite_client.py tools/check_consistency.py
+
+  lint:
+    name: static analysis (ruff, bandit, vulture, jscpd)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: tools/lint/run.sh (containers, pinned versions)
+        run: tools/lint/run.sh
 
   backend:
     name: backend (compile + unit tests)
