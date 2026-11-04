@@ -758,3 +758,12 @@ completa senza flag perse; niente duplicati (helper in `analyzers/util.py`, `mag
       aCropalypse, Volatility/registry (#13), olevba/JS deoffuscato (#14), video/APNG (#15).
 - [ ] Ottimizzazione: il set extra misura ~4158 s di somma con -j 3 (45 casi); per i
       confronti usare il tempo reale o i casi da soli (vedi sezione PROSSIMA AI).
+
+### 04/11
+- [x] pcap: protocolli "fatti in casa" a pezzi (magic + header + chunk) ricomposti con
+      `deframe` (ordine per contatore) → `tj25-packet-palette` (PNG + OCR).
+- [x] OCR: passaggio invertito a dimensione originale per testo chiaro su sfondo scuro.
+- [x] usb-hid: tasto contato una volta per pressione (niente lettere doppie con tasti
+      sovrapposti), Ctrl+Backspace da editor (si ferma alla punteggiatura), combinazioni
+      Ctrl/Alt/GUI ignorate → `bk24-duck-pics`.
+- [ ] Da gate24: spostare in EXTRA i casi risolti.

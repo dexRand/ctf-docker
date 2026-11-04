@@ -256,3 +256,11 @@ def test_collapsed_view_finds_a_spaced_flag_glued_to_a_word() -> None:
     out = _hunt_values("fp-glued", "[text] image/svg+xml p i c o C T F { 3 n h 4 n c 3 d _ a a b 7 2 9 d d }",
                        "markup-text:drawing.flag.svg")
     assert out == {"picoCTF{3nh4nc3d_aab729dd}"}
+
+
+def test_flag_bodies_with_leet_symbols_are_kept():
+    from backend.flagpatterns import _ok_flag
+    assert _ok_flag("bctf{St0p_s3nd1Ng_m3_DuCK_p1c$}")
+    assert _ok_flag("picoCTF{pa$ta_1s_lyf3}")
+    assert not _ok_flag("flag{a=b}")             # markup / code stays out
+    assert not _ok_flag("flag{&#xD;}")

@@ -94,8 +94,8 @@ def join_b64_fragments(tokens: list[bytes]) -> str:
     return "".join(parts)
 
 
-_FLAG_START = re.compile(r"[A-Za-z0-9_]{2,32}\{[A-Za-z0-9_\-!?@.,:]*$")
-_FLAG_BODY = re.compile(r"[A-Za-z0-9_\-!?@.,:]+\}?$")
+_FLAG_START = re.compile(r"[A-Za-z0-9_]{2,32}\{[A-Za-z0-9_\-!?@.,:$#%^*+~]*$")
+_FLAG_BODY = re.compile(r"[A-Za-z0-9_\-!?@.,:$#%^*+~]+\}?$")
 
 
 def assemble_flag_fragments(pieces: list[str]) -> list[str]:

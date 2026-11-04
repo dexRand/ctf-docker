@@ -207,6 +207,12 @@ EXTRA += [
      'DUCTF{c4t_g07_y0ur_n4m3}'),
 ]
 
+# 04/11: protocollo a pezzi ricomposto (deframe) + OCR testo chiaro su scuro
+EXTRA += [
+    ('tj25-packet-palette.pcapng', 'https://raw.githubusercontent.com/TJCSec/tjctf-2025-challenges/main/forensics/packet-palette/chall.pcapng',
+     'tjctf{usb1p_f13g_1ns1d3_3_pr0t0c0l}'),
+]
+
 # Candidates harvested on 2026-10-27 from public challenge repos (file + official
 # flag from flag.txt / challenge.yaml / metadata.yaml / README, read via the
 # GitHub API). Run with `real_challenges.py --candidates --only-new`, then
@@ -234,7 +240,6 @@ EXTRA += [
 # --- candidate 2026-10-27 non risolte: tecnica mancante ---
 GAPS += [
     ("tj25-albumcover.png", f"{TJ25}/forensics/album-cover/albumcover.png", "tjctf{THIS-EASTER-EGG-IS-PRETTY-COOL}"),  # payload audio/immagine prodotto da enc.py: non riconosciuto
-    ("tj25-packet-palette.pcapng", f"{TJ25}/forensics/packet-palette/chall.pcapng", "tjctf{usb1p_f13g_1ns1d3_3_pr0t0c0l}"),  # USB/IP incapsulato in TCP: l'HID non arriva a tshark come usbhid.data
     ("tj25-quant-lost.jpg", f"{TJ25}/forensics/quant/lost.jpg", "tjctf{th3_Li0n_d0esNt_qUanT1ze}"),  # tabelle DQT azzerate: vanno ricostruite per decodificare (handout incerto: thelion.jpg)
     ("tj25-pietty-runme.png", f"{TJ25}/forensics/thats-pietty-cool/chall/runme.png", "tjctf{p1et_pr1nt3r}"),  # Piet esolang: serve un interprete
     ("tj25-masked-qrcode.png", f"{TJ25}/misc/masked/qrcode.png", "tjctf{n0tc4tchingc0vid}"),  # QR mascherato/parziale: zbar non lo legge

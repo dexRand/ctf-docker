@@ -43,7 +43,9 @@ _CUSTOM_FLAG_RE = re.compile(_FLAG_PATTERN.encode()) if _FLAG_PATTERN else None
 FUZZY_SOURCES = tuple(s for s in VISION_SOURCES if s != "raw")
 
 
-_FLAG_BODY_RE = re.compile(r"[A-Za-z0-9_\-!?@.,: ]{1,200}")
+# flag bodies use leet symbols ($, #, %, ^, *, +, ~: "p1c$", "pa$ta"); markup
+# stays out: "=" (a=b), "&" and ";" (entities), "/" (paths), quotes, brackets
+_FLAG_BODY_RE = re.compile(r"[A-Za-z0-9_\-!?@.,: $#%^*+~]{1,200}")
 
 
 def _ok_flag(value: str) -> bool:
