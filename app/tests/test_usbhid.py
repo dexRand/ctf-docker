@@ -60,3 +60,35 @@ def test_backspace_erases_typed_characters():
         reports.append("00:00:%02x:00:00:00:00:00" % k)
         reports.append("00:00:00:00:00:00:00:00")          # key release
     assert decode_reports(reports) == "abcd"
+
+
+def _rep(mod: int, *keys: int) -> str:
+    ks = list(keys) + [0] * (6 - len(keys))
+    return ":".join(f"{b:02x}" for b in [mod, 0, *ks])
+
+
+def test_overlapping_keys_are_typed_once():
+    from backend.analyzers.usbhid import decode_reports
+    # "a" pressed, "w" pressed before "a" is released, then both released
+    reports = [_rep(0, 0x04), _rep(0, 0x04, 0x1A), _rep(0, 0x1A), _rep(0)]
+    assert decode_reports(reports) == "aw"
+
+
+def test_ctrl_backspace_deletes_a_word_but_stops_at_punctuation():
+    from backend.analyzers.usbhid import decode_reports
+    typed = [0x05, 0x06, 0x17, 0x09]                       # "bctf"
+    reports = []
+    for k in typed:
+        reports += [_rep(0, k), _rep(0)]
+    reports += [_rep(0x02, 0x2F), _rep(0)]                 # shift + "[" -> "{"
+    for k in (0x16, 0x17, 0x08):                           # "ste"
+        reports += [_rep(0, k), _rep(0)]
+    reports += [_rep(0x01, 0x2A), _rep(0)]                 # ctrl + backspace
+    reports += [_rep(0, 0x04), _rep(0)]                    # "a"
+    assert decode_reports(reports) == "bctf{a"
+
+
+def test_ctrl_chords_are_not_text():
+    from backend.analyzers.usbhid import decode_reports
+    reports = [_rep(0x01, 0x06), _rep(0), _rep(0, 0x04), _rep(0)]   # ctrl+c, then "a"
+    assert decode_reports(reports) == "a"

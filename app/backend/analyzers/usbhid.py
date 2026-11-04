@@ -66,6 +66,9 @@ _KEYS = {
     0x34: ("`", "~"), 0x35: (",", "<"), 0x36: (".", ">"), 0x37: ("/", "?"),
 }
 _SHIFT = 0x22          # left shift (0x02) and right shift (0x20)
+_CTRL = 0x11           # left/right ctrl
+_ALT = 0x44            # left/right alt
+_GUI = 0x88            # left/right GUI (Windows/Cmd)
 _SKIP = {0x00, 0x01}   # no key / rollover error
 
 # a HID text run: printable enough to be the typed message
@@ -83,31 +86,57 @@ def _bytes_of(report: str) -> bytes:
         return b""
 
 
+def _is_word(ch: str) -> bool:
+    return ch.isalnum() or ch == "_"
+
+
+def _delete_word(out: list[str]) -> None:
+    """Ctrl+Backspace as text editors do it: trailing blanks, then either a run
+    of word characters or a run of punctuation ("bctf{Ste" -> "bctf{")."""
+    while out and out[-1] in " \t":
+        out.pop()
+    if not out:
+        return
+    word = _is_word(out[-1])
+    while out and out[-1] not in " \t\n" and _is_word(out[-1]) == word:
+        out.pop()
+
+
 def decode_reports(reports: list[str]) -> str:
-    """Decode HID boot-protocol reports into the typed text."""
+    """Decode HID boot-protocol reports into the typed text.
+
+    A key counts once, when it appears in a report and was not in the previous
+    one (two overlapping keys must not repeat the first). Backspace erases a
+    character, Ctrl+Backspace the previous word; other Ctrl/Alt/GUI chords
+    are shortcuts, not text (BuckeyeCTF 2024 duck-pics)."""
     out: list[str] = []
-    last: bytes | None = None
+    held: set[int] = set()
     for report in reports:
         data = _bytes_of(report)
         if len(data) < 8:
             continue
-        if data == last:
-            continue                       # the key is still held down
-        last = data
-        mod, keys = data[0], data[2:8]
-        shift = bool(mod & _SHIFT)
+        mod, keys = data[0], [k for k in data[2:8] if k not in _SKIP]
+        if 0x01 in data[2:8]:
+            continue                       # rollover error report: keep `held`
+        shift, ctrl = bool(mod & _SHIFT), bool(mod & _CTRL)
+        chord = bool(mod & (_CTRL | _ALT | _GUI))
         for code in keys:
-            if code in _SKIP:
-                continue
+            if code in held:
+                continue                   # still held down from the last report
             pair = _KEYS.get(code)
             if not pair:
                 continue
             ch = pair[1] if shift else pair[0]
-            if ch == "\b":                     # backspace erases what was typed
-                if out:
+            if ch == "\b":
+                if ctrl:                   # Ctrl+Backspace: drop the previous word,
+                    _delete_word(out)      # stopping at punctuation like an editor
+                elif out:
                     out.pop()
                 continue
+            if chord:
+                continue                   # Ctrl+C, Alt+Tab...: not typed text
             out.append(ch)
+        held = set(keys)
     return "".join(out)
 
 
