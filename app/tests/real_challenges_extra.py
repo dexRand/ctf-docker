@@ -207,8 +207,11 @@ EXTRA += [
      'DUCTF{c4t_g07_y0ur_n4m3}'),
 ]
 
-# 04/11: protocollo a pezzi ricomposto (deframe) + OCR testo chiaro su scuro
+# 04/11: protocollo a pezzi ricomposto (deframe) + OCR testo chiaro su scuro;
+# tastiera USB con tasti sovrapposti e Ctrl+Backspace, '$' nel corpo della flag
 EXTRA += [
+    ('bk24-duck-pics.pcapng', 'https://raw.githubusercontent.com/cscosu/buckeyectf-2024-public/master/forensics/duck-pics/capture.pcapng',
+     'bctf{St0p_s3nd1Ng_m3_DuCK_p1c$}'),
     ('tj25-packet-palette.pcapng', 'https://raw.githubusercontent.com/TJCSec/tjctf-2025-challenges/main/forensics/packet-palette/chall.pcapng',
      'tjctf{usb1p_f13g_1ns1d3_3_pr0t0c0l}'),
 ]
@@ -248,7 +251,6 @@ GAPS += [
     ("ic25-obfuscated-Users.zip", f"{IC25}/Forensics/obfuscated-1/dist/Users.zip", "ictf{Slay4U!!}"),  # profilo Windows: ora finisce (621s) ma servono i registry hive (hivex/Volatility)
     ("ic25-thrift-capture.pcap", f"{IC25}/Forensics/thrift-store/dist/capture.pcap", "ictf{l1k3_gRPC_bUt_l3ss_g0ogly}"),  # protocollo Apache Thrift: serve un decode binario
     ("bk24-couch_potato.wav", f"{BK24}/forensics/couch_potato/dump1.wav", "bctf{1_11k3_5p4m_w17h_my_h4m}"),  # 22 MB: probabile SSTV/spettro su un canale non coperto
-    ("bk24-duck-pics.pcapng", f"{BK24}/forensics/duck-pics/capture.pcapng", "bctf{St0p_s3nd1Ng_m3_DuCK_p1c$}"),  # handout incerto (capture vs whole-capture)
     ("bk24-hall-effect.pcapng", f"{BK24}/forensics/hall-effect/capture.pcapng", "bctf{Wh0s3_g0NNa_CarRY_Th3B0atS}"),  # protocollo/dato non emerso: da investigare
     ("bk24-the_cia.pdf", f"{BK24}/forensics/the_cia/protected-cia-document.pdf", "bctf{U_c4N_d0_TH1s_On_w0rd_docs_T0O}"),  # PDF cifrato: pdfcrack+rockyou non lo apre (il lock ora viene segnalato)
     ("bk24-unknown.zip", f"{BK24}/forensics/unknown/unknown.zip", "bctf{f1l3_3x73n510n5_4r3_n07_r34l}"),  # il file contiene `ctf{...}`, l'atteso e' `bctf{...}`: il wrapping non si inventa

@@ -766,4 +766,4 @@ completa senza flag perse; niente duplicati (helper in `analyzers/util.py`, `mag
 - [x] usb-hid: tasto contato una volta per pressione (niente lettere doppie con tasti
       sovrapposti), Ctrl+Backspace da editor (si ferma alla punteggiatura), combinazioni
       Ctrl/Alt/GUI ignorate → `bk24-duck-pics`.
-- [ ] Da gate24: spostare in EXTRA i casi risolti.
+- [x] gate24/25 verdi (extra 46/46, fixture 33/33, reali 35/35, ALL CORRECT); `$` e altri simboli leet ammessi nel corpo delle flag → `duck-pics` risolta (EXTRA 47).
