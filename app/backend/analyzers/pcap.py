@@ -18,7 +18,7 @@ from pathlib import Path
 
 from .base import Analyzer, ToolContext, ToolResult, list_files, which
 from .registry import register
-from ..magic import has_signature, mime_of
+from ..magic import SIGNATURES, has_signature, mime_of
 from .util import B64_TOKEN, join_b64_fragments, printable_ratio, xor_known_prefix
 
 PCAP_EXT = (".pcap", ".pcapng", ".cap")
@@ -323,6 +323,43 @@ def assemble_segments(segs: dict[int, bytes], by_seq: bool = True) -> bytes:
     return bytes(data)
 
 
+_STRONG_SIGS = tuple(sig for sig, _ext, _mime in SIGNATURES if len(sig) >= 4)
+
+
+def deframe(payloads: list[bytes], max_header: int = 64) -> bytes | None:
+    """A file sent in chunks by a home-made protocol: every packet starts with
+    the same magic + a small header (seq, total, length), then a piece of the
+    file (TJCTF 2025 packet-palette: "USBI" + 8 bytes + PNG chunk). The header
+    length is where a file signature sits in the first data packet; the pieces
+    are joined in order (by the 16-bit counter after the magic when it is one)."""
+    framed = [p for p in payloads if len(p) > 8]
+    if len(framed) < 2:
+        return None
+    magic = framed[0][:4]
+    data_pkts = [p for p in framed if p[:4] == magic]
+    if len(data_pkts) < 2 or len(data_pkts) < 0.6 * len(framed):
+        return None
+    first = None
+    for p in data_pkts:                       # skip handshake-like packets ("READY")
+        hits = [i for sig in _STRONG_SIGS for i in [p.find(sig, 4, max_header + len(sig))] if i > 0]
+        if hits:
+            first, hdr = p, min(hits)
+            break
+    if first is None:
+        return None
+    # a 16-bit counter right after the magic orders the pieces; packets whose
+    # "counter" is out of range (a "READY" handshake) are not pieces
+    body = [p for p in data_pkts if len(p) > hdr]
+    counters = [int.from_bytes(p[4:6], "big") for p in body]
+    keep = [(c, p) for c, p in zip(counters, body, strict=True) if c <= len(body)]
+    cs = sorted(c for c, _p in keep)
+    if keep and cs == list(range(cs[0], cs[0] + len(keep))) and \
+            min(keep, key=lambda cp: cp[0])[1] is first:
+        return b"".join(p[hdr:] for _c, p in sorted(keep, key=lambda cp: cp[0]))
+    start = data_pkts.index(first)              # no usable counter: arrival order
+    return b"".join(p[hdr:] for p in data_pkts[start:] if len(p) > hdr)
+
+
 def carvable_payload(data: bytes) -> bytes:
     """What is worth carving in a one-way stream: an HTTP response's body
     (also on ports tshark does not dissect as HTTP), nothing for a request."""
@@ -395,6 +432,9 @@ def _streams_text(ctx: ToolContext, tls: list[str]) -> tuple[str, list[tuple[str
         if len(data) < 64 or not has_signature(data):
             continue                     # same bytes as an exported object -> deduped by sha
         carve.append((f"{proto}stream{sid}_from{sport or 'x'}.bin", data))
+        framed = deframe([segs[k] for k in sorted(segs)])
+        if framed and framed[:8] != data[:8] and has_signature(framed[:64]):
+            carve.append((f"{proto}stream{sid}_from{sport or 'x'}_deframed.bin", framed))
         if len(carve) >= _MAX_CARVE_FILES:
             break
     return "\n".join(out), carve

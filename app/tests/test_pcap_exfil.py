@@ -67,3 +67,21 @@ def test_dns_tunnel_with_hex_labels_and_binary_payload():
     queries = [f"{c}.evil-exfil.xyz" for c in chunks] + ["www.google.com", "cdn.example.org"]
     out = dns_tunnel_candidates(queries)
     assert any("DUCTF{h3x_tunn3l}" in o for o in out)
+
+
+def test_deframe_custom_chunked_protocol():
+    import struct
+    from backend.analyzers.pcap import deframe
+    png = b"\x89PNG\r\n\x1a\n" + bytes(range(256)) * 3
+    chunks = [png[i:i + 200] for i in range(0, len(png), 200)]
+    pkts = [b"USBIP:DEVICE_READY"]
+    pkts += [b"USBI" + struct.pack(">HHI", i, len(chunks), len(c)) + c for i, c in enumerate(chunks)]
+    assert deframe(pkts) == png
+    # out of order on the wire: the 16-bit counter after the magic restores it
+    shuffled = [pkts[0]] + pkts[1:][::-1]
+    assert deframe(shuffled) == png
+
+
+def test_deframe_ignores_plain_streams():
+    from backend.analyzers.pcap import deframe
+    assert deframe([b"GET / HTTP/1.1\r\n\r\n", b"hello world, nothing framed here"]) is None

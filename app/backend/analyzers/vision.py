@@ -181,6 +181,17 @@ def ocr_image(path: Path, timeout: int = 90, thorough: bool = True,
     texts: list[str] = []
     gray = base.convert("L")
     w, h = gray.size
+    try:
+        from PIL import ImageOps, ImageStat
+        if ImageStat.Stat(gray).mean[0] < 96:
+            # light text on a dark background: tesseract wants dark on light, and
+            # at the original size (an upscale blurred the "_" under a "g" away,
+            # TJCTF 2025 packet-palette)
+            t = _tess(ImageOps.invert(gray), 6, timeout)
+            if t:
+                texts.append(t)
+    except Exception:
+        pass
     if max_dim is None and max(w, h) < 1000:
         # tiny images get upscaled for OCR; an explicit max_dim is a hard cap
         f = max(2, (1000 // max(w, h)) + 1)
