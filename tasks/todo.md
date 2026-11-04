@@ -767,3 +767,8 @@ completa senza flag perse; niente duplicati (helper in `analyzers/util.py`, `mag
       sovrapposti), Ctrl+Backspace da editor (si ferma alla punteggiatura), combinazioni
       Ctrl/Alt/GUI ignorate → `bk24-duck-pics`.
 - [x] gate24/25 verdi (extra 46/46, fixture 33/33, reali 35/35, ALL CORRECT); `$` e altri simboli leet ammessi nel corpo delle flag → `duck-pics` risolta (EXTRA 47).
+
+## ▶ Per opencode (deepseek): `tasks/deepseek.md`
+Quattro task delimitati (Vigenère/rail fence, olevba, hive del registro con regipy,
+WPA → hashcat 22000), con file da toccare, test e criterio di "fatto". Le regole di
+lavoro sono in `AGENTS.md` → "Regole per il lavoro autonomo". Dopo il suo giro: review.

@@ -1,0 +1,133 @@
+# Task per opencode (deepseek) — uno alla volta, in quest'ordine
+
+Prima di iniziare leggi `AGENTS.md`, sezione **"Regole per il lavoro autonomo"**:
+perimetro, schema degli analyzer, verifica, commit, quando fermarsi.
+
+Baseline da non peggiorare (04/11, commit `7f34de2`): unit 355 · lint pulito ·
+extra 47/47 · fixture 33/33 · reali 35/35 · `ALL CORRECT`.
+
+Per ogni task: un branch non serve, ma **un commit per task** e la verifica completa
+prima del push. Se un task si blocca, scrivilo in "Bloccato" e passa al successivo.
+
+---
+
+## Task 1 — Vigenère e rail fence in `decode` (issue #12)
+
+**File da toccare:** solo `app/backend/analyzers/decode.py` e un test nuovo
+`app/tests/test_decode_classic.py`.
+
+**Cosa fare**
+- **Vigenère con chiave ricavata dal prefisso** (attacco a testo noto): per ogni
+  prefisso di `FLAG_PREFIXES` cerca nel testo una sequenza di lettere della stessa
+  lunghezza seguita da `{`; la differenza lettera per lettera dà la chiave (ripetuta
+  con periodo = lunghezza del prefisso, poi prova anche periodi 1..lunghezza). Tieni
+  il risultato **solo** se decifrando compare `PREFISSO{`. Le non-lettere restano
+  invariate e non fanno avanzare la chiave.
+- **Rail fence** con 2..10 binari, solo su testi ≤ 4096 caratteri, risultato tenuto
+  solo se compare un prefisso noto + `{`.
+- Aggiungili dentro `candidates()` nel blocco `if len(text0) <= _SMALL:` (come Caesar).
+
+**Test (`test_decode_classic.py`)**: cifra una flag con Vigenère (chiave "KEY") e con
+rail fence (3 binari) dentro il test, verifica che `candidates()` restituisca la flag;
+verifica che un testo normale non produca risultati `vigenere*`/`railfence*`.
+
+**Fatto quando:** unit + lint verdi, verifica completa invariata.
+Chiusura: `Fixes #12` NO (l'issue ha altri punti) → `Refs #12` + commento.
+
+---
+
+## Task 2 — `olevba`: macro VBA dei documenti Office (issue #14)
+
+**File da toccare:** `app/Dockerfile` (aggiungere `oletools==0.60.2` al pip install
+del venv di StegSuite, versione fissata), nuovo `app/backend/analyzers/olevba.py`,
+`analyzers/__init__.py`, una riga in `DEFAULT_PLAN` (subito dopo `"office"`),
+test nuovo `app/tests/test_olevba.py`.
+
+**Cosa fare**
+- Analyzer `olevba`: `accepts` = estensioni Office (`.doc .docm .docx .xls .xlsm
+  .xlsx .ppt .pptm .pptx .dotm .xlam`) + mime `application/x-ole-storage`.
+- Gating: OLE (`\xd0\xcf\x11\xe0`) oppure zip che contiene un membro
+  `vbaProject.bin` (controlla con `zipfile` la lista dei nomi, non estrarre tutto).
+  Altrimenti `skipped`.
+- Esegui `olevba --decode --deobf <file>` con `ctx.run(..., timeout=120)`; output
+  (max 200 000 caratteri) = sorgente delle macro + stringhe decodificate. Il flag
+  hunt lavora sull'output da solo.
+- Riassunto: numero di macro e se ci sono `AutoOpen`/`Document_Open`/`Shell`.
+
+**Test**: gating (`skipped` su un docx senza `vbaProject.bin` generato nel test con
+`zipfile`) + parsing con `ctx.run` sostituito da un finto risultato (monkeypatch).
+**Caso reale**: `Weird File` nelle reali (`weird.docm`) deve restare PASS e
+l'output di `olevba` deve contenere il codice della macro.
+
+**Fatto quando:** come sopra. `Refs #14` + commento.
+
+---
+
+## Task 3 — Hive del registro Windows con `regipy` (issue #13)
+
+**File da toccare:** `app/Dockerfile` (`regipy==6.5.0` nel pip install, versione
+fissata), nuovo `app/backend/analyzers/winreg.py` (NON `registry.py`: quel nome è
+già il registro degli analyzer), `__init__.py`, una riga in `DEFAULT_PLAN`
+(vicino a `"sam"`), test nuovo `app/tests/test_winreg.py`.
+
+**Cosa fare**
+- Analyzer `winreg`: gating sulla firma `regf` nei primi 4 byte (in `magic.py` c'è già),
+  altrimenti `skipped`. Accetta qualsiasi nome (le hive non hanno estensione:
+  `NTUSER.DAT`, `SOFTWARE`, `SYSTEM`…): `accepts = ()` e controllo della firma.
+- Con `regipy` estrai e scrivi nell'output (testo, max 200 000 caratteri):
+  chiavi `Run`/`RunOnce`, `RecentDocs`, `TypedPaths`, `RunMRU`, `WordWheelQuery`,
+  `UserAssist` (i nomi sono in ROT13: decodificali), `Environment`, e **tutti i
+  valori stringa** con un tetto (es. 20 000 valori). Il flag hunt fa il resto.
+- Non usare SYSTEM+SAM per estrarre hash: lo fa già `sam.py`.
+- Hive enormi (> 256 MB): `skipped` con il motivo.
+
+**Test**: gating (`skipped` su un file qualsiasi); per il parsing usa una piccola
+hive di test pubblica **con licenza compatibile** (es. dai test di regipy, MIT),
+salvata in `app/tests/data/` (NON in `app/tests/fixtures/`, che è la regressione),
+e citane la fonte in un commento.
+**Caso reale**: `ic25-obfuscated-Users.zip` — non è richiesto che passi; basta che
+`winreg` giri sulle hive estratte e l'output contenga le chiavi. Annota nel commento
+del caso in `GAPS` cosa si vede.
+
+**Fatto quando:** come sopra. `Refs #13` + commento.
+
+---
+
+## Task 4 — Handshake WPA da pcap → hashcat 22000 (issue #11)
+
+**File da toccare:** `app/Dockerfile` (pacchetto apt `hcxtools`, versione fissata, oggi Debian trixie dà `6.3.5-1`), nuovo
+`app/backend/analyzers/wpa.py`, `__init__.py`, una riga in `DEFAULT_PLAN` (dopo
+`"pcap"`), test nuovo `app/tests/test_wpa.py`.
+
+**Cosa fare**
+- Gating: pcap/pcapng con link type 802.11 (105, 127 radiotap, 163) — riusa
+  `link_types()` da `analyzers/usbhid.py` (non copiarla: importala). Altrimenti `skipped`.
+- `hcxpcapngtool -o <out>.22000 <file>` con `ctx.run(timeout=120)`. Nessun hash →
+  `skipped` "no handshake".
+- Crack con hashcat `-m 22000` sulle wordlist di `cracking.resolve_wordlists(...)`
+  (solo le piccole, come l'auto-crack: guarda come lo fa `sam.py`) con un budget di
+  tempo fisso (es. 120 s). Password trovata → nell'output `password: <pw>  (SSID)`.
+- Il file `.22000` va anche tra gli artifact (l'utente può craccarlo dalla GUI).
+
+**Test**: gating (`skipped` su un pcap Ethernet generato nel test come in
+`test_usbhid.py`); parsing dell'output di hashcat `--show` con un finto risultato.
+**Caso reale**: `ui21-megacorp-01.cap` — la flag attesa `uiuctf{nanotechnology}` va
+avvolta a mano, quindi resta in `GAPS`; basta che l'output mostri la password
+`nanotechnology` se è nelle wordlist. Annotalo nel commento del caso.
+
+**Fatto quando:** come sopra. `Refs #11` + commento.
+
+---
+
+## Stato (aggiornalo tu, con i numeri copiati dall'output)
+
+| Task | Stato | Commit | Verifica |
+|---|---|---|---|
+| 1 Vigenère / rail fence | da fare | | |
+| 2 olevba | da fare | | |
+| 3 winreg (regipy) | da fare | | |
+| 4 WPA → hashcat | da fare | | |
+
+## Bloccato
+
+(niente per ora)
