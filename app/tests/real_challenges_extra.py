@@ -248,7 +248,7 @@ GAPS += [
     ("tj25-masked-qrcode.png", f"{TJ25}/misc/masked/qrcode.png", "tjctf{n0tc4tchingc0vid}"),  # QR mascherato/parziale: zbar non lo legge
     ("ic25-dinosaur-mosaic.png", f"{IC25}/Forensics/dinosaur/challenge/reconstructed_mosaic.png", "ictf{get_baited_its_actually_an_ankylosaurus}"),  # handout incerto (reconstructed_mosaic vs qr_code.bmp) + mosaico da ricomporre
     ("ic25-nightcore.mp3", f"{IC25}/Forensics/nightcore/challenge/nightcore.mp3", "ictf{12345678}"),  # ENF (frequenza di rete) nel rumore: demodulazione dedicata
-    ("ic25-obfuscated-Users.zip", f"{IC25}/Forensics/obfuscated-1/dist/Users.zip", "ictf{Slay4U!!}"),  # profilo Windows: ora finisce (621s) ma servono i registry hive (hivex/Volatility)
+    ("ic25-obfuscated-Users.zip", f"{IC25}/Forensics/obfuscated-1/dist/Users.zip", "ictf{Slay4U!!}"),  # profilo Windows: winreg legge la hive NTUSER.DAT (2131 chiavi, 4214 valori: Environment, RecentDocs, RunMRU, TypedPaths, UserAssist) ma il flag non e' li'; 455s, 401 nodi (MAX_NODES=400)
     ("ic25-thrift-capture.pcap", f"{IC25}/Forensics/thrift-store/dist/capture.pcap", "ictf{l1k3_gRPC_bUt_l3ss_g0ogly}"),  # protocollo Apache Thrift: serve un decode binario
     ("bk24-couch_potato.wav", f"{BK24}/forensics/couch_potato/dump1.wav", "bctf{1_11k3_5p4m_w17h_my_h4m}"),  # 22 MB: probabile SSTV/spettro su un canale non coperto
     ("bk24-hall-effect.pcapng", f"{BK24}/forensics/hall-effect/capture.pcapng", "bctf{Wh0s3_g0NNa_CarRY_Th3B0atS}"),  # protocollo/dato non emerso: da investigare

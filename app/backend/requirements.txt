@@ -11,5 +11,7 @@ python-evtx==0.8.1
 impacket==0.13.1
 # VBA macros of Office documents (analyzers/olevba.py, task 2 of tasks/deepseek.md)
 oletools==0.60.2
+# offline Windows registry hives (analyzers/winreg.py, task 3 of tasks/deepseek.md)
+regipy==6.5.0
 # httpx: HTTP client required by starlette's TestClient in the CI unit-test job
 httpx

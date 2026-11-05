@@ -19,7 +19,7 @@ DEFAULT_PLAN = [
     "zsteg", "lsb-carve", "lsb-bits", "msb-bits", "stepic", "psimage", "png-chunks", "png-idat", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
     "pixel-bytes", "bit-planes", "channel-remap", "image-enhance", "gif-frames",
     "morse", "dtmf", "eas", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
-    "pcap", "usb-hid", "evtx", "sam", "firefox-logins",
+    "pcap", "usb-hid", "evtx", "sam", "winreg", "firefox-logins",
     "nested-archive", "git", "sqlite", "ds-store", "android-boot", "disk", "openssl", "7z", "office", "olevba", "eml", "binwalk-extract", "foremost", "pngcheck",
     "png-repair", "image-repair", "byte-swap",
 ]

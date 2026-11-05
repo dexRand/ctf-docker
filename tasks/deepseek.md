@@ -124,8 +124,8 @@ avvolta a mano, quindi resta in `GAPS`; basta che l'output mostri la password
 | Task | Stato | Commit | Verifica |
 |---|---|---|---|
 | 1 Vigenère / rail fence | fatto | 8246477 | unit 359, lint clean |
-| 2 olevba | fatto | (prossimo) | unit 364, lint clean, `weird.docm` PASS 8.2s, output con `Sub AutoOpen()` |
-| 3 winreg (regipy) | da fare | | |
+| 2 olevba | fatto | df03c17 | unit 364, lint clean, `weird.docm` PASS 8.2s, output con `Sub AutoOpen()` |
+| 3 winreg (regipy) | fatto | (prossimo) | unit 369, lint clean, hive NTUSER `done · 2131 keys, 4214 value(s)` |
 | 4 WPA → hashcat | da fare | | |
 
 ## Bloccato
