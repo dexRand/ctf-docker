@@ -161,7 +161,7 @@ GAPS += [
     ('tj22-spongebob.png', 'https://raw.githubusercontent.com/TJCSec/tjctf-2022-challenges/master/forensics/spongebob/image.png',
      'tjctf{such_pogg3rs_ctf}'),  # altezza IHDR corretta da png-repair; flag piccola bianca con contorno: OCR non la legge
     ('ui21-megacorp-01.cap', 'https://raw.githubusercontent.com/sigpwny/UIUCTF-2021-Public/master/misc/CEO/megacorp-01.cap',
-     'uiuctf{nanotechnology}'),  # WPA: handshake da craccare (hashcat 22000) e traffico da decifrare (#11)
+     'uiuctf{nanotechnology}'),  # WPA: hcxpcapngtool estrae 2 hash 22000 (SSID joesheer) e hashcat li cracca con un dizionario ad hoc ('nanotechnology', verificato); non e' nelle wordlist piccole (<1 MB) e a ~125 H/s rockyou non e' praticabile; il flag va avvolto a mano (#11)
     ('tamu24-smp.log', 'https://raw.githubusercontent.com/tamuctf/tamuctf-2024/master/forensics/smp/smp.log',
      'gigem{w3_l0v3_pl1y1n_mc_smp}'),  # log Minecraft: blocchi da tracciare in 3D e leggere a occhio
     ('uoft24-illusion.pcapng', 'https://raw.githubusercontent.com/UofTCTF/uoftctf-2024-chals-public/master/Forensics/Illusion/traffic.pcapng',
