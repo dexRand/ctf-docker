@@ -21,11 +21,11 @@ DEFAULT_PLAN = [
     "morse", "dtmf", "eas", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
     "pcap", "usb-hid", "wpa", "evtx", "sam", "winreg", "firefox-logins",
     "nested-archive", "git", "sqlite", "ds-store", "android-boot", "disk", "openssl", "7z", "office", "olevba", "eml", "binwalk-extract", "foremost", "pngcheck",
-    "png-repair", "image-repair", "byte-swap",
+    "png-repair", "image-repair", "jpeg-dqt", "byte-swap",
 ]
 # signature scans and binary/image repairs: nothing to do on a file `file`
 # already reports as text (a pcap's HTTP objects can be hundreds of them)
-BINARY_ONLY = {"binwalk-scan", "png-repair", "image-repair", "byte-swap", "pngcheck"}
+BINARY_ONLY = {"binwalk-scan", "png-repair", "image-repair", "jpeg-dqt", "byte-swap", "pngcheck"}
 HEAVY_EXTRACT = {"binwalk-extract", "foremost"}
 # cap how many heavy tools run at once across all projects (CPU bound)
 _HEAVY_TOOLS = set(HEAVY_EXTRACT) | {"7z", "steghide", "outguess", "jsteg", "openstego", "sstv"}

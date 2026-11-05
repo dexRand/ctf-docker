@@ -137,6 +137,17 @@ Restano aperti (nessun blocco): i casi in `GAPS` per #11/#13/#14 e i task
 #11–#16 nella loro interezza (`ic25-obfuscated-Users` non ha il flag nella hive,
 `ui21-megacorp` non ha la password nelle wordlist piccole).
 
+## Sessione 05/11 pomeriggio — extra fuori dai 4 task
+
+- **`jpeg-dqt`** (nuovo analyzer): JPEG con DQT azzerate → tabelle ricostruite
+  (prima tutte a 1: "the lion doesn't quantize", poi Annex K) e immagine
+  decodificata come figlio per OCR. `tj25-quant-lost.jpg` **PASS 28.7 s** →
+  spostato in `EXTRA` (48 extra, 55 GAPS). Test in `app/tests/test_jpegdqt.py`;
+  unit 379, lint clean.
+- Nota: `1000.tar` (999 tar annidati) si estrae in 0,7 s, ma l'OCR della PNG
+  finale dà `picoCTF{l0tS0fTAR5S}` e non `…{l0t5_0f_TAR5}`: senza inventare
+  caratteri il caso resta GAP, quindi non ho aggiunto `tar-chain`.
+
 ## Bloccato
 
 (niente per ora)

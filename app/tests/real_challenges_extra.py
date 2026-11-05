@@ -243,7 +243,6 @@ EXTRA += [
 # --- candidate 2026-10-27 non risolte: tecnica mancante ---
 GAPS += [
     ("tj25-albumcover.png", f"{TJ25}/forensics/album-cover/albumcover.png", "tjctf{THIS-EASTER-EGG-IS-PRETTY-COOL}"),  # payload audio/immagine prodotto da enc.py: non riconosciuto
-    ("tj25-quant-lost.jpg", f"{TJ25}/forensics/quant/lost.jpg", "tjctf{th3_Li0n_d0esNt_qUanT1ze}"),  # tabelle DQT azzerate: vanno ricostruite per decodificare (handout incerto: thelion.jpg)
     ("tj25-pietty-runme.png", f"{TJ25}/forensics/thats-pietty-cool/chall/runme.png", "tjctf{p1et_pr1nt3r}"),  # Piet esolang: serve un interprete
     ("tj25-masked-qrcode.png", f"{TJ25}/misc/masked/qrcode.png", "tjctf{n0tc4tchingc0vid}"),  # QR mascherato/parziale: zbar non lo legge
     ("ic25-dinosaur-mosaic.png", f"{IC25}/Forensics/dinosaur/challenge/reconstructed_mosaic.png", "ictf{get_baited_its_actually_an_ankylosaurus}"),  # handout incerto (reconstructed_mosaic vs qr_code.bmp) + mosaico da ricomporre
@@ -263,4 +262,9 @@ GAPS += [
     ("du25-scrapbooking-warped.png", f"{DU25}/misc/scrapbooking/publish/warped.png", "DUCTF{kn1tting_with_pngs}"),  # PNG 'knitting': immagine da ricomporre (righe/colonne mescolate)
     ("du25-yo-dawg.zip", f"{DU25}/misc/yodawg/publish/yo-dawg.zip", "DUCTF{1995_to_2025}"),  # .NET assembly: la flag sta in una risorsa compressa
     ("ut24-keyboard.pcapng", f"{UT24}/forensics-keyboard/keyboard.pcapng", "utflag{learning_stenography_on_a_qwerty_keyboard_is_quite_difficult}"),  # stenografia: ogni report e' un accordo di tasti (layout steno)
+]
+
+# --- risolto il 05/11 (task jpeg-dqt, verificato con --gaps)
+EXTRA += [
+    ("tj25-quant-lost.jpg", f"{TJ25}/forensics/quant/lost.jpg", "tjctf{th3_Li0n_d0esNt_qUanT1ze}"),  # DQT azzerate: ricostruite (all-ones)
 ]
