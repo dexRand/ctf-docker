@@ -123,8 +123,8 @@ avvolta a mano, quindi resta in `GAPS`; basta che l'output mostri la password
 
 | Task | Stato | Commit | Verifica |
 |---|---|---|---|
-| 1 Vigenère / rail fence | da fare | | |
-| 2 olevba | da fare | | |
+| 1 Vigenère / rail fence | fatto | 8246477 | unit 359, lint clean |
+| 2 olevba | fatto | (prossimo) | unit 364, lint clean, `weird.docm` PASS 8.2s, output con `Sub AutoOpen()` |
 | 3 winreg (regipy) | da fare | | |
 | 4 WPA → hashcat | da fare | | |
 

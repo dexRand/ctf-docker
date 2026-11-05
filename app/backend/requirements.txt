@@ -9,5 +9,7 @@ alembic==1.20.0
 python-evtx==0.8.1
 # offline Windows registry: SAM/SYSTEM hive hashes (analyzers/sam.py)
 impacket==0.13.1
+# VBA macros of Office documents (analyzers/olevba.py, task 2 of tasks/deepseek.md)
+oletools==0.60.2
 # httpx: HTTP client required by starlette's TestClient in the CI unit-test job
 httpx
