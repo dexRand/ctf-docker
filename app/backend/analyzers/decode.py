@@ -1,7 +1,8 @@
 """Nested-encoding decoder (mini-Ciphey): base64/32/58/62/85/91/45, hex,
-binary, rot13 and the other Caesar shifts, Atbash, A1Z26, url, quoted-printable,
-uuencode, Brainfuck/Ook!. The brute-forced ciphers (Caesar, Atbash) only keep a
-result that contains a known flag prefix, so they add no noise."""
+binary, rot13 and the other Caesar shifts, Atbash, Vigenere (key recovered from
+a known flag prefix), rail fence, A1Z26, url, quoted-printable, uuencode,
+Brainfuck/Ook!. The brute-forced ciphers only keep a result that contains a known
+flag prefix, so they add no noise."""
 from __future__ import annotations
 
 import base64
@@ -94,6 +95,120 @@ def _caesar_shifts(text: str) -> dict[str, bytes]:
     atbash = text.translate(str.maketrans(low + up, low[::-1] + up[::-1]))
     if _KNOWN.search(atbash):
         out["atbash"] = atbash.encode()
+    return out
+
+
+# --- Vigenere / rail fence -------------------------------------------------
+_VIG_MAX = 16 << 10          # the key attack decrypts whole texts: keep it small
+
+
+def _vigenere(text: str, key: str, decrypt: bool = True) -> str:
+    """Vigenere over ASCII letters, case preserved; other chars are untouched
+    and do not advance the key (the usual CTF variant)."""
+    if not key:
+        return text
+    kl = [ord(c.lower()) - 97 for c in key if c.isalpha()]
+    if not kl:
+        return text
+    out: list[str] = []
+    i = 0
+    for ch in text:
+        if ch.isascii() and ch.isalpha():
+            base = 65 if ch.isupper() else 97
+            k = kl[i % len(kl)]
+            shift = -k if decrypt else k
+            out.append(chr((ord(ch) - base + shift) % 26 + base))
+            i += 1
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _vigenere_prefix_attack(text: str) -> dict[str, bytes]:
+    """Known-plaintext attack: the key is the difference between the letters
+    right before a `{` and a known flag prefix (`picoCTF{...}` -> key). A short
+    repeating key is recovered from the repeated prefix, so every period is tried."""
+    if len(text) < 8 or len(text) > _VIG_MAX:
+        return {}
+    out: dict[str, bytes] = {}
+    keys: dict[str, None] = {}
+    for brace in (m.start() for m in re.finditer(r"\{", text)):
+        for pre in FLAG_PREFIXES:
+            L = len(pre)
+            start = brace - L
+            if start < 0 or L < 3:
+                continue
+            chunk = text[start:brace]
+            if len(chunk) != L or not all(c.isascii() and c.isalpha() for c in chunk):
+                continue
+            key = "".join(chr((ord(c.lower()) - ord(p.lower())) % 26 + 97)
+                          for c, p in zip(chunk, pre, strict=True))
+            end = text.find("}", brace)
+            if end < 0:
+                continue
+            # a key that only repeats once the whole prefix is used is
+            # indistinguishable from a random one: require period < L
+            for period in range(1, L):
+                k = key[:period]
+                if set(k) == {"a"}:
+                    continue                      # identity: nothing was encrypted
+                if any(key[i] != k[i % period] for i in range(L)):
+                    continue                      # not this shorter key
+                # decrypt only the flag itself first (cheap and strict: a real
+                # key gives a printable flag, a derived one gives garbage)
+                seg = _vigenere(text[start:end + 1], k)
+                if not (seg[:L].lower() == pre.lower() and seg[L:L + 1] == "{"):
+                    continue
+                if not all(32 <= ord(c) < 127 for c in seg):
+                    continue
+                full = _vigenere(text, k)
+                if _KNOWN.search(full):
+                    keys.setdefault(f"vigenere:{k}")
+    for name in keys:
+        out[name] = _vigenere(text, name.split(":", 1)[1]).encode()
+    return out
+
+
+def _rail_pattern(n: int, rails: int) -> list[int]:
+    """Row index of each character in the zig-zag."""
+    period = 2 * rails - 2
+    return [min(i % period, period - i % period) for i in range(n)]
+
+
+def _rail_decrypt(text: str, rails: int) -> str:
+    n = len(text)
+    if rails < 2 or rails >= n:
+        return text
+    pattern = _rail_pattern(n, rails)
+    counts = [0] * rails
+    for r in pattern:
+        counts[r] += 1
+    rows: list[list[str]] = []
+    pos = 0
+    for c in counts:
+        rows.append(list(text[pos:pos + c]))
+        pos += c
+    seen = [0] * rails
+    out: list[str] = []
+    for r in pattern:
+        out.append(rows[r][seen[r]])
+        seen[r] += 1
+    return "".join(out)
+
+
+_RAIL_MAX = 4096             # zig-zag rebuild is O(n) per rail count
+_RAIL_RAILS = range(2, 11)
+
+
+def _rail_fence(text: str) -> dict[str, bytes]:
+    """Rail fence with 2..10 rails: only a result showing a flag prefix counts."""
+    if len(text) < 8 or len(text) > _RAIL_MAX:
+        return {}
+    out: dict[str, bytes] = {}
+    for rails in _RAIL_RAILS:
+        dec = _rail_decrypt(text, rails)
+        if dec != text and _KNOWN.search(dec):
+            out[f"railfence{rails}"] = dec.encode()
     return out
 
 
@@ -253,6 +368,8 @@ def candidates(data: bytes) -> dict[str, bytes]:
     if len(text0) <= _SMALL:
         out.update(_caesar_shifts(text0))
         out.update(_esolang(text0))
+        out.update(_vigenere_prefix_attack(text0))
+        out.update(_rail_fence(text0))
     t = codecs.encode(s.decode("utf-8", "replace"), "rot13").encode()
     if t != s and _ok(t, 0.8):
         out["rot13"] = t
