@@ -45,7 +45,7 @@ class OlevbaAnalyzer(Analyzer):
     category = "extract"
     description = "VBA macros of an Office document (source + decoded strings) with olevba."
     accepts = OFFICE_EXT + ("application/x-ole-storage",)
-    display_order = 219
+    display_order = 221
 
     def run(self, ctx: ToolContext) -> ToolResult:
         if not has_vba(ctx.input):

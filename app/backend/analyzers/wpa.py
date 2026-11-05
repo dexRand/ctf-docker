@@ -49,7 +49,7 @@ class WpaAnalyzer(Analyzer):
     category = "network"
     description = "WPA handshake/PMKID: extract to hashcat 22000 and crack the passphrase."
     accepts = PCAP_EXT
-    display_order = 264
+    display_order = 266
 
     def run(self, ctx: ToolContext) -> ToolResult:
         types = link_types(ctx.input)
