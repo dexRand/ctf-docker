@@ -128,9 +128,10 @@ avvolta a mano, quindi resta in `GAPS`; basta che l'output mostri la password
 | 3 winreg (regipy) | fatto | f23f033 | lint clean, hive NTUSER `done · 2131 keys, 4214 value(s)` |
 | 4 WPA → hashcat | fatto | c7bccf7 | lint clean, 2 hash 22000 estratti da `ui21-megacorp-01.cap`; crack ok con dizionario ad hoc, non con le wordlist piccole |
 
-**Gate finale (05/11, dopo i 4 task):** `./ctf test -j 2 --extra` →
-fixture **33/33** · reali **82/82** (35 core + 47 extra) · writeup **ALL CORRECT**
-· 0 FAIL · 6902.7 s di analisi. Unit **374 passed**, `./ctf lint` clean.
+**Gate finale (05/11, dopo i 4 task + jpeg-dqt):** `./ctf test -j 2 --extra` →
+fixture **33/33** · reali **83/83** (35 core + 48 extra) · writeup **ALL CORRECT**
+· 0 FAIL · 6445.3 s di analisi. Unit **379 passed**, `./ctf lint` clean. CI verde
+su `30d4c57`.
 Nessuna flag persa rispetto alla baseline.
 
 Restano aperti (nessun blocco): i casi in `GAPS` per #11/#13/#14 e i task
@@ -143,7 +144,9 @@ Restano aperti (nessun blocco): i casi in `GAPS` per #11/#13/#14 e i task
   (prima tutte a 1: "the lion doesn't quantize", poi Annex K) e immagine
   decodificata come figlio per OCR. `tj25-quant-lost.jpg` **PASS 28.7 s** →
   spostato in `EXTRA` (48 extra, 55 GAPS). Test in `app/tests/test_jpegdqt.py`;
-  unit 379, lint clean.
+  unit **379**, lint clean. README a **81 analyzer** (aggiunti anche `olevba`,
+  `winreg`, `wpa`, `jpeg-dqt` nelle tabelle) e due `display_order` duplicati
+  sistemati (`olevba` 221, `wpa` 266).
 - Nota: `1000.tar` (999 tar annidati) si estrae in 0,7 s, ma l'OCR della PNG
   finale dà `picoCTF{l0tS0fTAR5S}` e non `…{l0t5_0f_TAR5}`: senza inventare
   caratteri il caso resta GAP, quindi non ho aggiunto `tar-chain`.
