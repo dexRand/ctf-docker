@@ -16,6 +16,8 @@ config/dork/ghdb.json
 
 # StegSuite app data (SQLite + progetti)
 appdata/
+# le hive/sample dei test si versionano (app/tests/data/): non sono runtime
+!app/tests/data/
 
 # StegSuite frontend build artifacts
 app/frontend/node_modules/
@@ -23,6 +25,8 @@ app/frontend/dist/
 
 # dati di lavoro (progetti StegSuite, pull, rev) e wordlist pesanti
 data/
+# le hive/sample dei test si versionano (app/tests/data/): non sono runtime
+!app/tests/data/
 wordlists/*
 !wordlists/.gitkeep
 # wordlist "più usate" versionate (piccole)
