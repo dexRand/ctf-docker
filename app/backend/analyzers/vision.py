@@ -77,6 +77,16 @@ def _confusable_variants(text: str) -> str:
         v = "".join(fixed)
         if v != body:
             extra += [f"{pre}{{{v}}}" for pre in prefixes]
+        # a leet body written with letters (OCR un-leeted it): "lOtS Of TAR5"
+        # is "l0t5_0f_TAR5". Spaces were underscores in the picture, and O/S
+        # next to the digits are 0/5. Only for bodies that already have digits.
+        raw_body = m.group(2).strip()
+        if any(c.isdigit() for c in raw_body) and ("O" in raw_body or "S" in raw_body):
+            unleet = raw_body if "_" in raw_body else raw_body.replace(" ", "_")
+            unleet = unleet.replace("O", "0").replace("S", "5")
+            unleet = re.sub(r"\s+", "", unleet)
+            if unleet != raw_body:
+                extra += [f"{pre}{{{unleet}}}" for pre in prefixes]
         # a leet-style body (several digits) may have read 1 as i or as a
         # lowercase l ("qu1t3", "s1mple" -> "s lmple"): one position at a time,
         # replacing every l would turn "slmple" into "s1mp1e"

@@ -95,7 +95,6 @@ EXTRA += [
 # Known gaps: techniques not implemented yet (backlog, see tasks/plan-refactor.md)
 GAPS = [
     ("c0rrupt.bin", f"{P19}/c0rrupt/mystery", "picoCTF{c0rrupt10n_1847995}"),             # PNG repair + OCR
-    ("1000.tar", f"{P19}/like1000/1000.tar", "picoCTF{l0t5_0f_TAR5}"),                   # deep tar + OCR
     ("m00nwalk.wav", f"{P19}/m00nwalk/message.wav", "picoCTF{beep_boop_im_in_space}"),   # SSTV + OCR
     ("pasta.png", f"{P19}/pastaAAA/ctf.png", "picoCTF{pa$ta_1s_lyf3}"),                  # bit plane + OCR
     ("ir0.png", f"{P19}/Investigative Reversing 0/mystery.png", "picoCTF{f0und_1t_5266a857}"),  # shifted trailer
@@ -267,4 +266,10 @@ GAPS += [
 # --- risolto il 05/11 (task jpeg-dqt, verificato con --gaps)
 EXTRA += [
     ("tj25-quant-lost.jpg", f"{TJ25}/forensics/quant/lost.jpg", "tjctf{th3_Li0n_d0esNt_qUanT1ze}"),  # DQT azzerate: ricostruite (all-ones)
+]
+
+# --- risolto il 05/11 (tar-chain + variante OCR unleet)
+EXTRA += [
+    ("1000.tar", "https://raw.githubusercontent.com/HHousen/PicoCTF-2019/master/Forensics/like1000/1000.tar",
+     "picoCTF{l0t5_0f_TAR5}"),  # 999 tar annidati -> flag.png, OCR 2x binarizzato
 ]

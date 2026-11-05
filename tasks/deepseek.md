@@ -147,9 +147,11 @@ Restano aperti (nessun blocco): i casi in `GAPS` per #11/#13/#14 e i task
   unit **379**, lint clean. README a **81 analyzer** (aggiunti anche `olevba`,
   `winreg`, `wpa`, `jpeg-dqt` nelle tabelle) e due `display_order` duplicati
   sistemati (`olevba` 221, `wpa` 266).
-- Nota: `1000.tar` (999 tar annidati) si estrae in 0,7 s, ma l'OCR della PNG
-  finale dà `picoCTF{l0tS0fTAR5S}` e non `…{l0t5_0f_TAR5}`: senza inventare
-  caratteri il caso resta GAP, quindi non ho aggiunto `tar-chain`.
+- **`tar-chain`** (nuovo analyzer) + una variante OCR "unleet": i 999 tar
+  annidati si percorrono **in memoria** (1,5 s) e l'ultima PNG viene letta con
+  un passaggio OCR 2x binarizzato; la variante ricostruisce `l0t5_0f_TAR5` da
+  `lOtS Of TAR5` (spazi→`_`, O→0, S→5 nei corpi già "leet").
+  `1000.tar` **PASS 51,2 s** → in `EXTRA` (49 extra, 54 GAPS).
 
 ## Bloccato
 
