@@ -123,10 +123,19 @@ avvolta a mano, quindi resta in `GAPS`; basta che l'output mostri la password
 
 | Task | Stato | Commit | Verifica |
 |---|---|---|---|
-| 1 Vigenère / rail fence | fatto | 8246477 | unit 359, lint clean |
-| 2 olevba | fatto | df03c17 | unit 364, lint clean, `weird.docm` PASS 8.2s, output con `Sub AutoOpen()` |
-| 3 winreg (regipy) | fatto | f23f033 | unit 369, lint clean, hive NTUSER `done · 2131 keys, 4214 value(s)` |
-| 4 WPA → hashcat | fatto | (prossimo) | unit 374, lint clean, 2 hash 22000 estratti da `ui21-megacorp-01.cap`; crack ok con dizionario ad hoc, non con le wordlist piccole |
+| 1 Vigenère / rail fence | fatto | 8246477 | unit 374, lint clean |
+| 2 olevba | fatto | df03c17 | lint clean, `weird.docm` PASS 8.2s, output con `Sub AutoOpen()` |
+| 3 winreg (regipy) | fatto | f23f033 | lint clean, hive NTUSER `done · 2131 keys, 4214 value(s)` |
+| 4 WPA → hashcat | fatto | c7bccf7 | lint clean, 2 hash 22000 estratti da `ui21-megacorp-01.cap`; crack ok con dizionario ad hoc, non con le wordlist piccole |
+
+**Gate finale (05/11, dopo i 4 task):** `./ctf test -j 2 --extra` →
+fixture **33/33** · reali **82/82** (35 core + 47 extra) · writeup **ALL CORRECT**
+· 0 FAIL · 6902.7 s di analisi. Unit **374 passed**, `./ctf lint` clean.
+Nessuna flag persa rispetto alla baseline.
+
+Restano aperti (nessun blocco): i casi in `GAPS` per #11/#13/#14 e i task
+#11–#16 nella loro interezza (`ic25-obfuscated-Users` non ha il flag nella hive,
+`ui21-megacorp` non ha la password nelle wordlist piccole).
 
 ## Bloccato
 
