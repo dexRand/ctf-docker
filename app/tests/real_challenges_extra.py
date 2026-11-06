@@ -202,8 +202,6 @@ EXTRA += [
 # 04/11: protocollo a pezzi ricomposto (deframe) + OCR testo chiaro su scuro;
 # tastiera USB con tasti sovrapposti e Ctrl+Backspace, '$' nel corpo della flag
 EXTRA += [
-    ('bk24-duck-pics.pcapng', 'https://raw.githubusercontent.com/cscosu/buckeyectf-2024-public/master/forensics/duck-pics/capture.pcapng',
-     'bctf{St0p_s3nd1Ng_m3_DuCK_p1c$}'),
     ('tj25-packet-palette.pcapng', 'https://raw.githubusercontent.com/TJCSec/tjctf-2025-challenges/main/forensics/packet-palette/chall.pcapng',
      'tjctf{usb1p_f13g_1ns1d3_3_pr0t0c0l}'),
 ]
@@ -237,7 +235,6 @@ GAPS += [
     ("tj25-albumcover.png", f"{TJ25}/forensics/album-cover/albumcover.png", "tjctf{THIS-EASTER-EGG-IS-PRETTY-COOL}"),  # payload audio/immagine prodotto da enc.py: non riconosciuto
     ("tj25-pietty-runme.png", f"{TJ25}/forensics/thats-pietty-cool/chall/runme.png", "tjctf{p1et_pr1nt3r}"),  # Piet esolang: serve un interprete
     ("tj25-masked-qrcode.png", f"{TJ25}/misc/masked/qrcode.png", "tjctf{n0tc4tchingc0vid}"),  # QR mascherato/parziale: zbar non lo legge
-    ("ic25-dinosaur-mosaic.png", f"{IC25}/Forensics/dinosaur/challenge/reconstructed_mosaic.png", "ictf{get_baited_its_actually_an_ankylosaurus}"),  # handout incerto (reconstructed_mosaic vs qr_code.bmp) + mosaico da ricomporre
     ("ic25-nightcore.mp3", f"{IC25}/Forensics/nightcore/challenge/nightcore.mp3", "ictf{12345678}"),  # ENF (frequenza di rete) nel rumore: demodulazione dedicata
     ("ic25-obfuscated-Users.zip", f"{IC25}/Forensics/obfuscated-1/dist/Users.zip", "ictf{Slay4U!!}"),  # profilo Windows: winreg legge la hive NTUSER.DAT (2131 chiavi, 4214 valori: Environment, RecentDocs, RunMRU, TypedPaths, UserAssist) ma il flag non e' li'; 455s, 401 nodi (MAX_NODES=400)
     ("ic25-thrift-capture.pcap", f"{IC25}/Forensics/thrift-store/dist/capture.pcap", "ictf{l1k3_gRPC_bUt_l3ss_g0ogly}"),  # protocollo Apache Thrift: serve un decode binario
@@ -278,4 +275,14 @@ EXTRA += [
      "ictf{n0_corruption_can_stop_u_1b53d8c4}"),   # pcap repair — verificato 06/11
     ("EBE.pcap", f"{LA}/2023/misc/ebe/EBE.pcap",
      "lactf{3V1L_817_3xf1l7R4710N_4_7H3_W1N_51D43c8000034d0c}"),   # evil bit — verificato 06/11
+]
+# --- handout sbagliato: risolti il 06/11 con l'altro file della cartella
+# (flag e fonte ufficiali invariati: cambia solo quale allegato della challenge)
+EXTRA += [
+    ("ic25-dinosaur-qr.bmp",
+     f"{IC25}/Forensics/dinosaur/challenge/qr_code.bmp",
+     "ictf{get_baited_its_actually_an_ankylosaurus}"),   # il "mosaic" era un depistaggio
+    ("bk24-duck-pics-whole.pcapng",
+     f"{BK24}/forensics/duck-pics/whole-capture.pcapng",
+     "bctf{St0p_s3nd1Ng_m3_DuCK_p1c$}"),               # la capture pubblicata era parziale
 ]
