@@ -163,7 +163,7 @@ completo (`./ctf test -j 2 --extra`, ~2h) resta obbligatorio prima del push.
 
 ## Bloccato
 
-### `ic25-thrift-capture.pcap` (GAP, analisi 06/11, ~45 min)
+### `ic25-thrift-capture.pcap` (GAP, analisi 06/11, ~45 min) — **issue #23**
 Thrift **binary + TFramedTransport** (ogni messaggio preceduto da 4 byte di
 lunghezza; header `80 01 00 01 <len> <name> <seqid>`).
 
