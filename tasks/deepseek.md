@@ -163,4 +163,22 @@ completo (`./ctf test -j 2 --extra`, ~2h) resta obbligatorio prima del push.
 
 ## Bloccato
 
-(niente per ora)
+### `ic25-thrift-capture.pcap` (GAP, analisi 06/11, ~45 min)
+Thrift **binary + TFramedTransport** (ogni messaggio preceduto da 4 byte di
+lunghezza; header `80 01 00 01 <len> <name> <seqid>`).
+
+Mappa ricavata dai byte:
+- metodi: `createBasket` 212, `addToBasket` 418, `getBasket` 74, `getInventory` 194, **`pay` 24**;
+- tipi osservati: `0x0b`=string, `0x0c`=struct, `0x0f`=list, `0x0a`=intero 8 byte, `0x00`=stop
+  (NON coincidono con la tabella standard di Thrift, quindi non è il binary
+  protocol ufficiale: serve l'IDL della challenge o un parser scritto a mano);
+- `pay` manda `{1: uuid stringa, 2: intero}` (es. 700) e il server risponde con
+  l'eccezione "Total does not match basket total"; 134 stream, 170 KB di payload;
+- la flag **non è in chiaro** (`strings` sul pcap: nessun `ictf`), nessuna stringa
+  non-ASCII o blob base64.
+
+Provato: parser Thrift generico (fallisce per i tipi non standard), estrazione
+degli interi di `pay`, dump delle stringhe. Non risolto in 1h: serve capire dove
+sta il dato (probabile: totali di `pay` che codificano ASCII, oppure field id).
+Prossimo passo: scrivere un parser che segua la mappa dei tipi sopra e stampare
+tutti i campi, `pay` compreso.
