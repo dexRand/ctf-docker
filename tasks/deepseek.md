@@ -153,6 +153,14 @@ Restano aperti (nessun blocco): i casi in `GAPS` per #11/#13/#14 e i task
   `lOtS Of TAR5` (spazi→`_`, O→0, S→5 nei corpi già "leet").
   `1000.tar` **PASS 51,2 s** → in `EXTRA` (49 extra, 54 GAPS).
 
+## Verifiche intermedie: `./ctf test --fast`
+
+`real_challenges.py --fast` esegue 11 casi core scelti uno per famiglia di
+analyzer (metadata, OCR, bit-plane, pcap HTTP/DNS/commenti, TLS keylog, Office
+macro, git, archivi, stream TCP): **11/11 PASS in 334 s di analisi (~2 min a
+`-j 3`)**, più le fixture. Serve per i controlli durante il lavoro; il gate
+completo (`./ctf test -j 2 --extra`, ~2h) resta obbligatorio prima del push.
+
 ## Bloccato
 
 (niente per ora)

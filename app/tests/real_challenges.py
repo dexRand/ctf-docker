@@ -163,6 +163,14 @@ def run(label: str, files: list[tuple[str, str]], expect: str) -> dict:
     return {"label": label, "ok": ok, "expect": expect, **res}
 
 
+# a representative slice of the core cases: one per analyzer family, ~4 min at -j 3.
+# For the intermediate checks (`./ctf test --fast`); the full gate stays the
+# pre-push verification.
+FAST = ("flag.txt", "weird.docm", "gitgud.zip", "nw03-http.pcapng", "nw04-dns.pcapng",
+        "nw05-comments.pcapng", "nw09-tls", "flag.jpg", "buildings.png", "easy_stream.pcapng",
+        "pico_img.png")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Real CTF challenges against a running StegSuite.")
     ap.add_argument("-k", dest="match", default="", help="only cases whose label contains this")
@@ -172,12 +180,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--candidates", action="store_true",
                     help="also run the untriaged CANDIDATES (new public challenges)")
     ap.add_argument("--only-new", action="store_true", help="skip the core CASES/MULTI")
+    ap.add_argument("--fast", action="store_true",
+                    help=f"only the representative slice ({len(FAST)} cases, ~4 min)")
     ap.add_argument("--json-out", type=Path, help="write per-case results (timing included)")
     args = ap.parse_args(argv)
 
     core = len(all_cases())
     cases = all_cases(args.extra, args.gaps, args.candidates)[core if args.only_new else 0:]
     cases = [c for c in cases if args.match in c[0]]
+    if args.fast:
+        cases = [c for c in cases if c[0] in FAST]
     print(f"* {len(cases)} real challenges against {API} (jobs={args.jobs})", flush=True)
     with ThreadPoolExecutor(max(1, args.jobs)) as pool:
         results = list(pool.map(lambda c: run(*c), cases))

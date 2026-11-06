@@ -37,7 +37,8 @@ più una dashboard **Homepage** che li elenca ordinati per fase di lavoro.
 docker compose config -q  # valida il compose
 app/tests/run_unit.sh     # test pytest nell'immagine StegSuite
 ./ctf lint                # ruff + bandit + vulture + jscpd (duplicati), in container
-./ctf test -j 3           # regressione + challenge CTF reali
+./ctf test -j 3           # regressione + challenge CTF reali (gate completo, ~2h)
+./ctf test --fast -j 3    # fixture + 11 casi rappresentativi (~5 min, verifiche intermedie)
 ```
 
 ## Convenzioni
