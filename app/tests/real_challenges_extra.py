@@ -94,32 +94,25 @@ EXTRA += [
 
 # Known gaps: techniques not implemented yet (backlog, see tasks/plan-refactor.md)
 GAPS = [
-    ("c0rrupt.bin", f"{P19}/c0rrupt/mystery", "picoCTF{c0rrupt10n_1847995}"),             # PNG repair + OCR
     ("m00nwalk.wav", f"{P19}/m00nwalk/message.wav", "picoCTF{beep_boop_im_in_space}"),   # SSTV + OCR
     ("pasta.png", f"{P19}/pastaAAA/ctf.png", "picoCTF{pa$ta_1s_lyf3}"),                  # bit plane + OCR
     ("ir0.png", f"{P19}/Investigative Reversing 0/mystery.png", "picoCTF{f0und_1t_5266a857}"),  # shifted trailer
     ("b1g_mac.zip", f"{P19}/B1g_Mac/b1g_mac.zip", "picoCTF{M4cTim35!}"),                 # zip timestamps
-    ("tunn3l_v1s10n", f"{P21}/tunn3l v1s10n/tunn3l_v1s10n", "picoCTF{qu1t3_a_v13w_2020}"),  # BMP repair + OCR
     ("endianness.bin", f"{P25B}/endianness-v2/challengefile",
      "picoCTF{cert!f1Ed_iNd!4n_s0rrY_3nDian_76e05f49}"),                                # word-swapped JPEG
     ("samiam.zip", f"{DU24}/forensics/samiam/publish/samiam.zip", "DUCTF{!checkerboard1}"),  # SAM hive + crack
-    ("recipe.txt", f"{DU24}/misc/wackyrecipe/publish/recipe.txt", "DUCTF{2tsp_Vegemite}"),   # Chef esolang
     ("all-fathers-wisdom", f"{DU23}/beginner/all-fathers-wisdom/publish/the-all-fathers-wisdom",
      "DUCTF{Od1n_1S-N0t_C}"),                                                           # rev (XOR array)
     ("blinkybill.wav", f"{DU23}/beginner/blinky-bill/publish/blinkybill.wav",
      "DUCTF{BRINGBACKTHETREES}"),                                                       # morse over music
     ("robot.wav", f"{TJ23}/beep-boop-robot/robot.wav", "tjctf{thisisallonewordlmao}"),   # morse, bare text
     ("out.qoi", f"{TJ24}/purified/out.qoi", "tjctf{r1bbit_ribb1t_69bb0e1d}"),            # QOI recursion
-    ("ictf23_forensics.zip", f"{IC23}/forensics/forensics.zip",
-     "ictf{n0_corruption_can_stop_u_1b53d8c4}"),                                        # pcap repair
     ("ictf23_web.zip", f"{IC23}/web/challenge/web.zip",
      "ictf{behold_th3_forensics_g4untlet_827b3f13}"),                                   # Firefox profile
     ("sleepy.mp3", f"{IC24}/Sleepy Alarm/togive/morning_n_breakfast.mp3",
      "ictf{1_sl33py_NaYuKi_alarm_2a634dc1bb2}"),                                        # ASK demod
     ("elves.bmp", f"{IC24}/elf in front of a sunset/togive/elves.bmp",
      "ictf{elf_waifus_best_waifus_2h12lntka}"),                                         # BMP height + ELF
-    ("EBE.pcap", f"{LA}/2023/misc/ebe/EBE.pcap",
-     "lactf{3V1L_817_3xf1l7R4710N_4_7H3_W1N_51D43c8000034d0c}"),                        # evil-bit filter
     ("warning.wav", f"{UI23}/misc/tornado_warning/warning.wav",
      "uiuctf{3rd_w0rst_tor_outbre@k_ev3r}"),                                            # SAME x3 with deliberate errors (raw demod)
 ]
@@ -251,7 +244,6 @@ GAPS += [
     ("bk24-couch_potato.wav", f"{BK24}/forensics/couch_potato/dump1.wav", "bctf{1_11k3_5p4m_w17h_my_h4m}"),  # 22 MB: probabile SSTV/spettro su un canale non coperto
     ("bk24-hall-effect.pcapng", f"{BK24}/forensics/hall-effect/capture.pcapng", "bctf{Wh0s3_g0NNa_CarRY_Th3B0atS}"),  # protocollo/dato non emerso: da investigare
     ("bk24-the_cia.pdf", f"{BK24}/forensics/the_cia/protected-cia-document.pdf", "bctf{U_c4N_d0_TH1s_On_w0rd_docs_T0O}"),  # PDF cifrato: pdfcrack+rockyou non lo apre (il lock ora viene segnalato)
-    ("bk24-unknown.zip", f"{BK24}/forensics/unknown/unknown.zip", "bctf{f1l3_3x73n510n5_4r3_n07_r34l}"),  # il file contiene `ctf{...}`, l'atteso e' `bctf{...}`: il wrapping non si inventa
     ("bk24-wreck-dump", f"{BK24}/forensics/wreck/dump", "bctf{D4MN_7h47_c0r3_dvmp_907_4_GY477}"),  # core dump 37 MB: il flag non e' in chiaro (analisi heap/GDB)
     ("bk23-weather.wav", f"{BK23}/misc-weather/dist/weather.wav", "bctf{0mg_i_10v3_FSK_i75_my_f4v0ri73_m0du147i0n}"),  # FSK (meteo): demodulatore FSK dedicato
     ("du22-doxme", f"{DU22}/dfir/doxme/publish/doxme", "DUCTF{WOrd_D0Cs_Ar3_R34L1Y_W3ird}"),  # docx senza estensione: il flag non e' in document.xml (header/footer/media)
@@ -272,4 +264,18 @@ EXTRA += [
 EXTRA += [
     ("1000.tar", "https://raw.githubusercontent.com/HHousen/PicoCTF-2019/master/Forensics/like1000/1000.tar",
      "picoCTF{l0t5_0f_TAR5}"),  # 999 tar annidati -> flag.png, OCR 2x binarizzato
+]
+
+# --- verificati il 06/11 con `real_challenges.py --gaps`: passano, spostati qui
+EXTRA += [
+    ("c0rrupt.bin", f"{P19}/c0rrupt/mystery", "picoCTF{c0rrupt10n_1847995}"),
+    ("tunn3l_v1s10n", f"{P21}/tunn3l v1s10n/tunn3l_v1s10n", "picoCTF{qu1t3_a_v13w_2020}"),
+    ("recipe.txt", f"{DU24}/misc/wackyrecipe/publish/recipe.txt", "DUCTF{2tsp_Vegemite}"),
+    ("bk24-unknown.zip", f"{BK24}/forensics/unknown/unknown.zip", "bctf{f1l3_3x73n510n5_4r3_n07_r34l}"),
+]
+EXTRA += [
+    ("ictf23_forensics.zip", f"{IC23}/forensics/forensics.zip",
+     "ictf{n0_corruption_can_stop_u_1b53d8c4}"),   # pcap repair — verificato 06/11
+    ("EBE.pcap", f"{LA}/2023/misc/ebe/EBE.pcap",
+     "lactf{3V1L_817_3xf1l7R4710N_4_7H3_W1N_51D43c8000034d0c}"),   # evil bit — verificato 06/11
 ]
