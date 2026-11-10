@@ -1,22 +1,124 @@
-# Task per opencode (deepseek) — batch 2
+# Task per opencode (deepseek) — batch 3
 
-Prima di iniziare rileggi **tutto** `AGENTS.md` → "Regole per il lavoro autonomo",
-compresa la parte **"Lezioni dal batch del 05–10/11"**: sono le regole aggiunte dopo
-la review del batch 1 (vedi in fondo cosa era andato storto).
+Stesse regole di sempre: **tutto** `AGENTS.md` → "Regole per il lavoro autonomo"
++ "Lezioni dal batch del 05–10/11". Batch 2 rivisto da Claude il 10/11: ok
+(perimetro rispettato, unit 437, lint clean); archiviato sotto.
 
-Baseline da non peggiorare: quella scritta nell'ultimo commit `docs(tasks)` di Claude
-(numeri di `real_challenges.py --extra` e `./ctf test -j 3`). Una FAIL nuova = niente push.
+Baseline da non peggiorare: fixture 33/33, reali 35/35, extra 55/55, `ALL CORRECT`.
+Ordine per task: test prima (deve fallire) → codice → `run_unit.sh` + `./ctf lint`
++ `./ctf test --fast` (tempo prima/dopo nel commit) → caso reale con
+`real_challenges.py --gaps --only-new -k <nome>` → commit. Fine batch:
+`git pull --rebase`, set extra completo + `./ctf test -j 3`, push.
+**Dopo un riavvio di WSL/Docker**: controlla che `/data` nel container sia ext4
+(`docker compose exec -T stegsuite grep " /data " /proc/mounts`); se è `tmpfs`,
+`docker compose up -d --force-recreate stegsuite term` prima di ogni verifica.
 
-Ordine di lavoro per ogni task:
-1. scrivi prima il test (deve fallire), poi il codice;
-2. `run_unit.sh` + `./ctf lint` + `./ctf test --fast` (tempo prima/dopo nel commit);
-3. il caso reale del task, se c'è;
-4. commit `Refs #N`/`Fixes #N` + commento sull'issue.
-Alla fine del batch: set extra completo + `./ctf test -j 3`, poi push su `main`.
+## Task 1 — Immagini QOI (GAP `out.qoi`)
+
+**File:** nuovo `analyzers/qoi.py`, `__init__.py`, riga in `DEFAULT_PLAN` vicino a
+`image-repair`, test `app/tests/test_qoi.py`.
+- Gating: firma `qoif` nei primi 4 byte (anche senza estensione). Header 14 byte:
+  larghezza/altezza; rifiuta se `w*h > 50_000_000` **prima** di decodificare.
+- Decoder QOI in numpy/python puro (spec di 1 pagina, qoiformat.org) o Pillow se la
+  versione dell'immagine lo legge (`Image.open` su QOI: verificalo). Output: PNG figlio,
+  così OCR/zsteg/bit-plane girano sopra. Se il PNG contiene a sua volta QOI, la
+  ricorsione la fa già il planner: niente loop interni.
+- **Test:** QOI 4×4 scritto a mano nel test (QOI_OP_RGB + RUN) → PNG con i pixel giusti;
+  header con 100000×100000 → `skipped`/errore senza allocare.
+
+## Task 2 — BMP con altezza manomessa (GAP `elves.bmp`)
+
+**File:** `analyzers/repair.py` (analyzer `image-repair`), test
+`app/tests/test_bmp_height.py`.
+- Come `png._fix_height`: se la dimensione dei dati pixel (`bfSize - bfOffBits`, o la
+  dimensione del file) è maggiore di `stride*altezza`, ricalcola l'altezza
+  (`stride = ((bpp*w + 31)//32)*4`) e scrivi il BMP corretto come figlio.
+- Solo BMP non compressi (`biCompression == 0`), bpp 8/24/32. Tetto 200 MB.
+- **Test:** BMP 10×20 con header che dice 10×5 → figlio con altezza 20; BMP giusto →
+  nessun figlio.
+
+## Task 3 — Office: testo da tutte le parti del documento (GAP `du22-doxme`)
+
+**File:** `analyzers/extract.py` (analyzer `office`), test `app/tests/test_office_parts.py`.
+- Oggi si legge soprattutto `document.xml`. Estrai il testo anche da header/footer,
+  note, commenti, `docProps/*`, `customXml/*`, e da ogni XML del pacchetto non già
+  letto (tetto: 200 parti, 20 MB decompressi in totale, `zipfile` con controllo di
+  `file_size` prima di leggere).
+- Gating: zip con `[Content_Types].xml` (anche senza estensione, come `doxme`).
+- **Test:** docx minimo costruito con `zipfile` con la flag solo in `word/footer1.xml`
+  → la flag è nell'output.
+
+## Task 4 — Risorse di assembly .NET (GAP `du25-yo-dawg.zip`)
+
+**File:** nuovo `analyzers/dotnet.py`, `__init__.py`, riga in `DEFAULT_PLAN` vicino a
+`elf`, pip **con versione fissata** (`dnfile`) in `app/Dockerfile`, test
+`app/tests/test_dotnet.py`.
+- Gating: `MZ` + PE con CLI header (data directory 14 non vuota). Niente esecuzione.
+- Estrai le *managed resources* come figli (nome risorsa → file); se una risorsa è
+  compressa (gzip/deflate/zip) la decomprime già il resto della pipeline.
+  Tetti: 100 risorse, 50 MB totali.
+- Se `dnfile` non basta: fermati, scrivi in "Bloccato".
+- **Test:** con un assembly minuscolo non è banale generarlo: usa un mock della
+  struttura `dnfile` per il test unitario e il caso reale per la verifica.
+
+## Task 5 — Piet (GAP `tj25-pietty-runme.png`)
+
+**File:** nuovo `analyzers/piet.py`, riga in `DEFAULT_PLAN` (in fondo alle immagini),
+`app/Dockerfile` (`npiet` da apt se esiste nella distro dell'immagine, altrimenti
+fermati e scrivi in "Bloccato"), test `app/tests/test_piet.py`.
+- Gating sul **contenuto**: immagine con ≤ 20 colori, tutti nella palette Piet
+  (18 colori + bianco/nero), letta con `load_image`; codel size stimato dal blocco
+  minimo. Altrimenti `skipped` subito.
+- `ctx.run(["npiet", "-q", "-cs", str(codel), path], timeout=20)`, input vuoto,
+  output ≤ 200 KB. Mai input interattivo.
+- **Test:** PNG casuale → `skipped`; immagine Piet minima (puoi disegnare un
+  programma "push/out" di pochi codel) o mock di `ctx.run`.
 
 ---
 
-## Task 1 — Credenziali in chiaro nei pcap (issue #11)
+## Per il revisore (deepseek pro) — controllo di ogni commit di deepseek flash
+
+Non scrivere codice: leggi `git show <commit>` e rispondi con OK / DA RIFARE + motivo,
+sotto "Review" in fondo a questo file. Controlla, nell'ordine:
+1. **Perimetro**: solo i file del task; in `planner.py` solo `DEFAULT_PLAN`; nessun
+   file vietato (`AGENTS.md`), nessuna flag/URL cambiata in `real_challenges*.py`.
+2. **Test**: il test fallirebbe col codice vecchio? Copre i casi scomodi (vuoto,
+   enorme rifiutato, formati limite)? Mock solo dei tool esterni.
+3. **Costo**: gating su estensione + firma nei primi byte prima di ogni lavoro; tetti
+   PRIMA di decomprimere/allocare; `read()` sempre con limite; budget di tempo totale
+   con `deadline`; al massimo un OCR/zbar per immagine.
+4. **Niente su misura**: nessuna costante presa dal caso reale (offset, chiavi, stringhe).
+5. **Numeri veri**: nel commit ci sono gli output (unit, lint, fast prima/dopo, PASS del
+   caso) copiati, non riassunti? Se mancano → DA RIFARE.
+6. **Caso in EXTRA** solo con il file distribuito dalla challenge e il PASS incollato.
+
+## Stato batch 3 (aggiornalo tu, numeri copiati dall'output)
+
+| Task | Stato | Commit | Verifica (unit · lint · fast prima/dopo · caso reale) |
+|---|---|---|---|
+| 1 QOI | da fare | | |
+| 2 BMP altezza | da fare | | |
+| 3 Office parti | da fare | | |
+| 4 .NET risorse | da fare | | |
+| 5 Piet | da fare | | |
+
+## Proposte
+
+(niente per ora)
+
+## Bloccato (batch 3)
+
+(niente per ora)
+
+## Review (deepseek pro)
+
+(niente per ora)
+
+---
+
+# Archivio — batch 2 (10/11)
+
+### B2 Task 1 — Credenziali in chiaro nei pcap (issue #11)
 
 **File:** nuovo `app/backend/analyzers/pcapcreds.py`, `__init__.py`, una riga in
 `DEFAULT_PLAN` (dopo `"pcap"`), test `app/tests/test_pcapcreds.py`.
@@ -34,7 +136,7 @@ Alla fine del batch: set extra completo + `./ctf test -j 3`, poi push su `main`.
   una richiesta HTTP con `Authorization: Basic Ym9iOnMzY3IzdA==`; verifica che
   l'output contenga `bob:s3cr3t` due volte. Più un pcap senza credenziali → `skipped`.
 
-## Task 2 — Export di oggetti SMB/TFTP/IMF/FTP-data dai pcap (issue #11)
+### B2 Task 2 — Export di oggetti SMB/TFTP/IMF/FTP-data dai pcap (issue #11)
 
 **File:** `app/backend/analyzers/pcap.py` (solo la parte `--export-objects`), test
 `app/tests/test_pcap_export.py`.
@@ -48,7 +150,7 @@ Alla fine del batch: set extra completo + `./ctf test -j 3`, poi push su `main`.
 - **Test:** con `ctx.run` sostituito, verifica che con `phs` senza `smb` non venga
   lanciato l'export smb, e con `smb` sì.
 
-## Task 3 — Frame delle PNG animate (APNG) (issue #15)
+### B2 Task 3 — Frame delle PNG animate (APNG) (issue #15)
 
 **File:** `app/backend/analyzers/gif.py`, test `app/tests/test_apng.py`.
 
@@ -59,7 +161,7 @@ Alla fine del batch: set extra completo + `./ctf test -j 3`, poi push su `main`.
 - **Test:** crea un APNG di 3 frame con Pillow (`save(..., save_all=True,
   append_images=...)`) e verifica i 3 frame; una PNG normale → `skipped`.
 
-## Task 4 — Audio stereo: differenza dei canali (issue #15)
+### B2 Task 4 — Audio stereo: differenza dei canali (issue #15)
 
 **File:** nuovo `app/backend/analyzers/stereodiff.py`, `__init__.py`, una riga in
 `DEFAULT_PLAN` (vicino a `"spectrogram"`), test `app/tests/test_stereodiff.py`.
@@ -73,7 +175,7 @@ Alla fine del batch: set extra completo + `./ctf test -j 3`, poi push su `main`.
   sinistra → il figlio esiste e contiene il secondo tono (FFT); stereo identico →
   `skipped`; mono → `skipped`.
 
-## Task 5 — Hash "nudi" nei file di testo (issue #16)
+### B2 Task 5 — Hash "nudi" nei file di testo (issue #16)
 
 **File:** nuovo `app/backend/analyzers/hashes.py`, `__init__.py`, una riga in
 `DEFAULT_PLAN`, test `app/tests/test_hashes.py`.
