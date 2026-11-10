@@ -14,7 +14,7 @@ DEFAULT_PLAN = [
     "strings", "markup-text", "hexyl", "xxd", "pdf", "pdftotext", "pdfid", "pdf-images", "pdf-attachments",
     "elf", "readelf", "objdump",
     "binwalk-scan",
-    "decode", "cryptojs", "chef", "blobs", "zero-width", "whitespace", "case-bits", "homoglyph", "morse-text",
+    "decode", "cryptojs", "chef", "blobs", "zero-width", "whitespace", "case-bits", "homoglyph", "hashes", "morse-text",
     "ocr", "qr",
     "zsteg", "lsb-carve", "lsb-bits", "msb-bits", "stepic", "psimage", "png-chunks", "png-idat", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
     "pixel-bytes", "bit-planes", "color-map", "faint", "channel-remap", "image-enhance", "gif-frames",
