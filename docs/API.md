@@ -153,7 +153,21 @@ claude mcp add --transport http ctf http://127.0.0.1:19014/api/v1/mcp
 Tools: `list_ctfs`, `create_ctf`, `ctf_scoreboard`, `add_challenge` (files by
 URL or base64), `autosolve`, `analyze`, `project_status`, `get_flags`,
 `get_report`, `get_transcript`, `read_file`, `list_tools`, `run_tools`,
-`locked_files`, `crack`, `crack_jobs`, `list_wordlists`, `set_challenge`, `toolbox_services`.
+`locked_files`, `crack`, `crack_jobs`, `list_wordlists`, `set_challenge`, `toolbox_services`, `list_projects`, `list_inbox`.
+
+Sized for small local models (16k context): answers are capped at
+`STEGSUITE_MCP_MAX_CHARS` (default 12000), `get_transcript`/`get_report` are
+paged (`offset`), `project_status`/`get_flags` are summaries (`tree_limit`,
+`verbose`). Files on the same machine go in `./data/inbox` and are passed as
+`paths`; `wait_s` waits for the end: `analyze(paths=["x.png"], wait_s=300)`.
+Browser requests from foreign origins are refused (`STEGSUITE_MCP_ORIGINS`).
+
+OpenCode (V2):
+
+```jsonc
+"mcp": { "servers": { "stegsuite": { "type": "remote",
+  "url": "http://127.0.0.1:19014/api/v1/mcp", "oauth": false, "codemode": false } } }
+```
 
 `GET /api/v1/stats?window=20` returns the dashboard numbers (status/mode
 counts, flags, passwords, locked files, top tools) in one call.
