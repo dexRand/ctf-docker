@@ -371,6 +371,42 @@ def carvable_payload(data: bytes) -> bytes:
     return data
 
 
+# Extra object exports (`tshark --export-objects`), each run only when the
+# protocol shows up in the hierarchy (`-z io,phs`) that was already computed:
+# no extra pass on captures that do not carry it. The value lists the layer
+# names that mean the protocol ("smb2" is a separate layer in tshark).
+_EXPORT_OBJECTS = {
+    "smb": ("smb", "smb2", "smb_direct"),
+    "tftp": ("tftp",),
+    "imf": ("imf",),
+    "ftp-data": ("ftp-data",),
+}
+
+
+def in_hierarchy(phs: str, names: tuple[str, ...]) -> bool:
+    """True when one of `names` is a whole layer in tshark's protocol hierarchy
+    (``smb`` must not match the ``smb2xyz`` text of another layer)."""
+    return any(re.search(rf"^\s*{re.escape(name)}\b", phs or "", re.M) for name in names)
+
+
+def export_objects(ctx: ToolContext, cap: Path, tls: list[str], phs: str,
+                   outdir: Path) -> list[Path]:
+    """Export HTTP objects plus SMB/TFTP/IMF/FTP-data, one folder per protocol.
+
+    Returns every written file (children are filtered by `analysable_object`
+    later, exactly like HTTP)."""
+    ctx.run(["tshark", "-r", str(cap), *tls, "--export-objects",
+             f"http,{outdir}"], timeout=180)
+    for proto, names in _EXPORT_OBJECTS.items():
+        if not in_hierarchy(phs, names):
+            continue
+        folder = outdir / proto
+        folder.mkdir(parents=True, exist_ok=True)
+        ctx.run(["tshark", "-r", str(cap), *tls, "--export-objects",
+                 f"{proto},{folder}"], timeout=180)
+    return list_files(outdir)
+
+
 def _streams_text(ctx: ToolContext, tls: list[str]) -> tuple[str, list[tuple[str, bytes]]]:
     """Payload of every UDP/TCP conversation joined in order, shown as text
     (non-printables as '.') when it reads like text or holds a brace; plus
@@ -608,11 +644,10 @@ class PcapAnalyzer(Analyzer):
                        timeout=180)
         for side, text in evil_bit_streams(proc.stdout or ""):
             parts.append(f"== evil bit ({side}) ==\n{text}")
-        # export HTTP objects (become children to recurse into)
+        # export HTTP objects (become children to recurse into) and, when the
+        # capture carries them, SMB/TFTP/IMF/FTP-data objects
         outdir = ctx.sub(self.name)
-        ctx.run(["tshark", "-r", str(cap), *tls, "--export-objects",
-                 f"http,{outdir}"], timeout=180)
-        files = list_files(outdir)
+        files = export_objects(ctx, cap, tls, phs, outdir)
         keep = [f for f in files if analysable_object(f)]
         extracted = [str(f) for f in keep]
         if raw_streams:                  # raw-socket transfers: carved as children
@@ -625,7 +660,7 @@ class PcapAnalyzer(Analyzer):
                          + "\n".join(f"{n}  {len(d)} B" for n, d in raw_streams))
         artifacts = [{"name": f.name, "path": str(f), "size": f.stat().st_size} for f in files]
         summary = (f"{len(keep)} object(s) to analyse, {len(files)} exported"
-                   if files else "no HTTP object")
+                   if files else "no exported object")
         if tunnel:
             summary += f", {len(tunnel)} tunnel DNS"
         if keys:
