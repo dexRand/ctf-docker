@@ -1,4 +1,9 @@
-"""Animated GIF analysis: frames, frame-diff, and frame-delay decoding (vision)."""
+"""Animated image analysis: GIF and APNG frames, frame-diff, delay decoding.
+
+Animated PNGs (APNG) use the same structure as GIFs (several frames + per-frame
+delays) and Pillow reads them through the same `ImageSequence` API. A plain PNG
+carries no `acTL` chunk, so it is skipped after reading 64 KiB — never opened.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -13,6 +18,21 @@ from .registry import register
 
 MAX_FRAMES = 500
 MAX_NODES = 40  # frames returned as children (full pipeline); others stay artifacts
+
+
+APNG_HEAD = 1 << 16          # the `acTL` chunk of an animated PNG is in the head
+PNG_SIG = b"\x89PNG\r\n\x1a\n"
+
+
+def is_apng(path: Path) -> bool:
+    """True when the PNG declares an animation (`acTL` chunk in the first 64 KiB).
+    Reads only the head: a plain PNG is rejected without decoding it."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(APNG_HEAD)
+    except OSError:
+        return False
+    return head.startswith(PNG_SIG) and b"acTL" in head
 
 
 def _try_decode_bits(values: list[int]) -> list[str]:
@@ -106,12 +126,15 @@ def stacked_qr(frames: list[Path], outdir: Path) -> list[str]:
 class GifFramesAnalyzer(Analyzer):
     name = "gif-frames"
     category = "vision"
-    description = ("Split an animated GIF into frames, highlight the frames that change "
-                   "the most and try to decode a flag hidden in the frame delays.")
-    accepts = (".gif",)
+    description = ("Split an animated GIF/APNG into frames, highlight the frames that "
+                   "change the most and try to decode a flag hidden in the delays.")
+    accepts = (".gif", ".png")
     display_order = 360
 
     def run(self, ctx: ToolContext) -> ToolResult:
+        # a plain PNG is not animated: reject it on the header, before opening it
+        if not ctx.input.name.lower().endswith(".gif") and not is_apng(ctx.input):
+            return ToolResult(self.name, status="skipped", summary="not an animated PNG")
         outdir = ctx.sub(self.name)
         try:
             from PIL import Image, ImageSequence
@@ -130,7 +153,7 @@ class GifFramesAnalyzer(Analyzer):
                 fr.convert("RGBA").save(fn)
                 frames.append(fn)
         except Exception as exc:
-            return ToolResult(self.name, status="error", summary=f"cannot read gif: {exc}")
+            return ToolResult(self.name, status="error", summary=f"cannot read animation: {exc}")
         if not frames:
             return ToolResult(self.name, status="done", summary="no frames")
 
