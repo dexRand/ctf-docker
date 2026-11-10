@@ -6,11 +6,16 @@ so the test needs neither a fixture file nor the network.
 from __future__ import annotations
 
 import base64
+import shutil
 import struct
 
 from backend.analyzers import pcapcreds
 from backend.analyzers.base import ToolContext
 from backend.analyzers.pcapcreds import PcapCredsAnalyzer
+
+import pytest
+
+needs_tshark = pytest.mark.skipif(shutil.which("tshark") is None, reason="tshark not installed")
 
 CLIENT, SERVER = "10.0.0.1", "10.0.0.2"
 _IP_ID = [0]   # unique IPv4 id per frame (tshark does not care, keep them distinct)
@@ -64,6 +69,7 @@ def _run(tmp_path, p, name="w"):
     return PcapCredsAnalyzer().run(ToolContext(input=p, workdir=tmp_path / name))
 
 
+@needs_tshark
 def test_ftp_and_http_basic_are_reported(tmp_path):
     frames = _conversation(40000, 21, [
         ("s", b"220 hello\r\n"),
@@ -83,6 +89,7 @@ def test_ftp_and_http_basic_are_reported(tmp_path):
     assert "ftp" in r.output and "http" in r.output
 
 
+@needs_tshark
 def test_capture_without_credentials_is_skipped(tmp_path):
     frames = _conversation(40001, 80, [
         ("c", b"GET / HTTP/1.1\r\nHost: x\r\n\r\n"),
@@ -93,6 +100,7 @@ def test_capture_without_credentials_is_skipped(tmp_path):
     assert r.status == "skipped"
 
 
+@needs_tshark
 def test_telnet_prompts_are_paired(tmp_path):
     frames = _conversation(40002, 23, [
         ("s", b"login: "),
@@ -106,6 +114,7 @@ def test_telnet_prompts_are_paired(tmp_path):
     assert "root:toor" in r.output
 
 
+@needs_tshark
 def test_pop_imap_and_smtp_are_decoded(tmp_path):
     frames = _conversation(40003, 25, [
         ("s", b"220 mail ESMTP\r\n"),

@@ -131,12 +131,14 @@ class PcapCredsAnalyzer(Analyzer):
     display_order = 264
 
     def run(self, ctx: ToolContext) -> ToolResult:
-        if not which("tshark"):
-            return ToolResult(self.name, status="skipped", summary="tshark not installed")
+        # link type from the header first: a USB/Bluetooth capture is skipped
+        # without any tool
         types = link_types(ctx.input)
         if types is not None and not types & CLEARTEXT_LINK_TYPES:
             return ToolResult(self.name, status="skipped",
                               summary=f"not an IP capture (link type {sorted(types)})")
+        if not which("tshark"):
+            return ToolResult(self.name, status="skipped", summary="tshark not installed")
         proc = ctx.run(["tshark", "-r", str(ctx.input), "-Y", _FILTER,
                         "-T", "fields", "-E", "separator=\t",
                         "-E", "aggregator=\x1f",
