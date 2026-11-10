@@ -54,3 +54,18 @@ def test_the_two_colour_case_of_a_qr(tmp_path):
     im.save(p)
     r = ColorMapAnalyzer().run(ToolContext(input=p, workdir=tmp_path / "w"))
     assert r.status == "done" and "2 colours mapped" in r.summary
+
+
+def test_index_follows_the_luminance_order_for_any_palette(tmp_path):
+    # blue < red < green by luminance, but not by RGB value: searchsorted on the
+    # luminance-sorted keys used to give green the index of red
+    arr = np.zeros((48, 48, 3), np.uint8)
+    arr[:16] = (0, 0, 255)
+    arr[16:32] = (255, 0, 0)
+    arr[32:] = (0, 255, 0)
+    p = tmp_path / "rgb.png"
+    Image.fromarray(arr).save(p)
+    r = ColorMapAnalyzer().run(ToolContext(input=p, workdir=tmp_path / "w"))
+    grey = next(a for a in r.artifacts if a["name"].endswith("index-grey.png"))
+    g = np.asarray(Image.open(grey["path"]))
+    assert g[0, 0] < g[20, 0] < g[40, 0]          # 0, 1, 2 scaled

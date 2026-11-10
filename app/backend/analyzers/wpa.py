@@ -6,6 +6,7 @@ the passphrase is reported with the SSID it belongs to.
 """
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from .. import cracking
@@ -86,10 +87,14 @@ class WpaAnalyzer(Analyzer):
             return []
         pot = hashfile.with_suffix(".pot")
         found: list[tuple[str, str]] = []
+        deadline = time.monotonic() + _BUDGET      # one budget for all the wordlists
         for wl in sorted(wordlists, key=lambda p: p.stat().st_size):
+            left = int(deadline - time.monotonic())
+            if left < 5:
+                break
             ctx.run(cracking.hashcat_args(22000, str(hashfile), wordlist=str(wl),
-                                          potfile=str(pot), runtime=_BUDGET),
-                    timeout=_BUDGET + 60)
+                                          potfile=str(pot), runtime=left),
+                    timeout=left + 60)
             show = ctx.run(["hashcat", "-m", "22000", str(hashfile), "--show",
                             "--potfile-path", str(pot)], timeout=60)
             found = _parse_show(show.stdout or "")

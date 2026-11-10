@@ -276,13 +276,18 @@ EXTRA += [
     ("EBE.pcap", f"{LA}/2023/misc/ebe/EBE.pcap",
      "lactf{3V1L_817_3xf1l7R4710N_4_7H3_W1N_51D43c8000034d0c}"),   # evil bit — verificato 06/11
 ]
-# --- handout sbagliato: risolti il 06/11 con l'altro file della cartella
-# (flag e fonte ufficiali invariati: cambia solo quale allegato della challenge)
+# --- 10/11 (review): un caso usa SOLO il file distribuito dalla challenge
+# (README "Distribution"), mai un file della soluzione. duck-pics: `capture.pcapng`
+# e' quello distribuito e passa (04/11); `whole-capture` non e' un allegato.
 EXTRA += [
-    ("ic25-dinosaur-qr.bmp",
-     f"{IC25}/Forensics/dinosaur/challenge/qr_code.bmp",
-     "ictf{get_baited_its_actually_an_ankylosaurus}"),   # il "mosaic" era un depistaggio
-    ("bk24-duck-pics-whole.pcapng",
-     f"{BK24}/forensics/duck-pics/whole-capture.pcapng",
-     "bctf{St0p_s3nd1Ng_m3_DuCK_p1c$}"),               # la capture pubblicata era parziale
+    ("bk24-duck-pics.pcapng",
+     f"{BK24}/forensics/duck-pics/capture.pcapng",
+     "bctf{St0p_s3nd1Ng_m3_DuCK_p1c$}"),
+]
+GAPS += [
+    # dinosaur: si distribuisce solo STEGosaurus.txt (emoji del Discord di ImaginaryCTF
+    # da mappare sulle icone -> fotomosaico -> QR). qr_code.bmp e il mosaico sono la soluzione.
+    ("ic25-dinosaur-STEGosaurus.txt",
+     f"{IC25}/Forensics/dinosaur/dist/STEGosaurus.txt",
+     "ictf{get_baited_its_actually_an_ankylosaurus}"),
 ]

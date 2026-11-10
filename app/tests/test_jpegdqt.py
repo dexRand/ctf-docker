@@ -93,3 +93,16 @@ def test_standard_tables_are_used_for_the_second_component():
     fixed = rebuild(wiped, 1)
     assert LUMA[:8] in [tuple(fixed[i:i + 8]) for i in range(len(fixed) - 8)]
     assert CHROMA[:8] in [tuple(fixed[i:i + 8]) for i in range(len(fixed) - 8)]
+
+
+def test_sixteen_bit_tables_are_parsed_and_rebuilt():
+    from backend.analyzers.jpegdqt import _dqt_spans, invalid_tables, rebuild
+    table = (1,) * 63 + (0,)                                  # one zero: wiped
+    body = bytes([0x10]) + b"".join(v.to_bytes(2, "big") for v in table)   # Pq=1, Tq=0
+    seg = b"\xff\xdb" + (2 + len(body)).to_bytes(2, "big") + body
+    raw = b"\xff\xd8" + seg + b"\xff\xda\x00\x02" + b"\x00" * 8 + b"\xff\xd9"
+    spans = _dqt_spans(raw)
+    assert spans and spans[0][1] - spans[0][0] == 128 and spans[0][3] == 2
+    assert invalid_tables(raw)
+    fixed = rebuild(raw, 0)
+    assert not invalid_tables(fixed) and len(fixed) == len(raw)

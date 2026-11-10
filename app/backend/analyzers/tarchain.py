@@ -32,7 +32,8 @@ def _inner_tar(blob: bytes) -> bytes | None:
             if len(tars) != 1:
                 return None
             fh = tf.extractfile(tars[0])
-            return fh.read() if fh else None
+            # read one byte over the cap: a gzip bomb inside the chain stops here
+            return fh.read(_MAX_INPUT + 1) if fh else None
     except (tarfile.TarError, OSError, EOFError):
         return None
 
@@ -43,12 +44,14 @@ def _bottom_files(blob: bytes) -> list[tuple[str, bytes]]:
         with tarfile.open(fileobj=io.BytesIO(blob)) as tf:
             out: list[tuple[str, bytes]] = []
             for m in tf.getmembers():
+                if len(out) >= 20:
+                    break
                 if not m.isfile() or m.size > (16 << 20):
                     continue
                 fh = tf.extractfile(m)
                 if fh:
-                    out.append((m.name, fh.read()))
-            return out[:20]
+                    out.append((m.name, fh.read(16 << 20)))
+            return out
     except (tarfile.TarError, OSError, EOFError):
         return []
 

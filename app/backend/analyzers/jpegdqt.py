@@ -27,9 +27,10 @@ _VARIANTS = (("all-ones", (1,) * 64, (1,) * 64),
              ("annex-k", _LUMA, _CHROMA))
 
 
-def _dqt_spans(raw: bytes) -> list[tuple[int, int, int]]:
-    """(payload start, payload end, table id) for every DQT segment before SOS."""
-    spans: list[tuple[int, int, int]] = []
+def _dqt_spans(raw: bytes) -> list[tuple[int, int, int, int]]:
+    """(payload start, payload end, table id, bytes per value) for every DQT
+    table before SOS: precision 0 = 64 x 8-bit, precision 1 = 64 x 16-bit."""
+    spans: list[tuple[int, int, int, int]] = []
     pos = 2
     while pos + 4 <= len(raw):
         if raw[pos] != 0xFF:
@@ -46,9 +47,9 @@ def _dqt_spans(raw: bytes) -> list[tuple[int, int, int]]:
         if marker == 0xDB:
             body = pos + 4
             while body < end:                       # a DQT can hold several tables
-                table_id = raw[body] & 0x0F
-                spans.append((body + 1, min(body + 65, end), table_id))
-                body += 65
+                table_id, width = raw[body] & 0x0F, 2 if raw[body] >> 4 else 1
+                spans.append((body + 1, min(body + 1 + 64 * width, end), table_id, width))
+                body += 1 + 64 * width
         elif marker == 0xDA:                        # start of scan: entropy data follows
             break
         pos = end
@@ -63,17 +64,22 @@ def invalid_tables(raw: bytes) -> bool:
     """
     if raw[:2] != b"\xff\xd8":
         return False
-    spans = _dqt_spans(raw)
-    return any(0 in raw[a:b] for a, b, _ in spans)
+    for a, b, _tid, width in _dqt_spans(raw):
+        values = raw[a:b] if width == 1 else [int.from_bytes(raw[i:i + 2], "big")
+                                               for i in range(a, b - 1, 2)]
+        if 0 in values:
+            return True
+    return False
 
 
 def rebuild(raw: bytes, variant: int) -> bytes:
     """A copy of the JPEG with the zero tables replaced by `variant`'s tables."""
     _name, luma, chroma = _VARIANTS[variant]
     out = bytearray(raw)
-    for start, end, table_id in _dqt_spans(raw):
+    for start, end, table_id, width in _dqt_spans(raw):
         table = luma if table_id == 0 else chroma
-        out[start:end] = bytes(table[: end - start])
+        packed = b"".join(v.to_bytes(width, "big") for v in table)
+        out[start:end] = packed[: end - start]
     return bytes(out)
 
 

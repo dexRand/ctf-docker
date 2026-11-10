@@ -51,7 +51,11 @@ class ColorMapAnalyzer(Analyzer):
         packed = ((arr[:, :, 0].astype(np.int32) << 16)
                   | (arr[:, :, 1].astype(np.int32) << 8) | arr[:, :, 2])
         keys = np.array([(c[0] << 16) | (c[1] << 8) | c[2] for c in palette], dtype=np.int32)
-        idx = np.searchsorted(keys, packed).astype(np.uint8)
+        # searchsorted needs numerically sorted keys: look up there, then map the
+        # position back to the luminance order of `palette`
+        order = np.argsort(keys)
+        pos = np.clip(np.searchsorted(keys[order], packed), 0, len(keys) - 1)
+        idx = order[pos].astype(np.uint8)
         outdir = ctx.sub(self.name)
         n = len(palette)
         produced = []

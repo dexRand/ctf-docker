@@ -3,8 +3,7 @@
 A flag drawn at 2-5% opacity is invisible in the picture and in a plain OCR
 pass, but stands out once the image is compared with its blurred copy. The
 enhanced images are kept as artifacts (one look in the GUI is usually enough)
-and OCR is attempted on the whole picture and, for large photos, on four
-overlapping quadrants — the text keeps its size, so downscaling is not allowed.
+and OCR is attempted once on a <= 1600 px copy of the enhanced picture.
 """
 from __future__ import annotations
 
@@ -16,7 +15,6 @@ from .util import IMG_EXT, load_image
 
 MAX_PIXELS = 16_000_000       # a 16 MPix high-pass is still ~0.5 s
 OCR_MAX = 1600                # whole-image OCR pass
-_QUAD_OVERLAP = 160
 _DEADLINE_S = 45
 
 # a token that looks like a flag: "prefix{body}"
@@ -64,10 +62,9 @@ class FaintAnalyzer(Analyzer):
             small = small.resize((int(small.width * r), int(small.height * r)), Image.LANCZOS)
         p = outdir / f"{ctx.input.stem}_faint_ocr.png"
         small.save(p)
-        for _ in range(2):          # sparse and block mode: one may hit, the other miss
-            text = ocr_image(p, timeout=20, thorough=False, max_dim=OCR_MAX)
-            if text:
-                texts.append(text)
+        text = ocr_image(p, timeout=20, thorough=False, max_dim=OCR_MAX)
+        if text:
+            texts.append(text)
         # NB: no OCR of the quadrants at full resolution. A 3648x2432 photo
         # costs ~100 s there and tesseract still does not read a 30-px overlay;
         # the artifact is what makes it visible (a human reads it in a second).
@@ -85,15 +82,6 @@ class FaintAnalyzer(Analyzer):
                           output="\n".join(lines)[:200_000],
                           artifacts=[{"name": full.name, "path": str(full),
                                       "size": full.stat().st_size}])
-
-    @staticmethod
-    def _quadrants(w: int, h: int) -> dict[str, tuple[int, int, int, int]]:
-        mx, my = w // 2, h // 2
-        o = _QUAD_OVERLAP
-        return {"tl": (0, 0, min(w, mx + o), min(h, my + o)),
-                "tr": (max(0, mx - o), 0, w, min(h, my + o)),
-                "bl": (0, max(0, my - o), min(w, mx + o), h),
-                "br": (max(0, mx - o), max(0, my - o), w, h)}
 
 
 register(FaintAnalyzer())

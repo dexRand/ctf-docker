@@ -157,10 +157,10 @@ def _fix_height(out: bytearray, log: list[str]) -> None:
     log.append(f"IHDR height {height} -> {rows} (rows hidden in the IDAT data)")
 
 
-def _unfilter(raw: bytes, w: int, h: int, bpp: int) -> tuple[bytes, int]:
-    """Decode PNG scanlines (repairing invalid filter bytes to 0). Returns
-    (rows with filter 0, number of repaired rows)."""
-    stride = w * bpp
+def _unfilter(raw: bytes, stride: int, h: int, bpp: int) -> tuple[bytes, int]:
+    """Decode PNG scanlines of `stride` bytes (repairing invalid filter bytes
+    to 0); `bpp` is the filter distance. Returns (rows with filter 0, number of
+    repaired rows)."""
     out = bytearray()
     prev = bytes(stride)
     pos = 0
@@ -209,17 +209,29 @@ def rebuild_bad_zlib_png(data: bytes) -> tuple[bytes | None, list[str]]:
     ihdr = _ihdr_bytes(data)
     idat = _idat_bytes(data)
     log: list[str] = []
-    if not ihdr or not idat:
+    if len(ihdr) < 13 or not idat:
         return None, log
+    w, h, bd, ct = struct.unpack(">IIBB", ihdr[:10])
+    if ct not in _CHANNELS or bd not in (1, 2, 4, 8, 16) or not w or not h:
+        return None, log
+    if ihdr[12]:
+        log.append("interlaced (Adam7): rebuild non supportato")
+        return None, log
+    if w * h > _MAX_REBUILD_PIXELS:          # before decompressing: no bomb
+        log.append(f"troppo grande per il rebuild ({w}x{h})")
+        return None, log
+    stride = (w * _CHANNELS[ct] * bd + 7) // 8
+    bpp = max(1, _CHANNELS[ct] * bd // 8)    # filter distance in bytes
+    expected = h * (stride + 1)
     try:
-        zlib.decompress(idat)
+        zlib.decompressobj().decompress(idat, expected + 1)
         return None, log                    # the zlib stream is fine
     except zlib.error:
         pass
     raw = None
     for skip in (2, 0):                     # zlib header first, then raw deflate
         try:
-            raw = zlib.decompressobj(-15).decompress(idat[skip:])
+            raw = zlib.decompressobj(-15).decompress(idat[skip:], expected + 1)
         except zlib.error:
             raw = None
         if raw:
@@ -227,30 +239,21 @@ def rebuild_bad_zlib_png(data: bytes) -> tuple[bytes | None, list[str]]:
             break
     if not raw:
         return None, log
-    w, h, bd, ct = struct.unpack(">IIBB", ihdr[:10])
-    bpp = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(ct, 4) * max(1, bd // 8)
-    if w * h > _MAX_REBUILD_PIXELS:
-        log.append(f"troppo grande per il rebuild ({w}x{h})")
-        return None, log
-    rows, fixed = _unfilter(raw, w, h, bpp)
-    if not rows or len(rows) < h * (w * bpp + 1) * 0.5:
+    rows, fixed = _unfilter(raw, stride, h, bpp)
+    if not rows or len(rows) < expected * 0.5:
         log.append("dati insufficienti dopo il deflate")
         return None, log
     log.append(f"{w}x{h} ricostruito, {fixed} filter byte riparati")
-    png = (PNG_SIG + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", zlib.compress(rows, 6))
-           + _chunk(b"IEND", b""))
+    # palette and transparency stay: without PLTE a palette PNG is invalid
+    extra = b"".join(_chunk(t, p) for t in (b"PLTE", b"tRNS") for p in _chunk_payloads(data, t)[:1])
+    png = (PNG_SIG + _chunk(b"IHDR", ihdr) + extra
+           + _chunk(b"IDAT", zlib.compress(rows, 6)) + _chunk(b"IEND", b""))
     return png, log
 
 
 def _ihdr_bytes(data: bytes) -> bytes:
-    pos = 8
-    while pos + 8 <= len(data):
-        ln = struct.unpack(">I", data[pos:pos + 4])[0]
-        ctype = data[pos + 4:pos + 8]
-        if ctype == b"IHDR":
-            return data[pos + 8:pos + 8 + ln]
-        pos += 12 + ln
-    return b""
+    found = _chunk_payloads(data, b"IHDR")
+    return found[0] if found else b""
 
 
 class PngRepairAnalyzer(Analyzer):
@@ -309,17 +312,22 @@ def _chunk(ctype: bytes, payload: bytes) -> bytes:
             + struct.pack(">I", zlib.crc32(ctype + payload) & 0xFFFFFFFF))
 
 
-def _idat_bytes(data: bytes) -> bytes:
-    pos, out = 8, bytearray()
+def _chunk_payloads(data: bytes, want: bytes) -> list[bytes]:
+    """Payloads of every `want` chunk, in file order (one walker for all)."""
+    pos, out = 8, []
     while pos + 8 <= len(data):
         length = struct.unpack(">I", data[pos:pos + 4])[0]
         ctype = data[pos + 4:pos + 8]
-        if ctype == b"IDAT":
-            out += data[pos + 8:pos + 8 + length]
+        if ctype == want:
+            out.append(data[pos + 8:pos + 8 + length])
         pos += 12 + length
         if ctype == b"IEND":
             break
-    return bytes(out)
+    return out
+
+
+def _idat_bytes(data: bytes) -> bytes:
+    return b"".join(_chunk_payloads(data, b"IDAT"))
 
 
 def _zstd_limited(blob: bytes, limit: int, tmpdir: Path) -> bytes | None:

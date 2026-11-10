@@ -88,7 +88,8 @@ STEG_DECODERS = {"zsteg", "bit-planes", "png-pixels", "lsb-carve", "channel-rema
                  "image-enhance", "psimage", "gif-frames", "blobs", "decode",
                  "image-repair", "png-repair", "png-idat"}
 IMG_DECODERS = {"zsteg", "bit-planes", "png-pixels", "lsb-carve", "channel-remap",
-                "image-enhance", "psimage", "image-repair", "png-repair", "png-idat"}
+                "image-enhance", "psimage", "image-repair", "png-repair", "png-idat",
+                "faint", "color-map"}
 
 
 def origin_tool(origin: str) -> str:
