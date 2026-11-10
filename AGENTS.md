@@ -116,6 +116,11 @@ Valgono sempre; il lavoro da fare è in `tasks/deepseek.md` (un task alla volta)
   input non ordinato, palette (PNG `P`), bit depth < 8 e 16 bit, interlacciato, file
   vuoto, file enorme (deve essere rifiutato). Un test che passerebbe anche con il
   codice sbagliato non conta. Mock solo per i tool esterni.
+- **Test e tool esterni**: la CI gira senza i tool dell'immagine (tshark, zbar,
+  tesseract…). Un test che usa davvero un tool esterno ha
+  `@pytest.mark.skipif(shutil.which("<tool>") is None, ...)`; i gating che non
+  servono il tool (firma, link type) vanno PRIMA del controllo `which(...)`.
+  Dopo il push controlla che la CI sia verde.
 - **Niente regole su misura per un caso**: una trasformazione (es. varianti OCR
   O→0, S→5) si aggiunge solo se generica; se serve a una sola challenge, scrivilo
   nel commento del caso in `GAPS` invece di cambiare il codice comune.
