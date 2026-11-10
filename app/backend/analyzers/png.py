@@ -157,6 +157,102 @@ def _fix_height(out: bytearray, log: list[str]) -> None:
     log.append(f"IHDR height {height} -> {rows} (rows hidden in the IDAT data)")
 
 
+def _unfilter(raw: bytes, w: int, h: int, bpp: int) -> tuple[bytes, int]:
+    """Decode PNG scanlines (repairing invalid filter bytes to 0). Returns
+    (rows with filter 0, number of repaired rows)."""
+    stride = w * bpp
+    out = bytearray()
+    prev = bytes(stride)
+    pos = 0
+    fixed = 0
+    for _ in range(h):
+        if pos + 1 + stride > len(raw):
+            break
+        ft = raw[pos]
+        line = bytearray(raw[pos + 1:pos + 1 + stride])
+        pos += 1 + stride
+        if ft > 4:                      # a corrupted filter byte: assume "None"
+            ft = 0
+            fixed += 1
+        if ft == 1:
+            for i in range(bpp, stride):
+                line[i] = (line[i] + line[i - bpp]) & 0xFF
+        elif ft == 2:
+            for i in range(stride):
+                line[i] = (line[i] + prev[i]) & 0xFF
+        elif ft == 3:
+            for i in range(stride):
+                a = line[i - bpp] if i >= bpp else 0
+                line[i] = (line[i] + ((a + prev[i]) >> 1)) & 0xFF
+        elif ft == 4:
+            for i in range(stride):
+                a = line[i - bpp] if i >= bpp else 0
+                b = prev[i]
+                c = prev[i - bpp] if i >= bpp else 0
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                line[i] = (line[i] + (a if (pa <= pb and pa <= pc) else (b if pb <= pc else c))) & 0xFF
+        out += b"\x00" + line
+        prev = bytes(line)
+    return bytes(out), fixed
+
+
+_MAX_REBUILD_PIXELS = 4_000_000
+
+
+def rebuild_bad_zlib_png(data: bytes) -> tuple[bytes | None, list[str]]:
+    """PNG whose IDAT is valid **deflate** but a broken zlib wrapper/adler.
+
+    WaniCTF 2023 "Apocalypse": the IDAT CRC and the zlib checksum are damaged,
+    so every decoder refuses the file, but the deflate stream itself is intact.
+    Decode it raw, repair the filter bytes and re-emit a clean PNG."""
+    ihdr = _ihdr_bytes(data)
+    idat = _idat_bytes(data)
+    log: list[str] = []
+    if not ihdr or not idat:
+        return None, log
+    try:
+        zlib.decompress(idat)
+        return None, log                    # the zlib stream is fine
+    except zlib.error:
+        pass
+    raw = None
+    for skip in (2, 0):                     # zlib header first, then raw deflate
+        try:
+            raw = zlib.decompressobj(-15).decompress(idat[skip:])
+        except zlib.error:
+            raw = None
+        if raw:
+            log.append(f"raw deflate dopo {skip} byte di header: {len(raw)} B")
+            break
+    if not raw:
+        return None, log
+    w, h, bd, ct = struct.unpack(">IIBB", ihdr[:10])
+    bpp = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(ct, 4) * max(1, bd // 8)
+    if w * h > _MAX_REBUILD_PIXELS:
+        log.append(f"troppo grande per il rebuild ({w}x{h})")
+        return None, log
+    rows, fixed = _unfilter(raw, w, h, bpp)
+    if not rows or len(rows) < h * (w * bpp + 1) * 0.5:
+        log.append("dati insufficienti dopo il deflate")
+        return None, log
+    log.append(f"{w}x{h} ricostruito, {fixed} filter byte riparati")
+    png = (PNG_SIG + _chunk(b"IHDR", ihdr) + _chunk(b"IDAT", zlib.compress(rows, 6))
+           + _chunk(b"IEND", b""))
+    return png, log
+
+
+def _ihdr_bytes(data: bytes) -> bytes:
+    pos = 8
+    while pos + 8 <= len(data):
+        ln = struct.unpack(">I", data[pos:pos + 4])[0]
+        ctype = data[pos + 4:pos + 8]
+        if ctype == b"IHDR":
+            return data[pos + 8:pos + 8 + ln]
+        pos += 12 + ln
+    return b""
+
+
 class PngRepairAnalyzer(Analyzer):
     name = "png-repair"
     category = "extract"
@@ -175,6 +271,18 @@ class PngRepairAnalyzer(Analyzer):
         if not looks_png:
             return ToolResult(self.name, status="skipped", summary="not a PNG")
         fixed, log = repair_png(data)
+        # the zlib rebuild decompresses the whole IDAT: only worth it when the
+        # file was damaged in the first place (a CRC/chunk problem was found)
+        rebuilt, rlog = (rebuild_bad_zlib_png(data) if fixed != data else (None, []))
+        if rebuilt:
+            out = ctx.sub(self.name) / (ctx.input.name + ".rebuilt.png")
+            out.write_bytes(rebuilt)
+            return ToolResult(self.name, status="done",
+                              summary="IDAT con zlib rotto: PNG ricostruito",
+                              output="\n".join(log + rlog),
+                              extracted=[str(out)],
+                              artifacts=[{"name": out.name, "path": str(out),
+                                          "size": out.stat().st_size}])
         if fixed[:8] != PNG_SIG:
             return ToolResult(self.name, status="skipped", summary="not repairable")
         if fixed == data:
