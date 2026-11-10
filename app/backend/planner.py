@@ -18,7 +18,7 @@ DEFAULT_PLAN = [
     "ocr", "qr",
     "zsteg", "lsb-carve", "lsb-bits", "msb-bits", "stepic", "psimage", "png-chunks", "png-idat", "png-pixels", "steghide", "outguess", "jsteg", "openstego",
     "pixel-bytes", "bit-planes", "color-map", "faint", "channel-remap", "image-enhance", "gif-frames",
-    "morse", "dtmf", "eas", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
+    "morse", "dtmf", "eas", "stereo-diff", "spectrogram", "waveform", "wav-lsb", "wav-levels", "sstv",
     "pcap", "pcap-creds", "usb-hid", "wpa", "evtx", "sam", "winreg", "firefox-logins",
     "nested-archive", "tar-chain", "git", "sqlite", "ds-store", "android-boot", "disk", "openssl", "7z", "office", "olevba", "eml", "binwalk-extract", "foremost", "pngcheck",
     "png-repair", "image-repair", "jpeg-dqt", "byte-swap",
