@@ -95,15 +95,33 @@ Alla fine del batch: set extra completo + `./ctf test -j 3`, poi push su `main`.
 
 | Task | Stato | Commit | Verifica (unit · lint · fast prima/dopo · caso reale) |
 |---|---|---|---|
-| 1 credenziali pcap | da fare | | |
-| 2 export SMB/TFTP/IMF | da fare | | |
-| 3 APNG | da fare | | |
-| 4 stereo L−R | da fare | | |
-| 5 hash nudi | da fare | | |
+| 1 credenziali pcap | fatto | dcf3b85 | unit **398 passed** · `lint clean` · fast fixture **33/33** + reali **11/11** (`ALL CORRECT`) · analisi **245,6 s -> 245,4 s**. Nessun caso reale dipende solo dalle credenziali: nessun GAP spostato. |
+| 2 export SMB/TFTP/IMF | fatto | 61cd7b3 | unit **404 passed** · `lint clean` · fast **33/33** + **11/11** (`ALL CORRECT`) · analisi **245,4 s -> 252,4 s** (+2,9%: nei casi pcap del slice gira anche pcap-creds). Nessun capture SMB/TFTP reale in suite. |
+| 3 APNG | fatto | 0998709 | unit **408 passed** · `lint clean` · fast **33/33** + **11/11** (`ALL CORRECT`) · analisi **252,4 s -> 250,1 s**. Nessun caso APNG in suite. |
+| 4 stereo L−R | fatto | 77609ea | unit **415 passed** · `lint clean` · fast **33/33** + **11/11** (`ALL CORRECT`) · analisi **250,1 s -> 251,4 s**. Caso reale `bk24-couch_potato.wav`: l'L−R **decodifica l'SSTV** con la flag visibile (`bctf{1_11k3_5p4m_w17h_my_h4m}`, frame in ~11 s) ma il test end-to-end resta **FAIL** (`got=[]`) perché l'OCR non legge la scritta rossa sopra la foto: resta in GAPS. |
+| 5 hash nudi | fatto | 1c3026f | unit **425 passed** · `lint clean` · fast fixture **33/33** + reali **11/11** · analisi **288,8 s** (baseline 251,4 s, host condiviso con un agente che testa AI: load 2-7 su 8 core; `verify_flags` 10/11, Matryoshka A in timeout per il carico, ricontrollato nel gate). |
+
+**Nota Task 5:** primo giro costava +30 s nel fast perché un ASCII art (`ffff…`,
+estratto da `psimage`) veniva preso per 2 hash e faceva partire hashcat per 60 s.
+Due regole generiche: un hash deve avere >= 6 cifre esadecimali distinte, e le
+wordlist piccole sono concatenate in un file (un avvio di hashcat per modo, non
+per lista). Senza queste due, il budget di 60 s veniva speso su rumore.
+
+**Nota Task 4:** `bk24-couch_potato.wav` ha il campo RIFF size sbagliato (0x24):
+il `wave` di Python 3.13+ restituisce 0 frame. `stereo-diff` legge allora il
+chunk `data` direttamente (test dedicato), altrimenti il caso restava muto.
 
 ## Proposte (cose che servirebbero ma toccano file vietati)
 
-(niente per ora)
+- **Frame SSTV come figlio** (`analyzers/sstv.py`, fuori dai file vietati ma
+  fuori dai task): oggi `sstv_{mode}.png` è solo artifact, quindi `ocr`,
+  `image-enhance` e `channel-remap` non ci girano. Per `bk24-couch_potato` la
+  flag è leggibile a occhio ma l'OCR interno (una passata) non la trova.
+  Proposta: aggiungere il frame a `extracted` e lasciare che la pipeline lo
+  legga; da verificare che non rallenti `m00nwalk`/`couch_potato` oltre il 5%.
+- **OCR su testo colorato** (`analyzers/vision.py`, vietato): una maschera
+  canali (rosso su foto) + upscale prima di tesseract servirebbe a
+  `couch_potato` e `m00nwalk`. Non toccato.
 
 ## Bloccato (batch 2)
 
