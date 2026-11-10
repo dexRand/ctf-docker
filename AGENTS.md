@@ -96,6 +96,35 @@ Valgono sempre; il lavoro da fare è in `tasks/deepseek.md` (un task alla volta)
 - Non dichiarare "fatto" senza l'output dei comandi sopra. Se un comando fallisce,
   scrivilo così com'è.
 
+**Lezioni dal batch del 05–10/11 (regole aggiunte dopo la review)**
+- **Casi di test**: un caso usa SOLO il file distribuito dalla challenge (README
+  "Distribution", `provide:` di `challenge.yaml`), mai un file della soluzione
+  (`solve/`, `challenge/` con QR già estratti, `whole-capture`…). Mai sostituire o
+  togliere un caso che passa. Un caso entra in `EXTRA` solo con l'output del suo
+  PASS incollato nel messaggio di commit.
+- **Costo**: un analyzer che accetta tutte le immagini (`IMG_EXT`) o tutti i file deve
+  avere un gating sul **contenuto** (firma, chunk, n. colori…) oppure stare in
+  `IMG_DECODERS` del planner (chiedilo, è una riga di `planner.py`). OCR, zbar e
+  tesseract sono costosi: **al massimo una chiamata per immagine prodotta**, mai due
+  chiamate identiche. Riporta nel commit il tempo di `./ctf test --fast` prima/dopo.
+- **Bomb e tetti PRIMA del lavoro**: controlla dimensioni/pixel prima di
+  decomprimere; ogni `zlib`/`decompressobj` con `max_length`, ogni `read()` con un
+  limite (`fh.read(CAP + 1)`), ogni ricorsione con profondità e budget di byte.
+- **Budget di tempo**: "budget 120 s" significa 120 s **in totale** per l'analyzer,
+  non per iterazione (usa una `deadline` e passa il tempo rimasto).
+- **Test che falliscono con il bug**: scrivi il test prima, con i casi scomodi —
+  input non ordinato, palette (PNG `P`), bit depth < 8 e 16 bit, interlacciato, file
+  vuoto, file enorme (deve essere rifiutato). Un test che passerebbe anche con il
+  codice sbagliato non conta. Mock solo per i tool esterni.
+- **Niente regole su misura per un caso**: una trasformazione (es. varianti OCR
+  O→0, S→5) si aggiunge solo se generica; se serve a una sola challenge, scrivilo
+  nel commento del caso in `GAPS` invece di cambiare il codice comune.
+- **File in più vietati senza richiesta**: anche `analyzers/vision.py` (OCR usato da
+  tutti) e `magic.py`. Se ti serve cambiarli, scrivi la proposta in "Proposte" di
+  `tasks/deepseek.md` e passa al task successivo.
+- **Lavoro fuori dai task**: ammesso solo dopo aver chiuso tutti i task del batch, con
+  le stesse regole, ed elencato a parte nel resoconto.
+
 **Quando fermarsi**
 - Due tentativi falliti sullo stesso problema → fermati, scrivi in "Bloccato" cosa hai
   provato e l'errore esatto, passa al task successivo.

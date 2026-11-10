@@ -1,123 +1,127 @@
-# Task per opencode (deepseek) — uno alla volta, in quest'ordine
+# Task per opencode (deepseek) — batch 2
 
-Prima di iniziare leggi `AGENTS.md`, sezione **"Regole per il lavoro autonomo"**:
-perimetro, schema degli analyzer, verifica, commit, quando fermarsi.
+Prima di iniziare rileggi **tutto** `AGENTS.md` → "Regole per il lavoro autonomo",
+compresa la parte **"Lezioni dal batch del 05–10/11"**: sono le regole aggiunte dopo
+la review del batch 1 (vedi in fondo cosa era andato storto).
 
-Baseline da non peggiorare (04/11, commit `7f34de2`): unit 355 · lint pulito ·
-extra 47/47 · fixture 33/33 · reali 35/35 · `ALL CORRECT`.
+Baseline da non peggiorare: quella scritta nell'ultimo commit `docs(tasks)` di Claude
+(numeri di `real_challenges.py --extra` e `./ctf test -j 3`). Una FAIL nuova = niente push.
 
-Per ogni task: un branch non serve, ma **un commit per task** e la verifica completa
-prima del push. Se un task si blocca, scrivilo in "Bloccato" e passa al successivo.
-
----
-
-## Task 1 — Vigenère e rail fence in `decode` (issue #12)
-
-**File da toccare:** solo `app/backend/analyzers/decode.py` e un test nuovo
-`app/tests/test_decode_classic.py`.
-
-**Cosa fare**
-- **Vigenère con chiave ricavata dal prefisso** (attacco a testo noto): per ogni
-  prefisso di `FLAG_PREFIXES` cerca nel testo una sequenza di lettere della stessa
-  lunghezza seguita da `{`; la differenza lettera per lettera dà la chiave (ripetuta
-  con periodo = lunghezza del prefisso, poi prova anche periodi 1..lunghezza). Tieni
-  il risultato **solo** se decifrando compare `PREFISSO{`. Le non-lettere restano
-  invariate e non fanno avanzare la chiave.
-- **Rail fence** con 2..10 binari, solo su testi ≤ 4096 caratteri, risultato tenuto
-  solo se compare un prefisso noto + `{`.
-- Aggiungili dentro `candidates()` nel blocco `if len(text0) <= _SMALL:` (come Caesar).
-
-**Test (`test_decode_classic.py`)**: cifra una flag con Vigenère (chiave "KEY") e con
-rail fence (3 binari) dentro il test, verifica che `candidates()` restituisca la flag;
-verifica che un testo normale non produca risultati `vigenere*`/`railfence*`.
-
-**Fatto quando:** unit + lint verdi, verifica completa invariata.
-Chiusura: `Fixes #12` NO (l'issue ha altri punti) → `Refs #12` + commento.
+Ordine di lavoro per ogni task:
+1. scrivi prima il test (deve fallire), poi il codice;
+2. `run_unit.sh` + `./ctf lint` + `./ctf test --fast` (tempo prima/dopo nel commit);
+3. il caso reale del task, se c'è;
+4. commit `Refs #N`/`Fixes #N` + commento sull'issue.
+Alla fine del batch: set extra completo + `./ctf test -j 3`, poi push su `main`.
 
 ---
 
-## Task 2 — `olevba`: macro VBA dei documenti Office (issue #14)
+## Task 1 — Credenziali in chiaro nei pcap (issue #11)
 
-**File da toccare:** `app/Dockerfile` (aggiungere `oletools==0.60.2` al pip install
-del venv di StegSuite, versione fissata), nuovo `app/backend/analyzers/olevba.py`,
-`analyzers/__init__.py`, una riga in `DEFAULT_PLAN` (subito dopo `"office"`),
-test nuovo `app/tests/test_olevba.py`.
+**File:** nuovo `app/backend/analyzers/pcapcreds.py`, `__init__.py`, una riga in
+`DEFAULT_PLAN` (dopo `"pcap"`), test `app/tests/test_pcapcreds.py`.
 
-**Cosa fare**
-- Analyzer `olevba`: `accepts` = estensioni Office (`.doc .docm .docx .xls .xlsm
-  .xlsx .ppt .pptm .pptx .dotm .xlam`) + mime `application/x-ole-storage`.
-- Gating: OLE (`\xd0\xcf\x11\xe0`) oppure zip che contiene un membro
-  `vbaProject.bin` (controlla con `zipfile` la lista dei nomi, non estrarre tutto).
-  Altrimenti `skipped`.
-- Esegui `olevba --decode --deobf <file>` con `ctx.run(..., timeout=120)`; output
-  (max 200 000 caratteri) = sorgente delle macro + stringhe decodificate. Il flag
-  hunt lavora sull'output da solo.
-- Riassunto: numero di macro e se ci sono `AutoOpen`/`Document_Open`/`Shell`.
+- Un solo passaggio `tshark -r <file> -Y "<filtro>" -T fields ...` con
+  `ctx.run(timeout=180)` che estrae: FTP `USER`/`PASS`, Telnet (dati client),
+  HTTP `Authorization: Basic` (decodificato), POP3 `USER`/`PASS`, IMAP `LOGIN`,
+  SMTP `AUTH PLAIN`/`LOGIN` (base64 decodificato).
+- Gating: estensioni pcap (`PCAP_EXT` da `usbhid.py`) + link type Ethernet/raw
+  IP/Linux SLL (riusa `link_types`). Nessuna credenziale → `skipped`.
+- Output: una riga per credenziale `proto  src -> dst  user:password`. Le password
+  vanno anche nella wordlist di contesto? **No** (file vietati): basta l'output.
+- **Test:** costruisci nel test un pcap minimo (header pcap + frame Ethernet/IPv4/TCP
+  scritti a mano con `struct`) con una sessione FTP `USER bob` / `PASS s3cr3t` e
+  una richiesta HTTP con `Authorization: Basic Ym9iOnMzY3IzdA==`; verifica che
+  l'output contenga `bob:s3cr3t` due volte. Più un pcap senza credenziali → `skipped`.
 
-**Test**: gating (`skipped` su un docx senza `vbaProject.bin` generato nel test con
-`zipfile`) + parsing con `ctx.run` sostituito da un finto risultato (monkeypatch).
-**Caso reale**: `Weird File` nelle reali (`weird.docm`) deve restare PASS e
-l'output di `olevba` deve contenere il codice della macro.
+## Task 2 — Export di oggetti SMB/TFTP/IMF/FTP-data dai pcap (issue #11)
 
-**Fatto quando:** come sopra. `Refs #14` + commento.
+**File:** `app/backend/analyzers/pcap.py` (solo la parte `--export-objects`), test
+`app/tests/test_pcap_export.py`.
+
+- Oggi si esporta solo `http`. Aggiungi `smb`, `tftp`, `imf`, `ftp-data` (verifica
+  con `tshark --export-objects help` quali esistono nella versione dell'immagine),
+  **solo se** il protocollo compare nella gerarchia già calcolata (`phs`): niente
+  passaggi tshark in più sui pcap che non li hanno.
+- Ogni protocollo in una sottocartella; stessi filtri `analysable_object` e stesso
+  tetto di figli dell'HTTP.
+- **Test:** con `ctx.run` sostituito, verifica che con `phs` senza `smb` non venga
+  lanciato l'export smb, e con `smb` sì.
+
+## Task 3 — Frame delle PNG animate (APNG) (issue #15)
+
+**File:** `app/backend/analyzers/gif.py`, test `app/tests/test_apng.py`.
+
+- `gif-frames` accetta anche `.png` **solo se** nei primi 64 KB c'è il chunk `acTL`
+  (PNG animata); le PNG normali escono `skipped` subito, senza aprire l'immagine.
+- Pillow legge gli APNG con `ImageSequence`: stesso trattamento delle GIF (frame,
+  differenze, delay, QR a strisce).
+- **Test:** crea un APNG di 3 frame con Pillow (`save(..., save_all=True,
+  append_images=...)`) e verifica i 3 frame; una PNG normale → `skipped`.
+
+## Task 4 — Audio stereo: differenza dei canali (issue #15)
+
+**File:** nuovo `app/backend/analyzers/stereodiff.py`, `__init__.py`, una riga in
+`DEFAULT_PLAN` (vicino a `"spectrogram"`), test `app/tests/test_stereodiff.py`.
+
+- Solo WAV stereo (header RIFF/WAVE, 2 canali, PCM 8/16 bit): altrimenti `skipped`
+  leggendo solo l'header. Durata massima 10 minuti.
+- Calcola L−R con numpy; se l'energia della differenza è < 1% di quella del segnale
+  (canali quasi uguali) → `skipped`. Altrimenti scrivi `<nome>_L-R.wav` come
+  **figlio**, così spectrogram/morse/sstv/… girano sulla differenza.
+- **Test:** stereo con un tono identico sui due canali + un secondo tono solo a
+  sinistra → il figlio esiste e contiene il secondo tono (FFT); stereo identico →
+  `skipped`; mono → `skipped`.
+
+## Task 5 — Hash "nudi" nei file di testo (issue #16)
+
+**File:** nuovo `app/backend/analyzers/hashes.py`, `__init__.py`, una riga in
+`DEFAULT_PLAN`, test `app/tests/test_hashes.py`.
+
+- Solo file di testo (`TEXT_EXT`, `load_text`): trova hash riconoscibili (MD5/NTLM
+  32 hex, SHA1 40, SHA256 64, bcrypt `$2[aby]$`, crypt `$1$`/`$5$`/`$6$`, NTLM
+  `user:rid:lm:nt:::`), al massimo 50.
+- Crack con hashcat (modo giusto per tipo, per MD5 vs NTLM prova entrambi) sulle
+  wordlist piccole di `cracking.resolve_wordlists(max_bytes=cracking.AUTO_CRACK_MAX_BYTES)`
+  con **un budget totale** di 60 s (`deadline`), come `wpa.py` dopo la review.
+- Output: `hash  tipo  password` (o "non trovata").
+- **Test:** un file con `md5("password")` → output con `password` (hashcat mockato
+  o reale se c'è); un testo senza hash → `skipped`; un file con 10 000 righe di
+  hex casuale → al massimo 50 hash e budget rispettato (mock del tempo).
+
+---
+
+## Stato batch 2 (aggiornalo tu, numeri copiati dall'output)
+
+| Task | Stato | Commit | Verifica (unit · lint · fast prima/dopo · caso reale) |
+|---|---|---|---|
+| 1 credenziali pcap | da fare | | |
+| 2 export SMB/TFTP/IMF | da fare | | |
+| 3 APNG | da fare | | |
+| 4 stereo L−R | da fare | | |
+| 5 hash nudi | da fare | | |
+
+## Proposte (cose che servirebbero ma toccano file vietati)
+
+(niente per ora)
+
+## Bloccato (batch 2)
+
+(niente per ora)
 
 ---
 
-## Task 3 — Hive del registro Windows con `regipy` (issue #13)
+# Archivio — batch 1 (05–10/11)
 
-**File da toccare:** `app/Dockerfile` (`regipy==6.5.0` nel pip install, versione
-fissata), nuovo `app/backend/analyzers/winreg.py` (NON `registry.py`: quel nome è
-già il registro degli analyzer), `__init__.py`, una riga in `DEFAULT_PLAN`
-(vicino a `"sam"`), test nuovo `app/tests/test_winreg.py`.
-
-**Cosa fare**
-- Analyzer `winreg`: gating sulla firma `regf` nei primi 4 byte (in `magic.py` c'è già),
-  altrimenti `skipped`. Accetta qualsiasi nome (le hive non hanno estensione:
-  `NTUSER.DAT`, `SOFTWARE`, `SYSTEM`…): `accepts = ()` e controllo della firma.
-- Con `regipy` estrai e scrivi nell'output (testo, max 200 000 caratteri):
-  chiavi `Run`/`RunOnce`, `RecentDocs`, `TypedPaths`, `RunMRU`, `WordWheelQuery`,
-  `UserAssist` (i nomi sono in ROT13: decodificali), `Environment`, e **tutti i
-  valori stringa** con un tetto (es. 20 000 valori). Il flag hunt fa il resto.
-- Non usare SYSTEM+SAM per estrarre hash: lo fa già `sam.py`.
-- Hive enormi (> 256 MB): `skipped` con il motivo.
-
-**Test**: gating (`skipped` su un file qualsiasi); per il parsing usa una piccola
-hive di test pubblica **con licenza compatibile** (es. dai test di regipy, MIT),
-salvata in `app/tests/data/` (NON in `app/tests/fixtures/`, che è la regressione),
-e citane la fonte in un commento.
-**Caso reale**: `ic25-obfuscated-Users.zip` — non è richiesto che passi; basta che
-`winreg` giri sulle hive estratte e l'output contenga le chiavi. Annota nel commento
-del caso in `GAPS` cosa si vede.
-
-**Fatto quando:** come sopra. `Refs #13` + commento.
-
----
-
-## Task 4 — Handshake WPA da pcap → hashcat 22000 (issue #11)
-
-**File da toccare:** `app/Dockerfile` (pacchetto apt `hcxtools`, versione fissata, oggi Debian trixie dà `6.3.5-1`), nuovo
-`app/backend/analyzers/wpa.py`, `__init__.py`, una riga in `DEFAULT_PLAN` (dopo
-`"pcap"`), test nuovo `app/tests/test_wpa.py`.
-
-**Cosa fare**
-- Gating: pcap/pcapng con link type 802.11 (105, 127 radiotap, 163) — riusa
-  `link_types()` da `analyzers/usbhid.py` (non copiarla: importala). Altrimenti `skipped`.
-- `hcxpcapngtool -o <out>.22000 <file>` con `ctx.run(timeout=120)`. Nessun hash →
-  `skipped` "no handshake".
-- Crack con hashcat `-m 22000` sulle wordlist di `cracking.resolve_wordlists(...)`
-  (solo le piccole, come l'auto-crack: guarda come lo fa `sam.py`) con un budget di
-  tempo fisso (es. 120 s). Password trovata → nell'output `password: <pw>  (SSID)`.
-- Il file `.22000` va anche tra gli artifact (l'utente può craccarlo dalla GUI).
-
-**Test**: gating (`skipped` su un pcap Ethernet generato nel test come in
-`test_usbhid.py`); parsing dell'output di hashcat `--show` con un finto risultato.
-**Caso reale**: `ui21-megacorp-01.cap` — la flag attesa `uiuctf{nanotechnology}` va
-avvolta a mano, quindi resta in `GAPS`; basta che l'output mostri la password
-`nanotechnology` se è nelle wordlist. Annotalo nel commento del caso.
-
-**Fatto quando:** come sopra. `Refs #11` + commento.
-
----
+**Review di Claude (10/11):** i 4 task erano fatti e conformi; gli extra utili
+(`jpeg-dqt`, `tar-chain` hanno risolto casi reali). Problemi corretti nel commit
+`efd9b27`: `color-map` dava indici sbagliati (`searchsorted` su chiavi ordinate per
+luminosità); ricostruzione PNG senza tetto prima della decompressione, senza PLTE e con
+stride sbagliato sotto gli 8 bit; `faint` faceva due OCR identici su ogni immagine;
+`tar-chain` leggeva i tar interni senza tetto; budget di `wpa` per wordlist invece che
+totale; tabelle DQT a 16 bit lette male; **due casi di test sostituiti con file della
+soluzione** (`duck-pics` whole-capture, `dinosaur` qr_code.bmp) al posto dei file
+distribuiti. Da qui le regole "Lezioni dal batch del 05–10/11" in `AGENTS.md`.
 
 ## Stato (aggiornalo tu, con i numeri copiati dall'output)
 
