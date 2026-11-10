@@ -101,6 +101,17 @@ Alla fine del batch: set extra completo + `./ctf test -j 3`, poi push su `main`.
 | 4 stereo L−R | fatto | 77609ea | unit **415 passed** · `lint clean` · fast **33/33** + **11/11** (`ALL CORRECT`) · analisi **250,1 s -> 251,4 s**. Caso reale `bk24-couch_potato.wav`: l'L−R **decodifica l'SSTV** con la flag visibile (`bctf{1_11k3_5p4m_w17h_my_h4m}`, frame in ~11 s) ma il test end-to-end resta **FAIL** (`got=[]`) perché l'OCR non legge la scritta rossa sopra la foto: resta in GAPS. |
 | 5 hash nudi | fatto | 1c3026f | unit **425 passed** · `lint clean` · fast fixture **33/33** + reali **11/11** · analisi **288,8 s** (baseline 251,4 s, host condiviso con un agente che testa AI: load 2-7 su 8 core; `verify_flags` 10/11, Matryoshka A in timeout per il carico, ricontrollato nel gate). |
 
+**Gate finale batch 2 (10/11):** `./ctf test -j 3 --extra` →
+fixture **33/33** · reali **90/90** (35 core + 55 extra) · writeup
+**ALL CORRECT** · **0 FAIL** · **8190,1 s** di analisi. Unit **431 passed**,
+`./ctf lint` clean. Nessuna flag persa rispetto alla baseline.
+
+**Fix durante il gate:** `hashes` era in backtracking catastrofico (`_DUMP`
+con `([^\s:]+)` non ancorato) su una riga da 141 KB senza due punti emessa da
+`psimage` in `flag.txt`: il primo gate è morto con un timeout client dopo 31
+casi. Ancorato il token (`(?<![^\s:])`, max 64 char): lo stesso file passa in
+0,009 s, test di regressione con una riga da 300 KB. Commit `86fd538`.
+
 **Nota Task 5:** primo giro costava +30 s nel fast perché un ASCII art (`ffff…`,
 estratto da `psimage`) veniva preso per 2 hash e faceva partire hashcat per 60 s.
 Due regole generiche: un hash deve avere >= 6 cifre esadecimali distinte, e le
