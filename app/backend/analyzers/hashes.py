@@ -33,7 +33,10 @@ _HEX = re.compile(r"(?<![0-9a-fA-F])(?:[0-9a-fA-F]{64}|[0-9a-fA-F]{40}"
                   r"|[0-9a-fA-F]{32})(?![0-9a-fA-F])")
 _BCRYPT = re.compile(r"\$2[aby]?\$\d{2}\$[./A-Za-z0-9]{53}")
 _CRYPT = re.compile(r"\$(?:1|5|6)\$[./A-Za-z0-9]{0,16}\$[./A-Za-z0-9]{22,86}")
-_DUMP = re.compile(r"([^\s:]+):(\d+):([0-9a-fA-F]{32}):([0-9a-fA-F]{32}):::")
+# anchored at the start of a token and length-capped: without them a long
+# colon-free run (a 141 KB `psimage` line) makes `[^\s:]+` rescan the rest of
+# the line from every character (O(n²), the analysis hangs instead of skipping)
+_DUMP = re.compile(r"(?<![^\s:])([^\s:]{1,64}):(\d+):([0-9a-fA-F]{32}):([0-9a-fA-F]{32}):::")
 _MIN_DISTINCT = 6                  # a hash is high entropy: "ffff..." is ASCII art
 
 

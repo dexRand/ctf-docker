@@ -46,6 +46,18 @@ def test_degenerate_hex_runs_are_not_hashes():
     assert find_hashes(MD5_PASSWORD) != []       # a real hash still passes
 
 
+def test_a_very_long_colon_free_line_does_not_hang():
+    # psimage can emit a 140 KB single-line token: the secretsdump regex must
+    # not rescan the line from every character (O(n^2) -> hang)
+    text = "A" * 300_000 + "\n" + DUMP + "\n"
+    found = find_hashes(text)
+    assert [kind for _d, kind, _m in found] == ["ntlm (dump)"]
+
+
+def test_a_dump_line_after_a_short_token_still_matches():
+    assert [kind for _d, kind, _m in find_hashes(f"note {DUMP}\n")] == ["ntlm (dump)"]
+
+
 def test_at_most_fifty_candidates_are_kept():
     items = find_hashes(RANDOM_HEX)
     assert len(items) == 50
