@@ -14,6 +14,7 @@ from .registry import register
 from .util import IMG_EXT
 
 _PREFIX_ALT = "|".join(re.escape(p) for p in FLAG_PREFIXES)
+_KNOWN_PREFIX = {p.lower(): p for p in FLAG_PREFIXES}
 _KNOWN_FLAG = re.compile(r"(?i)(" + _PREFIX_ALT + r")\{[^}\n]{2,}\}")
 
 # OCR confuses 0 with O and 1 with l/I. Inside a flag body (never the prefix)
@@ -64,6 +65,13 @@ def _confusable_variants(text: str) -> str:
         prefixes = [m.group(1)]
         if glued:
             prefixes.append(glued.group(1) + m.group(1))
+        # a known prefix split by a single space ("picoC TF{", "DU CTF{"): glue
+        # the previous word only when the two make a known prefix, so prose
+        # ("see flag{") is never glued
+        split = re.search(r"([A-Za-z][A-Za-z0-9_]{0,15})\s+$", pre)
+        known = _KNOWN_PREFIX.get((split.group(1) + m.group(1)).lower()) if split else None
+        if known and known not in prefixes:
+            prefixes.append(known)
         fixed: list[str] = []
         for i, ch in enumerate(body):
             prev = body[i - 1] if i else ""

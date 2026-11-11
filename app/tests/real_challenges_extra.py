@@ -94,12 +94,10 @@ EXTRA += [
 
 # Known gaps: techniques not implemented yet (backlog, see tasks/plan-refactor.md)
 GAPS = [
-    ("m00nwalk.wav", f"{P19}/m00nwalk/message.wav", "picoCTF{beep_boop_im_in_space}"),   # SSTV + OCR
+    ("m00nwalk.wav", f"{P19}/m00nwalk/message.wav", "picoCTF{beep_boop_im_in_space}"),   # SSTV ok (clock fit + tilt, 11/11): the picture shows only CTF{...} (pico cropped by the sender) + handwritten _ read as -/.: needs CTF flag_format completion
     ("pasta.png", f"{P19}/pastaAAA/ctf.png", "picoCTF{pa$ta_1s_lyf3}"),                  # bit plane + OCR
     ("ir0.png", f"{P19}/Investigative Reversing 0/mystery.png", "picoCTF{f0und_1t_5266a857}"),  # shifted trailer
     ("b1g_mac.zip", f"{P19}/B1g_Mac/b1g_mac.zip", "picoCTF{M4cTim35!}"),                 # zip timestamps
-    ("endianness.bin", f"{P25B}/endianness-v2/challengefile",
-     "picoCTF{cert!f1Ed_iNd!4n_s0rrY_3nDian_76e05f49}"),                                # word-swapped JPEG
     ("samiam.zip", f"{DU24}/forensics/samiam/publish/samiam.zip", "DUCTF{!checkerboard1}"),  # SAM hive + crack
     ("all-fathers-wisdom", f"{DU23}/beginner/all-fathers-wisdom/publish/the-all-fathers-wisdom",
      "DUCTF{Od1n_1S-N0t_C}"),                                                           # rev (XOR array)
@@ -290,4 +288,11 @@ GAPS += [
     ("ic25-dinosaur-STEGosaurus.txt",
      f"{IC25}/Forensics/dinosaur/dist/STEGosaurus.txt",
      "ictf{get_baited_its_actually_an_ankylosaurus}"),
+]
+
+# --- 11/11: byte-swap (32-bit) -> JPEG -> OCR "picoC TF{": known prefix split by a
+# space glued back in vision._confusable_variants. PASS 10.2 s (--gaps -k endianness)
+EXTRA += [
+    ("endianness.bin", f"{P25B}/endianness-v2/challengefile",
+     "picoCTF{cert!f1Ed_iNd!4n_s0rrY_3nDian_76e05f49}"),
 ]

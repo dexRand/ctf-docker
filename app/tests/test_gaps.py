@@ -34,6 +34,17 @@ def test_ocr_confusions_are_fixed_inside_flags_only():
     assert _confusable_variants("its{clean_body}") == ""
 
 
+def test_ocr_split_known_prefix_is_glued_back():
+    # OCR of a small picture split the prefix with ONE space ("picoC TF{"):
+    # the normalized variant must carry the full known prefix (endianness-v2)
+    out = _confusable_variants("picoC TF{sOrry_4ll}").splitlines()
+    assert "picoCTF{s0rry_4ll}" in out
+    assert "DUCTF{h3ll0_w0rld}" in _confusable_variants("DU CTF{h3llO_wOrld}").splitlines()
+    # prose before a flag is never glued: "see"+"flag" is not a known prefix
+    assert not any(v.lower().startswith("seeflag") for v in
+                   _confusable_variants("see flag{sOrry_4ll}").splitlines())
+
+
 def test_ocr_leet_bodies_try_one_for_i():
     assert "picoCTF{qu1t3_a_v13w_2020}" in _confusable_variants("picoCTF{quit3_a_v13w_2020}")
 
