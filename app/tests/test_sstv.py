@@ -28,7 +28,7 @@ def _render(tones: list) -> np.ndarray:
     so a sub-sample clock error is kept instead of being rounded away."""
     ends = np.round(np.cumsum([ms for _, ms in tones]) / 1000.0 * FS).astype(int)
     starts = np.concatenate(([0], ends[:-1]))
-    return np.concatenate([np.full(e - b, f) for (f, _), b, e in zip(tones, starts, ends)])
+    return np.concatenate([np.full(e - b, f) for (f, _), b, e in zip(tones, starts, ends, strict=True)])
 
 
 def _vis(freqs: list, code: int = 60) -> None:
