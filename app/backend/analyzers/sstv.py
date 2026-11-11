@@ -220,17 +220,55 @@ def _freq_to_byte(f: np.ndarray) -> np.ndarray:
     return np.clip((f - BLACK_HZ) / SPAN * 255.0, 0, 255)
 
 
-def decode_frame(freq: np.ndarray, fs: int, mode: Mode, syncs: list[int]) -> np.ndarray:
-    """Reconstruct the RGB frame (H x W x 3 uint8) from a Scottie-style line set."""
+def fit_lines(train: list[int], fs: int, mode: Mode) -> Optional[tuple[float, float, int]]:
+    """Least-squares line clock from the sync train: ``(t0, period, inliers)``.
+
+    A sender's sample clock is never exact (m00nwalk runs 0.2 % slow): fitting
+    all the mid-line syncs gives the real line period ("auto slant" in QSSTV),
+    which also scales the porch/scan offsets inside a line. Pulses off the
+    fitted grid are dropped: the VIS header (low 1100-1300 Hz tones) looks like
+    one more sync about a period before line 0 and used to become a garbage
+    first row. Missing syncs leave a gap in ``k`` instead of shifting lines.
+    """
+    c = np.asarray(train, dtype=np.float64)
+    if len(c) < 8:
+        return None
+    period = float(np.median(np.diff(c)))
+    tol = 0.002 * fs                                    # 2 ms around the grid
+    t0 = float(np.median(c - np.round((c - c[0]) / period) * period))
+    keep = np.ones(len(c), dtype=bool)
+    for _ in range(4):
+        k = np.round((c - t0) / period)
+        keep = np.abs(c - t0 - k * period) <= tol
+        if keep.sum() < 8:
+            return None
+        a = np.vstack([np.ones(int(keep.sum())), k[keep]]).T
+        t0, period = (float(v) for v in np.linalg.lstsq(a, c[keep], rcond=None)[0])
+    t0 += float(k[keep].min()) * period                 # first in-grid sync = line 0
+    nominal = mode.period_ms / 1000.0 * fs
+    if abs(period / nominal - 1.0) > 0.02:              # not this mode's clock
+        return None
+    return t0, period, int(keep.sum())
+
+
+def decode_frame(freq: np.ndarray, fs: int, mode: Mode, syncs: list[float],
+                 scale: float = 1.0) -> np.ndarray:
+    """Reconstruct the RGB frame (H x W x 3 uint8) from a Scottie-style line set.
+
+    ``syncs`` are the mid-line sync centres of lines 0..n; ``scale`` is the
+    measured/nominal line period, applied to every offset inside the line.
+    """
     h, w = mode.height, mode.width
-    sync_half = mode.sync_ms / 2.0 / 1000.0 * fs
+    ms = scale / 1000.0 * fs                           # samples per nominal ms
     img = np.zeros((h, w, 3), dtype=np.uint8)
     for k in range(min(h, len(syncs))):
-        line_start = (syncs[k] - sync_half) - mode.sync_offset_ms / 1000.0 * fs
+        line_start = syncs[k] - (mode.sync_ms / 2.0 + mode.sync_offset_ms) * ms
+        if line_start >= len(freq):                    # transmission cut short
+            break
         vals = {}
         for idx, colour in enumerate(mode.channels):
-            start = line_start + mode.channel_offset_ms(idx) / 1000.0 * fs
-            vals[colour] = _freq_to_byte(_scan(freq, fs, start, mode.scan_ms, w))
+            start = line_start + mode.channel_offset_ms(idx) * ms
+            vals[colour] = _freq_to_byte(_scan(freq, fs, start, mode.scan_ms * scale, w))
         img[k, :, 0] = vals["R"]
         img[k, :, 1] = vals["G"]
         img[k, :, 2] = vals["B"]
@@ -251,10 +289,50 @@ def decode_sstv(path: Path) -> Optional[tuple[np.ndarray, Mode, dict]]:
     if not picked:
         return None
     mode, train = picked
-    img = decode_frame(freq, fs, mode, train)
+    fit = fit_lines(train, fs, mode)
+    if fit is None:
+        return None
+    t0, period, inliers = fit
+    lines = [t0 + k * period for k in range(mode.height)]
+    img = decode_frame(freq, fs, mode, lines, period / (mode.period_ms / 1000.0 * fs))
     info = {"mode": mode.name, "width": mode.width, "height": mode.height,
-            "syncs": len(centers), "lines": min(mode.height, len(train))}
+            "syncs": len(centers), "lines": min(mode.height, inliers),
+            "clock": round(period / (mode.period_ms / 1000.0 * fs), 5)}
     return img, mode, info
+
+
+def _stroke_mask(gray):
+    """Pixels far from their local mean: the strokes of text, either polarity."""
+    from PIL import Image, ImageFilter
+    g = gray.filter(ImageFilter.MedianFilter(3))
+    a = np.asarray(g, dtype=np.float64)
+    m = np.asarray(g.filter(ImageFilter.BoxBlur(8)), dtype=np.float64)
+    return Image.fromarray((np.abs(a - m) > 20).astype(np.uint8) * 255)
+
+
+def text_layout(frame, max_deg: int = 30) -> tuple[str, float]:
+    """``(channel, angle)`` that best shows a tilted line of text, or ``("", 0.0)``.
+
+    Projection profile: on a stroke mask the row sums vary most when the rows
+    are aligned with the text. Tried on R, G, B: ink on coloured paper (dark
+    on yellow) has contrast in one channel only, and the winning channel is
+    also the one handed to OCR. ``angle`` uses PIL's rotate convention.
+    Returns no change unless a tilt beats the level frame by 15 %
+    (level text, or a photo with no text). numpy + PIL only: ~180 rotations
+    of a 320x256 mask, well under a second.
+    """
+    best = ("", 0.0, 0.0)
+    for ch in ("R", "G", "B"):
+        mask = frame.convert("RGB").getchannel(ch)
+        mask = _stroke_mask(mask)
+        prof = {ang: float(np.asarray(mask.rotate(float(ang)), dtype=np.float64).sum(axis=1).var())
+                for ang in range(-max_deg, max_deg + 1)}
+        ang = max(prof, key=prof.get)
+        if ang and prof[ang] > prof[0] * 1.15 and prof[ang] > best[2]:
+            best = (ch, float(ang), prof[ang])
+        elif prof[0] >= best[2]:
+            best = ("", 0.0, prof[0])
+    return best[0], best[1]
 
 
 # ---------------------------------------------------------------------------
@@ -293,7 +371,8 @@ class SstvAnalyzer(Analyzer):
 
         text = self._ocr(frame, ctx)
         body = (f"mode: {mode.name}\n"
-                f"sync pulses: {info['syncs']}  lines decoded: {info['lines']}")
+                f"sync pulses: {info['syncs']}  lines decoded: {info['lines']}  "
+                f"clock: x{info['clock']}")
         if text:
             body += "\n== OCR ==\n" + text
         return ToolResult(
@@ -304,7 +383,9 @@ class SstvAnalyzer(Analyzer):
 
     @staticmethod
     def _ocr(frame, ctx: ToolContext) -> str:
-        """OCR the frame upright and upside-down (SSTV images often arrive flipped)."""
+        """OCR the frame upright and upside-down (SSTV images often arrive flipped),
+        first straightened when its text is tilted (a photo of a handwritten
+        note): tesseract reads nothing past ~5 degrees. Still one OCR per image."""
         try:
             from .vision import ocr_image
         except Exception:
@@ -312,8 +393,12 @@ class SstvAnalyzer(Analyzer):
         import shutil
         if not shutil.which("tesseract"):
             return ""
+        from PIL import Image
         d = ctx.workdir / "sstv"
         d.mkdir(parents=True, exist_ok=True)
+        channel, skew = text_layout(frame)
+        if skew:   # a tilted note: OCR the straightened channel where the ink stands out
+            frame = frame.getchannel(channel).rotate(skew, resample=Image.BICUBIC, fillcolor=255)
         texts: list[str] = []
         for angle in (0, 180):
             p = d / f"frame_{angle}.png"
