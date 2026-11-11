@@ -13,29 +13,47 @@ Ordine per task: test prima (deve fallire) → codice → `run_unit.sh` + `./ctf
 (`docker compose exec -T stegsuite grep " /data " /proc/mounts`); se è `tmpfs`,
 `docker compose up -d --force-recreate stegsuite term` prima di ogni verifica.
 
-## Task 1 — Immagini QOI (GAP `out.qoi`)
+## Task 1 — Scritte bianche/nere su sfondi colorati (GAP `out.qoi`) — rivisto 11/11
 
-**File:** nuovo `analyzers/qoi.py`, `__init__.py`, riga in `DEFAULT_PLAN` vicino a
-`image-repair`, test `app/tests/test_qoi.py`.
-- Gating: firma `qoif` nei primi 4 byte (anche senza estensione). Header 14 byte:
-  larghezza/altezza; rifiuta se `w*h > 50_000_000` **prima** di decodificare.
-- Decoder QOI in numpy/python puro (spec di 1 pagina, qoiformat.org) o Pillow se la
-  versione dell'immagine lo legge (`Image.open` su QOI: verificalo). Output: PNG figlio,
-  così OCR/zsteg/bit-plane girano sopra. Se il PNG contiene a sua volta QOI, la
-  ricorsione la fa già il planner: niente loop interni.
-- **Test:** QOI 4×4 scritto a mano nel test (QOI_OP_RGB + RUN) → PNG con i pixel giusti;
-  header con 100000×100000 → `skipped`/errore senza allocare.
+**Correzione:** la decodifica QOI e la catena di formati funzionano già (`pixel-bytes`
+arriva a un PNG con una rana su un arcobaleno). Il problema è l'OCR: la flag è scritta
+a mano in **bianco** sopra strisce colorate e l'OCR in scala di grigi non la vede.
+**File:** `analyzers/image.py` (solo `ImageEnhanceAnalyzer`), test `app/tests/test_neutral_ink.py`.
+- Due viste in più in `image-enhance`: `whiteness` = 255−min(R,G,B) e `blackness` =
+  max(R,G,B) (stirato ×255/160). Ognuna = un'immagine prodotta + **una** chiamata OCR
+  (`ocr_image(thorough=False)`), come le varianti esistenti.
+- Gating sul contenuto, con numpy, dopo il controllo MAX_PIXELS esistente: gli 8
+  colori più frequenti (bin a 4 bit) coprono ≥ 60% dei pixel; ≥ 30% dei pixel saturi
+  (max−min ≥ 128); "inchiostro" neutro (max−min ≤ 48 e min ≥ 200, oppure max ≤ 60)
+  tra 0,2% e 40%. Altrimenti nessuna vista (zero OCR in più).
+- **Test** (immagini generate con il font di Pillow, OCR mockato tranne l'ultimo):
+  testo bianco su arcobaleno → vista whiteness, nessuna blackness; testo nero → blackness;
+  PNG palette (P) ok; rumore, rampa di grigi, arcobaleno senza testo, tinta unita,
+  grigio a 16 bit → nessuna vista e numero di OCR invariato; un test con tesseract
+  vero (`skipif` se manca) che legge `flag{white_on_rainbow}`.
+- `out.qoi` probabilmente **resta in GAPS** (la scritta a mano esce `—ribbLt_G70b`):
+  aggiorna solo il suo commento. Il task vale per la classe generica.
 
-## Task 2 — BMP con altezza manomessa (GAP `elves.bmp`)
+## Task 2 — File disegnato come pixel grigi (GAP `elves.bmp`) — rivisto 11/11
 
-**File:** `analyzers/repair.py` (analyzer `image-repair`), test
-`app/tests/test_bmp_height.py`.
-- Come `png._fix_height`: se la dimensione dei dati pixel (`bfSize - bfOffBits`, o la
-  dimensione del file) è maggiore di `stride*altezza`, ricalcola l'altezza
-  (`stride = ((bpp*w + 31)//32)*4`) e scrivi il BMP corretto come figlio.
-- Solo BMP non compressi (`biCompression == 0`), bpp 8/24/32. Tetto 200 MB.
-- **Test:** BMP 10×20 con header che dice 10×5 → figlio con altezza 20; BMP giusto →
-  nessun figlio.
+**Correzione:** l'altezza del BMP la ripara già `repair_bmp` (`analyzers/repair.py`).
+Le righe nascoste contengono un ELF disegnato come pixel **grigi** (R=G=B, un byte per
+pixel) e nessuno lo riconverte.
+**File:** `analyzers/image.py` (`pixel-bytes`, funzione `_pixel_bytes`) e
+`analyzers/repair.py`, test `app/tests/test_pixel_gray.py`.
+- In `pixel-bytes`: se i byte RGB(A) non sono né un'immagine né un file noto, e i
+  primi ≤ 64 pixel della riga 0 sono grigi e il loro canale inizia con una firma
+  **forte (≥ 4 byte)** di `magic.MAGICS` (escluse BM, MZ, gzip), leggi un solo canale
+  e taglia al primo pixel non grigio → figlio con l'estensione della firma.
+- Bug da sistemare nello stesso task: `repair.py` legge l'altezza BMP come unsigned;
+  un BMP top-down (altezza negativa) viene "riparato" e capovolto. Leggi `<i`, usa
+  `abs()` per le righe e conserva il segno.
+- **Test:** righe grigie con `\x7fELF` su foto colorata (RGB png, RGBA png, RGB bmp)
+  → `.elf` uguale al payload; righe nascoste dall'altezza → trovate dopo repair;
+  grigio che inizia con BM/MZ/1f8b08 → skipped; pixel colorati che compongono `\x7fELF`
+  → skipped; BMP top-down valido → nessun figlio.
+- `elves.bmp` **resta in GAPS** (l'ELF nel file distribuito è rovinato da una
+  compressione JPEG): aggiorna il commento.
 
 ## Task 3 — Office: testo da tutte le parti del documento (GAP `du22-doxme`)
 
@@ -96,8 +114,8 @@ sotto "Review" in fondo a questo file. Controlla, nell'ordine:
 
 | Task | Stato | Commit | Verifica (unit · lint · fast prima/dopo · caso reale) |
 |---|---|---|---|
-| 1 QOI | da fare | | |
-| 2 BMP altezza | da fare | | |
+| 1 viste whiteness/blackness | da fare | | |
+| 2 pixel grigi → file | da fare | | |
 | 3 Office parti | da fare | | |
 | 4 .NET risorse | da fare | | |
 | 5 Piet | da fare | | |
