@@ -245,7 +245,7 @@ GAPS += [
     ("du22-rage.wav", f"{DU22}/misc/rage/publish/rage.wav", "DUCTF{RAGINGTOWEIRDLIBIDO}"),  # audio stego non coperto (da investigare)
     ("du25-fishy-capture.pcapng", f"{DU25}/misc/fishy_website/publish/capture.pcapng", "DUCTF{1_gu355_y0u_c4n_d3cRyPT_TLS_tr4ff1c}"),  # TLS da decifrare: la chiave non e' nel pcap
     ("du25-scrapbooking-warped.png", f"{DU25}/misc/scrapbooking/publish/warped.png", "DUCTF{kn1tting_with_pngs}"),  # PNG 'knitting': immagine da ricomporre (righe/colonne mescolate)
-    ("du25-yo-dawg.zip", f"{DU25}/misc/yodawg/publish/yo-dawg.zip", "DUCTF{1995_to_2025}"),  # .NET assembly: la flag sta in una risorsa compressa
+    ("du25-yo-dawg.zip", f"{DU25}/misc/yodawg/publish/yo-dawg.zip", "DUCTF{1995_to_2025}"),  # .NET: dotnet estrae le 5 managed resources (Form*.resources, Resources.resources) ma la flag non e' in chiaro (DES del gioco, solve/WRITEUP.md): resta GAP
     ("ut24-keyboard.pcapng", f"{UT24}/forensics-keyboard/keyboard.pcapng", "utflag{learning_stenography_on_a_qwerty_keyboard_is_quite_difficult}"),  # stenografia: ogni report e' un accordo di tasti (layout steno)
 ]
 

@@ -12,7 +12,7 @@ from .analyzers.util import ARCHIVE_EXT
 DEFAULT_PLAN = [
     "file", "exiftool", "identify", "ffprobe", "pdfinfo",
     "strings", "markup-text", "hexyl", "xxd", "pdf", "pdftotext", "pdfid", "pdf-images", "pdf-attachments",
-    "elf", "readelf", "objdump",
+    "elf", "dotnet", "readelf", "objdump",
     "binwalk-scan",
     "decode", "cryptojs", "chef", "blobs", "zero-width", "whitespace", "case-bits", "homoglyph", "hashes", "morse-text",
     "ocr", "qr",

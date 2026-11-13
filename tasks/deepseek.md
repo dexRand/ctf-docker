@@ -117,7 +117,7 @@ sotto "Review" in fondo a questo file. Controlla, nell'ordine:
 | 1 viste whiteness/blackness | da fare | | |
 | 2 pixel grigi → file | da fare | | |
 | 3 Office parti | parziale: estrazione XML + gating OOXML/ODF/EPUB + CDATA/commenti + tetti; `doxme` resta GAP (flag nelle due immagini, non in XML) | (questo commit) | unit **460 passed** · `lint clean` · doxme **FAIL** (`got=[]`, 40,5 s) · extra **57/57** (12581,7 s) |
-| 4 .NET risorse | da fare | | |
+| 4 .NET risorse | parziale: nuovo `dotnet` (gating MZ/PE/CLI, managed resources → figli, cap 100/50 MB, `dnfile==0.15.1`); `du25-yo-dawg` resta GAP (flag DES del gioco, non in chiaro) | (questo commit) | unit **468 passed** · `lint clean` · yo-dawg **FAIL** (`status=done`, `got=[]`, 42,5 s) · extra **57/57** (13535,0 s) |
 | 5 Piet | da fare | | |
 | issue #24 QR de-masking (fuori batch) | fatto | (questo commit) | unit 447 · lint clean · caso masked PASS · extra 56/56 · fixture 33/33 · fast reali 11/11 |
 
@@ -133,6 +133,21 @@ lascia intatti i moduli funzionali e prova le 8 maschere standard + il loro XOR
 (niente per ora)
 
 ## Bloccato (batch 3)
+
+### Task 4 — `du25-yo-dawg.zip` resta GAP dopo l'estrazione delle resources
+
+`dnfile 0.15.1` basta: l'analyzer `dotnet` legge le 5 `ManifestResource` embedded
+(`Yo_Dawg.Form1/2/3/4.resources` e `Yo_Dawg.Resources.resources`, 2 306 025 B
+l'ultima) e le scrive come figli (cap 100 risorse / 50 MB, file esterni ignorati).
+L'analisi e2e chiude `status=done` ma `got=[]`: nella risorsa grande c'è il solo
+entry `flag` di tipo `System.Drawing.Bitmap`, un koala 1024×1024 (PNG dentro il
+`ResourceSet`, `zsteg -a` non trova testo né un file LSB). Il `#US` heap del DLL
+contiene `DUCTF{` e frammenti (`_never`, `_oldschool`, `_shoutout`, …) più chiavi
+e blob cifrati, ma non la flag intera: il sorgente ufficiale
+(`misc/yodawg/solve/WRITEUP.md`) dice che la flag è il risultato DES delle
+risposte del gioco ("half of the flags visible and half AES encrypted").
+Il caso resta in `GAPS` con il commento aggiornato; chiuderlo richiederebbe un
+interprete del gioco/DES, fuori dal perimetro dell'analyzer.
 
 ### Task 3 — `du22-doxme` non chiudibile con la sola estrazione XML
 

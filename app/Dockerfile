@@ -62,9 +62,11 @@ RUN mkdir -p /opt/wordlists \
     fi
 
 COPY app/backend/requirements.txt /opt/stegsuite/requirements.txt
+# dnfile: .NET/CLR managed resources (analyzers/dotnet.py, issue #16), pinned
 RUN python3 -m venv /opt/stegsuite/venv \
  && /opt/stegsuite/venv/bin/pip install --no-cache-dir -U pip \
- && /opt/stegsuite/venv/bin/pip install --no-cache-dir -r /opt/stegsuite/requirements.txt
+ && /opt/stegsuite/venv/bin/pip install --no-cache-dir -r /opt/stegsuite/requirements.txt \
+ && /opt/stegsuite/venv/bin/pip install --no-cache-dir "dnfile==0.15.1"
 
 COPY app/backend/ /opt/stegsuite/backend/
 COPY third_party/ /opt/third_party/
