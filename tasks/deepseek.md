@@ -116,7 +116,7 @@ sotto "Review" in fondo a questo file. Controlla, nell'ordine:
 |---|---|---|---|
 | 1 viste whiteness/blackness | da fare | | |
 | 2 pixel grigi → file | da fare | | |
-| 3 Office parti | da fare | | |
+| 3 Office parti | parziale: estrazione XML + gating OOXML/ODF/EPUB + CDATA/commenti + tetti; `doxme` resta GAP (flag nelle due immagini, non in XML) | (questo commit) | unit **460 passed** · `lint clean` · doxme **FAIL** (`got=[]`, 40,5 s) · extra **57/57** (12581,7 s) |
 | 4 .NET risorse | da fare | | |
 | 5 Piet | da fare | | |
 | issue #24 QR de-masking (fuori batch) | fatto | (questo commit) | unit 447 · lint clean · caso masked PASS · extra 56/56 · fixture 33/33 · fast reali 11/11 |
@@ -134,7 +134,32 @@ lascia intatti i moduli funzionali e prova le 8 maschere standard + il loro XOR
 
 ## Bloccato (batch 3)
 
-(niente per ora)
+### Task 3 — `du22-doxme` non chiudibile con la sola estrazione XML
+
+Il file distribuito (`publish/doxme`, 19 763 B, zip senza estensione) **non ha**
+header/footer/note/commenti/`customXml`: le sue uniche parti XML sono
+`[Content_Types].xml`, `_rels/.rels`, `docProps/app.xml`, `docProps/core.xml`,
+`word/document.xml`, `word/fontTable.xml`, `word/settings.xml`, `word/styles.xml`,
+`word/theme/theme1.xml`, `word/webSettings.xml`, `word/_rels/document.xml.rels`.
+Nessuna contiene un frammento della flag: `grep -ra "DUCTF\|WOrd\|D0Cs\|R34L1Y\|W3ird"`
+sull'intero pacchetto non restituisce nulla. La flag è **disegnata** in due media:
+`word/media/image1.png` = `DUCTF{WOrd_D0Cs_Ar` e `word/media/image2.png` =
+`3_R34L1Y_W3ird}`. L'analyzer `office` ora gira davvero su `doxme` (13 parti
+estratte, output con il testo di `docProps/*`), ma nessun output per-immagine può
+contenere la flag intera: `ocr` su `image1` dà solo la prima metà e su `image2`
+solo la seconda, e il flag hunt non unisce output di nodi diversi. Una prova di
+montaggio verticale delle due PNG + `ocr_image` produce esattamente
+`DUCTF{WOrd_D0Cs_Ar3_R34L1Y_W3ird}` (`== OCR lines joined ==`), ma è gestione
+dei media fuori dal perimetro di questo task (richiede OCR dentro `office` o un
+figlio montaggio, con una sola chiamata OCR per immagine e senza duplicare
+quella del figlio `ocr`). Il caso resta in `GAPS`.
+
+Dopo la review ARBITER il gate è stato corretto: un pacchetto è Office/Office-like
+se ha `[Content_Types].xml` **oppure** `mimetype` + almeno uno tra
+`META-INF/manifest.xml`, `META-INF/container.xml`, `content.xml` (ODF/EPUB non
+hanno `[Content_Types].xml`), con `z.getinfo()` e non `set(z.namelist())`. I text
+node includono anche `CDATA` e i commenti XML. Test aggiunti: ODT con base64 in
+`content.xml`, EPUB, docx/odt senza estensione end-to-end, CDATA/commenti.
 
 ## Review (deepseek pro)
 

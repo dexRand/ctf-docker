@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import html
 import re
 import shutil
 import zipfile
@@ -165,14 +166,62 @@ OFFICE_EXT = (".pptm", ".pptx", ".potm", ".ppsx", ".docm", ".docx", ".dotm",
               ".xlsm", ".xlsx", ".xltm", ".odt", ".ods", ".odp", ".odg", ".epub")
 _B64_JOINED = re.compile(rb"[A-Za-z0-9+/]{16,}={0,2}")
 _MAX_PART = 8_000_000
-_MAX_PARTS = 300
+_MAX_PARTS = 200
+_MAX_TOTAL = 20_000_000
+# Only text nodes/comments of XML parts: Word keeps a flag in header/footer,
+# footnotes, comments, docProps or customXml, not only in document.xml.
+# CDATA is literal XML text; HTMLParser drops it, so it gets its own branch.
+_TEXT_NODE = re.compile(r"<!\[CDATA\[(.*?)\]\]>|>([^<]*)(?=<)", re.S)
+_XML_COMMENT = re.compile(r"<!--(.*?)-->", re.S)
+_WS = re.compile(r"\s+")
+
+
+def _xml_part_text(data: bytes) -> tuple[str, list[str]]:
+    """(text nodes joined with spaces, comments) of an XML part."""
+    raw = data.decode("utf-8", "replace")
+    nodes: list[str] = []
+    for m in _TEXT_NODE.finditer(raw):
+        # group(1) is CDATA (literal); group(2) is ordinary text (entities decoded)
+        value = m.group(1) if m.group(1) is not None else html.unescape(m.group(2))
+        value = value.strip()
+        if value:
+            nodes.append(value)
+    text = _WS.sub(" ", " ".join(nodes)).strip()
+    comments = [_WS.sub(" ", html.unescape(c)).strip() for c in _XML_COMMENT.findall(raw)]
+    return text, [c for c in comments if c]
+
+
+def _has_part(z: zipfile.ZipFile, name: str) -> bool:
+    try:
+        z.getinfo(name)
+    except KeyError:
+        return False
+    return True
+
+
+def _is_office_package(z: zipfile.ZipFile) -> bool:
+    """OOXML (`[Content_Types].xml`) or ODF/EPUB (mimetype + manifest/content)."""
+    if _has_part(z, "[Content_Types].xml"):
+        return True
+    if not _has_part(z, "mimetype"):
+        return False
+    return any(_has_part(z, marker) for marker in
+               ("META-INF/manifest.xml", "META-INF/container.xml", "content.xml"))
+
+
+def _looks_xml(name: str, data: bytes) -> bool:
+    low = name.lower()
+    if low.endswith((".xml", ".rels", ".vml")):
+        return True
+    head = data[:64].lstrip(b"\xef\xbb\xbf \t\r\n")
+    return head.startswith(b"<?xml") or head.startswith(b"<")
 
 
 class OfficeAnalyzer(Analyzer):
     name = "office"
     category = "extract"
-    description = "Unzip Office/OpenDocument parts and decode whitespace-split base64."
-    accepts = OFFICE_EXT
+    description = "Unzip Office/OpenDocument parts: text from every XML part + whitespace-split base64."
+    accepts = OFFICE_EXT + ("application/zip",)
     display_order = 218
 
     def run(self, ctx: ToolContext) -> ToolResult:
@@ -181,25 +230,50 @@ class OfficeAnalyzer(Analyzer):
         outdir = ctx.sub(self.name)
         extracted: list[Path] = []
         hits: list[str] = []
+        lines: list[str] = []
         try:
             with zipfile.ZipFile(ctx.input) as z:
-                for info in z.infolist()[: _MAX_PARTS * 4]:
-                    if info.is_dir() or info.file_size == 0 or info.file_size > _MAX_PART:
+                # `doxme` is a docx with no extension: only the package markers
+                # tell an Office/ODF/EPUB container from a generic zip (7z).
+                if not _is_office_package(z):
+                    return ToolResult(
+                        self.name, status="skipped",
+                        summary="not an Office/OpenDocument container",
+                    )
+                total = 0
+                for info in z.infolist():
+                    if info.is_dir() or info.file_size == 0 or info.flag_bits & 0x1:
                         continue
                     if ".." in info.filename or info.filename.startswith("/"):
                         continue
                     if len(extracted) >= _MAX_PARTS:
-                        break
+                        break                  # part cap
+                    if info.file_size > _MAX_PART:
+                        continue               # single entry too big: never read it
+                    remaining = _MAX_TOTAL - total
+                    if remaining <= 0:
+                        break                  # decompressed-bytes budget spent
+                    limit = min(_MAX_PART, remaining)
+                    if info.file_size > limit:
+                        break                  # this entry would blow the budget
+                    try:
+                        with z.open(info) as fh:
+                            data = fh.read(limit + 1)   # never an unbounded read
+                    except (OSError, zipfile.BadZipFile, RuntimeError):
+                        continue
+                    if len(data) > limit:
+                        continue               # header lied (zip bomb): discard
+                    total += len(data)
                     dest = outdir / info.filename
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     try:
-                        dest.write_bytes(z.read(info))
-                    except (OSError, zipfile.BadZipFile):
+                        dest.write_bytes(data)
+                    except OSError:
                         continue
                     extracted.append(dest)
-                    text = dest.read_bytes().decode("latin-1", "replace")
+                    text = data.decode("latin-1", "replace")
                     # collapse whitespace so "Z m x h Z z" becomes one base64 token
-                    joined = re.sub(r"\s+", "", text).encode("latin-1", "replace")
+                    joined = _WS.sub("", text).encode("latin-1", "replace")
                     for m in _B64_JOINED.finditer(joined):
                         tok = m.group(0) + b"=" * ((4 - len(m.group(0)) % 4) % 4)
                         try:
@@ -208,14 +282,22 @@ class OfficeAnalyzer(Analyzer):
                             continue
                         if b"{" in dec and all(32 <= c < 127 or c in (9, 10, 13) for c in dec):
                             hits.append(f"{info.filename}: {dec.decode('latin-1', 'replace')[:200]}")
+                    if _looks_xml(info.filename, data):
+                        xml_text, comments = _xml_part_text(data)
+                        if xml_text:
+                            lines.append(f"[{info.filename}] {xml_text}")
+                        lines.extend(f"[{info.filename} comment] {c}" for c in comments)
         except (OSError, zipfile.BadZipFile) as exc:
             return ToolResult(self.name, status="error", summary=f"cannot read: {exc}")
         summary = f"{len(extracted)} part(s)"
         if hits:
             summary += f", {len(hits)} base64"
+        output = "\n".join(dict.fromkeys(lines))
+        if hits:
+            output = "\n".join([output, *hits]) if output else "\n".join(hits)
         return ToolResult(
             self.name, status="done", summary=summary,
-            output="\n".join(dict.fromkeys(hits))[:20000],
+            output=output[:200_000],
             extracted=[str(f) for f in extracted], artifacts=_arts(extracted, ctx.workdir),
         )
 
