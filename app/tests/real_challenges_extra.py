@@ -232,7 +232,6 @@ EXTRA += [
 GAPS += [
     ("tj25-albumcover.png", f"{TJ25}/forensics/album-cover/albumcover.png", "tjctf{THIS-EASTER-EGG-IS-PRETTY-COOL}"),  # payload audio/immagine prodotto da enc.py: non riconosciuto
     ("tj25-pietty-runme.png", f"{TJ25}/forensics/thats-pietty-cool/chall/runme.png", "tjctf{p1et_pr1nt3r}"),  # Piet esolang: serve un interprete
-    ("tj25-masked-qrcode.png", f"{TJ25}/misc/masked/qrcode.png", "tjctf{n0tc4tchingc0vid}"),  # QR mascherato/parziale: zbar non lo legge
     ("ic25-nightcore.mp3", f"{IC25}/Forensics/nightcore/challenge/nightcore.mp3", "ictf{12345678}"),  # ENF (frequenza di rete) nel rumore: demodulazione dedicata
     ("ic25-obfuscated-Users.zip", f"{IC25}/Forensics/obfuscated-1/dist/Users.zip", "ictf{Slay4U!!}"),  # profilo Windows: winreg legge la hive NTUSER.DAT (2131 chiavi, 4214 valori: Environment, RecentDocs, RunMRU, TypedPaths, UserAssist) ma il flag non e' li'; 455s, 401 nodi (MAX_NODES=400)
     ("ic25-thrift-capture.pcap", f"{IC25}/Forensics/thrift-store/dist/capture.pcap", "ictf{l1k3_gRPC_bUt_l3ss_g0ogly}"),  # protocollo Apache Thrift: serve un decode binario
@@ -295,4 +294,10 @@ GAPS += [
 EXTRA += [
     ("endianness.bin", f"{P25B}/endianness-v2/challengefile",
      "picoCTF{cert!f1Ed_iNd!4n_s0rrY_3nDian_76e05f49}"),
+]
+
+# --- 12/11: QR de-masking (qr.py): i moduli dati XOR-ati con lo XOR delle 8
+# maschere standard QR ("all the masks") vengono ripristinati e letti da zbarimg.
+EXTRA += [
+    ("tj25-masked-qrcode.png", f"{TJ25}/misc/masked/qrcode.png", "tjctf{n0tc4tchingc0vid}"),
 ]
