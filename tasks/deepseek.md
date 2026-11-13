@@ -119,6 +119,14 @@ sotto "Review" in fondo a questo file. Controlla, nell'ordine:
 | 3 Office parti | da fare | | |
 | 4 .NET risorse | da fare | | |
 | 5 Piet | da fare | | |
+| issue #24 QR de-masking (fuori batch) | fatto | (questo commit) | unit 447 · lint clean · caso masked PASS · extra 56/56 · fixture 33/33 · fast reali 11/11 |
+
+Nota issue #24: `./ctf test --fast` ha chiuso 32/33 per il timeout flaky di
+`steghide` (status=running a 300 s, OCR su un JPEG di rumore), non per il QR;
+la stessa suite fixture rilanciata da sola finisce 33/33 e `real_challenges.py
+--fast` è 11/11. Dettaglio: `qr.py` rileva i 3 finder, campiona la griglia,
+lascia intatti i moduli funzionali e prova le 8 maschere standard + il loro XOR
+(9 immagini max), con tetti su byte/pixel e deadline di 120 s.
 
 ## Proposte
 
