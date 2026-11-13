@@ -118,7 +118,7 @@ sotto "Review" in fondo a questo file. Controlla, nell'ordine:
 | 2 pixel grigi → file | da fare | | |
 | 3 Office parti | parziale: estrazione XML + gating OOXML/ODF/EPUB + CDATA/commenti + tetti; `doxme` resta GAP (flag nelle due immagini, non in XML) | (questo commit) | unit **460 passed** · `lint clean` · doxme **FAIL** (`got=[]`, 40,5 s) · extra **57/57** (12581,7 s) |
 | 4 .NET risorse | parziale: nuovo `dotnet` (gating MZ/PE/CLI, managed resources → figli, cap 100/50 MB, `dnfile==0.15.1`); `du25-yo-dawg` resta GAP (flag DES del gioco, non in chiaro) | (questo commit) | unit **468 passed** · `lint clean` · yo-dawg **FAIL** (`status=done`, `got=[]`, 42,5 s) · extra **57/57** (13535,0 s) |
-| 5 Piet | da fare | | |
+| 5 Piet | **bloccato**: `npiet` non è in apt (Debian 13 trixie) e `runme.png` non è un Piet diretto (55 248 colori; programma nascosto con campionamento 15×100 + crop 124×11) | — (solo docs) | nessun codice: `apt-get install -s npiet` → `E: Unable to locate package npiet` |
 | issue #24 QR de-masking (fuori batch) | fatto | (questo commit) | unit 447 · lint clean · caso masked PASS · extra 56/56 · fixture 33/33 · fast reali 11/11 |
 
 Nota issue #24: `./ctf test --fast` ha chiuso 32/33 per il timeout flaky di
@@ -133,6 +133,40 @@ lascia intatti i moduli funzionali e prova le 8 maschere standard + il loro XOR
 (niente per ora)
 
 ## Bloccato (batch 3)
+
+### Task 5 — Piet (`tj25-pietty-runme.png`) bloccato: niente `npiet` in apt e immagine non diretta
+
+Due motivi indipendenti, entrambi bloccanti secondo il task; nessuno dei due è
+stato aggirato con regole su misura.
+
+1. **`npiet` non esiste nella distro dell'immagine.** La base è Debian 13
+   (trixie): `apt-get update` va a buon fine, poi `apt-cache policy npiet` non
+   restituisce nulla e `apt-get install -s npiet` risponde
+   `E: Unable to locate package npiet`. Anche `packages.debian.org` (tutti i
+   suite, tutte le sezioni) dà "Sorry, your search gave no results"; su PyPI
+   `https://pypi.org/pypi/npiet/json` è 404. Le regole del repo ammettono tool
+   nuovi solo da apt o pip con versione fissata, quindi non c'è un modo
+   ammesso di aggiungerlo.
+2. **Il file distribuito non è un programma Piet diretto.** `chall/runme.png`
+   (1 998 446 B, 1964×2085, RGB) ha **55 248 colori** e il gcd delle run
+   orizzontali e verticali è **1**: è una foto con rumore JPEG, non blocchi di
+   codel. Il gating richiesto (≤ 20 colori) lo scarta subito, quindi `npiet`
+   non lo vedrebbe mai. Il programma Piet vero è **nascosto**: il `recover.py`
+   ufficiale della challenge campiona `composite_pixels[i*15, j*100]` e poi
+   taglia `(0, 0, 124, 11)`; il ritaglio ha esattamente i 20 colori della
+   palette Piet (verificato in container). Sarebbe una regola su misura per
+   questa challenge (passo 15×100 + crop 124×11), vietata dal task.
+
+Per questo non sono stati scritti né `app/backend/analyzers/piet.py` né
+`app/tests/test_piet.py`: senza `npiet` il test potrebbe solo mockare
+`ctx.run` e nessuna esecuzione reale sarebbe verificabile. Il caso
+`tj25-pietty-runme.png` resta in `GAPS`.
+
+Per sbloccarlo serve una decisione a monte: (a) fornire `npiet` in modo
+ammesso (binario upstream pinnato come `stegseek`, oppure un pacchetto
+apt/pip), e (b) una regola **generica** per i Piet "ridimensionati con
+ripetizione" (riconoscere il passo di ripetizione dai blocchi, non 15×100),
+da concordare perché oggi sarebbe codice su misura.
 
 ### Task 4 — `du25-yo-dawg.zip` resta GAP dopo l'estrazione delle resources
 
