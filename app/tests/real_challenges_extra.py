@@ -240,7 +240,7 @@ GAPS += [
     ("bk24-the_cia.pdf", f"{BK24}/forensics/the_cia/protected-cia-document.pdf", "bctf{U_c4N_d0_TH1s_On_w0rd_docs_T0O}"),  # PDF cifrato: pdfcrack+rockyou non lo apre (il lock ora viene segnalato)
     ("bk24-wreck-dump", f"{BK24}/forensics/wreck/dump", "bctf{D4MN_7h47_c0r3_dvmp_907_4_GY477}"),  # core dump 37 MB: il flag non e' in chiaro (analisi heap/GDB)
     ("bk23-weather.wav", f"{BK23}/misc-weather/dist/weather.wav", "bctf{0mg_i_10v3_FSK_i75_my_f4v0ri73_m0du147i0n}"),  # FSK (meteo): demodulatore FSK dedicato
-    ("du22-doxme", f"{DU22}/dfir/doxme/publish/doxme", "DUCTF{WOrd_D0Cs_Ar3_R34L1Y_W3ird}"),  # docx senza estensione: il flag non e' in document.xml (header/footer/media)
+    ("du22-doxme", f"{DU22}/dfir/doxme/publish/doxme", "DUCTF{WOrd_D0Cs_Ar3_R34L1Y_W3ird}"),  # docx senza estensione: la flag e' in due PNG word/media (image1=prefisso, image2=suffisso); serve OCR+join tra nodi, l'office non la ricompone
     ("du22-mate.aussie", f"{DU22}/misc/land_down_under/publish/mate.aussie", "DUCTF{ƐƖSSn∀_ɹ_n_sƖɥʇ_D∀Ɛɹ_NㄣƆ_∩0⅄_ℲI}"),  # esolang 'aussie' con flag capovolta: serve un interprete
     ("du22-rage.wav", f"{DU22}/misc/rage/publish/rage.wav", "DUCTF{RAGINGTOWEIRDLIBIDO}"),  # audio stego non coperto (da investigare)
     ("du25-fishy-capture.pcapng", f"{DU25}/misc/fishy_website/publish/capture.pcapng", "DUCTF{1_gu355_y0u_c4n_d3cRyPT_TLS_tr4ff1c}"),  # TLS da decifrare: la chiave non e' nel pcap
