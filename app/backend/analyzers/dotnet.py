@@ -19,7 +19,7 @@ from .. import storage
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
 
-try:                                   # pinned in app/backend/requirements.txt
+try:                                   # pinned in app/Dockerfile
     import dnfile
 except ImportError:                    # pragma: no cover - the image ships it
     dnfile = None
