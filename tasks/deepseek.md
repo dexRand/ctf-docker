@@ -343,3 +343,48 @@ degli interi di `pay`, dump delle stringhe. Non risolto in 1h: serve capire dove
 sta il dato (probabile: totali di `pay` che codificano ASCII, oppure field id).
 Prossimo passo: scrivere un parser che segua la mappa dei tipi sopra e stampare
 tutti i campi, `pay` compreso.
+
+---
+
+# Sessione 13/11 (MONOLITH-00 + ASU-001 + ARBITER) — issue #23/#24/#25
+
+## #24 QR mascherato — **CHIUSA** (commit `7c27ddc` + `1c963c8`)
+
+Il "mask" della challenge `tj25-masked-qrcode.png` NON è un mask standard: è lo
+**XOR di tutte e 8 le maschere standard QR** applicato ai soli moduli dati
+(`enc.py` = `mask0 ^ … ^ mask7`, "I put all the masks on him"). Finder/timing/
+alignment/format restano intatti. Soluzione generica in `qr.py`: quando zbar
+fallisce ma ci sono 3 finder, campiona la griglia, identifica le regioni
+funzionali per versione, ri-XORa i moduli dati con le 8 maschere + lo XOR di
+tutte, ri-renderizza e riprova zbar (max 9 chiamate, deadline 120 s).
+
+- unit **447 passed** · `lint clean` · `--gaps -k masked` **PASS** (22.3 s) ·
+  extra **56/56** · fixture **33/33** · fast **11/11**.
+- Caso spostato da `GAPS` a `EXTRA`. Niente nuove dipendenze.
+
+## #23 Thrift — **NON chiudibile offline** (verificato dal sorgente)
+
+Scaricato il sorgente ufficiale della challenge
+(`ImaginaryCTF-2025-Challenges/.../thrift-store/challenge/handler.go`): la flag
+**`ictf{l1k3_gRPC_bUt_l3ss_g0ogly}` è hardcoded nel server** e viene restituita
+da `Pay` solo se il basket contiene l'item `flag` (prezzo 9999) e il totale
+corrisponde. Nel pcap ci sono solo `getInventory`/`createBasket`/`addToBasket`/
+`getBasket`/`pay` (l'inventory elenca l'item `flag` ma mai il suo valore). Quindi
+**la flag non transita mai sul filo**: nessun decoder offline la può estrarre.
+Conferma la nota "serve il server". Nota: i type code del pcap (`0x0a`=I64,
+`0x0b`=STRING, `0x0c`=STRUCT, `0x0f`=LIST) sono in realtà i type code standard del
+Thrift binary protocol (la sessione 06/11 li riteneva non standard). Un analyzer
+`thrift` generico (dump di metodi/campi) sarebbe utile ma non farebbe emergere la
+flag → non chiude l'issue.
+
+## #25 SSTV m00nwalk — **resta GAP** (limite OCR, verificato)
+
+Il frame Scottie S1 320×256 viene decodificato correttamente (clock 1.002, 256
+righe). Il testo della flag è **corsivo/graffiti scritto a mano** su uno sticker
+giallo, ~10 px di altezza, ruotato di 180°. Provati in container: crop + soglia,
+maschera giallo+scuro, upscale 6×, soglia adattativa, psm 6/7 — tesseract produce
+solo frammenti (`cTFibeer-`, `boop-`, `beop-Perk`) e nessun token leggibile.
+È lo stesso limite già documentato nell'issue ("flag leggibile solo a occhio"):
+nessuna trasformazione generica affidabile. Il caso resta in `GAPS` per
+costruzione; per chiuderlo servirebbe un OCR per corsivo (fuori portata) o
+hardcodare la flag (vietato).
