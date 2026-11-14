@@ -36,7 +36,7 @@ def repair_bmp(data: bytes, log: list[str]) -> bytes | None:
     offset = u32(10)
     dib = u32(14)
     width = u32(18)
-    height = u32(22)
+    height = struct.unpack_from("<i", data, 22)[0]   # signed: negative = top-down
     bpp = struct.unpack_from("<H", data, 28)[0]
 
     standard = (54 <= offset <= file_size) and dib in _DIB_SIZES
@@ -51,9 +51,9 @@ def repair_bmp(data: bytes, log: list[str]) -> bytes | None:
     fitted = available // row
     if fitted <= 0:
         return None
-    if fitted != height:
+    if fitted != abs(height):
         log.append(f"height {height} -> {fitted} ({available} bytes, {row} B/row)")
-        height = fitted
+        height = fitted if height >= 0 else -fitted     # keep a top-down orientation
 
     out = bytearray(data)
     out[10:14] = offset.to_bytes(4, "little")

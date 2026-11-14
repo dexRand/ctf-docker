@@ -115,11 +115,19 @@ sotto "Review" in fondo a questo file. Controlla, nell'ordine:
 | Task | Stato | Commit | Verifica (unit · lint · fast prima/dopo · caso reale) |
 |---|---|---|---|
 | 1 viste whiteness/blackness | da fare | | |
-| 2 pixel grigi → file | da fare | | |
+| 2 pixel grigi → file | fatto: `pixel-bytes` legge un canale dei pixel grigi quando la riga 0 parte con una firma forte (≥4 B, senza BM/MZ/gzip) e taglia al primo pixel non grigio; `repair_bmp` legge l'altezza con `<i` (top-down conservato); `elves.bmp` resta GAP (ELF rovinato da JPEG) | (questo commit) | unit **477 passed** · `lint clean` · elves **FAIL** (`got=[]`, 137,2 s; il figlio `.elf` da 36 576 B viene estratto ma `/lib64/ld-linux` è `.jib74/jd/jinux`) · extra **57/57** (12879,9 s) |
 | 3 Office parti | parziale: estrazione XML + gating OOXML/ODF/EPUB + CDATA/commenti + tetti; `doxme` resta GAP (flag nelle due immagini, non in XML) | (questo commit) | unit **460 passed** · `lint clean` · doxme **FAIL** (`got=[]`, 40,5 s) · extra **57/57** (12581,7 s) |
 | 4 .NET risorse | parziale: nuovo `dotnet` (gating MZ/PE/CLI, managed resources → figli, cap 100/50 MB, `dnfile==0.15.1`); `du25-yo-dawg` resta GAP (flag DES del gioco, non in chiaro) | (questo commit) | unit **468 passed** · `lint clean` · yo-dawg **FAIL** (`status=done`, `got=[]`, 42,5 s) · extra **57/57** (13535,0 s) |
 | 5 Piet | **bloccato**: `npiet` non è in apt (Debian 13 trixie) e `runme.png` non è un Piet diretto (55 248 colori; programma nascosto con campionamento 15×100 + crop 124×11) | — (solo docs) | nessun codice: `apt-get install -s npiet` → `E: Unable to locate package npiet` |
 | issue #24 QR de-masking (fuori batch) | fatto | (questo commit) | unit 447 · lint clean · caso masked PASS · extra 56/56 · fixture 33/33 · fast reali 11/11 |
+
+Nota task 2: `./ctf test --fast -j 3` si ferma a fixture **32/33** per il flaky
+noto di `steghide` (`status=running` a 300 s, progetto con `ocr` 461,1 s,
+`image-enhance` 357,7 s, `bit-planes` 188,6 s; `pixel-bytes` **skipped 0,0 s**,
+quindi non è il task). `real_challenges.py --fast` non è stato concluso: DNS/rete
+intermittenti (`download error ... Temporary failure in name resolution`,
+`Network is unreachable`) → 5/11. La verifica richiesta dal task (`--extra`) è
+57/57.
 
 Nota issue #24: `./ctf test --fast` ha chiuso 32/33 per il timeout flaky di
 `steghide` (status=running a 300 s, OCR su un JPEG di rumore), non per il QR;

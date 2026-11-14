@@ -110,7 +110,7 @@ GAPS = [
     ("sleepy.mp3", f"{IC24}/Sleepy Alarm/togive/morning_n_breakfast.mp3",
      "ictf{1_sl33py_NaYuKi_alarm_2a634dc1bb2}"),                                        # ASK demod
     ("elves.bmp", f"{IC24}/elf in front of a sunset/togive/elves.bmp",
-     "ictf{elf_waifus_best_waifus_2h12lntka}"),                                         # BMP height + ELF
+     "ictf{elf_waifus_best_waifus_2h12lntka}"),   # BMP height + gray rows: the ELF is extracted (pixel-bytes, .elf child) but its bytes are JPEG-damaged ("/lib64/ld-linux" -> ".jib74/jd/jinux"), so no readable flag
     ("warning.wav", f"{UI23}/misc/tornado_warning/warning.wav",
      "uiuctf{3rd_w0rst_tor_outbre@k_ev3r}"),                                            # SAME x3 with deliberate errors (raw demod)
 ]

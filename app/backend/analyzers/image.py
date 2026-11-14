@@ -7,6 +7,7 @@ from pathlib import Path
 from .base import Analyzer, ToolContext, ToolResult
 from .registry import register
 from .util import IMG_EXT, magic_ext, load_image
+from ..magic import MAGICS
 
 MAX_PIXELS = 4_000_000  # larger images: skip the heavy plane generation
 
@@ -189,6 +190,39 @@ def _pixel_bytes(img) -> bytes:
     return img.tobytes()
 
 
+_GRAY_PROBE = 64            # pixels of row 0 checked before reading the payload
+_GRAY_MAX = 4 << 20          # bytes of one channel kept (bounded by MAX_PIXELS)
+_GRAY_SKIP_EXT = {".bmp", ".exe", ".gz"}   # short/misleading signatures
+
+
+def _gray_run(raw: bytes, channels: int, limit: int) -> bytes:
+    """One channel of the gray pixels at the start of `raw` (R=G=B), stopping at
+    the first non-gray pixel or after `limit` bytes."""
+    out = bytearray()
+    for i in range(0, len(raw), channels):
+        px = raw[i:i + channels]
+        if len(px) < channels or px[0] != px[1] or px[1] != px[2]:
+            break
+        out.append(px[0])
+        if len(out) >= limit:
+            break
+    return bytes(out)
+
+
+def _gray_payload(raw: bytes, channels: int) -> tuple[bytes, str]:
+    """A whole file drawn as gray pixels (one byte per pixel) at the start of
+    `raw`, as (bytes, extension), else (b"", ""). Only a strong (>=4 byte)
+    magic counts: short ones ("BM", "MZ", gzip) match a gray gradient by chance."""
+    if channels < 3:
+        return b"", ""
+    head = _gray_run(raw[:channels * _GRAY_PROBE], channels, _GRAY_PROBE)
+    ext = next((e for sig, e in MAGICS
+                if len(sig) >= 4 and e not in _GRAY_SKIP_EXT and head.startswith(sig)), "")
+    if not ext:
+        return b"", ""
+    return _gray_run(raw, channels, _GRAY_MAX), ext
+
+
 def _as_image(raw: bytes):
     """The image Pillow finds in `raw` (fully decoded, not tiny), else None."""
     import io
@@ -218,6 +252,7 @@ class PixelBytesAnalyzer(Analyzer):
             return err
         chain = [img.format or "?"]
         last_img, last_raw, file_ext = None, None, ""
+        gray = False
         cur = img
         for _ in range(_MAX_CHAIN):
             if cur.size[0] * cur.size[1] > MAX_PIXELS:
@@ -228,6 +263,10 @@ class PixelBytesAnalyzer(Analyzer):
                 file_ext = magic_ext(raw)          # pixels that are a zip/pdf/…
                 if file_ext:
                     last_raw = raw
+                elif cur.mode in ("RGB", "RGBA"):
+                    gray_raw, gray_ext = _gray_payload(raw, len(cur.mode))
+                    if gray_ext:
+                        last_raw, file_ext, gray = gray_raw, gray_ext, True
                 break
             chain.append(nxt.format or "?")
             last_img, last_raw, cur = nxt, raw, nxt
@@ -241,8 +280,10 @@ class PixelBytesAnalyzer(Analyzer):
             last_img.save(fn)
         else:
             fn.write_bytes(last_raw)
+        summary = (f"gray pixels -> {file_ext}" if gray else
+                   f"pixels -> {' -> '.join(chain[1:])}" + (f" -> {file_ext}" if file_ext else ""))
         return ToolResult(self.name, status="done",
-                          summary=f"pixels -> {' -> '.join(chain[1:])}" + (f" -> {file_ext}" if file_ext else ""),
+                          summary=summary,
                           output="chain: " + " -> ".join(chain) + (f" -> {file_ext} file" if file_ext else ""),
                           extracted=[str(fn)],
                           artifacts=[{"name": fn.name, "path": str(fn), "size": fn.stat().st_size}])
