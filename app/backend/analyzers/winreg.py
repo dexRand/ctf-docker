@@ -23,6 +23,48 @@ _INTERESTING = ("\\run", "runonce", "recentdocs", "typedpaths", "runmru",
                 "wordwheelquery", "userassist", "environment", "shellfolders",
                 "bagmru", "mapper\\scancode")
 
+# --- VNC passwords -----------------------------------------------------------
+# RealVNC, TightVNC and UltraVNC all obfuscate the stored password with the same
+# DES key; it is part of the protocol (not a value of any challenge).
+_VNC_KEY = bytes.fromhex("e84ad660c4721ae0")
+_VNC_VALUE_NAMES = ("password", "passwordviewonly", "controlpassword",
+                    "passwd", "passwd2")
+_MAX_VNC = 32                  # VNC entries printed
+
+
+def _vnc_blob(value) -> bytes | None:
+    """The 8-byte DES blob of a registry value (bytes, or regipy's hex string)."""
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value)
+    if isinstance(value, str):
+        try:
+            return bytes.fromhex(value.strip().strip('"'))
+        except ValueError:
+            return None
+    return None
+
+
+def vnc_plaintext(path: str, name: str, value) -> str | None:
+    """Decrypt a VNC password value; None when it is not one (or not text).
+
+    VNC stores one DES-ECB block: the ciphertext is decrypted with the fixed
+    protocol key and the zero padding of the 8-character password is stripped.
+    """
+    if "vnc" not in (path or "").lower():
+        return None
+    if (name or "").strip().lower() not in _VNC_VALUE_NAMES:
+        return None
+    raw = _vnc_blob(value)
+    if raw is None or len(raw) != 8:
+        return None
+    try:
+        from Cryptodome.Cipher import DES
+        plain = DES.new(_VNC_KEY, DES.MODE_ECB).decrypt(raw)  # nosec B304 - VNC protocol key, decrypt only
+    except Exception:                       # crypto lib missing / bad block
+        return None
+    text = plain.rstrip(b"\x00").decode("latin-1")
+    return text if text and all(32 <= ord(c) < 127 for c in text) else None
+
 
 def _binary_text(value: str) -> str:
     """REG_BINARY comes as hex: show the UTF-16LE/ASCII text inside, else a size."""
@@ -61,7 +103,7 @@ def _format_value(value) -> str:
 class WinregAnalyzer(Analyzer):
     name = "winreg"
     category = "windows"
-    description = "Windows registry hive: Run/RunOnce, RecentDocs, TypedPaths, RunMRU, UserAssist, Environment."
+    description = "Windows registry hive: VNC passwords, Run/RunOnce, RecentDocs, TypedPaths, RunMRU, UserAssist, Environment."
     # hives have no reliable extension (NTUSER.DAT, SOFTWARE, SYSTEM, ...): the
     # `regf` signature decides, so every file is offered to the analyzer
     accepts = ()
@@ -91,6 +133,7 @@ class WinregAnalyzer(Analyzer):
         started = time.monotonic()
         interesting: list[str] = []
         plain: list[str] = []
+        vnc: list[str] = []
         values = 0
         keys = 0
         truncated = False
@@ -107,10 +150,15 @@ class WinregAnalyzer(Analyzer):
                 lines: list[str] = []
                 for v in entry.values or []:
                     name = v.name or "(default)"
-                    if userassist:                       # UserAssist names are ROT13
-                        name = codecs.decode(name, "rot13")
-                    lines.append(f"  {name} = {_format_value(v.value)}")
                     values += 1
+                    secret = vnc_plaintext(path, name, v.value)
+                    if secret is not None:
+                        if len(vnc) < _MAX_VNC:
+                            vnc.append(f"{path}\n  {name} = {secret}")
+                    else:
+                        if userassist:                   # UserAssist names are ROT13
+                            name = codecs.decode(name, "rot13")
+                        lines.append(f"  {name} = {_format_value(v.value)}")
                     if values >= _MAX_VALUES:
                         truncated = True
                         break
@@ -126,12 +174,17 @@ class WinregAnalyzer(Analyzer):
                     break
         except Exception as exc:             # a corrupt subkey must not lose the rest
             ctx.log(f"stopped at {keys} keys: {type(exc).__name__}: {exc}")
-        if not interesting and not plain:
+        if not interesting and not plain and not vnc:
             return ToolResult(self.name, status="skipped", summary="no values")
-        head_text = "== interesting keys ==\n" + "\n".join(interesting)
+        sections = []
+        if vnc:
+            sections.append("== VNC passwords (fixed DES key) ==\n" + "\n".join(vnc))
+        sections.append("== interesting keys ==\n" + "\n".join(interesting))
         body = ("\n== all string values ==\n" + "\n".join(plain)) if plain else ""
-        text = (head_text + body)[:_MAX_OUT]
+        text = ("\n".join(sections) + body)[:_MAX_OUT]
         summary = f"{keys} keys, {values} value(s)"
+        if vnc:
+            summary += f", {len(vnc)} VNC password(s)"
         if truncated:
             summary += " (truncated)"
         return ToolResult(self.name, status="done", summary=summary, output=text)

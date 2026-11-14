@@ -234,7 +234,7 @@ GAPS += [
     ("tj25-albumcover.png", f"{TJ25}/forensics/album-cover/albumcover.png", "tjctf{THIS-EASTER-EGG-IS-PRETTY-COOL}"),  # payload audio/immagine prodotto da enc.py: non riconosciuto
     ("tj25-pietty-runme.png", f"{TJ25}/forensics/thats-pietty-cool/chall/runme.png", "tjctf{p1et_pr1nt3r}"),  # Piet nascosto: il programma e' nei pixel [i*15, j*100] + crop 124x11 (regola su misura); npiet non e' in apt/pip
     ("ic25-nightcore.mp3", f"{IC25}/Forensics/nightcore/challenge/nightcore.mp3", "ictf{12345678}"),  # ENF (frequenza di rete) nel rumore: demodulazione dedicata
-    ("ic25-obfuscated-Users.zip", f"{IC25}/Forensics/obfuscated-1/dist/Users.zip", "ictf{Slay4U!!}"),  # profilo Windows: winreg legge la hive NTUSER.DAT (2131 chiavi, 4214 valori: Environment, RecentDocs, RunMRU, TypedPaths, UserAssist) ma il flag non e' li'; 455s, 401 nodi (MAX_NODES=400)
+    ("ic25-obfuscated-Users.zip", f"{IC25}/Forensics/obfuscated-1/dist/Users.zip", "ictf{Slay4U!!}"),  # profilo Windows: winreg decifra la password VNC della hive NTUSER.DAT (`Software\TightVNC\Server\Password`, DES-ECB con la chiave fissa VNC) -> `Slay4U!!`; la flag attesa e' `ictf{password}` e manca il wrapping generico password->flag in flaghunt.py (vietato)
     ("ic25-thrift-capture.pcap", f"{IC25}/Forensics/thrift-store/dist/capture.pcap", "ictf{l1k3_gRPC_bUt_l3ss_g0ogly}"),  # protocollo Apache Thrift: serve un decode binario
     ("bk24-couch_potato.wav", f"{BK24}/forensics/couch_potato/dump1.wav", "bctf{1_11k3_5p4m_w17h_my_h4m}"),  # 22 MB: probabile SSTV/spettro su un canale non coperto
     ("bk24-hall-effect.pcapng", f"{BK24}/forensics/hall-effect/capture.pcapng", "bctf{Wh0s3_g0NNa_CarRY_Th3B0atS}"),  # protocollo/dato non emerso: da investigare

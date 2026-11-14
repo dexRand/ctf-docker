@@ -138,7 +138,12 @@ lascia intatti i moduli funzionali e prova le 8 maschere standard + il loro XOR
 
 ## Proposte
 
-(niente per ora)
+- **Wrapping generico password → flag** (`flaghunt.py`, vietato): quando un analyzer
+  emette una password (o `crackflow` salva un finding `kind="password"`), provare
+  anche la candidata `PREFISSO{password}` con il `flag_format` del CTF. Senza questa
+  regola `ic25-obfuscated-Users.zip` non può chiudersi anche se la password VNC è
+  decifrata (la flag attesa è `ictf{<password>}`).
+
 
 ## Bloccato (batch 3)
 
@@ -525,3 +530,54 @@ Fatto: analyzer, test, registrazione, caso reale PASS, spostato in `EXTRA`.
 Resta: il gate extra `-j 3` non è 58/58 per il timeout di
 `ictf23_forensics.zip` (preesistente, passa da solo). Nessun blocco sul
 task #11.
+
+---
+
+# Sessione 15/14/11 — issue #13 (password VNC nella hive `NTUSER.DAT`)
+
+## `ic25-obfuscated-Users.zip` — analyzer fatto, caso ancora GAP (manca il wrapping password→flag)
+
+`analyzers/winreg.py` ora decifra i valori VNC della hive (nessun analyzer nuovo):
+DES-ECB con la chiave fissa di **protocollo** `e84ad660c4721ae0` (RealVNC/TightVNC/
+UltraVNC), un blocco da 8 byte, `rstrip(b"\x00")`, solo testo ASCII stampabile.
+Riconosce `Password`, `PasswordViewOnly`, `ControlPassword`, `passwd`, `passwd2`
+sotto un percorso che contiene `VNC`; la sezione `== VNC passwords (fixed DES key) ==`
+è la prima dell'output (tetto 32 voci) e il summary riporta `N VNC password(s)`.
+Libreria: `pycryptodomex==3.24.2` (già presente via `impacket`, ora pinnata in
+`app/backend/requirements.txt`). I file `.vnc`/`ultravnc.ini` non sono gestiti: la
+challenge non li distribuisce e servirebbe un analyzer separato.
+
+Sulla hive reale del caso: `winreg` -> `done · 2131 keys, 4214 value(s), 1 VNC password(s)`,
+output `\Software\TightVNC\Server` / `Password = Slay4U!!` (run 137396).
+
+**Perché il caso resta in GAPS**: `flaghunt.py`/`flagpatterns.py` non hanno un
+wrapping generico "password -> `PREFISSO{valore}`" (verificato: solo pattern
+strict/generic/fuzzy/rot13/custom sul testo). L'analyzer emette il plaintext
+`Slay4U!!`, ma senza `ictf{...}` non diventa una flag finding. Serve una regola
+generica in `flaghunt.py` (file vietato) — vedi "Proposte".
+
+### Verifica (output copiati)
+
+- `app/tests/test_vnc.py` nuovo (14 test: vettore pubblicato `d7a514d8c556aade` ->
+  `Secure!` con la chiave VNC, path non-VNC, nomi non-password, blob malformati,
+  plaintext non stampabile, output dell'analyzer con regipy finto).
+- `app/tests/run_unit.sh` -> `513 passed, 4 warnings in 37.36s`.
+- `./ctf lint` -> `[ok] lint clean`.
+- `docker compose build stegsuite` + `up -d stegsuite term` -> immagine ricostruita,
+  healthy (`{"status":"ok","version":"0.1.0"}`).
+- Caso reale: `real_challenges.py --gaps --only-new -k obfuscated` ->
+  `[FAIL] ic25-obfuscated-Users.zip  688.3s status=done expect=ictf{Slay4U!!} got=['Pynffvp_{P5361R07-6NN3-4453-81OP-93R8S85RNORQ}']`
+  (prima `got=[]`; il plaintext ora è nell'output del run:
+  `== VNC passwords (fixed DES key) ==\n\Software\TightVNC\Server\n  Password = Slay4U!!`).
+- Non regressione: `real_challenges.py -j 3 --only-new --extra` -> **57/58**,
+  `14169.3s` di analisi. Unica FAIL `ictf23_forensics.zip 900.2s status=timeout`
+  (già documentata il 14/11: 900.4/901.6/901.0 s sotto `-j 3`, PASS da sola 631.5 s).
+  Rilanciata da sola con load average ~9.9 su 4 CPU -> `901.9s status=timeout`
+  (stesso caso e stesso timeout client; nessun'altra FAIL).
+
+### Stato
+
+Fatto: decifratura VNC generica in `winreg`, test, dipendenza pinnata, caso reale
+esaminato con il plaintext nell'output. Resta: il caso non si sposta in `EXTRA`
+perché manca il wrapping password->flag in `flaghunt.py` (vietato); il commit usa
+`Refs #13` e il GAP è commentato.

@@ -13,5 +13,7 @@ impacket==0.13.1
 oletools==0.60.2
 # offline Windows registry hives (analyzers/winreg.py, task 3 of tasks/deepseek.md)
 regipy==6.5.0
+# DES-ECB for VNC passwords stored in registry hives (analyzers/winreg.py)
+pycryptodomex==3.24.2
 # httpx: HTTP client required by starlette's TestClient in the CI unit-test job
 httpx
