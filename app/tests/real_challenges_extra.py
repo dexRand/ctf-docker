@@ -165,8 +165,6 @@ GAPS += [
      'FLAG{Watch_out_4_2023_21036}'),  # aCropalypse (CVE-2023-21036): dati dopo IEND da ricostruire
     ('wani23-peg.pcapng', 'https://raw.githubusercontent.com/wani-hackase/wanictf2023-writeup/main/for/beg_for_a_peg/file/log.pcapng',
      'FLAG{Hug_a_pug_less_than_three}'),  # JPEG ricostruito dallo stream TCP (porta 4500) ma testo stilizzato: OCR non esatto
-    ('wani24-streamer.pcap', 'https://raw.githubusercontent.com/wani-hackase/wanictf2024-writeup/main/for/I_wanna_be_a_streamer/file/file.pcap',
-     'FLAG{Th4nk_y0u_f0r_W4tching}'),  # video in RTP/RTSP da ricostruire (#11)
     ('tcp1p23-compromised.pcap', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Compromised/dist/compromised.pcap',
      'TCP1P{3xpl0171n6_pr3d1c74bl3__p1d_533d_f0r_7h3_w1n_98ef246706}'),  # FTPS da decifrare con la chiave privata
     ('tcp1p23-reminiscence.pcap', 'https://raw.githubusercontent.com/TCP1P/TCP1P-CTF-2023-Challenges/main/Forensic/Reminiscence/dist/reminiscence.pcap',
@@ -303,4 +301,13 @@ EXTRA += [
 # maschere standard QR ("all the masks") vengono ripristinati e letti da zbarimg.
 EXTRA += [
     ("tj25-masked-qrcode.png", f"{TJ25}/misc/masked/qrcode.png", "tjctf{n0tc4tchingc0vid}"),
+]
+
+# --- 14/11: video RTP/H.264 ricostruito dal pcap (rtp.py): SDP -> PT 96, FU-A e
+# STAP-A depacketizzati in Annex B, ffmpeg estrae i frame, OCR legge la flag.
+# PASS 205.1 s (`--extra --only-new -k streamer`).
+EXTRA += [
+    ("wani24-streamer.pcap",
+     "https://raw.githubusercontent.com/wani-hackase/wanictf2024-writeup/main/for/I_wanna_be_a_streamer/file/file.pcap",
+     "FLAG{Th4nk_y0u_f0r_W4tching}"),
 ]

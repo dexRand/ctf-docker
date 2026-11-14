@@ -470,3 +470,58 @@ solo frammenti (`cTFibeer-`, `boop-`, `beop-Perk`) e nessun token leggibile.
 nessuna trasformazione generica affidabile. Il caso resta in `GAPS` per
 costruzione; per chiuderlo servirebbe un OCR per corsivo (fuori portata) o
 hardcodare la flag (vietato).
+
+---
+
+# Sessione 14/11 — issue #11 (RTP/H.264 video)
+
+## `wani24-streamer.pcap` — **RISOLTO** (`rtp.py`)
+
+Nuovo analyzer `app/backend/analyzers/rtp.py` (non ho esteso `pcap.py`: quel
+file dipende da tshark, questo parser è puro Python e testabile in CI).
+Registrato in `analyzers/__init__.py`, una riga in `DEFAULT_PLAN`.
+
+- Gating: solo `PCAP_EXT`; legge i primi 4 byte e riconosce il magic pcap.
+  La scansione di gate si ferma dopo 5000 pacchetti / 4 MiB: un pcap senza RTP
+  esce `skipped` subito. `pcapng` dichiarato non supportato.
+- Payload type H.264 dal SDP RTSP (`m=video` + `a=rtpmap:96 H264/90000`);
+  fallback: PT >= 96 con NAL header plausibile. Scarta l'audio PT 0.
+- Depacketizzazione RFC 6184: NAL singolo, STAP-A, STAP-B, FU-A (S/B/E),
+  dedup per sequence number e riordino con distanza signed a 16 bit (wrap).
+- Output Annex B (`00 00 00 01`) per stream, poi ffmpeg -> mp4 -> frame
+  (1 ogni 2 s, max 2 frame totali). I frame sono figli immagine; il `.264` e
+  l'`.mp4` restano artifact. Tetti: 500k pacchetti scansionati, 64 MiB per
+  stream, 60k pacchetti per stream, timeout 240 s per comando ffmpeg.
+- Capture verificata prima di scrivere codice: PT 96, SSRC 18467, NAL 28
+  (FU-A) 14125, 24, 7, 8, 9; video H.264 1920x1080.
+
+### Verifica (output copiati)
+
+- `app/tests/run_unit.sh` -> `499 passed, 4 warnings in 55.21s`.
+- `./ctf lint` -> `[ok] lint clean`.
+- `docker compose build stegsuite` + `up -d stegsuite term` -> healthy.
+- `real_challenges.py --extra --only-new -k streamer` ->
+  `[PASS] wani24-streamer.pcap 205.1s status=done
+  expect=FLAG{Th4nk_y0u_f0r_W4tching}
+  got=['FLAG{Th4nk_y0u_fOr_W4tching}', 'FLAG{Th4nk_y0u_f0r_W4tch1ng}',
+  'yOu_fOrW4tchingFLAG{Th4nk_y0u_f0r_W4tching}']`
+  (prima della riduzione a 2 frame: 494.0 s e 299.2 s, sempre PASS).
+- `real_challenges.py -j 3 --only-new --extra` -> **57/58**, totale 58 perché
+  il caso è stato spostato da `GAPS` a `EXTRA`. Tutti i 57 casi extra
+  preesistenti PASS; il caso nuovo PASS.
+- FAIL residua: `ictf23_forensics.zip` `901.0s status=timeout` sotto `-j 3`
+  (tre run identici: 900.4 s, 901.6 s, 901.0 s). Da solo:
+  `[PASS] ictf23_forensics.zip 631.5s status=done`. È un caso pcap-repair
+  pesante, senza relazione con `rtp.py`; il progetto continua oltre il
+  timeout del client e la flag arriva dopo. Macchina con load average ~6.5
+  su 4 CPU durante i run.
+- `./ctf test --fast -j 3` -> `32/33` (fixture). Unica FAIL `steghide`
+  `status=running`: il progetto impiega 416 s mentre `ctf_regression.py`
+  interroga per 300 s; stesso esito in due run, non tocca `rtp.py`.
+
+### Stato
+
+Fatto: analyzer, test, registrazione, caso reale PASS, spostato in `EXTRA`.
+Resta: il gate extra `-j 3` non è 58/58 per il timeout di
+`ictf23_forensics.zip` (preesistente, passa da solo). Nessun blocco sul
+task #11.
