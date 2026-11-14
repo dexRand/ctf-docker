@@ -132,6 +132,57 @@ class ChannelRemapAnalyzer(Analyzer):
         return texts
 
 
+_INK_TOP_COLORS = 8
+_INK_TOP_SHARE = 0.60        # the 8 most frequent 4-bit colour bins...
+_INK_SAT_DELTA = 128
+_INK_SAT_SHARE = 0.30        # ...on a mostly saturated background...
+_INK_NEUTRAL_DELTA = 48
+_INK_BRIGHT_MIN = 200        # ...with neutral ink that is bright (white)...
+_INK_DARK_MAX = 60           # ...or dark (black)
+_INK_MIN_SHARE = 0.002
+_INK_MAX_SHARE = 0.40
+_INK_STRETCH = (255, 160)
+
+
+def _neutral_ink_views(arr) -> dict:
+    """whiteness/blackness views when neutral (white/black) ink is drawn over a
+    busy saturated background (TJCTF 2024 "purified" out.qoi: hand written white
+    text on colour bands, invisible in the grayscale variants).
+
+    Returns {} - so no extra OCR at all - unless the content matches: the 8 most
+    frequent 4-bit colours cover >= 60% of the pixels, >= 30% of the pixels are
+    saturated, and the matching neutral ink covers 0.2%-40% of the pixels.
+    ``whiteness`` is 255-min(R,G,B) and ``blackness`` max(R,G,B), stretched by
+    255/160 so a slightly off-white/black ink still separates from the bands."""
+    import numpy as np
+    total = arr.shape[0] * arr.shape[1]
+    if not total:
+        return {}
+    hi = arr.max(axis=2)
+    lo = arr.min(axis=2)
+    quant = (((arr[:, :, 0] >> 4) << 8) | ((arr[:, :, 1] >> 4) << 4)
+             | (arr[:, :, 2] >> 4))
+    counts = np.bincount(quant.ravel(), minlength=4096)
+    top = np.partition(counts, -_INK_TOP_COLORS)[-_INK_TOP_COLORS:]
+    if int(top.sum()) < _INK_TOP_SHARE * total:
+        return {}
+    if int(((hi - lo) >= _INK_SAT_DELTA).sum()) < _INK_SAT_SHARE * total:
+        return {}
+    num, den = _INK_STRETCH
+    views: dict = {}
+    ink = {
+        "whiteness": ((hi - lo) <= _INK_NEUTRAL_DELTA) & (lo >= _INK_BRIGHT_MIN),
+        "blackness": hi <= _INK_DARK_MAX,
+    }
+    for name, mask in ink.items():
+        share = int(mask.sum()) / total
+        if not _INK_MIN_SHARE <= share <= _INK_MAX_SHARE:
+            continue
+        px = (255 - lo) if name == "whiteness" else hi
+        views[name] = np.clip(px.astype("int32") * num // den, 0, 255).astype("uint8")
+    return views
+
+
 class ImageEnhanceAnalyzer(Analyzer):
     name = "image-enhance"
     category = "vision"
@@ -159,6 +210,8 @@ class ImageEnhanceAnalyzer(Analyzer):
             "highlights": Image.fromarray(np.clip((arr - 200) * 255 // 55, 0, 255).astype("uint8")),
             "shadows": Image.fromarray(np.clip(arr * 255 // 64, 0, 255).astype("uint8")),
         }
+        # white/black ink on colourful bands: only added when the content matches
+        variants.update((n, Image.fromarray(v)) for n, v in _neutral_ink_views(arr).items())
         outdir = ctx.sub(self.name)
         files = []
         texts = []

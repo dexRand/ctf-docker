@@ -104,7 +104,10 @@ GAPS = [
     ("blinkybill.wav", f"{DU23}/beginner/blinky-bill/publish/blinkybill.wav",
      "DUCTF{BRINGBACKTHETREES}"),                                                       # morse over music
     ("robot.wav", f"{TJ23}/beep-boop-robot/robot.wav", "tjctf{thisisallonewordlmao}"),   # morse, bare text
-    ("out.qoi", f"{TJ24}/purified/out.qoi", "tjctf{r1bbit_ribb1t_69bb0e1d}"),            # QOI recursion
+    ("out.qoi", f"{TJ24}/purified/out.qoi", "tjctf{r1bbit_ribb1t_69bb0e1d}"),
+    # QOI recursion: pixel-bytes reaches the frog-on-rainbow PNG. The extra
+    # whiteness view (white ink on saturated bands) still OCRs the hand written
+    # flag as garbage ("—ribbLt_67bb"), so the case stays a gap.
     ("ictf23_web.zip", f"{IC23}/web/challenge/web.zip",
      "ictf{behold_th3_forensics_g4untlet_827b3f13}"),                                   # Firefox profile
     ("sleepy.mp3", f"{IC24}/Sleepy Alarm/togive/morning_n_breakfast.mp3",
