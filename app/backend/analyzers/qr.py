@@ -2,9 +2,9 @@
 
 Besides the direct decode, two generic fallbacks are tried: deblurring (a
 smeared photo) and de-masking the data modules of a structural QR. The latter
-needs no knowledge of the payload: it samples the module grid, leaves the
-functional patterns alone and re-renders the QR once per standard mask, plus
-the XOR of all eight ("all the masks").
+needs no knowledge of the payload: it samples the module grid (only after
+real QR geometry: three similar finders in an L and a timing pattern), leaves
+the functional patterns alone and re-renders the QR once per standard mask.
 """
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ def _deblurred(path: Path, outdir: Path):
 
 # --- QR structure -------------------------------------------------------------
 def mask_patterns(size: int):
-    """The 8 standard QR data masks plus their XOR ("all the masks")."""
+    """The 8 standard QR data masks."""
     import numpy as np
     y, x = np.mgrid[0:size, 0:size]
     masks = [
@@ -96,10 +96,7 @@ def mask_patterns(size: int):
         (((x * y) % 3) + x * y) % 2 == 0,
         (((x * y) % 3) + x + y) % 2 == 0,
     ]
-    all_masks = np.zeros((size, size), dtype=bool)
-    for m in masks:
-        all_masks ^= m
-    return list(masks) + [all_masks]
+    return masks
 
 
 def functional_modules(size: int):
@@ -171,10 +168,16 @@ def _vertical_ok(arr, x: int, y: int, module: float) -> bool:
     return _ratio_ok(lens, module)
 
 
-def _finder_candidates(arr):
+def _expired(deadline) -> bool:
+    return deadline is not None and time.monotonic() > deadline
+
+
+def _finder_candidates(arr, deadline=None):
     """Centres (x, y, module_size) whose row and column show a 1:1:3:1:1 run."""
     candidates = []
     for y, row in enumerate(arr):
+        if _expired(deadline):
+            return []
         if not row.any():
             continue
         starts, ends, colours = _runs(row)
@@ -246,7 +249,15 @@ def _grid(points):
     if best is None:
         return None
     _score, tl, tr, bl = best
-    module = sorted((tl[2], tr[2], bl[2]))[1]
+    mods = (tl[2], tr[2], bl[2])
+    module = sorted(mods)[1]
+    if any(abs(m - module) > 0.25 * module for m in mods):
+        return None
+    va = (tr[0] - tl[0], tr[1] - tl[1])
+    vb = (bl[0] - tl[0], bl[1] - tl[1])
+    cos = (va[0] * vb[0] + va[1] * vb[1]) / (np.hypot(*va) * np.hypot(*vb))
+    if abs(float(cos)) > np.sin(np.radians(10)):       # angle 90 deg +- 10
+        return None
     side = float(np.hypot(tr[0] - tl[0], tr[1] - tl[1])) / module
     version = int(round((side - 10) / 4))
     version = max(1, min(40, version))
@@ -259,12 +270,25 @@ def _grid(points):
     return (tl[0], tl[1]), ex, ey, size
 
 
-def _sample_grid(arr, tl, ex, ey, size: int):
+def _timing_ok(matrix) -> bool:
+    """Row 6 / column 6 between the finders alternate dark/light (>= 80 %)."""
+    size = matrix.shape[0]
+    idx = range(8, size - 8)
+    for line in (matrix[6], matrix[:, 6]):
+        hits = sum(bool(line[i]) == (i % 2 == 0) for i in idx)
+        if hits < 0.8 * len(idx):
+            return False
+    return True
+
+
+def _sample_grid(arr, tl, ex, ey, size: int, deadline=None):
     import numpy as np
     h, w = arr.shape
     matrix = np.zeros((size, size), dtype=bool)
     offsets = (-0.2, 0.0, 0.2)
     for row in range(size):
+        if _expired(deadline):
+            return None
         for col in range(size):
             votes = seen = 0
             for du in offsets:
@@ -354,11 +378,13 @@ def _unmasked(path: Path, outdir: Path, deadline: float | None = None):
     threshold = _threshold(work)
     if threshold is None:
         return
-    candidates = _finder_candidates(work <= threshold)
+    candidates = _finder_candidates(work <= threshold, deadline)
     if len(candidates) < 3:
         return
     points = []
     for cx, cy, module in _cluster(candidates):
+        if _expired(deadline):
+            return
         score = _finder_score(work <= threshold, cx, cy, module)
         if score >= 0.7:
             points.append((cx / scale, cy / scale, module / scale))
@@ -370,14 +396,15 @@ def _unmasked(path: Path, outdir: Path, deadline: float | None = None):
     if grid is None:
         return
     tl, ex, ey, size = grid
-    matrix = _sample_grid(arr <= threshold, tl, ex, ey, size)
+    matrix = _sample_grid(arr <= threshold, tl, ex, ey, size, deadline)
+    if matrix is None or not _timing_ok(matrix):
+        return
     functional = functional_modules(size)
     outdir.mkdir(parents=True, exist_ok=True)
     for index, pattern in enumerate(mask_patterns(size)):
         if deadline is not None and time.monotonic() > deadline:
             return
-        label = "all" if index == 8 else str(index)
-        out = outdir / f"{path.stem}_unmask_{label}.png"
+        out = outdir / f"{path.stem}_unmask_{index}.png"
         _render(apply_mask(matrix, pattern, functional), out)
         yield out
 
