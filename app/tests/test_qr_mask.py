@@ -56,11 +56,10 @@ def _render(matrix: np.ndarray, path, module: int = 6, quiet: int = 2) -> None:
     Image.fromarray(arr, "L").save(path)
 
 
-def _masked_all(matrix: np.ndarray) -> np.ndarray:
-    """Apply the XOR of all eight QR masks to the data modules only."""
+def _masked(matrix: np.ndarray, index: int = 3) -> np.ndarray:
+    """Apply one standard QR mask to the data modules only (wrong format bits)."""
     functional = qr.functional_modules(matrix.shape[0])
-    all_masks = qr.mask_patterns(matrix.shape[0])[-1]
-    return qr.apply_mask(matrix, all_masks, functional)
+    return qr.apply_mask(matrix, qr.mask_patterns(matrix.shape[0])[index], functional)
 
 
 def test_functional_regions_are_version_generic():
@@ -86,14 +85,15 @@ def test_functional_regions_are_version_generic():
     assert not fm[10, 10]
 
 
-def test_masks_come_in_nine_candidates():
-    assert len(qr.mask_patterns(21)) == 9
+def test_masks_are_the_eight_standard_ones():
+    assert len(qr.mask_patterns(21)) == 8      # no case-specific "all masks" candidate
+    assert "all" not in open(qr.__file__).read().split("def _unmasked")[1].split("class ")[0]
 
 
 @pytest.mark.skipif(shutil.which("zbarimg") is None, reason="zbarimg not installed")
 def test_masked_qr_is_recovered_by_unmasking(tmp_path):
     plain = _matrix()
-    masked = _masked_all(plain)
+    masked = _masked(plain)
     assert not np.array_equal(masked, plain)
     path = tmp_path / "masked.png"
     _render(masked, path)
@@ -153,6 +153,53 @@ def test_image_without_qr_runs_no_extra_zbar(tmp_path, monkeypatch):
     r = QrAnalyzer().run(Ctx())
     assert r.status == "skipped"
     assert len(calls) == 1                     # only the direct zbarimg attempt
+
+
+class _Ctx:
+    """Context that counts zbarimg calls."""
+
+    def __init__(self, path, workdir):
+        self.input, self.workdir, self.calls = path, workdir, []
+
+    def sub(self, name):
+        d = self.workdir / name
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def run(self, cmd, timeout=300, cwd=None, env=None):
+        self.calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 4, "", "")
+
+    def log(self, _message):
+        pass
+
+
+@pytest.mark.parametrize("shape,binary", [((512, 512, 3), False), ((1080, 1920), True)])
+def test_big_noise_renders_nothing_and_calls_zbar_once(tmp_path, monkeypatch, shape, binary):
+    rng = np.random.default_rng(1)
+    data = rng.integers(0, 256, shape, dtype=np.uint8)
+    if binary:
+        data = (data > 127).astype(np.uint8) * 255
+    path = tmp_path / "noise.png"
+    Image.fromarray(data).save(path)
+    renders: list[int] = []
+    monkeypatch.setattr(qr, "_render", lambda *a, **k: renders.append(1))
+    monkeypatch.setattr(qr, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(qr, "_deblurred", lambda *_a, **_k: iter(()))
+    ctx = _Ctx(path, tmp_path / "work")
+    assert QrAnalyzer().run(ctx).status == "skipped"
+    assert renders == []
+    assert len(ctx.calls) == 1                 # only the direct zbarimg attempt
+
+
+def test_detection_obeys_the_deadline(tmp_path):
+    rng = np.random.default_rng(2)
+    path = tmp_path / "noise.png"
+    Image.fromarray((rng.integers(0, 2, (1080, 1920), dtype=np.uint8)) * 255).save(path)
+    import time
+    t = time.monotonic()
+    assert list(qr._unmasked(path, tmp_path / "out", deadline=t - 1)) == []
+    assert time.monotonic() - t < 1.0
 
 
 def test_too_large_image_is_rejected(tmp_path):

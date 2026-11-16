@@ -231,6 +231,7 @@ EXTRA += [
 
 # --- candidate 2026-10-27 non risolte: tecnica mancante ---
 GAPS += [
+    ("tj25-masked-qrcode.png", f"{TJ25}/misc/masked/qrcode.png", "tjctf{n0tc4tchingc0vid}"),  # QR with the data modules XOR-ed with all 8 masks: needs a real mask search (format/codeword check), not a hard-coded candidate (#27)
     ("tj25-albumcover.png", f"{TJ25}/forensics/album-cover/albumcover.png", "tjctf{THIS-EASTER-EGG-IS-PRETTY-COOL}"),  # payload audio/immagine prodotto da enc.py: non riconosciuto
     ("tj25-pietty-runme.png", f"{TJ25}/forensics/thats-pietty-cool/chall/runme.png", "tjctf{p1et_pr1nt3r}"),  # Piet nascosto: il programma e' nei pixel [i*15, j*100] + crop 124x11 (regola su misura); npiet non e' in apt/pip
     ("ic25-nightcore.mp3", f"{IC25}/Forensics/nightcore/challenge/nightcore.mp3", "ictf{12345678}"),  # ENF (frequenza di rete) nel rumore: demodulazione dedicata
@@ -295,12 +296,6 @@ GAPS += [
 EXTRA += [
     ("endianness.bin", f"{P25B}/endianness-v2/challengefile",
      "picoCTF{cert!f1Ed_iNd!4n_s0rrY_3nDian_76e05f49}"),
-]
-
-# --- 12/11: QR de-masking (qr.py): i moduli dati XOR-ati con lo XOR delle 8
-# maschere standard QR ("all the masks") vengono ripristinati e letti da zbarimg.
-EXTRA += [
-    ("tj25-masked-qrcode.png", f"{TJ25}/misc/masked/qrcode.png", "tjctf{n0tc4tchingc0vid}"),
 ]
 
 # --- 14/11: video RTP/H.264 ricostruito dal pcap (rtp.py): SDP -> PT 96, FU-A e
