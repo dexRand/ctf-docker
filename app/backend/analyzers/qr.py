@@ -378,7 +378,13 @@ def _unmasked(path: Path, outdir: Path, deadline: float | None = None):
     threshold = _threshold(work)
     if threshold is None:
         return
-    candidates = _finder_candidates(work <= threshold, deadline)
+    b = work <= threshold
+    # noise / LSB planes flip ~50 % of neighbours, a QR (module >= 2 px) <= 28 %: skip the slow scan
+    dens = max(np.count_nonzero(b[:, 1:] != b[:, :-1]) / max(1, b[:, 1:].size),
+               np.count_nonzero(b[1:] != b[:-1]) / max(1, b[1:].size))
+    if dens > 0.35 and b.size > 40_000:
+        return
+    candidates = _finder_candidates(b, deadline)
     if len(candidates) < 3:
         return
     points = []
