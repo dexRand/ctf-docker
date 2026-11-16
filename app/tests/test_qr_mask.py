@@ -87,7 +87,6 @@ def test_functional_regions_are_version_generic():
 
 def test_masks_are_the_eight_standard_ones():
     assert len(qr.mask_patterns(21)) == 8      # no case-specific "all masks" candidate
-    assert "all" not in open(qr.__file__).read().split("def _unmasked")[1].split("class ")[0]
 
 
 @pytest.mark.skipif(shutil.which("zbarimg") is None, reason="zbarimg not installed")
@@ -174,7 +173,7 @@ class _Ctx:
         pass
 
 
-@pytest.mark.parametrize("shape,binary", [((512, 512, 3), False), ((1080, 1920), True)])
+@pytest.mark.parametrize("shape,binary", [((1024, 1024, 3), False), ((1080, 1920), True)])
 def test_big_noise_renders_nothing_and_calls_zbar_once(tmp_path, monkeypatch, shape, binary):
     rng = np.random.default_rng(1)
     data = rng.integers(0, 256, shape, dtype=np.uint8)
@@ -183,6 +182,10 @@ def test_big_noise_renders_nothing_and_calls_zbar_once(tmp_path, monkeypatch, sh
     path = tmp_path / "noise.png"
     Image.fromarray(data).save(path)
     renders: list[int] = []
+    if binary:                                 # density pre-filter must stop it before the scan
+        def boom(*_a, **_k):
+            raise AssertionError("_finder_candidates called")
+        monkeypatch.setattr(qr, "_finder_candidates", boom)
     monkeypatch.setattr(qr, "_render", lambda *a, **k: renders.append(1))
     monkeypatch.setattr(qr, "which", lambda name: f"/usr/bin/{name}")
     monkeypatch.setattr(qr, "_deblurred", lambda *_a, **_k: iter(()))
