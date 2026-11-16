@@ -189,22 +189,34 @@ def test_oversized_entry_is_not_read(tmp_path: Path) -> None:
     assert "huge.xml" not in names
 
 
-def test_media_does_not_eat_the_budget_of_later_xml_parts(tmp_path: Path) -> None:
-    # Three ~8 MB binaries come BEFORE the footer in zip order: XML goes first.
-    blob = b"\x00" * 7_900_000
-    p = _docx(tmp_path, {
-        "big/a.bin": blob, "big/b.bin": blob, "big/c.bin": blob,
-        "word/footer1.xml": "<w:ftr><w:t>ITS{late_footer}</w:t></w:ftr>",
-    })
-    res = _run(p, tmp_path)
+def test_media_before_xml_does_not_hit_the_part_cap(tmp_path: Path) -> None:
+    # 201 media entries precede the footer: only XML-first ordering keeps it
+    # under the 200-part cap.
+    parts: dict[str, bytes | str] = {f"media/m{i:03d}.bin": b"\x01" * 10 for i in range(201)}
+    parts["word/footer1.xml"] = "<w:ftr><w:t>ITS{late_footer}</w:t></w:ftr>"
+    res = _run(_docx(tmp_path, parts), tmp_path)
     assert res.status == "done"
     assert "ITS{late_footer}" in res.output
 
 
-def test_file_entry_blocking_a_directory_does_not_fail_the_result(tmp_path: Path) -> None:
+def test_entry_over_budget_is_skipped_not_fatal(tmp_path: Path) -> None:
+    # All XML-like (the sort cannot help): the third 7.9 MB part exceeds the
+    # remaining budget and must be skipped, not stop the loop.
+    blob = b" " * 7_900_000
     p = _docx(tmp_path, {
-        "word": "i am a file",
-        "word/footer1.xml": "<w:ftr><w:t>ITS{blocked}</w:t></w:ftr>",
+        "word/a.xml": blob, "word/b.xml": blob, "word/c.xml": blob,
+        "word/footer1.xml": "<w:ftr><w:t>ITS{after_skip}</w:t></w:ftr>",
+    })
+    res = _run(p, tmp_path)
+    assert res.status == "done"
+    assert "ITS{after_skip}" in res.output
+
+
+def test_file_entry_blocking_a_directory_does_not_fail_the_result(tmp_path: Path) -> None:
+    # XML-like names: the sort keeps zip order, so mkdir really hits the file.
+    p = _docx(tmp_path, {
+        "word.xml": "<a/>",
+        "word.xml/footer1.xml": "<w:ftr><w:t>ITS{blocked}</w:t></w:ftr>",
         "docProps/core.xml": "<c><t>ITS{other_part}</t></c>",
     })
     res = _run(p, tmp_path)
