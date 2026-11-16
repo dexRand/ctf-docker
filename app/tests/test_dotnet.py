@@ -172,6 +172,20 @@ def test_dot_resource_names_become_resource_i(tmp_path, monkeypatch, bad):
     assert Path(r.extracted[1]).read_bytes() == b"two"
 
 
+def test_a_failed_write_skips_only_that_resource(tmp_path, monkeypatch):
+    real_write = Path.write_bytes
+
+    def write(self, data):
+        if self.name == "a.bin":
+            raise OSError("disk full")
+        return real_write(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", write)
+    r = _run(tmp_path, monkeypatch, _FakePE([("a.bin", b"1"), ("ok.bin", b"2")]))
+    assert r.status == "done"
+    assert [Path(p).name for p in r.extracted] == ["ok.bin"]
+
+
 def test_only_first_100_rows_are_read_and_reported(tmp_path, monkeypatch):
     pe = _FakePE([(f"r{i:03d}.bin", b"x") for i in range(130)])
     reads = []
