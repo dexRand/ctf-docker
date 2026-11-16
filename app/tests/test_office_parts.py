@@ -187,3 +187,47 @@ def test_oversized_entry_is_not_read(tmp_path: Path) -> None:
     assert "ITS{huge_part}" not in res.output
     assert "footer1.xml" in names
     assert "huge.xml" not in names
+
+
+def test_media_does_not_eat_the_budget_of_later_xml_parts(tmp_path: Path) -> None:
+    # Three ~8 MB binaries come BEFORE the footer in zip order: XML goes first.
+    blob = b"\x00" * 7_900_000
+    p = _docx(tmp_path, {
+        "big/a.bin": blob, "big/b.bin": blob, "big/c.bin": blob,
+        "word/footer1.xml": "<w:ftr><w:t>ITS{late_footer}</w:t></w:ftr>",
+    })
+    res = _run(p, tmp_path)
+    assert res.status == "done"
+    assert "ITS{late_footer}" in res.output
+
+
+def test_file_entry_blocking_a_directory_does_not_fail_the_result(tmp_path: Path) -> None:
+    p = _docx(tmp_path, {
+        "word": "i am a file",
+        "word/footer1.xml": "<w:ftr><w:t>ITS{blocked}</w:t></w:ftr>",
+        "docProps/core.xml": "<c><t>ITS{other_part}</t></c>",
+    })
+    res = _run(p, tmp_path)
+    assert res.status == "done"
+    assert "ITS{other_part}" in res.output
+
+
+def test_lying_header_entry_is_discarded(tmp_path: Path, monkeypatch) -> None:
+    # Header says 10 bytes, the stream inflates past the cap: must be dropped.
+    import io
+    p = _docx(tmp_path, {
+        "word/bomb.xml": b"x" * 10,
+        "word/footer1.xml": "<w:ftr><w:t>ITS{after_bomb}</w:t></w:ftr>",
+    })
+    real_open = zipfile.ZipFile.open
+
+    def fake_open(self, name, *a, **kw):
+        if getattr(name, "filename", name) == "word/bomb.xml":
+            return io.BytesIO(b"B" * (ex._MAX_PART + 10))
+        return real_open(self, name, *a, **kw)
+
+    monkeypatch.setattr(zipfile.ZipFile, "open", fake_open)
+    res = _run(p, tmp_path)
+    assert res.status == "done"
+    assert "bomb.xml" not in {Path(x).name for x in res.extracted}
+    assert "ITS{after_bomb}" in res.output

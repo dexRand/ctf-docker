@@ -241,7 +241,13 @@ class OfficeAnalyzer(Analyzer):
                         summary="not an Office/OpenDocument container",
                     )
                 total = 0
-                for info in z.infolist():
+                # XML-like parts first: media must not eat the budget that
+                # header/footer/comments text needs.
+                infos = sorted(
+                    z.infolist(),
+                    key=lambda i: not i.filename.lower().endswith((".xml", ".rels", ".vml")),
+                )
+                for info in infos:
                     if info.is_dir() or info.file_size == 0 or info.flag_bits & 0x1:
                         continue
                     if ".." in info.filename or info.filename.startswith("/"):
@@ -255,7 +261,7 @@ class OfficeAnalyzer(Analyzer):
                         break                  # decompressed-bytes budget spent
                     limit = min(_MAX_PART, remaining)
                     if info.file_size > limit:
-                        break                  # this entry would blow the budget
+                        continue               # does not fit: skip it, later parts may
                     try:
                         with z.open(info) as fh:
                             data = fh.read(limit + 1)   # never an unbounded read
@@ -265,8 +271,8 @@ class OfficeAnalyzer(Analyzer):
                         continue               # header lied (zip bomb): discard
                     total += len(data)
                     dest = outdir / info.filename
-                    dest.parent.mkdir(parents=True, exist_ok=True)
                     try:
+                        dest.parent.mkdir(parents=True, exist_ok=True)
                         dest.write_bytes(data)
                     except OSError:
                         continue
