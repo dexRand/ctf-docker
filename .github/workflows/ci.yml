@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck
-        run: shellcheck ctf app/tests/ui_smoke.sh tools/lint/run.sh
+        run: shellcheck ctf app/tests/ui_smoke.sh tools/lint/run.sh tools/ci_wait.sh
       - name: dork generator self-test
         run: python3 tools/dork/test_dork.py
       - name: tools compile
@@ -70,27 +70,49 @@ jobs:
         working-directory: app/frontend
         run: npm run build
 
+  # L2 (mechanus): the full gate, once per PR and on main. ~3 h, so nobody waits
+  # for it: tools/ci_wait.sh polls it and prints the tail of a failed log.
   e2e:
-    name: e2e (build image + regression)
-    # heavy (pulls the AperiSolve toolset): opt-in via workflow_dispatch
-    if: github.event_name == 'workflow_dispatch'
+    name: L2 (image + unit with tools + fixtures + real CTFs)
+    needs: [lint, backend]
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 330
+    concurrency:
+      group: l2-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
+      - name: Free disk (image is ~5 GB)
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
       - name: Build image
         run: docker build -f app/Dockerfile -t stegsuite:ci .
-      - name: Run regression against the container
+      - name: Unit tests inside the image (tshark, zbar, tesseract present)
+        run: STEGSUITE_IMAGE=stegsuite:ci app/tests/run_unit.sh -q -p no:cacheprovider
+      - name: Start StegSuite
         run: |
           mkdir -p /tmp/ssdata
-          docker run -d --name ss -p 19014:19014 -v /tmp/ssdata:/data stegsuite:ci
-          ok=""
+          docker run -d --name ss -p 127.0.0.1:19014:19014 -v /tmp/ssdata:/data \
+            -v "$PWD/wordlists:/wordlists:ro" stegsuite:ci
           for i in $(seq 1 60); do
-            curl -sf http://localhost:19014/api/v1/health && { ok=1; break; }
+            curl -sf http://127.0.0.1:19014/api/v1/health && exit 0
             sleep 2
           done
-          [ -n "$ok" ] || { docker logs ss; exit 1; }
+          docker logs ss; exit 1
+      - name: Fixtures
+        run: |
           docker cp app/tests/ctf_regression.py ss:/tmp/ctf_regression.py
           docker cp app/tests/fixtures ss:/tmp/fixtures
           docker exec -e FIXTURES_DIR=/tmp/fixtures ss \
             /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py
+      - name: Real CTFs (core)
+        working-directory: app/tests
+        run: PYTHONUNBUFFERED=1 python3 real_challenges.py -j 3
+      - name: Real CTFs (extra)
+        working-directory: app/tests
+        run: PYTHONUNBUFFERED=1 python3 real_challenges.py -j 3 --only-new --extra
+      - name: Flags vs write-ups
+        working-directory: app/tests
+        run: PYTHONUNBUFFERED=1 python3 verify_flags.py
+      - name: StegSuite log on failure
+        if: failure()
+        run: docker logs --tail 200 ss

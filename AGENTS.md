@@ -77,15 +77,25 @@ Valgono sempre; il lavoro da fare è in `tasks/deepseek.md` (un task alla volta)
   `magic.py` (firme), `flagpatterns.FLAG_PREFIXES`, `cracking.resolve_wordlists`.
 - Tool nuovi solo da pacchetti apt o pip **con versione fissata** in `app/Dockerfile`.
 
-**Verifica (in quest'ordine, tutto deve passare)**
-1. `app/tests/run_unit.sh` — più un test nuovo in `app/tests/test_<analyzer>.py`
-   che usa un file minuscolo generato nel test (niente rete).
-2. `./ctf lint` → `[ok] lint clean`.
-3. `docker compose build stegsuite && docker compose up -d stegsuite term`.
-4. Il caso reale del task: `cd app/tests && python3 real_challenges.py --gaps --only-new -k <nome>`.
-5. Non regressione: `cd app/tests && python3 real_challenges.py -j 3 --only-new --extra`
-   e `./ctf test -j 3` → stessi PASS di prima (oggi: extra 47/47, fixture 33/33,
-   reali 35/35, `ALL CORRECT`). **Una sola FAIL nuova = non si pusha.**
+**Livelli di verifica (metodo mechanus: builder, arbitro, CI)**
+
+| Livello | Comandi | Durata | Chi |
+|---|---|---|---|
+| L0 | `./ctf lint` · `docker compose config -q` | ~1 min | builder, mentre lavora |
+| L1 | `app/tests/run_unit.sh app/tests/test_<x>.py` (usa il codice del worktree, senza rebuild) · poi, **sotto lucchetto**, build + caso reale: `flock /tmp/ctf-stegsuite.lock sh -c 'docker compose build stegsuite && docker compose up -d stegsuite term && cd app/tests && python3 real_challenges.py --gaps --only-new -k <nome>'` | minuti | builder alla fine; arbitro con le sue prove |
+| L2 | job **L2** della CI: immagine, unit con i tool, fixture, reali core + extra, writeup (oggi: fixture 33/33, reali 35/35, extra 56/56, `ALL CORRECT`) | ~3 h | **solo la CI**, una volta per PR e su `main` |
+
+1. Prima L0, poi L1; un test nuovo in `app/tests/test_<analyzer>.py` che usa un file
+   minuscolo generato nel test (niente rete) e fallisce col codice vecchio.
+2. Builder e arbitro **non lanciano L2** (`./ctf test`, `--extra` completo): lo fa la CI.
+3. Dopo il push nessun modello aspetta la CI: la aspetta `tools/ci_wait.sh [sha]`
+   (zero token). Verde → avanti; rosso → stampa job falliti e coda del log, che va al
+   builder. **Una sola FAIL nuova in L2 = non si unisce.** Al massimo 2 giri di CI per
+   issue, poi decide l'utente. Un test instabile: un solo nuovo tentativo.
+4. Worktree: un worktree e un branch per issue (`git worktree add ../ctf-<n> -b
+   feat/<n>-<slug> main`). `run_unit.sh` monta il codice del worktree in cui gira;
+   l'immagine `ctf-stegsuite` e il servizio invece sono **uno solo**, quindi build e
+   caso reale sempre sotto `flock /tmp/ctf-stegsuite.lock`.
 - Non modificare file sotto `app/` o `ctf` mentre una verifica è in corso.
 
 **Commit e issue**
