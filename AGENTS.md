@@ -96,6 +96,9 @@ Valgono sempre; il lavoro da fare è in `tasks/deepseek.md` (un task alla volta)
    feat/<n>-<slug> main`). `run_unit.sh` monta il codice del worktree in cui gira;
    l'immagine `ctf-stegsuite` e il servizio invece sono **uno solo**, quindi build e
    caso reale sempre sotto `flock /tmp/ctf-stegsuite.lock`.
+   **Mai `git stash`** in un worktree: lo stash è unico per tutto il repo e i builder
+   in parallelo si scambiano i file. Per provare un test sul codice vecchio copia il
+   file da `git show main:<path>` in una cartella temporanea.
 - Non modificare file sotto `app/` o `ctf` mentre una verifica è in corso.
 
 **Commit e issue**

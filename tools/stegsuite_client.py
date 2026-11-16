@@ -55,7 +55,11 @@ def create_project(paths: list[Path], mode: str = "auto") -> str:
     return call("/projects", "POST", body, ctype)["id"]
 
 
-def analyze(paths: list[Path], mode: str = "auto", timeout_s: int = 900,
+# STEGSUITE_WAIT_S: how long to wait for one analysis (slower CI runners need more)
+WAIT_S = int(os.environ.get("STEGSUITE_WAIT_S", "900"))
+
+
+def analyze(paths: list[Path], mode: str = "auto", timeout_s: int = WAIT_S,
             poll_s: float = 2.0) -> dict:
     """Upload, start, wait. Returns {project, status, flags, passwords, seconds}."""
     t0 = time.monotonic()
