@@ -102,7 +102,7 @@ jobs:
         run: |
           docker cp app/tests/ctf_regression.py ss:/tmp/ctf_regression.py
           docker cp app/tests/fixtures ss:/tmp/fixtures
-          docker exec -e FIXTURES_DIR=/tmp/fixtures ss \
+          docker exec -e FIXTURES_DIR=/tmp/fixtures -e REGRESSION_WAIT_S=900 ss \
             /opt/stegsuite/venv/bin/python /tmp/ctf_regression.py
       - name: Real CTFs (core)
         working-directory: app/tests

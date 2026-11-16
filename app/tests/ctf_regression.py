@@ -494,7 +494,8 @@ def run_case(name: str, path, expect: str) -> bool:
     pid = p["id"]
     api(f"/projects/{pid}/start", "POST", b"", "application/json")
     status = "?"
-    for _ in range(150):
+    # REGRESSION_WAIT_S: slower machines (CI runners) need more than 5 minutes
+    for _ in range(int(os.environ.get("REGRESSION_WAIT_S", "300")) // 2):
         status = api(f"/projects/{pid}")["status"]
         if status in ("done", "error", "cancelled"):
             break
