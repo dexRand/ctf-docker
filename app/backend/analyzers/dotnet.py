@@ -12,7 +12,9 @@ index 14 (the CLR header) is non-empty. Only the first 4 KB are read to decide.
 """
 from __future__ import annotations
 
+import logging
 import struct
+import time
 from pathlib import Path
 
 from .. import storage
@@ -28,6 +30,7 @@ _HEAD = 4096                           # DOS + COFF + optional header + director
 _MAX_INPUT = 256 << 20                 # dnfile keeps the whole file in memory
 _MAX_RESOURCES = 100
 _MAX_BYTES = 50 << 20
+_DEADLINE_S = 60                       # total budget for the analyzer
 _DOTNET_EXT = (".dll", ".exe")
 _DOTNET_MIME = ("x-dosexec", "x-msdownload", "vnd.microsoft.portable-executable",
                 "application/x-dotnet")
@@ -72,7 +75,8 @@ def _load(path: Path):
     """The dnPE object (a small seam so the unit tests can mock dnfile)."""
     if dnfile is None:
         raise RuntimeError("dnfile not installed")
-    return dnfile.dnPE(str(path))
+    # lazy: eager loading reads every resource blob before the caps apply
+    return dnfile.dnPE(str(path), clr_lazy_load=True)
 
 
 def _row_name(row) -> str:
@@ -81,7 +85,8 @@ def _row_name(row) -> str:
 
 
 def managed_resources(pe, max_resources: int | None = None,
-                      max_bytes: int | None = None) -> list[tuple[str, bytes]]:
+                      max_bytes: int | None = None,
+                      deadline: float | None = None) -> list[tuple[str, bytes]]:
     """Embedded (name, raw bytes) resources, within the child/byte caps.
 
     External resources (``row.Implementation`` points at another file) are not
@@ -93,12 +98,12 @@ def managed_resources(pe, max_resources: int | None = None,
     max_bytes = _MAX_BYTES if max_bytes is None else max_bytes
     net = getattr(pe, "net", None)
     table = getattr(getattr(net, "mdtables", None), "ManifestResource", None)
-    rows = getattr(table, "rows", None) or []
+    rows = list(getattr(table, "rows", None) or [])[:max_resources]
     base = int(getattr(getattr(net, "struct", None), "ResourcesRva", 0))
     out: list[tuple[str, bytes]] = []
     total = 0
     for row in rows:
-        if len(out) >= max_resources:
+        if deadline is not None and time.monotonic() > deadline:
             break
         if getattr(row, "Implementation", None) is not None:
             continue
@@ -146,6 +151,8 @@ class DotNetAnalyzer(Analyzer):
         if cli_directory(head) is None:
             return ToolResult(self.name, status="skipped",
                               summary="not a .NET assembly (no MZ/PE CLI header)")
+        deadline = time.monotonic() + _DEADLINE_S
+        logging.getLogger("dnfile").setLevel(logging.ERROR)   # "invalid compressed int" noise
         try:
             pe = _load(ctx.input)
         except Exception as exc:       # noqa: BLE001 - dnfile raises its own errors
@@ -153,7 +160,9 @@ class DotNetAnalyzer(Analyzer):
                               summary=f"CLR metadata unreadable: {exc}")
         if getattr(pe, "net", None) is None:
             return ToolResult(self.name, status="skipped", summary="no CLR metadata")
-        found = managed_resources(pe)
+        table = getattr(getattr(pe.net, "mdtables", None), "ManifestResource", None)
+        nrows = len(getattr(table, "rows", None) or [])
+        found = managed_resources(pe, deadline=deadline)
         if not found:
             return ToolResult(self.name, status="skipped",
                               summary="no embedded managed resources")
@@ -164,19 +173,28 @@ class DotNetAnalyzer(Analyzer):
         extracted: list[str] = []
         artifacts: list[dict] = []
         for i, (name, blob) in enumerate(found):
+            if time.monotonic() > deadline:
+                break
             filename = storage.sanitize_name(name)
+            if not filename.strip("."):           # '', '.', '..'
+                filename = f"resource{i}"
             if filename in used:       # two resource names differing only in unsafe chars
                 stem, dot, ext = filename.rpartition(".")
                 filename = (f"{stem or filename}_{i}" + (dot + ext if dot else ""))
             used.add(filename)
             dest = outdir / filename
-            dest.write_bytes(blob)
+            try:
+                dest.write_bytes(blob)
+            except OSError:
+                continue
             extracted.append(str(dest))
             artifacts.append({"name": str(dest.relative_to(ctx.workdir)),
                               "path": str(dest), "size": len(blob)})
             lines.append(f"{name}  {len(blob)} B -> {filename}")
-        return ToolResult(self.name, status="done",
-                          summary=f"{len(found)} managed resource(s)",
+        summary = f"{len(extracted)} managed resource(s)"
+        if nrows > _MAX_RESOURCES:
+            summary += f" (only the first {_MAX_RESOURCES} of {nrows} processed)"
+        return ToolResult(self.name, status="done", summary=summary,
                           output="\n".join(lines)[:200_000],
                           extracted=extracted, artifacts=artifacts)
 

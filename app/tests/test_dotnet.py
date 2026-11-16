@@ -7,9 +7,13 @@ test also passes without dnfile installed.
 """
 from __future__ import annotations
 
+import importlib.util
+import inspect
 import struct
 from pathlib import Path
 from types import SimpleNamespace
+
+import pytest
 
 from backend.analyzers import dotnet
 
@@ -157,3 +161,53 @@ def test_external_resources_are_ignored(tmp_path, monkeypatch):
     r = _run(tmp_path, monkeypatch, pe)
     assert r.status == "skipped"
     assert r.extracted == []
+
+
+@pytest.mark.parametrize("bad", ["..", ".", "x/.."])
+def test_dot_resource_names_become_resource_i(tmp_path, monkeypatch, bad):
+    pe = _FakePE([("ok.bin", b"one"), (bad, b"two"), ("z.bin", b"three")])
+    r = _run(tmp_path, monkeypatch, pe)
+    assert r.status == "done"
+    assert sorted(Path(p).name for p in r.extracted) == ["ok.bin", "resource1", "z.bin"]
+    assert Path(r.extracted[1]).read_bytes() == b"two"
+
+
+def test_only_first_100_rows_are_read_and_reported(tmp_path, monkeypatch):
+    pe = _FakePE([(f"r{i:03d}.bin", b"x") for i in range(130)])
+    reads = []
+    orig = pe.get_data
+    monkeypatch.setattr(pe, "get_data", lambda rva, n: reads.append(rva) or orig(rva, n))
+    r = _run(tmp_path, monkeypatch, pe)
+    assert len(r.extracted) == 100
+    assert "100 of 130" in r.summary
+    assert len(reads) == 200          # 100 rows x (size head + blob), no more
+
+
+def test_deadline_stops_the_extraction(tmp_path, monkeypatch):
+    monkeypatch.setattr(dotnet, "_DEADLINE_S", -1)
+    r = _run(tmp_path, monkeypatch, _FakePE([("a.bin", b"x")]))
+    assert r.extracted == []
+
+
+def test_dnpe_is_called_lazily(tmp_path, monkeypatch):
+    calls = []
+
+    class _Fake:
+        @staticmethod
+        def dnPE(*a, **kw):
+            calls.append(kw)
+            return object()
+
+    monkeypatch.setattr(dotnet, "dnfile", _Fake)
+    dotnet._load(tmp_path / "x.dll")
+    assert calls == [{"clr_lazy_load": True}]
+
+
+@pytest.mark.skipif(importlib.util.find_spec("dnfile") is None, reason="dnfile not installed")
+def test_real_dnfile_lazy_param_and_bad_pe(tmp_path):
+    import dnfile
+    assert "clr_lazy_load" in inspect.signature(dnfile.dnPE.__init__).parameters
+    path = tmp_path / "fake.dll"
+    path.write_bytes(_pe())            # CLR directory points at nothing: no crash
+    r = dotnet.DotNetAnalyzer().run(_Ctx(path))
+    assert r.status == "skipped"
