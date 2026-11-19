@@ -78,6 +78,13 @@ I tre livelli e i comandi esatti sono definiti in `AGENTS.md` (sezione
 - **L2** — il gate completo (`./ctf test`) gira **solo in CI**, sulla PR: non
   lanciarlo in locale. Una sola FAIL nuova in L2 blocca il merge.
 
+## Codice di condotta
+
+Issue, pull request e discussioni seguono il
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) (Contributor Covenant 2.1):
+ambiente accogliente, critiche costruttive, nessuna molestia. Le segnalazioni
+si aprono come issue su GitHub, come spiegato nel file.
+
 ## Licenza e autori
 
 Il progetto è distribuito con licenza MIT (vedi [`LICENSE`](LICENSE)):

@@ -344,6 +344,8 @@ tasks/                piani e stato
   in `app/backend/services.py` e questo README —
   `python3 tools/check_consistency.py` ti dice cosa manca (la CI lo esegue).
 - Convenzioni e regole per gli agent: [`AGENTS.md`](AGENTS.md).
+- Codice di condotta: [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) (Contributor
+  Covenant 2.1, in italiano).
 
 ## 📄 Licenza
 

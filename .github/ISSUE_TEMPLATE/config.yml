@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Aiuto e domande
+    url: https://github.com/dexRand/ctf-docker/blob/main/SUPPORT.md
+    about: Dove trovare aiuto e come aprire una issue.
