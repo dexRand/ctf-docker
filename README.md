@@ -344,6 +344,8 @@ tasks/                plans and status
   catalog in `app/backend/services.py` and this README —
   `python3 tools/check_consistency.py` tells you what is missing (CI runs it).
 - Conventions and rules for agents: [`AGENTS.md`](AGENTS.md).
+- Code of conduct: [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) (Contributor
+  Covenant 2.1, Italian translation).
 
 ## 📄 License
 
