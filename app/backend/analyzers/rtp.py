@@ -8,12 +8,14 @@ video flow, depacketises H.264 into an Annex B ``.264``, converts it with
 ffmpeg and returns a few video frames as children: OCR then reads the flag
 shown in the video (WaniCTF 2024 "I wanna be a streamer").
 
-Everything is bounded: the gate only reads the first packets, the capture scan
-stops after a packet/byte budget, and each stream keeps at most
-``MAX_STREAM_BYTES``. External commands go through ``ctx.run`` with a timeout.
+Everything is bounded: the gate walks the whole capture under a packet/byte
+budget, the scan stops after a packet/byte budget and caps both the retained
+bytes across all SSRCs and the number of candidate SSRCs. External commands go
+through ``ctx.run`` under one shared deadline for the whole analysis.
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -22,10 +24,11 @@ from .pcap import PCAP_EXT
 from .registry import register
 
 # --- caps (checked before doing any work) ----------------------------------
-GATE_PACKETS = 5000             # first packets only: a capture without RTP exits fast
 GATE_BYTES = 4 << 20            # payload bytes kept during the gate
-MAX_SCAN_PACKETS = 500_000      # frames walked in the full pass
+MAX_SCAN_PACKETS = 500_000      # frames walked in the full pass (and the gate)
 MAX_STREAM_BYTES = 64 << 20     # payload bytes kept per RTP stream
+MAX_TOTAL_BYTES = 96 << 20      # payload bytes kept across all streams
+MAX_SSRCS = 32                  # candidate SSRCs kept (only a couple are written)
 MAX_STREAM_PACKETS = 60_000     # packets kept per RTP stream (one seq wrap)
 MAX_FRAME_BYTES = 4 << 20       # a single captured frame larger than this is skipped
 MAX_SDP_BYTES = 256 << 10       # RTSP text inspected for the SDP
@@ -33,6 +36,10 @@ MAX_STREAMS_OUT = 2             # H.264 streams written as children
 MIN_ANNEXB = 64                 # bytes below which the result is noise
 MAX_FRAMES = 2                  # frames extracted in total (OCR cost)
 FRAME_INTERVAL_S = 2            # one frame every ~2 s
+FFMPEG_BUDGET_S = 240           # total wall-clock budget for all ffmpeg calls
+FFMPEG_CALL_TIMEOUT_S = 240     # per-call cap, never more than the remaining budget
+
+_now = time.monotonic            # injectable clock (tests)
 
 # classic pcap magic -> (struct endianness, nanosecond timestamps)
 _PCAP_MAGICS = {
@@ -258,19 +265,24 @@ def _stream_is_h264(packets: list[RtpPacket], sdp_pts: set[int]) -> bool:
 
 
 def order_packets(packets: list[RtpPacket]) -> list[RtpPacket]:
-    """Deduplicate by sequence number and sort across a 16-bit wrap.
+    """Deduplicate by sequence number and sort across any number of 16-bit wraps.
 
-    The first arrival is the reference: reordered packets around it get a
-    signed distance, so 3,1,2 sorts as 1,2,3 and 65535,0,1 keeps its order.
+    The sequence is unwrapped in arrival order: each arrival adds its signed
+    distance from the previous one to a 32-bit extended counter, so a wrap at
+    65535 and captures longer than 32768 packets keep their real order. Duplicate
+    sequence numbers (retransmissions) keep their first arrival.
     """
     uniq: dict[int, RtpPacket] = {}
+    last_seq: int | None = None
+    last_ext = 0
     for p in packets:
-        uniq.setdefault(p.seq, p)        # a retransmission repeats its seq
-    if not uniq:
-        return []
-    base = next(iter(uniq.values())).seq
-    return sorted(uniq.values(),
-                  key=lambda p: ((p.seq - base + 32768) & 0xFFFF) - 32768)
+        if last_seq is None:
+            ext = p.seq
+        else:
+            ext = last_ext + (((p.seq - last_seq + 32768) & 0xFFFF) - 32768)
+        last_seq, last_ext = p.seq, ext
+        uniq.setdefault(ext, p)          # a retransmission repeats its seq
+    return [uniq[ext] for ext in sorted(uniq)]
 
 
 def _stap_nals(payload: bytes, off: int) -> list[bytes]:
@@ -302,8 +314,12 @@ def depacketize_h264(packets: list[RtpPacket],
     """
     out = bytearray()
     fu: bytearray | None = None
+    fu_next: int | None = None
     for pkt in order_packets(packets):
         payload = pkt.payload
+        if fu is not None and pkt.seq != fu_next:
+            fu = None                              # sequence gap: drop the partial NAL
+            fu_next = None
         if not payload:
             continue
         nal_type = payload[0] & 0x1F
@@ -328,11 +344,14 @@ def depacketize_h264(packets: list[RtpPacket],
                 fu = bytearray([(payload[0] & 0xE0) | inner])
             elif fu is None:
                 continue                            # lost the fragment that started it
-            fu += payload[2:]
-            if end:
+            if fu is not None:
+                fu += payload[2:]
+                fu_next = (pkt.seq + 1) & 0xFFFF
+            if end and fu is not None:
                 if not _emit(out, bytes(fu), max_bytes):
                     return bytes(out)
                 fu = None
+                fu_next = None
     return bytes(out)
 
 
@@ -341,15 +360,25 @@ def depacketize_h264(packets: list[RtpPacket],
 # ---------------------------------------------------------------------------
 
 def parse_capture(path: Path, max_packets: int = MAX_SCAN_PACKETS,
-                  max_bytes: int = MAX_STREAM_BYTES) -> CaptureScan:
+                  max_bytes: int = MAX_STREAM_BYTES,
+                  max_total: int | None = None,
+                  max_ssrcs: int | None = None) -> CaptureScan:
     """Read RTP candidate packets from a pcap and parse the RTSP SDP.
 
     Only UDP/RTP packets whose payload type is declared H.264 in the SDP or
     whose payload holds a plausible H.264 NAL header are kept, grouped by SSRC.
+    ``max_bytes`` caps one stream, ``max_total`` caps all streams together and
+    ``max_ssrcs`` caps the number of candidate SSRCs; both are checked before
+    the payload is retained.
     """
+    if max_total is None:
+        max_total = MAX_TOTAL_BYTES
+    if max_ssrcs is None:
+        max_ssrcs = MAX_SSRCS
     scan = CaptureScan()
     sdp_text = ""
     used: dict[int, int] = {}
+    total = 0
     for linktype, frame in _iter_frames(path, max_packets):
         scan.packets += 1
         seg = tcp_segment(frame, linktype)
@@ -370,12 +399,19 @@ def parse_capture(path: Path, max_packets: int = MAX_SCAN_PACKETS,
                 or (pkt.payload_type >= 96 and _looks_like_h264(pkt.payload))):
             continue
         scan.rtp_packets += 1
-        stream = scan.streams.setdefault(pkt.ssrc, [])
+        if pkt.ssrc not in scan.streams:
+            if len(scan.streams) >= max_ssrcs:
+                continue
+            scan.streams[pkt.ssrc] = []
+        stream = scan.streams[pkt.ssrc]
         if len(stream) >= MAX_STREAM_PACKETS:
             continue
         if used.get(pkt.ssrc, 0) + len(pkt.payload) > max_bytes:
             continue
+        if total + len(pkt.payload) > max_total:
+            continue
         used[pkt.ssrc] = used.get(pkt.ssrc, 0) + len(pkt.payload)
+        total += len(pkt.payload)
         stream.append(pkt)
     return scan
 
@@ -392,18 +428,34 @@ def video_streams(scan: CaptureScan) -> list[tuple[int, list[RtpPacket]]]:
 # analyzer
 # ---------------------------------------------------------------------------
 
-def _extract_frames(ctx: ToolContext, raw: Path, limit: int) -> tuple[list[Path], Path | None]:
-    """Convert the Annex B stream to MP4 and extract a few frames."""
+def _extract_frames(ctx: ToolContext, raw: Path, limit: int,
+                    deadline: float) -> tuple[list[Path], Path | None]:
+    """Convert the Annex B stream to MP4 and extract a few frames.
+
+    ``deadline`` is the single wall-clock deadline shared by every external
+    command of the analysis: no ffmpeg call starts once it has passed.
+    """
     if limit <= 0 or not which("ffmpeg"):
+        return [], None
+
+    def remaining() -> float:
+        return deadline - _now()
+
+    left = remaining()
+    if left <= 0:
         return [], None
     mp4 = raw.with_suffix(".mp4")
     ctx.run(["ffmpeg", "-y", "-loglevel", "error", "-fflags", "+genpts", "-r", "25",
-             "-i", str(raw), "-c", "copy", str(mp4)], timeout=240)
+             "-i", str(raw), "-c", "copy", str(mp4)],
+            timeout=min(FFMPEG_CALL_TIMEOUT_S, max(1, int(left))))
+    left = remaining()
+    if left <= 0:
+        return [], mp4 if mp4.exists() else None
     src = mp4 if mp4.exists() and mp4.stat().st_size > 0 else raw
     pattern = raw.parent / f"{raw.stem}_frame_%03d.png"
     ctx.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), "-vf",
              f"fps=1/{FRAME_INTERVAL_S}", "-frames:v", str(limit), str(pattern)],
-            timeout=240)
+            timeout=min(FFMPEG_CALL_TIMEOUT_S, max(1, int(left))))
     frames = sorted(raw.parent.glob(f"{raw.stem}_frame_*.png"))[:limit]
     return frames, mp4 if mp4.exists() else None
 
@@ -425,15 +477,20 @@ class RtpAnalyzer(Analyzer):
             return ToolResult(self.name, status="skipped", summary="pcapng not supported")
         if magic not in _PCAP_MAGICS:
             return ToolResult(self.name, status="skipped", summary="not a pcap")
-        # Cheap gate: only the first packets are walked; a capture without RTP
-        # (the vast majority of pcaps) stops here in a few milliseconds.
-        gate = parse_capture(ctx.input, max_packets=GATE_PACKETS, max_bytes=GATE_BYTES)
+        # Presence gate: the whole capture is walked (bounded by the scan
+        # packet limit) with only a small payload budget, so RTP that starts
+        # late is still found while a capture without RTP stops before the
+        # heavier full scan.
+        gate = parse_capture(ctx.input, max_packets=MAX_SCAN_PACKETS,
+                             max_bytes=GATE_BYTES, max_total=GATE_BYTES)
         if not video_streams(gate):
             return ToolResult(self.name, status="skipped", summary="no RTP/H.264 stream")
+        del gate
         scan = parse_capture(ctx.input)
         streams = video_streams(scan)
         if not streams:
             return ToolResult(self.name, status="skipped", summary="no RTP/H.264 stream")
+        deadline = _now() + FFMPEG_BUDGET_S
 
         outdir = ctx.sub(self.name)
         artifacts: list[dict] = []
@@ -453,7 +510,7 @@ class RtpAnalyzer(Analyzer):
             nals = data.count(b"\x00\x00\x00\x01")
             parts.append(f"ssrc {ssrc:08x}: {len(packets)} RTP packets, "
                          f"{nals} NAL, {len(data)} B")
-            frames, mp4 = _extract_frames(ctx, raw, MAX_FRAMES - frames_total)
+            frames, mp4 = _extract_frames(ctx, raw, MAX_FRAMES - frames_total, deadline)
             if mp4:
                 artifacts.append({"name": mp4.name, "path": str(mp4),
                                   "size": mp4.stat().st_size})

@@ -226,3 +226,87 @@ def test_analyzer_returns_extracted_frames(tmp_path: Path, monkeypatch) -> None:
     assert len(result.extracted) == rtp.MAX_FRAMES   # cap respected
     assert all(p.endswith(".png") for p in result.extracted)
     assert all(Path(p).is_file() for p in result.extracted)
+
+
+# ---------------------------------------------------------------------------
+# issue #26: ordering past 32768, late RTP, caps, deadline, FU-A gaps
+# ---------------------------------------------------------------------------
+
+def test_order_packets_keeps_40000_in_order_packets_in_order() -> None:
+    pkts = [rtp.RtpPacket(seq, 0, False, 96, 1, b"") for seq in range(40000)]
+    assert [p.seq for p in rtp.order_packets(pkts)] == list(range(40000))
+
+
+def test_order_packets_unwraps_a_real_wrap_mid_stream() -> None:
+    # cross 65535 -> 0 and keep going for more than 32k packets: a signed
+    # distance from the first packet wraps and mis-sorts this.
+    seqs = list(range(65500, 65536)) + list(range(40000))
+    pkts = [rtp.RtpPacket(seq, 0, False, 96, 1, b"") for seq in seqs]
+    assert [p.seq for p in rtp.order_packets(pkts)] == seqs
+
+
+def test_rtp_after_the_old_gate_window_is_still_found(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(rtp, "which", lambda _name: None)   # no ffmpeg: .264 only
+    frames = [_frame(b"\x00\x01\x02\x03" * 4, sport=5353, dport=5353)
+              for _ in range(6000)]
+    frames += [_frame(_rtp(96, 1, 0, 0x77, SPS)),
+               _frame(_rtp(96, 2, 0, 0x77, PPS)),
+               _frame(_rtp(96, 3, 0, 0x77, b"\x65" + IDR_BODY))]
+    result = rtp.RtpAnalyzer().run(_ctx(tmp_path, _pcap(frames)))
+    assert result.status == "done", result.summary
+
+
+def _many_ssrc_frames(n_ssrc: int, per_ssrc: int = 20) -> list[bytes]:
+    return [_frame(_rtp(96, seq, seq, ssrc, b"\x65" + b"x" * 99))
+            for ssrc in range(n_ssrc) for seq in range(1, per_ssrc + 1)]
+
+
+def test_global_byte_budget_across_ssrcs_is_enforced(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(rtp, "MAX_TOTAL_BYTES", 500, raising=False)
+    monkeypatch.setattr(rtp, "MAX_SSRCS", 100, raising=False)
+    cap = tmp_path / "many-ssrc.pcap"
+    cap.write_bytes(_pcap(_many_ssrc_frames(10)))
+    scan = rtp.parse_capture(cap)
+    kept = sum(len(p.payload) for pkts in scan.streams.values() for p in pkts)
+    assert kept <= 500
+
+
+def test_number_of_ssrc_candidates_is_capped(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(rtp, "MAX_SSRCS", 3, raising=False)
+    monkeypatch.setattr(rtp, "MAX_TOTAL_BYTES", 10 << 20, raising=False)
+    cap = tmp_path / "many-ssrc.pcap"
+    cap.write_bytes(_pcap(_many_ssrc_frames(10)))
+    scan = rtp.parse_capture(cap)
+    assert len(scan.streams) <= 3
+
+
+def test_external_work_stops_at_one_total_deadline(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(rtp, "which", lambda _name: "/usr/bin/ffmpeg")
+    clock = {"now": 0.0}
+    monkeypatch.setattr(rtp, "_now", lambda: clock["now"], raising=False)
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, timeout=300, cwd=None, env=None):
+        calls.append([str(c) for c in cmd])
+        clock["now"] += rtp.FFMPEG_BUDGET_S + 1   # the first call burns the budget
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    frames = []
+    for ssrc in (1, 2):
+        frames += [_frame(_rtp(96, 1, 0, ssrc, SPS)),
+                   _frame(_rtp(96, 2, 0, ssrc, PPS)),
+                   _frame(_rtp(96, 3, 0, ssrc, b"\x65" + IDR_BODY))]
+    ctx = _ctx(tmp_path, _pcap(frames))
+    monkeypatch.setattr(ctx, "run", fake_run)
+    result = rtp.RtpAnalyzer().run(ctx)
+    assert result.status == "done", result.summary
+    assert len(calls) == 1                    # no ffmpeg after the deadline
+
+
+def test_fua_with_a_lost_middle_fragment_is_dropped() -> None:
+    frags = _fua(5, IDR_BODY)
+    assert len(frags) >= 3
+    pkts = [rtp.RtpPacket(1, 0, False, 96, 9, frags[0]),
+            rtp.RtpPacket(3, 0, True, 96, 9, frags[-1])]   # seq 2 is lost
+    out = rtp.depacketize_h264(pkts)
+    assert out == b""                          # no half-reassembled NAL emitted
