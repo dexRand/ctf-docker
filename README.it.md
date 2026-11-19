@@ -346,6 +346,7 @@ tasks/                piani e stato
 - Convenzioni e regole per gli agent: [`AGENTS.md`](AGENTS.md).
 - Codice di condotta: [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) (Contributor
   Covenant 2.1, in italiano).
+- Sicurezza: [`SECURITY.md`](SECURITY.md) — come segnalare una vulnerabilità in privato.
 
 ## 📄 Licenza
 
