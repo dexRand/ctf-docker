@@ -346,6 +346,7 @@ tasks/                plans and status
 - Conventions and rules for agents: [`AGENTS.md`](AGENTS.md).
 - Code of conduct: [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) (Contributor
   Covenant 2.1, Italian translation).
+- Security: [`SECURITY.md`](SECURITY.md) — how to report a vulnerability privately.
 
 ## 📄 License
 
