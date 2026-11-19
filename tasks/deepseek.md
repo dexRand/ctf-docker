@@ -581,3 +581,52 @@ Fatto: decifratura VNC generica in `winreg`, test, dipendenza pinnata, caso real
 esaminato con il plaintext nell'output. Resta: il caso non si sposta in `EXTRA`
 perché manca il wrapping password->flag in `flaghunt.py` (vietato); il commit usa
 `Refs #13` e il GAP è commentato.
+
+---
+
+# Sessione 15/11 — issue #16 (flag-wrapping password → flag)
+
+## `ic25-obfuscated-Users.zip` — **CHIUSO** (wrapping generico in `flaghunt.py`)
+
+Implementazione (file autorizzati dall'utente per questo task, eccezione esplicita
+ai "vietati"):
+
+- `flagpatterns.py`: `password_values()` riconosce solo credenziali **etichettate**
+  (`Password`, `PasswordViewOnly`, `ControlPassword`, `passwd`, `passwd2`, `pwd`,
+  `pass`/`secret`, anche JSON `"password": "..."`), scarta i placeholder, e
+  `wrap_flag_candidates()` prova **tutti** i `FLAG_PREFIXES`. Tetti:
+  `MAX_WRAP_VALUES=4` credenziali e `MAX_WRAP_CANDIDATES=96` candidati per hunt.
+- `flaghunt.py`: `add_candidate()` salva i candidati con `source="wrap:<sorgente>"`
+  (bassa confidenza). A differenza di `add()` **non elimina** mai un flag già
+  trovato: se candidato e flag esistente sarebbero frammenti l'uno dell'altro, il
+  candidato viene scartato. Il wrapping gira per ultimo, solo a `depth == 0`, sul
+  testo dell'output e sui finding `kind="password"` del progetto (crack inclusi).
+- Nessun prefisso/flag del caso nel codice: `ictf{Slay4U!!}` compare solo nel test
+  e in `real_challenges_extra.py`.
+
+### Verifica (output copiati)
+
+- `app/tests/run_unit.sh` -> `520 passed, 4 warnings in 38.64s`.
+- `./ctf lint` -> `[ok] lint clean`.
+- `docker compose build stegsuite` + `up -d stegsuite term` -> healthy
+  (`{"status":"ok","version":"0.1.0"}`), `/data` ext4.
+- Caso reale (build finale):
+  `real_challenges.py --extra --only-new -k obfuscated` ->
+  `[PASS] ic25-obfuscated-Users.zip  697.1s status=done expect=ictf{Slay4U!!} got=['Pynffvp_{P5361R07-6NN3-4453-81OP-93R8S85RNORQ}', 'picoCTF{Slay4U!!}', 'ITS{Slay4U!!}']`
+  (prima dello spostamento in EXTRA, con `--gaps`: PASS 701.1 s).
+  Caso spostato da `GAPS` a `EXTRA`.
+- Non regressione: `real_challenges.py -j 3 --only-new --extra` -> **57/59**,
+  `15675.2s` di analisi. I 57 casi che chiudono PASSano tutti; due FAIL sono
+  entrambe `status=timeout` del client a 900 s sotto `-j 3`:
+  - `ictf23_forensics.zip 901.3s status=timeout` (già documentata: 900.4/901.6/
+    901.0/900.2 s sotto `-j 3`, PASS da sola 631.5 s);
+  - `ic25-obfuscated-Users.zip 900.9s status=timeout`, che **da sola PASSa in
+    697.1 s** con la stessa build (sopra), quindi non è una regressione del
+    wrapping ma il limite client di 900 s sotto carico.
+  Il totale è 59 (non 58) perché il caso è stato spostato da `GAPS` a `EXTRA`.
+
+### Stato
+
+Fatto: wrapping generico, test (7 casi), caps, `ic25-obfuscated-Users.zip` in
+`EXTRA`. Resta: la suite `-j 3 --extra` non chiude 59/59 per i due timeout client
+sopra (entrambi i casi PASSano da soli); nessun blocco sul wrapping.

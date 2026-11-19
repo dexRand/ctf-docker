@@ -62,6 +62,54 @@ def _ok_flag(value: str) -> bool:
     return sum(ch.isalnum() for ch in body) >= 3
 
 
+# --- password/credential -> flag candidates ---------------------------------
+# A credential that emerges from an analyzer (a VNC password decrypted from a
+# hive, a password in a crack hint) is often the flag body itself:
+# `Password = Slay4U!!` -> `ictf{Slay4U!!}`. Wrapping is a generic guess, so it
+# only fires on labelled credentials and is capped; see flaghunt.add_candidate.
+MAX_WRAP_VALUES = 4          # credentials wrapped per hunt
+MAX_WRAP_CANDIDATES = 96     # hard cap on generated candidates per hunt
+
+# `Password = X`, `passwd: 'X'`, `"pwd": "X"`, `secret=X` — only labelled
+# assignments count: an arbitrary `foo = bar` must never become a flag.
+_CREDENTIAL_RE = re.compile(
+    r"""(?ix)
+    (?<![0-9A-Za-z_])["']?
+    (?:password|passwordviewonly|passwd|passwd2|controlpassword|pass|pwd|secret)
+    ["']?[ \t]*[:=][ \t]*
+    (?:"([^"\n]{1,120})"|'([^'\n]{1,120})'|([^\s,;]{1,120}))
+    """)
+# values that are labels/placeholders, not a credential
+_CREDENTIAL_JUNK = {"password", "passwd", "passwd2", "controlpassword", "pass", "pwd",
+                    "secret", "none", "null", "nil", "true", "false", "required",
+                    "not found", "non trovata", "********", "<redacted>"}
+
+
+def password_values(text: str, limit: int = MAX_WRAP_VALUES) -> list[str]:
+    """Values of labelled credentials in a tool output, in order, deduped."""
+    out: list[str] = []
+    for m in _CREDENTIAL_RE.finditer(text):
+        value = next((g for g in m.groups() if g is not None), "").strip()
+        if not value or value.lower() in _CREDENTIAL_JUNK or value in out:
+            continue
+        out.append(value)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def wrap_flag_candidates(value: str, limit: int = MAX_WRAP_CANDIDATES) -> list[str]:
+    """`PREFIX{value}` for every known prefix, keeping only valid flag bodies."""
+    out: list[str] = []
+    for prefix in FLAG_PREFIXES:
+        cand = f"{prefix}{{{value}}}"
+        if _ok_flag(cand):
+            out.append(cand)
+            if len(out) >= limit:
+                break
+    return out
+
+
 # A flag found in a different encoding (typically rot13 of the whole value,
 # e.g. `VGF{...}` for `ITS{...}`) should collapse to a single finding.
 KNOWN_PREFIXES = {p.lower() for p in FLAG_PREFIXES}

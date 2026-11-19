@@ -15,8 +15,10 @@ from sqlmodel import Session, select
 
 from . import flagpatterns as fp
 from .flagpatterns import (_FUZZY_RE, _GENERIC_RE, _STRICT_GLUED_RE, _STRICT_RE, FUZZY_SOURCES, GENERIC_NOISY,
-                           VISION_SOURCES, _canon_flag, _is_known_prefix, _ok_flag,
-                           _rot13_candidates, _url_decoded)
+                           MAX_WRAP_CANDIDATES, MAX_WRAP_VALUES, VISION_SOURCES,
+                           _canon_flag, _is_known_prefix, _ok_flag,
+                           _rot13_candidates, _url_decoded, password_values,
+                           wrap_flag_candidates)
 from .ctfs import format_regex, project_format
 from .models import Finding
 
@@ -196,6 +198,28 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         keep(Finding(project_id=project_id, file_id=file_id, kind="flag",
                      value=value, source=src, context=where(ctx, literal or value)))
 
+    def add_candidate(value: str, src: str, ctx: str, literal: str) -> None:
+        """Store a low-confidence `PREFIX{credential}` guess.
+
+        Unlike `add`, it never removes an existing flag: when the candidate and
+        an existing flag would be fragments of one another, the candidate is
+        simply skipped (a confirmed flag always wins).
+        """
+        if not _ok_flag(value) or value in existing:
+            return
+        norm = value.replace(" ", "")
+        if norm in existing_norm:
+            return
+        current = existing | set(pending)
+        if any(value != ex and (value in ex or ex in value) for ex in current):
+            return
+        existing.add(value)
+        existing_norm.add(norm)
+        canon_index[_canon_flag(value)] = value
+        keep(Finding(project_id=project_id, file_id=file_id, kind="flag",
+                     value=value, source=f"wrap:{src}",
+                     context=where(f"candidate from a credential ({ctx})", literal)))
+
     def scan(view: bytes, with_generic: bool) -> None:
         for val, s, e in custom_flag_matches(view):
             add_raw(val, f"custom:{source}", _snippet(view, s, e), _lit(view, s, e))
@@ -231,6 +255,24 @@ def _hunt(session: Session, project_id: str, file_id: int | None, text: str,
         scan(view, with_generic=True)
     for view in collapsed_views:
         scan(view, with_generic=False)
+    # A credential that emerges (a VNC password decrypted from a hive, a crack
+    # hint) is often the flag body itself: try `PREFIX{value}` for every known
+    # prefix. Candidates are added last so a confirmed flag always wins, and
+    # they are capped (see flagpatterns.MAX_WRAP_*).
+    if depth == 0:
+        values = password_values(text[:200_000])
+        pw_q = select(Finding).where(Finding.project_id == project_id).where(
+            Finding.kind == "password")
+        for f in session.exec(pw_q).all():
+            if f.value and f.value not in values:
+                values.append(f.value)
+        budget = MAX_WRAP_CANDIDATES
+        for value in values[:MAX_WRAP_VALUES]:
+            for cand in wrap_flag_candidates(value, limit=budget):
+                add_candidate(cand, source, f"password {value[:60]!r}", value)
+                budget -= 1
+            if budget <= 0:
+                break
     if depth >= 2:
         return
     # inline encodings in tool outputs (e.g. base64 in EXIF metadata)
