@@ -280,6 +280,25 @@ def test_number_of_ssrc_candidates_is_capped(tmp_path: Path, monkeypatch) -> Non
     assert len(scan.streams) <= 3
 
 
+def test_noise_ssrcs_do_not_lock_out_a_late_real_stream(tmp_path: Path, monkeypatch) -> None:
+    # UDP noise that passes the H.264 sniff opens one-packet SSRCs; once the
+    # table is full a real stream arriving later must still get a slot
+    monkeypatch.setattr(rtp, "MAX_SSRCS", 3, raising=False)
+    monkeypatch.setattr(rtp, "MAX_TOTAL_BYTES", 10 << 20, raising=False)
+    noise = [_frame(_rtp(96, 1, 1, 1000 + i, b"\x65" + b"n" * 50)) for i in range(10)]
+    real = [_frame(_rtp(96, seq, seq, 4242, b"\x65" + b"x" * 99)) for seq in range(1, 21)]
+    cap = tmp_path / "noise-then-video.pcap"
+    cap.write_bytes(_pcap(noise + real))
+    scan = rtp.parse_capture(cap)
+    assert len(scan.streams) <= 3
+    assert len(scan.streams.get(4242, [])) == 20
+    # proven streams (>= MIN_PROVEN_PACKETS) are never evicted by newcomers
+    late = [_frame(_rtp(96, 1, 1, 7777, b"\x65" + b"l" * 50))]
+    cap.write_bytes(_pcap(_many_ssrc_frames(3) + late))
+    scan = rtp.parse_capture(cap)
+    assert 7777 not in scan.streams and len(scan.streams) == 3
+
+
 def test_external_work_stops_at_one_total_deadline(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(rtp, "which", lambda _name: "/usr/bin/ffmpeg")
     clock = {"now": 0.0}
