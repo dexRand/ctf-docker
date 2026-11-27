@@ -59,12 +59,25 @@ Case-specific o bloccate: Piet (`npiet` assente), esolang "aussie", Minecraft 3D
 Discord deleted files, steno keyboard, PNG "knitting", OCR WordArt/graffiti,
 `.pyc`/wasm2wat (nessun caso reale che li sblocca).
 
-## Blocco 1 — meccanismo depth (prerequisito)
+## Blocco 1 — meccanismo depth (prerequisito) ✅ FATTO (issue #40, PR #57)
 
 Prima di implementare i sub-feature: introdurre `tier` nel planner + `depth` in
 API/SPA/CLI, e ri-tierare gli analyzer esistenti (spostare fuori da `normal` i
 costosi a bassa resa, con misura prima/dopo). È il blocco che rende "rapido su
 tutte" possibile e che abilita i livelli sotto.
+
+**Chiuso 27/11 (commit `8544f3d`):** `planner._plan_for(..., tier=...)` filtra per
+rank (normal<deep<full, `TIERS`/`_TIER_RANK`); `Project.depth` + migrazione `0004`;
+API `depth` (create/PATCH, 422 su invalido) + SPA dropdown + CLI `./ctf scan --depth`;
+ri-tiering `sstv`+`wpa` → `deep`. Verifica: unit **553 passed**, `lint clean`,
+`--fast` fixture **33/33** + reali **11/11** + writeup **ALL CORRECT** (1451.0s → 1362.5s),
+L2 CI verde. Nessuna flag persa.
+
+Follow-up aperti dal blocco (non bloccanti per i sub-feature `deep`, necessari prima
+di `full`):
+- **`full` oggi == `deep`** (nessun analyzer è `full`): si materializza con #51/#52/#53.
+- **`real_challenges.py`/`verify_flags.py` non threadano `--depth`** (issue #59): senza,
+  la verifica `--gaps -k <nome>` dei casi `deep`/`full` girerebbe a `normal` in silenzio.
 
 ## Come si misura
 
