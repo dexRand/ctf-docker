@@ -133,3 +133,119 @@ def test_settle_forgets_the_batch_when_an_analysis_owns_the_status(monkeypatch):
     cq._PREV["pid-settle"] = "failed"
     cq._settle(job)
     assert "pid-settle" not in cq._PREV      # no stale status for the next crack
+
+
+# ------------------------------------------------ wordlist progress (issue #56)
+def test_crack_job_as_dict_exposes_requested_and_tried_wordlists():
+    from backend import crackqueue as cq
+    job = cq.CrackJob(42, "p", 7, "x.zip", ["a.txt", "b.txt"], {"rules": "best64"})
+    d = job.as_dict()
+    assert d["wordlists"] == ["a.txt", "b.txt"]
+    assert d["opts"] == {"rules": "best64"}
+    assert d["tried_wordlists"] == [] and d["current_wordlist"] is None
+    assert d["wordlist"] is None            # the winning list is still serialized
+    job.tried_wordlists.append("a.txt")
+    job.current_wordlist = "b.txt"
+    d = job.as_dict()
+    assert d["tried_wordlists"] == ["a.txt"] and d["current_wordlist"] == "b.txt"
+
+
+def _fake_lists(tmp_path):
+    a, b = tmp_path / "a.txt", tmp_path / "b.txt"
+    a.write_text("a\n")
+    b.write_text("b\n")
+    return [a, b]
+
+
+def test_crack_file_reports_every_wordlist_in_order(tmp_path, monkeypatch):
+    """The progress callback fires once per wordlist, in order, with its name."""
+    wls = _fake_lists(tmp_path)
+    monkeypatch.setattr(cracking.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(cracking, "_available", lambda: wls)
+    monkeypatch.setattr(cracking, "_expand", lambda p: p)
+    seen: list[str] = []
+    res = cracking.crack_file(tmp_path / "locked.zip", on_wordlist=seen.append)
+    assert seen == ["a.txt", "b.txt"]
+    assert res["password"] is None
+
+
+def test_crack_file_works_without_a_progress_callback(tmp_path, monkeypatch):
+    """The auto-crack path calls crack_file without on_wordlist: it must not fail."""
+    wls = _fake_lists(tmp_path)
+    monkeypatch.setattr(cracking.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(cracking, "_available", lambda: wls)
+    monkeypatch.setattr(cracking, "_expand", lambda p: p)
+    res = cracking.crack_file(tmp_path / "locked.zip")
+    assert res["wordlists"] == ["a.txt", "b.txt"]
+
+
+def test_gz_wordlist_reports_the_requested_name(tmp_path, monkeypatch):
+    """_expand rewrites rockyou.txt.gz to an internal temp path; progress must
+    report the name the user asked for, not the temp one."""
+    gz = tmp_path / "rockyou.txt.gz"
+    gz.write_bytes(b"\x1f\x8b")
+    expanded = tmp_path / "stegsuite-wl-abc123-rockyou.txt"
+    expanded.write_text("x\n")
+    monkeypatch.setattr(cracking.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(cracking, "_available", lambda: [gz])
+    monkeypatch.setattr(cracking, "_expand", lambda _p: expanded)
+    seen: list[str] = []
+    cracking.crack_file(tmp_path / "locked.zip", on_wordlist=seen.append)
+    assert seen == ["rockyou.txt.gz"]
+    assert not any("stegsuite-wl-" in name for name in seen)
+
+
+def test_context_wordlist_is_tried_but_not_reported(tmp_path, monkeypatch):
+    """extra_wordlists (the project context list) is internal: it is tried first
+    but must not skew current_wordlist/tried_wordlists (and their i/n)."""
+    wls = _fake_lists(tmp_path)
+    ctx = tmp_path / "crack-context.txt"
+    ctx.write_text("ctx\n")
+    monkeypatch.setattr(cracking.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(cracking, "_available", lambda: wls)
+    monkeypatch.setattr(cracking, "_expand", lambda p: p)
+    seen: list[str] = []
+    res = cracking.crack_file(tmp_path / "locked.zip",
+                              extra_wordlists=[ctx], on_wordlist=seen.append)
+    assert seen == ["a.txt", "b.txt"]
+    assert "crack-context.txt" not in seen
+    assert res["wordlists"] == ["crack-context.txt", "a.txt", "b.txt"]  # still tried first
+
+
+def test_running_job_tracks_wordlist_progress(client, monkeypatch):
+    """_crack maps the callback onto tried_wordlists/current_wordlist and
+    publishes it through as_dict, so the SPA can render live progress."""
+    pid = "cq-progress"
+    with Session(engine) as s:
+        if not s.get(Project, pid):
+            (storage.project_dir(pid) / "uploads").mkdir(parents=True, exist_ok=True)
+            (storage.project_dir(pid) / "uploads" / "w.zip").write_bytes(b"PK")
+            s.add(Project(id=pid, name="cq-progress", status="done"))
+            s.add(FileNode(project_id=pid, name="w.zip", rel_path="uploads/w.zip"))
+            s.commit()
+        node = s.exec(select(FileNode).where(FileNode.project_id == pid)).first()
+
+    started, gate = threading.Event(), threading.Event()
+
+    def fake_crack(path, names, log=None, on_wordlist=None, **kw):
+        on_wordlist("a.txt")
+        started.set()
+        gate.wait(5)
+        on_wordlist("b.txt")
+        return {"password": None, "kind": "archive", "extracted": [],
+                "wordlist_hit": None, "wordlists": []}
+    monkeypatch.setattr(cracking, "crack_file", fake_crack)
+
+    assert client.post(f"/api/v1/projects/{pid}/crack",
+                       json={"file_id": node.id}).status_code == 200
+    assert _wait(started.is_set)
+    job = client.get(f"/api/v1/cracks?project_id={pid}").json()[0]
+    assert job["status"] == "running"
+    assert job["current_wordlist"] == "a.txt" and job["tried_wordlists"] == []
+    gate.set()
+    assert _wait(lambda: client.get(f"/api/v1/cracks?project_id={pid}")
+                 .json()[0]["status"] not in ("queued", "running"))
+    job = client.get(f"/api/v1/cracks?project_id={pid}").json()[0]
+    assert job["tried_wordlists"] == ["a.txt"]   # completed; the last one stays current
+    assert job["current_wordlist"] == "b.txt"
+    assert job["wordlists"] is None and job["opts"] == {}

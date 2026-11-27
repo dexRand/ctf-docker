@@ -185,6 +185,15 @@ function queuePos(j) {
   const q = (cracks.value.jobs || []).filter((x) => x.status === 'queued').sort((a, b) => a.id - b.id)
   return q.findIndex((x) => x.id === j.id) + 1
 }
+// requested wordlists ("all" when the job has none) and how many there are
+function crackListNames(j) {
+  const names = (j.wordlists || []).filter(Boolean)
+  return names.length ? names.join(', ') : t('proj.crackq_all_lists')
+}
+function crackListCount(j) {
+  const names = (j.wordlists || []).filter(Boolean)
+  return names.length || wordlists.value.length
+}
 function elapsed(j) {
   const end = j.finished_at || now.value
   const start = j.started_at || j.queued_at
@@ -848,18 +857,27 @@ onBeforeUnmount(() => {
               </span>
             </div>
             <div v-for="j in crackShown" :key="j.id"
-                 class="mb-1 flex items-center gap-1.5 rounded border border-edge/70 px-1.5 py-1 text-[10px]">
-              <span class="shrink-0 rounded border px-1 py-0.5 text-[9px]" :class="crackChip(j.status)">{{ crackLabel(j.status) }}</span>
-              <span class="min-w-0 flex-1 truncate text-fglite" :title="j.name">{{ j.name }}</span>
-              <span v-if="j.status === 'queued'" class="shrink-0 text-dim">{{ t('proj.crackq_pos', { n: queuePos(j) }) }}</span>
-              <span v-else-if="j.status === 'running'" class="shrink-0 text-warn">{{ fmtDur(elapsed(j)) }}</span>
-              <span v-else-if="j.status === 'found'" class="shrink-0 text-acc">
-                {{ j.password }}<span v-if="j.wordlist" class="text-dim"> · {{ j.wordlist }}</span>
-              </span>
-              <span v-else class="shrink-0 text-dim">{{ fmtDur(elapsed(j)) }}</span>
-              <button v-if="j.status === 'queued'" type="button" @click="cancelCrack(j)"
-                      class="kb kb-danger shrink-0 px-1 py-0 text-[10px]" :aria-label="t('proj.crackq_cancel')"
-                      :title="t('proj.crackq_cancel')">✕</button>
+                 class="mb-1 rounded border border-edge/70 px-1.5 py-1 text-[10px]">
+              <div class="flex items-center gap-1.5">
+                <span class="shrink-0 rounded border px-1 py-0.5 text-[9px]" :class="crackChip(j.status)">{{ crackLabel(j.status) }}</span>
+                <span class="min-w-0 flex-1 truncate text-fglite" :title="j.name">{{ j.name }}</span>
+                <span v-if="j.status === 'queued'" class="shrink-0 text-dim">{{ t('proj.crackq_pos', { n: queuePos(j) }) }}</span>
+                <span v-else-if="j.status === 'running'" class="shrink-0 text-warn">{{ fmtDur(elapsed(j)) }}</span>
+                <span v-else-if="j.status === 'found'" class="shrink-0 text-acc">
+                  {{ j.password }}<span v-if="j.wordlist" class="text-dim"> · {{ j.wordlist }}</span>
+                </span>
+                <span v-else class="shrink-0 text-dim">{{ fmtDur(elapsed(j)) }}</span>
+                <button v-if="j.status === 'queued'" type="button" @click="cancelCrack(j)"
+                        class="kb kb-danger shrink-0 px-1 py-0 text-[10px]" :aria-label="t('proj.crackq_cancel')"
+                        :title="t('proj.crackq_cancel')">✕</button>
+              </div>
+              <div v-if="!j.opts?.bkcrack" class="mt-0.5 truncate text-dim" :title="crackListNames(j)">
+                <template v-if="j.status === 'running'">
+                  <span class="text-warn">{{ t('proj.crackq_trying', { wl: j.current_wordlist || '…', done: (j.tried_wordlists || []).length, n: crackListCount(j) }) }}</span>
+                  <span v-if="(j.tried_wordlists || []).length"> · {{ t('proj.crackq_tried', { lists: j.tried_wordlists.join(', ') }) }}</span>
+                </template>
+                <template v-else>{{ t('proj.crackq_lists', { lists: crackListNames(j) }) }}</template>
+              </div>
             </div>
           </template>
 
