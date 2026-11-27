@@ -35,7 +35,9 @@ class CrackJob:
     opts: dict
     status: str = "queued"           # queued|running|found|not_found|error|cancelled
     password: str | None = None
-    wordlist: str | None = None
+    wordlist: str | None = None      # the list that won (only when found)
+    tried_wordlists: list[str] = field(default_factory=list)  # completed so far
+    current_wordlist: str | None = None                       # the one being tried now
     error: str | None = None
     queued_at: float = field(default_factory=time.time)
     started_at: float | None = None
@@ -43,8 +45,9 @@ class CrackJob:
 
     def as_dict(self) -> dict:
         return {k: getattr(self, k) for k in ("id", "project_id", "file_id", "name", "status",
-                                              "password", "wordlist", "error", "queued_at",
-                                              "started_at", "finished_at")}
+                                              "password", "wordlist", "wordlists", "opts",
+                                              "tried_wordlists", "current_wordlist", "error",
+                                              "queued_at", "started_at", "finished_at")}
 
 
 _JOBS: dict[int, CrackJob] = {}
@@ -117,7 +120,11 @@ def _publish(job: CrackJob) -> None:
     bus.publish(f"project:{job.project_id}", {"type": "crack", "file_id": job.file_id,
                                               "name": job.name, "status": status,
                                               "job": job.id, "password": job.password,
-                                              "wordlist": job.wordlist, "error": job.error})
+                                              "wordlist": job.wordlist,
+                                              "wordlists": job.wordlists, "opts": job.opts,
+                                              "tried_wordlists": job.tried_wordlists,
+                                              "current_wordlist": job.current_wordlist,
+                                              "error": job.error})
 
 
 def _worker() -> None:
@@ -215,8 +222,16 @@ def _crack(job: CrackJob) -> None:
                                           log=lines.append)
         else:
             ctx_wl = crackflow.context_wordlist(s, job.project_id, work)
+
+            def on_wordlist(name: str) -> None:
+                if job.current_wordlist:                # the previous list is done
+                    job.tried_wordlists.append(job.current_wordlist)
+                job.current_wordlist = name
+                _publish(job)                           # live progress to the SPA
+
             res = cracking.crack_file(path, job.wordlists, log=lines.append,
                                       extra_wordlists=[ctx_wl] if ctx_wl else None,
+                                      on_wordlist=on_wordlist,
                                       **{k: v for k, v in job.opts.items() if k != "bkcrack"})
         job.status = "found" if res["password"] else "not_found"
         job.password, job.wordlist = res["password"], res.get("wordlist_hit")

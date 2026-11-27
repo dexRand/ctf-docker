@@ -49,6 +49,12 @@ def _log(log: Optional[Callable[[str], None]], msg: str) -> None:
         log(msg)
 
 
+def _notify_wordlist(cb: Optional[Callable[[str], None]], wl: Path) -> None:
+    """Report the wordlist about to be tried (live progress for the crack queue)."""
+    if cb:
+        cb(wl.name)
+
+
 def _scratch(prefix: str) -> Path:
     """A private temp dir per crack: concurrent cracks never share files."""
     return Path(tempfile.mkdtemp(prefix=f"stegsuite-{prefix}-"))
@@ -266,7 +272,9 @@ def _pot_password(show: str, hash_line: str) -> Optional[str]:
 
 def _crack_zip(path: Path, wls: list[Path], log, rules_file: Optional[Path] = None,
                mask: Optional[str] = None,
-               deadline: Optional[float] = None) -> tuple[Optional[str], Optional[str]]:
+               deadline: Optional[float] = None,
+               on_wordlist: Optional[Callable[[str], None]] = None
+               ) -> tuple[Optional[str], Optional[str]]:
     """Wordlists smallest -> largest, each one with hashcat (zip2hashcat: ZipCrypto
     and AES) *and then* fcrackzip — hashcat can't do every zip (e.g. "unsupported
     compression type"), and the cheap fallback must not wait for a budget that
@@ -275,6 +283,7 @@ def _crack_zip(path: Path, wls: list[Path], log, rules_file: Optional[Path] = No
     for wl in wls:
         if deadline and time.time() > deadline:
             return None, None
+        _notify_wordlist(on_wordlist, wl)
         if hashcat:
             pw = _crack_zip_hashcat(path, log, wl=wl, runtime=_remaining(deadline))
             if pw:
@@ -363,12 +372,15 @@ def bkcrack_attack(path: Path, known_name: str, plaintext, log=None) -> dict:
 
 
 def _crack_pdf(path: Path, wls: list[Path], log,
-               deadline: Optional[float] = None) -> tuple[Optional[str], Optional[str]]:
+               deadline: Optional[float] = None,
+               on_wordlist: Optional[Callable[[str], None]] = None
+               ) -> tuple[Optional[str], Optional[str]]:
     if not shutil.which("pdfcrack"):
         return None, None
     for wl in wls:
         if deadline and time.time() > deadline:
             break
+        _notify_wordlist(on_wordlist, wl)
         r = _run(["pdfcrack", "-f", str(path), "-w", str(wl)],
                  timeout=_tool_timeout(deadline), log=log)
         m = re.search(r"found (?:user|owner)-password:\s*'([^']+)'", r.stdout)
@@ -378,7 +390,9 @@ def _crack_pdf(path: Path, wls: list[Path], log,
 
 
 def _crack_image(path: Path, wls: list[Path], log,
-                 deadline: Optional[float] = None) -> tuple[Optional[str], Optional[str]]:
+                 deadline: Optional[float] = None,
+                 on_wordlist: Optional[Callable[[str], None]] = None
+                 ) -> tuple[Optional[str], Optional[str]]:
     if not shutil.which("stegseek"):
         return None, None
     tmp = _scratch("stegseek")
@@ -387,6 +401,7 @@ def _crack_image(path: Path, wls: list[Path], log,
         for wl in wls:
             if deadline and time.time() > deadline:
                 break
+            _notify_wordlist(on_wordlist, wl)
             r = _run(["stegseek", "-sf", str(path), "-wl", str(wl), "-xf", str(outfile), "-f"],
                      timeout=_tool_timeout(deadline), log=log)
             m = re.search(r'passphrase:\s*"?([^"\n]+?)"?\s*$', r.stdout + r.stderr, re.I | re.M)
@@ -415,9 +430,11 @@ def crack_file(path: Path, wordlist_names: Optional[list[str]] = None,
                log: Optional[Callable[[str], None]] = None, *,
                rules: Optional[str] = None, mask: Optional[str] = None,
                budget_s: Optional[int] = None,
-               extra_wordlists: Optional[list[Path]] = None) -> dict:
+               extra_wordlists: Optional[list[Path]] = None,
+               on_wordlist: Optional[Callable[[str], None]] = None) -> dict:
     """`extra_wordlists` (e.g. passwords suggested by the challenge's own
-    metadata) are tried before the regular lists."""
+    metadata) are tried before the regular lists. `on_wordlist` is called with
+    each wordlist's name at the start of the main pass (live progress)."""
     wls = [p for p in (extra_wordlists or []) if p.is_file()] + resolve_wordlists(wordlist_names)
     kind = _kind(path)
     no_hit = {"password": None, "kind": kind, "extracted": [],
@@ -433,11 +450,11 @@ def crack_file(path: Path, wordlist_names: Optional[list[str]] = None,
               + (", mask" if mask else ""))
     if kind == "archive":
         pw, wl_hit = _crack_zip(path, wls, log, rules_file=rules_file, mask=mask,
-                                deadline=deadline)
+                                deadline=deadline, on_wordlist=on_wordlist)
     elif kind == "pdf":
-        pw, wl_hit = _crack_pdf(path, wls, log, deadline=deadline)
+        pw, wl_hit = _crack_pdf(path, wls, log, deadline=deadline, on_wordlist=on_wordlist)
     else:
-        pw, wl_hit = _crack_image(path, wls, log, deadline=deadline)
+        pw, wl_hit = _crack_image(path, wls, log, deadline=deadline, on_wordlist=on_wordlist)
     if not pw:
         return no_hit
     outdir = _scratch("cracked")   # the caller moves these files into the project
