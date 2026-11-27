@@ -51,6 +51,7 @@ class WpaAnalyzer(Analyzer):
     description = "WPA handshake/PMKID: extract to hashcat 22000 and crack the passphrase."
     accepts = PCAP_EXT
     display_order = 266
+    tier = "deep"                # hashcat budget, slow and no real challenge solved yet
 
     def run(self, ctx: ToolContext) -> ToolResult:
         types = link_types(ctx.input)

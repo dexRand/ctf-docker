@@ -50,8 +50,8 @@ def multipart(paths: list[Path], fields: dict[str, str]) -> tuple[bytes, str]:
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
-def create_project(paths: list[Path], mode: str = "auto") -> str:
-    body, ctype = multipart(paths, {"mode": mode})
+def create_project(paths: list[Path], mode: str = "auto", depth: str = "normal") -> str:
+    body, ctype = multipart(paths, {"mode": mode, "depth": depth})
     return call("/projects", "POST", body, ctype)["id"]
 
 
@@ -60,10 +60,10 @@ WAIT_S = int(os.environ.get("STEGSUITE_WAIT_S", "900"))
 
 
 def analyze(paths: list[Path], mode: str = "auto", timeout_s: int = WAIT_S,
-            poll_s: float = 2.0) -> dict:
+            poll_s: float = 2.0, depth: str = "normal") -> dict:
     """Upload, start, wait. Returns {project, status, flags, passwords, seconds}."""
     t0 = time.monotonic()
-    pid = create_project(paths, mode)
+    pid = create_project(paths, mode, depth)
     call(f"/projects/{pid}/start", "POST", b"", "application/json")
     status = "?"
     while time.monotonic() - t0 < timeout_s:

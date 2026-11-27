@@ -14,12 +14,14 @@ const err = ref('')
 const files = ref([])
 const chalName = ref('')
 const category = ref('')
+const depth = ref('normal')
 const busy = ref(false)
 const pct = ref(0)
 const fmt = ref('')
 let timer = null
 
 const CATEGORIES = ['forensics', 'stego', 'misc', 'crypto', 'rev', 'pwn', 'web', 'osint']
+const DEPTHS = ['normal', 'deep', 'full']
 const challenges = computed(() => ctf.value?.challenge_list || [])
 const auto = computed(() => ctf.value?.autosolve)
 const autoActive = computed(() => !!auto.value?.active)
@@ -43,6 +45,7 @@ async function addChallenge() {
     const fd = new FormData()
     fd.append('name', chalName.value || files.value[0].name)
     fd.append('category', category.value)
+    fd.append('depth', depth.value)
     fd.append('start', 'true')
     for (const f of files.value) fd.append('files', f)
     await uploadFile(`/ctfs/${props.id}/challenges`, fd, (p) => { pct.value = p })
@@ -136,6 +139,9 @@ onBeforeUnmount(() => clearTimeout(timer))
           <select v-model="category" :aria-label="t('ctf.category')" class="rounded border border-edge bg-ink px-2 py-1 text-xs">
             <option value="">{{ t('ctf.category') }}</option>
             <option v-for="c in CATEGORIES" :key="c" :value="c">{{ c }}</option>
+          </select>
+          <select v-model="depth" :aria-label="t('upload.depth')" class="rounded border border-edge bg-ink px-2 py-1 text-xs">
+            <option v-for="d in DEPTHS" :key="d" :value="d">{{ t('upload.depth.' + d) }}</option>
           </select>
           <button class="kb kb-acc text-[10px]" :disabled="busy || !files.length" @click="addChallenge">
             <Icon name="play" :size="11" />{{ busy ? Math.round(pct * 100) + '%' : t('ctf.start_now') }}

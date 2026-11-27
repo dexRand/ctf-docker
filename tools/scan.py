@@ -4,6 +4,7 @@
     scan.py file.png
     scan.py a.png b.pcapng --mode check
     scan.py file --json
+    scan.py file --depth deep        # normal (default) | deep | full
 
 Configurazione da ambiente (impostata da `./ctf scan`): STEGSUITE, STEGSUITE_API_KEY.
 """
@@ -22,6 +23,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="ctf scan", description="Analizza file con StegSuite e stampa le flag.")
     ap.add_argument("files", nargs="+", help="uno o più file locali")
     ap.add_argument("--mode", default="auto", choices=["auto", "check"])
+    ap.add_argument("--depth", default="normal", choices=["normal", "deep", "full"],
+                    help="profondità dell'analisi: normal (veloce), deep, full")
     ap.add_argument("--timeout", type=int, default=900, help="attesa massima in secondi")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
@@ -37,7 +40,8 @@ def main(argv: list[str] | None = None) -> int:
         print("    avvialo con:  ./ctf up", file=sys.stderr)
         return 2
 
-    res = ss.analyze([Path(f) for f in args.files], args.mode, timeout_s=args.timeout)
+    res = ss.analyze([Path(f) for f in args.files], args.mode, timeout_s=args.timeout,
+                     depth=args.depth)
     if args.json:
         print(json.dumps(res, ensure_ascii=False, indent=2))
     else:

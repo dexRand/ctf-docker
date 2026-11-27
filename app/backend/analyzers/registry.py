@@ -42,6 +42,7 @@ def catalog() -> list[dict]:
         {
             "name": a.name, "category": a.category, "description": a.description,
             "needs_password": a.needs_password, "has_archive": a.has_archive,
+            "tier": a.tier,
             "accepts": list(a.accepts), "display_order": a.display_order,
         }
         for a in items

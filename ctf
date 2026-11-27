@@ -124,6 +124,7 @@ Uso: ./ctf <comando>
   dork-test         Self-test del dork generator
   pull <url>...     Scarica file (es. allegati di challenge online) in ./data/pull
   scan <file>...    Analizza file con StegSuite e stampa le flag
+                    (\`--depth normal|deep|full\`, default normal)
   test [opzioni]    Regressione + challenge reali (+ opzioni di real_challenges.py,
                     es. -j 3, --extra, --gaps) + verifica risposte
   ui-smoke          Smoke test della SPA con un browser headless (Docker)
@@ -241,7 +242,7 @@ EOF
     ;;
   scan)
     shift || true
-    if [ "$#" -eq 0 ]; then echo "uso: ./ctf scan <file>..."; exit 1; fi
+    if [ "$#" -eq 0 ]; then echo "uso: ./ctf scan <file>... [--depth normal|deep|full]"; exit 1; fi
     docker compose up -d stegsuite >/dev/null 2>&1 || true
     wait_ready >/dev/null
     python3 tools/scan.py "$@"

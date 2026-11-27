@@ -132,6 +132,7 @@ class Analyzer:
     description: str = ""
     needs_password: bool = False
     has_archive: bool = False
+    tier: str = "normal"         # analysis depth: normal < deep < full
     accepts: tuple = ()          # mime substrings or file extensions; () = all
     display_order: int = 100
 

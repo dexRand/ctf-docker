@@ -102,6 +102,11 @@ analyzers that apply (by type, not by name), stores their output, hunts flags in
 it, adds extracted files as children and recurses. In **auto** mode it then
 cracks locked files with the small wordlists and analyzes what they unlock.
 
+Each analysis runs at one of three depth levels: **normal** (default, fast),
+**deep** (adds slower low-yield techniques such as SSTV decoding and WPA
+cracking) and **full** (everything). Choose it on upload or per project
+(`--depth` on the CLI).
+
 ## 🏁 Working on a CTF
 
 1. **Create the CTF** on the StegSuite home: name + flag format

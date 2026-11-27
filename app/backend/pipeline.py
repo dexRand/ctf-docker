@@ -172,6 +172,7 @@ def _run(pid: str, job: Job) -> None:
         proj = session.get(Project, pid)
         if not proj:
             return
+        tier = proj.depth or "normal"    # requested analysis depth (normal/deep/full)
         proj.status = "running"
         proj.updated_at = _now()
         session.add(proj)
@@ -232,7 +233,8 @@ def _run(pid: str, job: Job) -> None:
             made_by = origin_tool(node.origin)
             embedded = node.depth == 0 or has_embedded(abs_path)
             plan = _plan_for(plan_name, node.mime, is_text, made_by,
-                             size=node.size, depth=node.depth, embedded=embedded)
+                             size=node.size, depth=node.depth, embedded=embedded,
+                             tier=tier)
             if carving_useless(node.depth, node.mime, embedded):
                 no_carve.append(node.name)
 
