@@ -51,6 +51,7 @@ CID=$(curl -s -H 'Content-Type: application/json' \
         localhost:19014/api/v1/ctfs | jq -r .id)
 
 # add challenges (one upload = one challenge; start=true analyzes it now)
+# optional: -F depth=deep
 curl -s -F name="bad policies" -F category=forensics -F files=@badpolicies.zip \
      localhost:19014/api/v1/ctfs/$CID/challenges
 
@@ -73,11 +74,16 @@ curl -s -X PATCH -H 'Content-Type: application/json' \
 `PATCH /ctfs/{cid}` edits name/flag_format/url/notes; `DELETE /ctfs/{cid}`
 removes the CTF and keeps its challenges (detached).
 
+The analysis depth is `depth` (`normal` default, `deep`, `full`): `normal` runs
+the fast analyzers, `deep` adds the slower low-yield ones (SSTV, WPA cracking),
+`full` runs everything. An unknown value is rejected with HTTP 422; it can be
+changed later with `PATCH /projects/{pid}` (it takes effect on the next run).
+
 ## Projects (stateful, recursive)
 
 ```bash
 # create (Auto = runs everything + auto-cracks; Check = waits for you)
-# optional: -F ctf_id=<cid> -F category=forensics
+# optional: -F ctf_id=<cid> -F category=forensics -F depth=deep
 PID=$(curl -s -F mode=auto -F files=@a.png -F files=@b.jpg \
         localhost:19014/api/v1/projects | jq -r .id)
 
@@ -130,7 +136,7 @@ curl -X DELETE localhost:19014/api/v1/projects
 
 ### For AI agents
 
-1. `POST /projects` (multipart `files`, `mode=auto`) → `id`
+1. `POST /projects` (multipart `files`, `mode=auto`, optional `depth`) → `id`
 2. `POST /projects/{id}/start`, then poll `GET /projects/{id}` until `status` is
    `done`/`error`/`cancelled` (or follow the WebSocket)
 3. `GET /projects/{id}/flags` for the answer and how it was found; if there is

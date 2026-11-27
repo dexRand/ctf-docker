@@ -109,10 +109,11 @@ def delete_ctf(cid: str, session: Session = Depends(get_session)) -> dict:
 @router.post("/api/v1/ctfs/{cid}/challenges", status_code=201)
 def add_challenge(cid: str, files: list[UploadFile] = File(...), name: str = Form(""),
                   category: str = Form(""), mode: str = Form("auto"),
-                  start: bool = Form(False), session: Session = Depends(get_session)) -> dict:
+                  depth: str = Form("normal"), start: bool = Form(False),
+                  session: Session = Depends(get_session)) -> dict:
     """Upload a challenge into the CTF (`start=true` analyzes it right away)."""
     _get(session, cid)
-    proj = create_from_uploads(session, files, name, mode, cid, category)
+    proj = create_from_uploads(session, files, name, mode, cid, category, depth=depth)
     if start:
         from .. import orchestrator
         orchestrator.start(proj["id"])

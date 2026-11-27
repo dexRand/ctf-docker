@@ -11,6 +11,7 @@ from .. import storage
 from ..config import MAX_UPLOAD
 from ..db import delete_project_rows, get_session
 from ..models import Ctf, Event, FileNode, Project
+from ..planner import TIERS
 
 router = APIRouter()
 
@@ -18,26 +19,30 @@ router = APIRouter()
 
 def _project_dict(p: Project, files: int = 0) -> dict:
     return {"id": p.id, "name": p.name, "status": p.status, "mode": p.mode,
-            "ctf_id": p.ctf_id, "category": p.category, "solved": p.solved, "flag": p.flag,
+            "depth": p.depth, "ctf_id": p.ctf_id, "category": p.category,
+            "solved": p.solved, "flag": p.flag,
             "created_at": p.created_at, "updated_at": p.updated_at, "files": files}
 
 
 def create_from_uploads(session: Session, files: list[UploadFile], name: str = "",
                         mode: str = "auto", ctf_id: str | None = None,
-                        category: str = "") -> dict:
+                        category: str = "", depth: str = "normal") -> dict:
     """Create a project (challenge) from uploaded files; shared by
-    POST /projects and POST /ctfs/{cid}/challenges."""
+    POST /projects and POST /ctfs/{cid}/challenges. `depth` is the analysis
+    tier: normal (fast), deep, full."""
     if not files:
         raise HTTPException(400, "no files uploaded")
     if mode not in ("auto", "check"):
         mode = "auto"
+    if depth not in TIERS:
+        raise HTTPException(422, "depth must be normal, deep or full")
     total = sum((u.size or 0) for u in files)
     if total > MAX_UPLOAD:
         raise HTTPException(413, f"upload too large ({total} > {MAX_UPLOAD} bytes)")
     pid = storage.new_project_id()
     storage.init_project(pid)
     proj = Project(id=pid, name=name or f"project {pid}", mode=mode, status="created",
-                   ctf_id=ctf_id, category=category)
+                   depth=depth, ctf_id=ctf_id, category=category)
     session.add(proj)
     session.add(Event(project_id=pid, message=f"created with {len(files)} file(s)"))
     for i, up in enumerate(files):
@@ -63,13 +68,15 @@ def create_project(
     files: list[UploadFile] = File(...),
     name: str = Form(""),
     mode: str = Form("auto"),
+    depth: str = Form("normal"),
     ctf_id: str = Form(""),
     category: str = Form(""),
     session: Session = Depends(get_session),
 ) -> dict:
     if ctf_id and not session.get(Ctf, ctf_id):
         raise HTTPException(404, "ctf not found")
-    return create_from_uploads(session, files, name, mode, ctf_id or None, category)
+    return create_from_uploads(session, files, name, mode, ctf_id or None, category,
+                               depth=depth)
 
 
 @router.get("/api/v1/projects")
@@ -89,14 +96,14 @@ def list_projects(q: str = "", status: str = "", ctf_id: str = "",
     return [_project_dict(p, files=counts.get(p.id, 0)) for p in rows]
 
 
-_EDITABLE = {"name", "category", "ctf_id", "solved", "flag", "mode"}
+_EDITABLE = {"name", "category", "ctf_id", "solved", "flag", "mode", "depth"}
 
 
 @router.patch("/api/v1/projects/{pid}")
 def update_project(pid: str, payload: dict = Body(...),
                    session: Session = Depends(get_session)) -> dict:
     """Edit a challenge: name, category, ctf_id (move to a CTF, null = none),
-    solved/flag (confirm or correct the answer), mode."""
+    solved/flag (confirm or correct the answer), mode, depth."""
     p = session.get(Project, pid)
     if not p:
         raise HTTPException(404, "project not found")
@@ -107,6 +114,8 @@ def update_project(pid: str, payload: dict = Body(...),
         raise HTTPException(404, "ctf not found")
     if "mode" in payload and payload["mode"] not in ("auto", "check"):
         raise HTTPException(422, "mode must be auto or check")
+    if "depth" in payload and payload["depth"] not in TIERS:
+        raise HTTPException(422, "depth must be normal, deep or full")
     for k, v in payload.items():
         setattr(p, k, (bool(v) if k == "solved" else (v or None) if k == "ctf_id" else str(v or "")))
     session.add(p)

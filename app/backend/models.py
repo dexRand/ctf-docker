@@ -27,6 +27,7 @@ class Project(SQLModel, table=True):
     name: str = ""
     status: str = "created"      # created|queued|running|paused|done|error|cancelled
     mode: str = "auto"           # auto|check
+    depth: str = "normal"        # normal|deep|full (analysis depth tier)
     settings_json: str = "{}"
     ctf_id: Optional[str] = Field(default=None, index=True)
     category: str = ""           # forensics|stego|misc|rev|crypto|web|pwn|osint…

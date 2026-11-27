@@ -103,6 +103,11 @@ esegue gli analyzer adatti (in base al tipo reale, non al nome), salva l'output,
 ci cerca le flag, aggiunge i file estratti come figli e ricorre. In modalità
 **auto** poi cracca i file bloccati con le wordlist piccole e analizza ciò che sbloccano.
 
+Ogni analisi gira a tre livelli di profondità: **normal** (default, veloce),
+**deep** (aggiunge tecniche più lente e a bassa resa come il decoding SSTV e il
+crack WPA) e **full** (tutto). Si sceglie all'upload o per singolo progetto
+(`--depth` nella CLI).
+
 ## 🏁 Lavorare su una CTF
 
 1. **Crea la CTF** nella home di StegSuite: nome + formato flag

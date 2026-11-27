@@ -11,6 +11,7 @@ const STATS_WINDOW = 20
 const files = ref([])
 const name = ref('')
 const mode = ref('check')
+const depth = ref('normal')
 const busy = ref(false)
 const uploadPct = ref(0)
 const drag = ref(false)
@@ -25,6 +26,7 @@ const MODES = [
   { id: 'auto', flag: '--auto', color: 'text-acc' },
   { id: 'check', flag: '--check', color: 'text-warn' },
 ]
+const DEPTHS = ['normal', 'deep', 'full']
 
 const STATUS_ORDER = ['queued', 'running', 'done', 'paused', 'error', 'created', 'cancelled']
 const STATUS_BAR = {
@@ -110,11 +112,12 @@ const totalBytes = computed(() => files.value.reduce((s, f) => s + f.size, 0))
 async function start() {
   if (!files.value.length) { err.value = t('home.select_file'); notify(t('home.select_file'), 'error'); return }
   busy.value = true; err.value = ''; uploadPct.value = 0
-  const cmd = `stegsuite --${mode.value} ${files.value.map((f) => f.name).join(' ')}`
+  const cmd = `stegsuite --${mode.value} --depth ${depth.value} ${files.value.map((f) => f.name).join(' ')}`
   echo.value = `$ ${cmd}`
   try {
     const fd = new FormData()
     fd.append('mode', mode.value)
+    fd.append('depth', depth.value)
     if (name.value) fd.append('name', name.value)
     if (ctfId.value) fd.append('ctf_id', ctfId.value)
     for (const f of files.value) fd.append('files', f)
@@ -221,6 +224,10 @@ function open(id) { router.push(`/p/${id}`) }
                   class="rounded border border-edge bg-ink px-2 py-1.5 text-xs">
             <option value="">{{ t('ctf.no_ctf') }}</option>
             <option v-for="c in ctfs" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
+          <select v-model="depth" :aria-label="t('upload.depth')"
+                  class="rounded border border-edge bg-ink px-2 py-1.5 text-xs">
+            <option v-for="d in DEPTHS" :key="d" :value="d">{{ t('upload.depth.' + d) }}</option>
           </select>
           <input v-model="name" :placeholder="t('home.name_placeholder')"
                  :aria-label="t('home.name_placeholder')"

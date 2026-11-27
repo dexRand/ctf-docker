@@ -8,6 +8,11 @@ import threading
 from .analyzers import get as get_tool
 from .analyzers.util import ARCHIVE_EXT
 
+# analysis-depth tiers: a project requests one of these and an analyzer runs
+# when its own tier is at or below the request (normal is the fast default)
+TIERS = ("normal", "deep", "full")
+_TIER_RANK = {"normal": 0, "deep": 1, "full": 2}
+
 # ordered analysis plan (order matters: metadata -> text -> steg -> extract)
 DEFAULT_PLAN = [
     "file", "exiftool", "identify", "ffprobe", "pdfinfo",
@@ -127,14 +132,20 @@ def carving_useless(depth: int, mime: str | None, embedded: bool) -> bool:
 
 
 def _plan_for(name: str, mime: str | None, is_text: bool, made_by: str = "",
-              size: int = 0, depth: int = 0, embedded: bool = True) -> list[str]:
+              size: int = 0, depth: int = 0, embedded: bool = True,
+              tier: str = "normal") -> list[str]:
     """Analyzers for one file, in plan order. `made_by` is the tool that
     extracted it ('' for uploads); `embedded` (magic.has_embedded) tells
-    whether the carvers have anything to cut out of an extracted leaf."""
+    whether the carvers have anything to cut out of an extracted leaf.
+    `tier` is the requested depth level: an analyzer whose own tier is above
+    it is skipped (unknown strings clamp to normal)."""
     plan = []
+    max_tier = _TIER_RANK.get(tier, 0)
     for tool in DEFAULT_PLAN:
         a = get_tool(tool)
         if not a or not a.matches(mime, name):
+            continue
+        if _TIER_RANK.get(a.tier, 0) > max_tier:
             continue
         if tool in HEAVY_EXTRACT and is_text and not name.lower().endswith(ARCHIVE_EXT):
             continue
