@@ -251,7 +251,7 @@ class SameAnalyzer(Analyzer):
     description = "Decode SAME/EAS FSK data bursts and recover the message by best-2-of-3."
     accepts = AV_EXT
     display_order = 427
-    tier = "deep"
+    tier = "normal"
 
     def run(self, ctx: ToolContext) -> ToolResult:
         deadline = time.monotonic() + DEADLINE
