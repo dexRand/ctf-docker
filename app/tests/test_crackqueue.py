@@ -161,7 +161,8 @@ def test_crack_file_reports_every_wordlist_in_order(tmp_path, monkeypatch):
     """The progress callback fires once per wordlist, in order, with its name."""
     wls = _fake_lists(tmp_path)
     monkeypatch.setattr(cracking.shutil, "which", lambda _name: None)
-    monkeypatch.setattr(cracking, "resolve_wordlists", lambda names=None, max_bytes=None: wls)
+    monkeypatch.setattr(cracking, "_available", lambda: wls)
+    monkeypatch.setattr(cracking, "_expand", lambda p: p)
     seen: list[str] = []
     res = cracking.crack_file(tmp_path / "locked.zip", on_wordlist=seen.append)
     assert seen == ["a.txt", "b.txt"]
@@ -172,9 +173,43 @@ def test_crack_file_works_without_a_progress_callback(tmp_path, monkeypatch):
     """The auto-crack path calls crack_file without on_wordlist: it must not fail."""
     wls = _fake_lists(tmp_path)
     monkeypatch.setattr(cracking.shutil, "which", lambda _name: None)
-    monkeypatch.setattr(cracking, "resolve_wordlists", lambda names=None, max_bytes=None: wls)
+    monkeypatch.setattr(cracking, "_available", lambda: wls)
+    monkeypatch.setattr(cracking, "_expand", lambda p: p)
     res = cracking.crack_file(tmp_path / "locked.zip")
     assert res["wordlists"] == ["a.txt", "b.txt"]
+
+
+def test_gz_wordlist_reports_the_requested_name(tmp_path, monkeypatch):
+    """_expand rewrites rockyou.txt.gz to an internal temp path; progress must
+    report the name the user asked for, not the temp one."""
+    gz = tmp_path / "rockyou.txt.gz"
+    gz.write_bytes(b"\x1f\x8b")
+    expanded = tmp_path / "stegsuite-wl-abc123-rockyou.txt"
+    expanded.write_text("x\n")
+    monkeypatch.setattr(cracking.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(cracking, "_available", lambda: [gz])
+    monkeypatch.setattr(cracking, "_expand", lambda _p: expanded)
+    seen: list[str] = []
+    cracking.crack_file(tmp_path / "locked.zip", on_wordlist=seen.append)
+    assert seen == ["rockyou.txt.gz"]
+    assert not any("stegsuite-wl-" in name for name in seen)
+
+
+def test_context_wordlist_is_tried_but_not_reported(tmp_path, monkeypatch):
+    """extra_wordlists (the project context list) is internal: it is tried first
+    but must not skew current_wordlist/tried_wordlists (and their i/n)."""
+    wls = _fake_lists(tmp_path)
+    ctx = tmp_path / "crack-context.txt"
+    ctx.write_text("ctx\n")
+    monkeypatch.setattr(cracking.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(cracking, "_available", lambda: wls)
+    monkeypatch.setattr(cracking, "_expand", lambda p: p)
+    seen: list[str] = []
+    res = cracking.crack_file(tmp_path / "locked.zip",
+                              extra_wordlists=[ctx], on_wordlist=seen.append)
+    assert seen == ["a.txt", "b.txt"]
+    assert "crack-context.txt" not in seen
+    assert res["wordlists"] == ["crack-context.txt", "a.txt", "b.txt"]  # still tried first
 
 
 def test_running_job_tracks_wordlist_progress(client, monkeypatch):
