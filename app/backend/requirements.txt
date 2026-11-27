@@ -3,13 +3,10 @@ starlette==1.7.0
 uvicorn[standard]==0.54.0
 sqlmodel==0.0.47
 python-multipart==0.0.32
+# security bump (issue #58): Pillow 13 fixes the HIGH/CRITICAL CVEs in the venv.
+# certifi/urllib3/msgpack/setuptools stay unpinned: their flagged copies live
+# in the aperisolve base image, not in this venv.
 Pillow==13.0.0
-# security pins for transitive deps: no direct requirement, but fixes the
-# HIGH/CRITICAL CVEs trivy reported in the image (issue #58)
-certifi==2026.10.18
-urllib3==2.8.0
-msgpack==1.2.3
-setuptools==78.1.1
 numpy==2.5.3
 alembic==1.20.0
 python-evtx==0.8.1
