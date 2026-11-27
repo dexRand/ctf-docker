@@ -141,7 +141,8 @@ def all_cases(extra: bool = False, gaps: bool = False,
     return cases
 
 
-def run(label: str, files: list[tuple[str, str]], expect: str) -> dict:
+def run(label: str, files: list[tuple[str, str]], expect: str,
+        depth: str = "normal") -> dict:
     d = DEST / label if len(files) > 1 else DEST
     paths = []
     for name, url in files:
@@ -152,7 +153,7 @@ def run(label: str, files: list[tuple[str, str]], expect: str) -> dict:
             return {"label": label, "ok": False, "expect": expect, "status": "download-error",
                     "flags": [], "passwords": [], "seconds": 0, "project": ""}
         paths.append(d / name)
-    res = ss.analyze(paths, "auto")
+    res = ss.analyze(paths, "auto", depth=depth)
     flags = res["flags"]
     # a flag must never be a fragment of a longer one (e.g. CTF{x} in picoCTF{x})
     fragments = [fl for fl in flags if any(fl != o and fl in o for o in flags)]
@@ -183,6 +184,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fast", action="store_true",
                     help=f"only the representative slice ({len(FAST)} cases, ~4 min)")
     ap.add_argument("--json-out", type=Path, help="write per-case results (timing included)")
+    ap.add_argument("--depth", dest="depth", default="normal",
+                    choices=["normal", "deep", "full"], help="analysis depth tier")
     args = ap.parse_args(argv)
 
     core = len(all_cases())
@@ -192,7 +195,7 @@ def main(argv: list[str] | None = None) -> int:
         cases = [c for c in cases if c[0] in FAST]
     print(f"* {len(cases)} real challenges against {API} (jobs={args.jobs})", flush=True)
     with ThreadPoolExecutor(max(1, args.jobs)) as pool:
-        results = list(pool.map(lambda c: run(*c), cases))
+        results = list(pool.map(lambda c: run(*c, depth=args.depth), cases))
     passed = sum(r["ok"] for r in results)
     total_s = round(sum(r["seconds"] for r in results), 1)
     print(f"* {passed}/{len(results)} passed · {total_s}s of analysis")
