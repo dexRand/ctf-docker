@@ -41,9 +41,9 @@ for run in ${state#failed }; do
   get "actions/runs/$run/jobs" | python3 -c '
 import json, sys
 for j in json.load(sys.stdin)["jobs"]:
-    if j["conclusion"] == "failure":
-        steps = [s["name"] for s in j["steps"] if s["conclusion"] == "failure"]
-        print(j["id"], j["name"], "|", ", ".join(steps))
+    if j["conclusion"] not in ("success", "skipped"):   # failure, cancelled, timed_out
+        steps = [s["name"] for s in j["steps"] if s["conclusion"] not in ("success", "skipped", None)]
+        print(j["id"], j["conclusion"], j["name"], "|", ", ".join(steps))
 ' | while read -r job rest; do
     echo "== [x] $rest"
     # the real error sits before the runner's post-job cleanup

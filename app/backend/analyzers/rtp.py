@@ -29,6 +29,7 @@ MAX_SCAN_PACKETS = 500_000      # frames walked in the full pass (and the gate)
 MAX_STREAM_BYTES = 64 << 20     # payload bytes kept per RTP stream
 MAX_TOTAL_BYTES = 96 << 20      # payload bytes kept across all streams
 MAX_SSRCS = 32                  # candidate SSRCs kept (only a couple are written)
+MIN_PROVEN_PACKETS = 8          # below this an SSRC can be evicted for a new one
 MAX_STREAM_PACKETS = 60_000     # packets kept per RTP stream (one seq wrap)
 MAX_FRAME_BYTES = 4 << 20       # a single captured frame larger than this is skipped
 MAX_SDP_BYTES = 256 << 10       # RTSP text inspected for the SDP
@@ -401,7 +402,14 @@ def parse_capture(path: Path, max_packets: int = MAX_SCAN_PACKETS,
         scan.rtp_packets += 1
         if pkt.ssrc not in scan.streams:
             if len(scan.streams) >= max_ssrcs:
-                continue
+                # a full table must not lock out a late real stream: UDP noise
+                # passes the H.264 sniff about 1 time in 200 and opens
+                # one-packet SSRCs, so evict the smallest unproven one
+                weak = min(scan.streams, key=lambda s: len(scan.streams[s]))
+                if len(scan.streams[weak]) >= MIN_PROVEN_PACKETS:
+                    continue
+                total -= used.pop(weak, 0)
+                del scan.streams[weak]
             scan.streams[pkt.ssrc] = []
         stream = scan.streams[pkt.ssrc]
         if len(stream) >= MAX_STREAM_PACKETS:
