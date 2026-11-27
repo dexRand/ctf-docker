@@ -24,6 +24,10 @@ API = BASE + "/api/v1"
 TMP = Path("/tmp/ctfreg")
 TMP.mkdir(parents=True, exist_ok=True)
 
+# fixtures that need the slower `deep` analysis tier (sstv is tier=deep);
+# every other fixture runs at the default `normal` tier
+DEEP = {"sstv"}
+
 
 def sh(cmd: str) -> None:
     subprocess.run(cmd, shell=True, check=True, capture_output=True)
@@ -487,9 +491,10 @@ def make_fixtures() -> list[tuple[str, Path, str]]:
     return cases
 
 
-def run_case(name: str, path, expect: str) -> bool:
+def run_case(name: str, path, expect: str, depth: str = "normal") -> bool:
     paths = path if isinstance(path, (list, tuple)) else [path]
-    body, boundary = _multipart([("files", p) for p in paths], {"mode": "auto"})
+    body, boundary = _multipart([("files", p) for p in paths],
+                                {"mode": "auto", "depth": depth})
     p = api("/projects", "POST", body, f"multipart/form-data; boundary={boundary}")
     pid = p["id"]
     api(f"/projects/{pid}/start", "POST", b"", "application/json")
@@ -516,7 +521,8 @@ def run_case(name: str, path, expect: str) -> bool:
 def main() -> int:
     print(f"* StegSuite CTF regression against {BASE}")
     cases = make_fixtures()
-    results = [run_case(n, p, e) for n, p, e in cases]
+    results = [run_case(n, p, e, depth="deep" if n in DEEP else "normal")
+               for n, p, e in cases]
     passed, total = sum(results), len(results)
     print(f"* {passed}/{total} passed")
     return 0 if passed == total else 1
