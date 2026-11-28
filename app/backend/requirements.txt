@@ -3,7 +3,10 @@ starlette==1.7.0
 uvicorn[standard]==0.54.0
 sqlmodel==0.0.47
 python-multipart==0.0.32
-Pillow==12.3.0
+# security bump (issue #58): Pillow 13 fixes the HIGH/CRITICAL CVEs in the venv.
+# certifi/urllib3/msgpack/setuptools stay unpinned: their flagged copies live
+# in the aperisolve base image, not in this venv.
+Pillow==13.0.0
 numpy==2.5.3
 alembic==1.20.0
 python-evtx==0.8.1
