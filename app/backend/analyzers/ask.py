@@ -34,12 +34,6 @@ PHASES = 32
 MIN_PRINTABLE = 6
 
 
-def _moving_avg_complex(z: np.ndarray, win: int) -> np.ndarray:
-    """Mean of ``z`` over a forward window of ``win`` samples."""
-    cs = np.concatenate(([0j], np.cumsum(z)))
-    return (cs[win:] - cs[:-win]) / win
-
-
 def _kmeans3(values: np.ndarray):
     """Three deterministic 1-D clusters (sorted low -> high) or None."""
     v = values[np.isfinite(values)]

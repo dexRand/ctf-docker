@@ -110,8 +110,6 @@ GAPS = [
     # flag as garbage ("—ribbLt_67bb"), so the case stays a gap.
     ("ictf23_web.zip", f"{IC23}/web/challenge/web.zip",
      "ictf{behold_th3_forensics_g4untlet_827b3f13}"),                                   # Firefox profile
-    ("sleepy.mp3", f"{IC24}/Sleepy Alarm/togive/morning_n_breakfast.mp3",
-     "ictf{1_sl33py_NaYuKi_alarm_2a634dc1bb2}"),                                        # ASK demod
     ("elves.bmp", f"{IC24}/elf in front of a sunset/togive/elves.bmp",
      "ictf{elf_waifus_best_waifus_2h12lntka}"),   # BMP height + gray rows: the ELF is extracted (pixel-bytes, .elf child) but its bytes are JPEG-damaged ("/lib64/ld-linux" -> ".jib74/jd/jinux"), so no readable flag
 ]
@@ -260,6 +258,13 @@ EXTRA += [
      "uiuctf{3rd_w0rst_tor_outbre@k_ev3r}"),  # SAME x3: flag nell'error channel (odd-one-out)
     ("bk23-weather.wav", f"{BK23}/misc-weather/dist/weather.wav",
      "bctf{0mg_i_10v3_FSK_i75_my_f4v0ri73_m0du147i0n}"),  # SAME FSK: flag nel messaggio (de-chunked)
+]
+
+# --- risolto il 28/11 (analyzer ask: ASK demod)
+# PASS: [PASS] sleepy.mp3 status=done got=['ictf{1_sl33py_NaYuKi_alarm_2a634dc1bb2}']
+EXTRA += [
+    ("sleepy.mp3", f"{IC24}/Sleepy Alarm/togive/morning_n_breakfast.mp3",
+     "ictf{1_sl33py_NaYuKi_alarm_2a634dc1bb2}"),  # ASK: carrier 8kHz sul canale L, L-R cancella la musica
 ]
 
 # --- risolto il 05/11 (tar-chain + variante OCR unleet)
