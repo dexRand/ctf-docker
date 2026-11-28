@@ -114,8 +114,6 @@ GAPS = [
      "ictf{1_sl33py_NaYuKi_alarm_2a634dc1bb2}"),                                        # ASK demod
     ("elves.bmp", f"{IC24}/elf in front of a sunset/togive/elves.bmp",
      "ictf{elf_waifus_best_waifus_2h12lntka}"),   # BMP height + gray rows: the ELF is extracted (pixel-bytes, .elf child) but its bytes are JPEG-damaged ("/lib64/ld-linux" -> ".jib74/jd/jinux"), so no readable flag
-    ("warning.wav", f"{UI23}/misc/tornado_warning/warning.wav",
-     "uiuctf{3rd_w0rst_tor_outbre@k_ev3r}"),                                            # SAME x3 with deliberate errors (raw demod)
 ]
 
 # 02/11: solved by the new analyzers / fixes (ds-store, android-boot + OCR,
@@ -240,7 +238,6 @@ GAPS += [
     ("bk24-hall-effect.pcapng", f"{BK24}/forensics/hall-effect/capture.pcapng", "bctf{Wh0s3_g0NNa_CarRY_Th3B0atS}"),  # protocollo/dato non emerso: da investigare
     ("bk24-the_cia.pdf", f"{BK24}/forensics/the_cia/protected-cia-document.pdf", "bctf{U_c4N_d0_TH1s_On_w0rd_docs_T0O}"),  # PDF cifrato: pdfcrack+rockyou non lo apre (il lock ora viene segnalato)
     ("bk24-wreck-dump", f"{BK24}/forensics/wreck/dump", "bctf{D4MN_7h47_c0r3_dvmp_907_4_GY477}"),  # core dump 37 MB: il flag non e' in chiaro (analisi heap/GDB)
-    ("bk23-weather.wav", f"{BK23}/misc-weather/dist/weather.wav", "bctf{0mg_i_10v3_FSK_i75_my_f4v0ri73_m0du147i0n}"),  # FSK (meteo): demodulatore FSK dedicato
     ("du22-doxme", f"{DU22}/dfir/doxme/publish/doxme", "DUCTF{WOrd_D0Cs_Ar3_R34L1Y_W3ird}"),  # docx senza estensione: la flag e' in due PNG word/media (image1=prefisso, image2=suffisso); serve OCR+join tra nodi, l'office non la ricompone
     ("du22-mate.aussie", f"{DU22}/misc/land_down_under/publish/mate.aussie", "DUCTF{ƐƖSSn∀_ɹ_n_sƖɥʇ_D∀Ɛɹ_NㄣƆ_∩0⅄_ℲI}"),  # esolang 'aussie' con flag capovolta: serve un interprete
     ("du22-rage.wav", f"{DU22}/misc/rage/publish/rage.wav", "DUCTF{RAGINGTOWEIRDLIBIDO}"),  # audio stego non coperto (da investigare)
@@ -253,6 +250,16 @@ GAPS += [
 # --- risolto il 05/11 (task jpeg-dqt, verificato con --gaps)
 EXTRA += [
     ("tj25-quant-lost.jpg", f"{TJ25}/forensics/quant/lost.jpg", "tjctf{th3_Li0n_d0esNt_qUanT1ze}"),  # DQT azzerate: ricostruite (all-ones)
+]
+
+# --- risolto il 28/11 (analyzer same: SAME/EAS FSK demod + best-2-of-3)
+# PASS: [PASS] bk23-weather.wav 30.1s status=done got=['bctf{0-mg_i_1-0v3_FS-K_i75_-my_f4v-0ri73_-m0du14-7i0n}', 'ZCZCOSUFLGbctf{0mg_i_10v3_FSK_i75_my_f4v0ri73_m0du147i0n}']
+# PASS: [PASS] warning.wav 70.7s status=done got=['UIUCTF{3RD_W0RST_TOR_OUTBRE@K_EV3R}', 'uiuctf{3rd_w0rst_tor_outbre@k_ev3r}']
+EXTRA += [
+    ("warning.wav", f"{UI23}/misc/tornado_warning/warning.wav",
+     "uiuctf{3rd_w0rst_tor_outbre@k_ev3r}"),  # SAME x3: flag nell'error channel (odd-one-out)
+    ("bk23-weather.wav", f"{BK23}/misc-weather/dist/weather.wav",
+     "bctf{0mg_i_10v3_FSK_i75_my_f4v0ri73_m0du147i0n}"),  # SAME FSK: flag nel messaggio (de-chunked)
 ]
 
 # --- risolto il 05/11 (tar-chain + variante OCR unleet)
