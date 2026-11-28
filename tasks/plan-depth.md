@@ -38,9 +38,9 @@ Ordine per resa/sforzo, tecniche **generiche** (niente regole su misura per una
 singola challenge). Epic di riferimento tra parentesi.
 
 ### deep — rapide e generiche (1 flag ciascuna)
-1. **FSK demod** (audio) → `bk23-weather.wav` · #15
+1. ~~**FSK demod** (audio) → `bk23-weather.wav` · #15~~ ✅ FATTO (28/11, PR #63): consolidato in un unico analyzer `same` insieme a SAME ×3.
 2. **ASK demod** (audio) → `sleepy.mp3` · #15
-3. **SAME ×3** (audio, errori volontari) → `warning.wav` · #15
+3. ~~**SAME ×3** (audio, errori volontari) → `warning.wav` · #15~~ ✅ FATTO (28/11, PR #63): analyzer `same` (SAME/EAS FSK + best-2-of-3 + canale "errors"); `tier=normal` (misurato ~4s, high-yield).
 4. **Morse su musica/rumore** → `blinkybill.wav`, `robot.wav` · #15
 5. **aCropalypse** (dati dopo IEND) → `wani23-apocalypse.png` · #15
 6. **ZIP timestamps** → `b1g_mac.zip` · #13
